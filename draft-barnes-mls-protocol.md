@@ -106,17 +106,152 @@ chains ]]
 
 # Session Management
 
+
+~~~~~
+    A         B   C   D          E
+    |  PreKey |   |   |          |
+    |<--------|   |   |          |
+    |  PreKey |   |   |          |
+    |<------------|   |          |
+    |  PreKey |   |   |          |
+    |<----------------|          |
+    |         |   |   |          |
+    |  Setup  |   |   |          |
+    |-------->|   |   |          |
+    |  Setup  |   |   |          |
+    |------------>|   |          |
+    |  Setup  |   |   |          |
+    |---------------->|          |
+    |         |   |   |          |
+    ~         ~   ~   ~          ~
+    |         |   |   |          |
+    |  Setup  |   |   |          |
+    |--------------------------->|
+    |         |   |   |          |
+    |   Add   |   |   |          |
+    |-------->|   |   |          |
+    |------------>|   |          |
+    |---------------->|          |
+    |         |   |   |          |
+    ~         ~   ~   ~          ~
+    |         |   |   |          |
+    |         |   |   |  Update  |
+    |         |   |   |<---------|
+    |         |   |<-------------|
+    |         |<-----------------|
+    |<---------------------------|
+    |         |   |   |          |
+~~~~~
+
+
 ## State Machine
+
+Each endpoint caches the following state:
+
+* For the group:
+  * The current epoch
+  * The list of identity keys for the group
+  * The current frontier
+  * The current preStageKey
+* For the endpoint:
+  * Index in the tree
+  * Leaf key pair
+  * Copath
+
+
+~~~~~
+                  +-----------------+
+                  |      START      |---+
+                  +-----------------+   | Not space creator
+                        |               | Send PreKey
+          Space creator |               V
+            Set epoch=0 |       +-----------------+
+                        |       |    ADD-WAIT     |
+                        |       +-----------------+
+               +---+    |               |
+      Send Add |   |    |               | Recv Setup
+               +->+-----------------+   | 
+                  |  JOINED(epoch)  |<--+
+               +->+-----------------+
+   Send Update |   |    |    |
+               +---+    |    |
+                        |    |
+                        |    | Recv Add(epoch+1, ...)
+                        V    V
+                  +-----------------+
+                  | JOINED(epoch+1) |
+                  +-----------------+
+~~~~~
+
 
 ## Messages
 
+~~~~~
+enum {
+  (255)
+} ARTMessageType;
+
+struct {
+  SignatureScheme algorithm;
+  opaque key<1..2^16-1>;
+} SignatureKey;
+
+struct {
+  ARTMessageType type;
+  opaque message;
+  PublicKey publicKey;
+  opaque signature<1..2^16-1>;
+} ARTMessage;
+
+struct {
+  KeyShareEntry value;
+  uint16 size;
+} FrontierEntry;
+~~~~~
+
 ### PreKey
 
-### Initiate
+~~~~~
+struct {
+  uint32 preKeyID;
+  KeyShareEntry preKey;
+} PreKey;
+~~~~~
+
+### Setup
+
+~~~~~
+struct {
+  uint32 epoch;
+  uint32 index;
+  uint32 preKeyID;
+  KeyShareEntry identities<1..2^16-1>;
+  KeyShareEntry ephemeralKey;
+  KeyShareEntry copath<1..2^16-1>;
+  FrontierEntry frontier<1..2^16-1>;
+  opaque wrappedPreStageKey<1..2^16-1>;
+} Setup;
+~~~~~
 
 ### Add
 
+~~~~~
+struct {
+  uint32 epoch;
+  KeyShareEntry newIdentity;
+  KeyShareEntry directPath<1..2^16-1>;
+} Add;
+~~~~~
+
 ### Update
+
+~~~~~
+struct {
+  uint32 epoch;
+  uint32 index;
+  KeyShareEntry directPath<1..2^16-1>;
+} Setup;
+~~~~~
 
 # Security Considerations
 
