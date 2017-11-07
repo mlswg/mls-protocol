@@ -102,7 +102,8 @@ also be efficiently achieved.
 ## Computing the Root Key
 
 ART uses a recursive structure, in which every node is a Diffie-Hellman public
-key or key pair. The value of a given parent node's private key is computed as follows:
+key or key pair. The value of a given parent node's private key is computed as
+follows:
 
 ~~~~
      KDF(DH(Alice, Bob))
@@ -117,7 +118,38 @@ The ART root secret is the private Diffie-Hellman key of the root of the tree.
 This should not be used directly within the protocol, but rather computed into a
 Stage Key (TODO: below).
 
+For this document, we will use the shorthand notation [A,B] to indicate
+KDF(DH(Alice, Bob)).
+
 ## Updating a Leaf Key Pair
+
+Changing a leaf DH key will inherently update its entire path to and including the
+root.
+
+~~~~
+         [[A,B],[C,D]]
+        /             \
+       /               \
+  [A,B]                 [C,D]
+ /     \               /     \
+A       B             C       D
+~~~~
+
+In the above tree, if C updates to C', the path of all nodes referencing C is updated,
+resulting in the below tree.
+
+~~~~
+         [[A,B],[C',D]]
+        /              \
+       /                \
+  [A,B]                  [C',D]
+ /     \                /      \
+A       B             C'        D
+~~~~
+
+C must transmit the public keys of her entire path to the other participants in the tree.
+Each participant will update their copath with their respective element from this path,
+and thus recompute the same updated tree that C has computed.
 
 ## Adding a Leaf
 
