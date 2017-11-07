@@ -26,6 +26,11 @@ author:
     name: Emad Omara
     organization: Google
     email: emadomara@google.com
+ -
+    ins: K. Cohn-Gordon
+    name: Katriel Cohn-Gordon
+    organization: University of Oxford
+    email: me@katriel.co.uk
 
 
 normative:
@@ -41,9 +46,10 @@ security mechanisms to ensure that messages are only accessible to
 the communicating endpoints, not any servers involved in delivering
 messages.  Establishing keys to provide such protections is
 challenging for group chat settings, in which more than two
-participants need to agree on a key.  In this document, we specify a
-group key establishment protocol that provides efficient group key
-establishment with forward secrecy and post-compromise security.
+participants need to agree on a key but may not be online at the same
+time.  In this document, we specify a group key establishment
+protocol that provides efficient asynchronous group key establishment
+with forward secrecy and post-compromise security.
 
 
 --- middle
