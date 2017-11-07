@@ -20,7 +20,7 @@ author:
     ins: J. Millican
     name: Jon Millican
     organization: Facebook
-    email: j.r.millican@gmail.com
+    email: jmillican@fb.com
  -
     ins: E. Omara
     name: Emad Omara
