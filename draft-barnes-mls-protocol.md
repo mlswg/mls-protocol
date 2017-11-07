@@ -63,7 +63,33 @@ document are to be interpreted as described in {{!RFC2119}}.
 
 # Asynchronous Ratchet Trees
 
+The Asynchronous Ratcheting Tree is the building block around which this
+protocol is built. It was originally specified by Cohn-Gordon et al with a
+formal proof of its security properties (https://eprint.iacr.org/2017/666).
+
+ART uses a Diffie-Hellman Key Tree to derive a shared secret for a group,
+allowing it to be efficiently updated (ratcheted) by any group member (leaf
+node) to provide the properties of Forward Secrecy and Post-Compromise Security.
+Alongside ratcheting, receiving messages, and changing the group membership can
+also be efficiently achieved.
+
 ## Computing the Root Key
+
+ART uses a recursive structure, in which every node is a Diffie-Hellman public
+key or key pair. The value of a given parent node's private key is computed as follows:
+
+~~~~
+     KDF(DH(Alice, Bob))
+    /                   \
+   /                     \
+Alice                    Bob
+~~~~
+
+(TODO: define our KDF).
+
+The ART root secret is the private Diffie-Hellman key of the root of the tree.
+This should not be used directly within the protocol, but rather computed into a
+Stage Key (TODO: below).
 
 ## Updating a Leaf Key Pair
 
