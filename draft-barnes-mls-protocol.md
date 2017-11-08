@@ -164,6 +164,28 @@ chains ]]
 
 # Session Management
 
+In MLS, the endpoints involved in a session collaborate to establish
+and maintain an Asynchronous Ratchet Tree for the session.  There
+are three major phases in the life-cycle of a group:
+
+* Initializing the tree
+* Adding a new endpoint
+* Updating a leaf in the tree
+
+Leaves are never removed from tree.  One endpoint can remove another
+endpoint by updating that endpoint's leaf to a key that the endpoint
+being removed does not possess.
+
+At any point, an endpoint can publish a PreKey message, which
+contains information that another endpoint can use to add that
+endpoint to a group.  Typically applications provide a PreKey cache
+to which endpoints periodically push fresh PreKey messages.
+
+Suppose an endpoint A wants to initiate a group conversation with
+otehr endpoints B, C, and D.  A accomplishes this by downloading
+PreKeys fro B, C, and D, computing a tree over (A, B, C, D), and
+sending different individual Setup messages to B, C, and D.
+
 
 ~~~~~
     A         B   C   D          E
@@ -181,7 +203,20 @@ chains ]]
     |  Setup  |   |   |          |
     |---------------->|          |
     |         |   |   |          |
-    ~         ~   ~   ~          ~
+~~~~~
+
+If A subsequently wants to add another endpoint E to the
+conversation, then the process is similar.  First A downloads a
+PreKey for E and uses it to add E to the tree.  From these
+computations, A generates a Setup message for E and an Add message
+that can be broadcast to B, C, and D.
+
+
+~~~~~
+    A         B   C   D          E
+    |         |   |   |          |
+    |  PreKey |   |   |          |
+    |<---------------------------|
     |         |   |   |          |
     |  Setup  |   |   |          |
     |--------------------------->|
@@ -191,7 +226,15 @@ chains ]]
     |------------>|   |          |
     |---------------->|          |
     |         |   |   |          |
-    ~         ~   ~   ~          ~
+~~~~~
+
+Upon being added, E should update its leaf key so that its leaf key
+will not be known to A.  To update a leaf key in the tree, an
+endpoint simply generates a new key pair, creates an Update message,
+and broadcasts it to the group.
+
+~~~~~
+    A         B   C   D          E
     |         |   |   |          |
     |         |   |   |  Update  |
     |         |   |   |<---------|
@@ -204,7 +247,9 @@ chains ]]
 
 ## State Machine
 
-Each endpoint caches the following state:
+Each MLS endpoint caches a view of the overall tree including
+certain global elements and certain elements specific to the
+endpoint:
 
 * For the group:
   * The current epoch
@@ -216,6 +261,8 @@ Each endpoint caches the following state:
   * Leaf key pair
   * Copath
 
+MLS messages synchronize this state information across the
+participants in the group.
 
 ~~~~~
                   +-----------------+
@@ -227,19 +274,30 @@ Each endpoint caches the following state:
                         |       |    ADD-WAIT     |
                         |       +-----------------+
                +---+    |               |
-      Send Add |   |    |               | Recv Setup
+Send Setup+Add |   |    |               | Recv Setup
                +->+-----------------+   | 
                   |  JOINED(epoch)  |<--+
                +->+-----------------+
    Send Update |   |    |    |
                +---+    |    |
-                        |    |
                         |    | Recv Add(epoch+1, ...)
                         V    V
                   +-----------------+
                   | JOINED(epoch+1) |
                   +-----------------+
+                        |    |
+                        V    V
+                       ...  ...
 ~~~~~
+
+Note that no state is modified when an endpoint sends a Setup, Add,
+or Update message.  Because all endpoints need to process updates to
+the tree in the same order, there is a risk that any given message
+of these types will be rejected.  To avoid the need to roll back on
+such rejections, endpoints only apply Setup / Add / Update messages
+once they are published and accepted by the group.  For more
+discussion of how modifications to the tree should be sequenced, see
+{{#sequencing-of-modifications}}.
 
 
 ## Messages
@@ -310,6 +368,10 @@ struct {
   KeyShareEntry directPath<1..2^16-1>;
 } Setup;
 ~~~~~
+
+## Sequencing of Modifications
+
+[[ Endpoints need to make modifications to the tree in the same order.  How does that happen? ]]
 
 # Security Considerations
 
