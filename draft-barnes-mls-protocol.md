@@ -86,6 +86,160 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
 "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
 document are to be interpreted as described in {{!RFC2119}}.
 
+* Participant: Holder of a private key.  Could be user or device
+* Group: A collection of participants with shared private state
+* Assumed to be used over a messaging system, see arch doc
+
+
+# Protocol Overview
+
+* Goal: Produce a series of states whose private values are known only to group members
+  * Forward secrecy
+  * Post compromise secrecy (with respect to...)
+* Creator of a group creates an initial state that includes an initial set of participants
+* Participants exchange message to produce new shared states
+  * Add and remove participants
+  * Update for PCS
+* Each state has a causal link to its successor(s); a logical DAG
+
+* Potential participants publish UserInitKey messages
+* Init:
+  * Group creator downloads UserInitKeys for participants, broadcasts GroupInit message
+  * Participants receive GroupInit message, compute group state
+  * Note that creator is "double-joined" with all participants until they update
+* Group-initiated Add
+  * Group member downloads UserInitKey for new participant, broadcasts GroupAdd message
+  * Existing participants receive GroupAdd, compute new group state from current state
+  * New participant receives GroupAdd, computes new group state from private key ~ UserInitKey
+  * Note that add sender is "double-joined" until all participants update
+* User-initiated Add
+  * On state changes, relevant public data gathered in a GroupInitKey message
+  * New participant downloads GroupInitKey, brodcasts UserAdd message
+  * Existing participants receive UserAdd, compute new group state from current state
+  * New participant receives UserAdd, computes new group state from private key
+* Key Update
+  * Updating participant generates fresh key pair and Update message
+  * Participants receive Update message, compute new group state
+  * This prevents the holder of the old key pair from computing future group states
+* Delete
+  * Deleting participant generates and broadcasts a Delete message
+  * Participants receive Delete message, compute new group state
+  * This prevents the holders of the deleted users' private keys from computing future group states
+  * Those private keys will still be included in group computations until siblings / cousins update
+
+
+# Balanced Binary Trees
+
+* The protocol uses two types of tree structures:
+  * Merkle trees for commitment to a set + compact membership proofs
+  * Ratchet trees for deriving secrets shared among a group of participants
+  * Both trees share a common structure and terminology
+  * Differ only in how nodes are created and combined
+* Structure: Maximally balanced
+  * Note flat representation
+* Terminology:
+  * Frontier of a tree
+  * Copath for a node in a tree (== Merkle inclusion proof)
+  * Direct path for a node in a tree
+* Instance must specify:
+  * Required crypto parameters
+  * Node content
+  * Combining rule
+  * Leaf creation rule
+
+
+## Merkle Trees
+
+* Used to generate a compact committment of a collection of values, with short proofs
+* Requires: Hash function
+* Node content: Hash value
+* Leaf creation: Leaf hash
+* Combining rule: Pair hash
+
+
+## Ratchet Trees
+
+* Used to generate secrets known to a group
+* Requires:
+  * DH group
+  * Injection from DH outputs to private keys
+* Node content:
+  * Public key
+  * Private key (optional)
+  * Privaate key seed data (optional)
+* Leaf creation: Just import data
+
+
+### Blank Ratchet Tree Nodes
+
+* Nodes can have a special value "\_"
+* Combining rules:
+  * \_ + \_ = \_
+  * \_ + A = A + \_ = A
+* Effectively moves neighbor up a level without changing tree structure
+
+
+### Punctured Ratchet Trees
+
+* Used to send to a subset of a ratchet tree group, for update or delete
+* "Punctured tree" == ordered list of intermediate nodes that cover all but punctures
+  * Ordering is breadth-first
+  * ... or equivalently, numerical
+* To compute from a full ratchet tree + list of punctures:
+  * For each puncture, mark nodes in its direct path as "not OK"
+  * Puncture tree heads are nodes that are OK whose parents are not OK
+
+
+[[ Following sections to be filled from earlier PDF/code + diffs from the London meeting ]]
+
+# Group State
+
+# State-Changing Messages
+
+## Roster Signing
+
+## Init
+
+## GroupAdd
+
+## UserAdd
+
+## Update
+
+## Delete
+
+
+# Sequencing of State Changes [stub]
+
+* Each state-changing message is premised on a given starting state
+* Thus, there is a need to deconflict if two messages are generated from the same state
+* General approaches
+  * Have the server enforce a total order
+  * Create some in-message tie-breaker
+* In any case, risk of starvation
+
+
+# Message Protection [stub]
+
+* The primary purpose of this protocol is AKE
+* No current specification for how negotiated keys are used
+* Message protection scheme will need to indicate which state a key was derived from
+* Will probably also want:
+  * Hash-based key ratchets
+  * ... per sender, to avoid races
+  * Transcript integrity
+
+
+# Security Considerations [stub]
+
+* Key Secrecy
+* Authentication
+* Re-use of InitKeys
+
+
+
+
+# [[[ OLD TEXT BELOW THIS LINE ]]]
 
 # Asynchronous Ratchet Trees
 
