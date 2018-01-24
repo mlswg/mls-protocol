@@ -491,7 +491,7 @@ UserInitKey to initialize his state as follows:
 
 * Compute the participant's leaf key pair by combining the init key in
   the UserInitKey with the prior epoch's update key pair
-* Use the frontiers in the GroupPreKey of the Handshake message to
+* Use the frontiers in the GroupInitKey of the Handshake message to
   add its keys to the trees
 
 An existing participant receiving a GroupAdd message first verifies
@@ -500,7 +500,7 @@ against the identity tree held by the participant.  The participant
 then updates its state as follows:
 
 * Compute the new participant's leaf key pair by combining the leaf
-  key in the UserPreKey with the prior epoch add key pair
+  key in the UserInitKey with the prior epoch add key pair
 * Update the group's identity tree and ratchet tree with the new
   participant's information
 
@@ -530,13 +530,13 @@ struct {
 A new participant generates this message using the following steps:
 
 * Fetch a GroupInitKey for the group
-* Use the frontiers in the GroupPreKey to add its keys to the trees
+* Use the frontiers in the GroupInitKey to add its keys to the trees
 * Compute the direct path from the new participant's leaf in the new
   ratchet tree (the add\_path).
 
 An existing participant receiving a UserAdd first verifies the
 signature on the message, then verifies its identity inclusion proof
-against the updated identity tree expressed in the GroupPreKey of
+against the updated identity tree expressed in the GroupInitKey of
 the Handshake message (since the signer is not included in the prior
 group state held by the existing participant).  The participant then
 updates its state as follows:
