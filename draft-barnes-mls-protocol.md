@@ -171,7 +171,7 @@ document are to be interpreted as described in {{!RFC2119}}.
 * Node content:
   * Public key
   * Private key (optional)
-  * Privaate key seed data (optional)
+  * Private key seed data (optional)
 * Leaf creation: Just import data
 
 
@@ -195,23 +195,446 @@ document are to be interpreted as described in {{!RFC2119}}.
   * Puncture tree heads are nodes that are OK whose parents are not OK
 
 
-[[ Following sections to be filled from earlier PDF/code + diffs from the London meeting ]]
-
 # Group State
 
-# State-Changing Messages
+Logically, the state of an MLS group at a given time comprises:
 
-## Roster Signing
+* A group ID 
+* A ciphersuite used for cryptographic computations
+* A Merkle tree over the participants' identity keys
+* A ratchet tree over the participants' leaf key pairs
+* A message root key (known only to participants)
+* An add key pair (private key known only to participants)
+* An init secret (known only to participants)
+
+Since a group can evolve over time, a session logically comprises a
+sequence of states.  The time in which each individual state is used
+is called an "epoch", and each state is assigned an epoch number
+that increments when the state changes.
+
+MLS handshake message provide each node with enough information
+about the trees to authenticate messages within the group and
+compute the group secrets.
+
+Thus, each participant will need store the following information
+about each state of the group:
+
+1. The participant's index in the identity/ratchet trees
+2. The private key for the participant's leaf key pair
+3. The private key for the participant's identity key pair
+4. The current epoch number
+5. The group ID
+6. A subset of the identity tree comprising at least the copath for
+   the participant's leaf
+7. A subset of the ratchet tree comprising at least the copath for
+   the participant's leaf
+8. The current message root key
+9. The current update key pair
+10. The current init secret
+
+
+## Cryptographic Objects
+
+Each MLS session uses a single cipher suite that specifies the
+following values to be used in group key computations:
+
+* A hash function
+* A Diffie-Hellman group
+
+Public keys used in the protocol are opaque values in a format
+defined by the ciphersuite.
+
+~~~~~
+uint16 CipherSuite;
+opaque DHPublicKey<1..2^16-1>;
+opaque SignaturePublicKey<1..2^16-1>;
+~~~~~
+
+
+## Key Schedule
+
+Group keys are derived using the HKDF-Extract and HKDF-Expand
+functions as defined in {{!RFC5869}}, as well as the functions
+defined below:
+
+~~~~~
+Derive-Secret(Secret, Label, ID, Epoch, Msg) =
+     HKDF-Expand(Secret, HkdfLabel, Length)
+
+Where HkdfLabel is specified as:
+
+struct {
+    uint16 length = Length;
+    opaque label<7..255> = "mls10 " + Label;
+    opaque group_id<0..2^16-1> = ID;
+    uint32 epoch = Epoch;
+    opaque message<1..2^16-1> = Msg
+} HkdfLabel;
+~~~~~
+
+The Hash function used by HKDF is the cipher suite hash algorithm.
+Hash.length is its output length in bytes.  In the below diagram:
+
+* HKDF-Extract takes its Salt argument form the top and its IKM
+  argument from the left
+* Derive-Secret takes its Secret argument from the incoming arrow
+
+When processing a handshake message, a participant combines the
+following information to derive new epoch secrets:
+
+* The init secret from the previous epoch
+* The update secret for the current epoch
+* The handshake message that caused the epoch change
+* The current group ID and epoch
+
+The derivation of the epoch key pair depends on the change being
+made.  For the first epoch, when there is no previous epoch key
+pair, the creator of the group generates a fresh key pair and
+publishes it to the initial set of participants.
+
+Given these inputs, the derivation of secrets for an epoch
+proceeds as shown in the following diagram:
+
+~~~~~
+               Init Secret [n-1]
+                     |
+                     V
+Update Secret -> HKDF-Extract = Epoch Secret
+                     |
+                     |
+                     +--> Derive-Secret(., "msg", ID, Epoch, Msg)
+                     |       = message_master_secret
+                     |
+                     +--> Derive-Secret(., "add", ID, Epoch, Msg)
+                     |       |
+                     |       V
+                     |    Derive-Key-Pair(.) = Add Key Pair
+                     |
+                     V
+               Derive-Secret(., "init", ID, Epoch, Msg)
+                     |
+                     V
+               Init Secret [n-1]
+~~~~~
+
+
+# Initialization Keys
+
+In order to facilitate asynchronous addition of participants to a
+group, it is possible to pre-publish initialization keys that
+provide some public information about a user or group.  UserInitKey
+messages provide information a user that a group member can use to
+add the user to a group without the user being online.  GroupInitKey
+messages provide information about a group that a new user can use
+to join the group without any of the existing members of the group
+being online.
+
+
+## UserInitKey
+
+A UserInitKey object specifies what cipher suites a client supports,
+as well as providing public keys that the client can use for key
+derivation and signing.  The client's identity key is intended to be
+stable through the lifetime of the group; there is no mechanism to
+change it.  Init keys are intend to be used one time only (or
+perhaps a small number of times, see {{#init-key-reuse}}).
+
+The init\_keys array MUST have the same length as the cipher\_suites
+array, and each entry in the init\_keys array MUST be a public key
+for the DH group defined by the corresponding entry in the
+cipher\_suites array.
+
+The whole structure is signed using the client's identity key.  A
+UserInitKey object with an invalid signature field MUST be
+considered mal-formed.  The input to the signature computation
+comprises all of the fields except for the signture field.
+
+~~~~~
+struct {
+    CipherSuite cipher_suites<0..255>;
+    DHPublicKey init_keys<1..2^16-1>;
+    SignaturePublicKey identity_key;
+    SignatureScheme algorithm;
+    opaque signature<0..2^16-1>;
+} UserInitKey;
+~~~~~
+
+
+## GroupInitKey
+
+A GroupInitKey object specifies the aspects of a group's state that
+a new member needs to initialize its state (together with an
+identity key and a fresh leaf key pair).
+
+* The current epoch number
+* The number of participants currently in the group
+* The group ID
+* The cipher suite used by the group
+* The public key of the current update key pair for the group
+* The frontier of the identity tree, as a sequence of hash values
+* The frontier of the ratchet tree, as a sequence of public keys
+
+GroupInitKey messages are not themselves signed.  A GroupInitKey
+should not be published "bare"; instead, it should be published by
+constructing a handshake message with type "none", which will
+include a signature by a member of the group and a proof of
+membership in the group.
+
+~~~~~
+struct {
+    uint32 epoch;
+    uint32 group_size;
+    opaque group_id<0..2^16-1>;
+    CipherSuite cipher_suite;
+    DHPublicKey update_key;
+    MerkleNode identity_frontier<0..2^16-1>;
+    DHPublicKey ratchet_frontier<0..2^16-1>;
+} GroupInitKey;
+~~~~~
+
+
+# Handshake Messages
+
+Over the lifetime of a group, changes need to be made to the group's
+state:
+
+* Initializing a group
+* A current member adding a new participant
+* A new participant adding themselves
+* A current participant updating its leaf key
+* A current member deleting another current member
+
+In MLS, these changes are accomplished by broadcasting "handshake"
+messages to the group.  Note that unlike TLS and DTLS, there is not
+a consolidated handshake phase to the protocol.  Rather, handshake
+messages are exchanged throughout the lifetime of a group, whenever
+a change is made to the group state.
+
+An MLS handshake message encapsulates a specific message that
+accomplishes a change in group state, and also includes two other
+important features: First, it provides a GroupInitKey so that a new
+participant can observe the latest state of the handshake and
+initialize itself.  Second, it provides a signature by a member of
+the group, together with a Merle inclusion proof that demonstrates
+that the signer is a legitimate member of the group.
+
+Before considering a handshake message valid, the recipient MUST
+verify both that the signature is valid and that the Merkle
+inclusion proof is valid.  The input to the signature computations
+comprises the entire handshake message except for the signature
+field.
+
+The Merkle tree head to be used for validating the inclusion
+proof MUST be one that the recipient trusts to represent the current
+list of participant identity keys.
+
+~~~~~
+enum {
+    none(0), 
+    init(1),
+    user_add(2), 
+    group_add(3),
+    update(4),
+    delete(5),
+    (255)
+} HandshakeType;
+
+struct {
+    HandshakeType msg_type;
+    uint24 inner_length;
+    select (Handshake.msg_type) {
+        case none:      struct{};
+        case init:      Init;
+        case user_add:  UserAdd;
+        case group_add: GroupAdd;
+        case update:    Update;
+        case delete:    Delete;
+    };
+
+    GroupInitKey init_key;
+
+    uint32 signer_index;
+    MerkleNode identity_proof<1..2^16-1>;
+    SignaturePublicKey identity_key;
+
+    SignatureScheme algorithm;
+    opaque signature<1..2^16-1>;
+} Handshake;
+~~~~~
+
 
 ## Init
 
+[[ Direct initialization is currently undefined.  A participant can
+create a group by initializing its own state to reflect a group
+including only itself, then adding the initial participants.  This
+has computation and communication complexity O(N log N) instead of
+the O(N) complexity of direct initialization. ]]
+
+
 ## GroupAdd
+
+An GroupAdd message is sent by a group member to add a new
+participant to the group.  The contents of the message are simply
+the UserInitKey for the user being added.
+
+~~~~~
+struct {
+    UserInitKey init_key;
+} GroupAdd;
+~~~~~
+
+A group member generates such a message by downloading a UserInitKey
+for the user to be added.  The added participant processes the
+message together with the private key corresponding to the
+UserInitKey to initialize his state as follows:
+
+* Compute the participant's leaf key pair by combining the init key in
+  the UserInitKey with the prior epoch's update key pair
+* Use the frontiers in the GroupPreKey of the Handshake message to
+  add its keys to the trees
+
+An existing participant receiving a GroupAdd message first verifies
+the signature on the message, then verifies its identity proof
+against the identity tree held by the participant.  The participant
+then updates its state as follows:
+
+* Compute the new participant's leaf key pair by combining the leaf
+  key in the UserPreKey with the prior epoch add key pair
+* Update the group's identity tree and ratchet tree with the new
+  participant's information
+
+The update secret resulting from this change is the output of a DH
+computation between the private key for the root of the ratchet tree
+and the add public key from the previous epoch.
+
+[[ ALTERNATIVE: The sender could also generate the new participant's
+leaf using a fresh key pair, as opposed to a key pair derived from
+the prior epoch's secret.  This would reduce the "double-join"
+problem, at the cost of the GroupAdd having to include a new ratchet
+frontier. ]]
+
 
 ## UserAdd
 
+A UserAdd message is sent by a new group participant to add
+themselves to the group, based on having already had access to a
+GroupInitKey for the group.
+
+~~~~~
+struct {
+    DHPublicKey add_path<1..2^16-1>;
+} UserAdd;
+~~~~~
+
+A new participant generates this message using the following steps:
+
+* Fetch a GroupInitKey for the group
+* Use the frontiers in the GroupPreKey to add its keys to the trees
+* Compute the direct path from the new participant's leaf in the new
+  ratchet tree (the add\_path).
+
+An existing participant receiving a UserAdd first verifies the
+signature on the message, then verifies its identity inclusion proof
+against the updated identity tree expressed in the GroupPreKey of
+the Handshake message (since the signer is not included in the prior
+group state held by the existing participant).  The participant then
+updates its state as follows:
+
+* Update trees with the descriptions in the new GroupInitKey
+* Update the local ratchet tree with the add path in the UserAdd
+  message, replacing any common nodes with the values in the add
+  path
+
+The update secret resulting from this change is the secret for the
+root node of the ratchet tree.
+
+
 ## Update
 
+An Update message is sent by a group participant to update its leaf
+key pair.  This operation provides post-compromise security with
+regard to the participant's prior leaf private key.
+
+~~~~~
+struct {
+    DHPublicKey ratchetPath<1..2^16-1>;
+} Update;
+~~~~~
+
+The sender of an Update message creates it in the following way:
+
+* Generate a fresh leaf key pair
+* Compute its direct path in the current ratchet tree
+
+An existing participant receiving a Update message first verifies
+the signature on the message, then verifies its identity proof
+against the identity tree held by the participant.  The participant
+then updates its state as follows:
+
+* Update the cached ratchet tree by replacing nodes in the direct
+  path from the updated leaf with the corresponding nodes in the
+  Update message
+
+The update secret resulting from this change is the secret for the
+root node of the ratchet tree.
+
+
 ## Delete
+
+A delete message is sent by a group member to remove one or more
+participants from the group.
+
+~~~~~
+struct {
+    uint32 deleted<1..2^16-1>;
+    DHPublicKey heads<1..2^16-1>;
+    DHPublicKey path<1..2^16-1>;
+} Delete;
+~~~~~
+
+The sender of a Delete message creates it in the following way:
+
+* Compute the ordered list of subtree heads by puncturing the deleted
+  participants' leaves from the current ratchet tree
+* Generate a fresh DH key pair and initialize a "delete path" to the
+  one-element list containing that key pair
+* For each subtree head in the list:
+  * Perform a DH computation between the subtree head's public key
+    and the private key from the last key pair in the delete path
+  * Derive a DH key pair from the output of that DH computation
+  * Append the resulting key pair to the delete path
+
+The head field in the Delete message holds the public keys
+corresponding to the subtree heads.  The path field holds the public
+keys corresponding to the delete path, with the last element omitted
+(it is unnecessary).  As a result, the heads and path arrays MUST
+have the same length.
+
+Note that the sender of a Delete message must enough information
+about the ratchet tree so that it has all of the subtree heads
+resulting from the puncture operation.  This criterion is met if the
+sender has a copath for each of the deleted participants.
+
+An existing participant receiving a Delete message first verifies
+the signature on the message, then verifies its identity proof
+against the identity tree held by the participant.  The participant
+then updates its state as follows:
+
+* Compute the ordered list of subtree heads by puncturing the deleted
+  participants' leaves from the current ratchet tree
+* Find a public key in the list of subtree heads for which the
+  private key is known to the recipient
+* Perform a DH computation between the known subtree head private
+  key and the public key in the delete path at the same index
+* For each remaining element in the list of subtree heads:
+  * Derive a DH key pair from the last DH output
+  * Perform a DH computation between the private key of the derived
+    key pair with the subtree head's public key
+
+The update secret for this change is the last DH output from the
+delete path.
+
 
 
 # Sequencing of State Changes [stub]
@@ -268,309 +691,11 @@ If additional clear-text fields are attached to messages (like the counter), tho
 
 Alternatively, the hash of the previous message can also be included as an additional field rather than change the encryption key. This allows for a more flexible approach, because the receiving party can choose to ignore it (if the value is not known, or if transcript security is not required).
 
-# Security Considerations [stub]
-
-* Key Secrecy
-* Authentication
-* Re-use of InitKeys
-
-
-
-
-# [[[ OLD TEXT BELOW THIS LINE ]]]
-
-# Asynchronous Ratchet Trees
-
-The Asynchronous Ratcheting Tree is the building block around which this
-protocol is built. It was originally specified by Cohn-Gordon et al with a
-formal proof of its security properties (https://eprint.iacr.org/2017/666).
-
-ART uses a Diffie-Hellman Key Tree to derive a shared secret for a group,
-allowing it to be efficiently updated (ratcheted) by any group member (leaf
-node) to provide the properties of Forward Secrecy and Post-Compromise Security.
-Alongside ratcheting, receiving messages, and changing the group membership can
-also be efficiently achieved.
-
-## Computing the Root Key
-
-ART uses a recursive structure, in which every node is a Diffie-Hellman public
-key or key pair. The value of a given parent node's private key is computed as
-follows:
-
-~~~~
-     KDF(DH(Alice, Bob))
-    /                   \
-   /                     \
-Alice                    Bob
-~~~~
-
-(TODO: define our KDF).
-
-The ART root secret is the private Diffie-Hellman key of the root of the tree.
-This should not be used directly within the protocol, but rather computed into a
-Stage Key (TODO: below).
-
-For this document, we will use the shorthand notation [A,B] to indicate
-KDF(DH(Alice, Bob)).
-
-## Updating a Leaf Key Pair
-
-Changing a leaf DH key will inherently update its entire path to and including the
-root.
-
-~~~~
-         [[A,B],[C,D]]
-        /             \
-       /               \
-  [A,B]                 [C,D]
- /     \               /     \
-A       B             C       D
-~~~~
-
-In the above tree, if C updates to C', the path of all nodes referencing C is updated,
-resulting in the below tree.
-
-~~~~
-         [[A,B],[C',D]]
-        /              \
-       /                \
-  [A,B]                  [C',D]
- /     \                /      \
-A       B             C'        D
-~~~~
-
-C must transmit the public keys of her entire path to the other participants in the tree.
-Each participant will update their copath with their respective element from this path,
-and thus recompute the same updated tree that C has computed.
-
-## Adding a Leaf
-
-## Removing a Leaf
-
-# Session State
-
-[[ Session comprised of (1) ART (2) pre-stage key (3) message key
-chains ]]
-
-[[ Each node caches... ]]
-
-# Session Management
-
-In MLS, the endpoints involved in a session collaborate to establish
-and maintain an Asynchronous Ratchet Tree for the session.  There
-are three major phases in the life-cycle of a group:
-
-* Initializing the tree
-* Adding a new endpoint
-* Updating a leaf in the tree
-
-Leaves are never removed from tree.  One endpoint can remove another
-endpoint by updating that endpoint's leaf to a key that the endpoint
-being removed does not possess.
-
-At any point, an endpoint can publish a PreKey message, which
-contains information that another endpoint can use to add that
-endpoint to a group.  Typically applications provide a PreKey cache
-to which endpoints periodically push fresh PreKey messages.
-
-Suppose an endpoint A wants to initiate a group conversation with
-otehr endpoints B, C, and D.  A accomplishes this by downloading
-PreKeys fro B, C, and D, computing a tree over (A, B, C, D), and
-sending different individual Setup messages to B, C, and D.
-
-
-~~~~~
-    A         B   C   D          E
-    |  PreKey |   |   |          |
-    |<--------|   |   |          |
-    |  PreKey |   |   |          |
-    |<------------|   |          |
-    |  PreKey |   |   |          |
-    |<----------------|          |
-    |         |   |   |          |
-    |  Setup  |   |   |          |
-    |-------->|   |   |          |
-    |  Setup  |   |   |          |
-    |------------>|   |          |
-    |  Setup  |   |   |          |
-    |---------------->|          |
-    |         |   |   |          |
-~~~~~
-
-If A subsequently wants to add another endpoint E to the
-conversation, then the process is similar.  First A downloads a
-PreKey for E and uses it to add E to the tree.  From these
-computations, A generates a Setup message for E and an Add message
-that can be broadcast to B, C, and D.
-
-
-~~~~~
-    A         B   C   D          E
-    |         |   |   |          |
-    |  PreKey |   |   |          |
-    |<---------------------------|
-    |         |   |   |          |
-    |  Setup  |   |   |          |
-    |--------------------------->|
-    |         |   |   |          |
-    |   Add   |   |   |          |
-    |-------->|   |   |          |
-    |------------>|   |          |
-    |---------------->|          |
-    |         |   |   |          |
-~~~~~
-
-Upon being added, E should update its leaf key so that its leaf key
-will not be known to A.  To update a leaf key in the tree, an
-endpoint simply generates a new key pair, creates an Update message,
-and broadcasts it to the group.
-
-~~~~~
-    A         B   C   D          E
-    |         |   |   |          |
-    |         |   |   |  Update  |
-    |         |   |   |<---------|
-    |         |   |<-------------|
-    |         |<-----------------|
-    |<---------------------------|
-    |         |   |   |          |
-~~~~~
-
-
-## State Machine
-
-Each MLS endpoint caches a view of the overall tree including
-certain global elements and certain elements specific to the
-endpoint:
-
-* For the group:
-  * The current epoch
-  * The list of identity keys for the group
-  * The current frontier
-  * The current preStageKey
-* For the endpoint:
-  * Index in the tree
-  * Leaf key pair
-  * Copath
-
-MLS messages synchronize this state information across the
-participants in the group.
-
-~~~~~
-                  +-----------------+
-                  |      START      |---+
-                  +-----------------+   | Not space creator
-                        |               | Send PreKey
-          Space creator |               V
-            Set epoch=0 |       +-----------------+
-                        |       |    ADD-WAIT     |
-                        |       +-----------------+
-               +---+    |               |
-Send Setup+Add |   |    |               | Recv Setup
-               +->+-----------------+   | 
-                  |  JOINED(epoch)  |<--+
-               +->+-----------------+
-   Send Update |   |    |    |
-               +---+    |    |
-                        |    | Recv Add(epoch+1, ...)
-                        V    V
-                  +-----------------+
-                  | JOINED(epoch+1) |
-                  +-----------------+
-                        |    |
-                        V    V
-                       ...  ...
-~~~~~
-
-Note that no state is modified when an endpoint sends a Setup, Add,
-or Update message.  Because all endpoints need to process updates to
-the tree in the same order, there is a risk that any given message
-of these types will be rejected.  To avoid the need to roll back on
-such rejections, endpoints only apply Setup / Add / Update messages
-once they are published and accepted by the group.  For more
-discussion of how modifications to the tree should be sequenced, see
-{{#sequencing-of-modifications}}.
-
-
-## Messages
-
-~~~~~
-enum {
-  (255)
-} ARTMessageType;
-
-struct {
-  SignatureScheme algorithm;
-  opaque key<1..2^16-1>;
-} SignatureKey;
-
-struct {
-  ARTMessageType type;
-  opaque message;
-  PublicKey publicKey;
-  opaque signature<1..2^16-1>;
-} ARTMessage;
-
-struct {
-  KeyShareEntry value;
-  uint16 size;
-} FrontierEntry;
-~~~~~
-
-### PreKey
-
-~~~~~
-struct {
-  uint32 preKeyID;
-  KeyShareEntry preKey;
-} PreKey;
-~~~~~
-
-### Setup
-
-~~~~~
-struct {
-  uint32 epoch;
-  uint32 index;
-  uint32 preKeyID;
-  KeyShareEntry identities<1..2^16-1>;
-  KeyShareEntry ephemeralKey;
-  KeyShareEntry copath<1..2^16-1>;
-  FrontierEntry frontier<1..2^16-1>;
-  opaque wrappedPreStageKey<1..2^16-1>;
-} Setup;
-~~~~~
-
-### Add
-
-~~~~~
-struct {
-  uint32 epoch;
-  KeyShareEntry newIdentity;
-  KeyShareEntry directPath<1..2^16-1>;
-} Add;
-~~~~~
-
-### Update
-
-~~~~~
-struct {
-  uint32 epoch;
-  uint32 index;
-  KeyShareEntry directPath<1..2^16-1>;
-} Setup;
-~~~~~
-
-## Sequencing of Modifications
-
-[[ Endpoints need to make modifications to the tree in the same order.  How does that happen? ]]
-
 # Security Considerations
 
-[[ What trust is placed in the server? ]]
+## Confidentiality of the Group Secrets
 
-# IANA Considerations
+## Authentication
 
-# Acknowledgements
+## Init Key Reuse
 
---- back
