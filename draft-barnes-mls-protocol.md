@@ -31,6 +31,11 @@ author:
     name: Katriel Cohn-Gordon
     organization: University of Oxford
     email: me@katriel.co.uk
+ -
+    ins: R. Robert
+    name: Raphael Robert
+    organization: Wire
+    email: raphael@wire.com
 
 
 normative:
@@ -218,6 +223,16 @@ document are to be interpreted as described in {{!RFC2119}}.
   * Create some in-message tie-breaker
 * In any case, risk of starvation
 
+## Server-side enforced ordering
+
+With this approach, the server ensures that incoming messages are added to an ordered queue and outgoing messages are dispatched in the same order. The server is trusted to resolve conflicts during race-conditions (when two members send a message at the same time), as the server doesn't have any additional knowledge thanks to the confidentiality of the messages.
+
+Messages should have a counter field sent in clear-text that can be checked by the server and used for tie-breaking. The counter starts at 0 and is incremented for every new incoming message. If two group members send a message with the same counter, the first message to arrive will be accepted by the server and the second one will be rejected. The rejected message needs to be sent again with the correct counter number.
+
+To prevent counter manipulation by the server, the counter's integrity can be ensured by including the counter in a signed message envelope.
+
+This apllies to all messages, not only state changing messages.
+
 
 # Message Protection [stub]
 
@@ -229,6 +244,29 @@ document are to be interpreted as described in {{!RFC2119}}.
   * ... per sender, to avoid races
   * Transcript integrity
 
+For every epoch, the root key of the ratcheting tree can be used to derive key material for: 
+
+ * symmetric encryption (using AEAD)
+ * symmetric signatures (HMAC) (optional)
+ 
+In addition, asymmetric signatures should be used to ensure message athenticity.
+
+In combination with server-side enforced ordering, data from previous messages can be used (as a salt when hashing) to:
+
+ * add freshness to derived symmetric keys
+ * create channel-binding between messages to achieve some form of transcript security
+ 
+Possible candidates for that are:
+
+ * the key used for the previous message (hash ratcheting)
+ * the counter of the previous message (needs to be known to new members of the group)
+ * the hash of the previous message (strong indication that other participants saw the same history)
+ * ... ?
+ 
+The requirement for this is that all participants know these values.
+If additional clear-text fields are attached to messages (like the counter), those fields can be protected by a signed message envelope.
+
+Alternatively, the hash of the previous message can also be included as an additional field rather than change the encryption key. This allows for a more flexible approach, because the receiving party can choose to ignore it (if the value is not known, or if transcript security is not required).
 
 # Security Considerations [stub]
 
