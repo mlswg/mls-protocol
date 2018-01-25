@@ -693,6 +693,9 @@ Alternatively, the hash of the previous message can also be included as an addit
 
 # Security Considerations
 
+The security goals of MLS are described in [[the architecture doc]]. A complete security analysis is
+outside of the scope of this document.
+
 ## Confidentiality of the Group Secrets
 
 ## Authentication
