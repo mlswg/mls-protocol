@@ -415,7 +415,7 @@ accomplishes a change in group state, and also includes two other
 important features: First, it provides a GroupInitKey so that a new
 participant can observe the latest state of the handshake and
 initialize itself.  Second, it provides a signature by a member of
-the group, together with a Merle inclusion proof that demonstrates
+the group, together with a Merkle inclusion proof that demonstrates
 that the signer is a legitimate member of the group.
 
 Before considering a handshake message valid, the recipient MUST
