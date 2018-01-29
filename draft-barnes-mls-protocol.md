@@ -662,7 +662,7 @@ This apllies to all messages, not only state changing messages.
 
 ## Client-side enforced ordering
 Order enforcing can be implemented on the client as well, one way to achieve it is to use two steps update protocol, first 
-client sends a proposal to update and the proposal is accepted when it gets 50%+ apporval from the rest of the group, then it sends the approved update. Clients which didn't get their proposal accepted, will wait for the winner to send their update before retrying new proposals. 
+client sends a proposal to update and the proposal is accepted when it gets 50%+ approval from the rest of the group, then it sends the approved update. Clients which didn't get their proposal accepted, will wait for the winner to send their update before retrying new proposals. 
 
 While this seems safer as it doesn't rely on the server, it is more complex and harder to implement. It also could cause starvation for some clients if they keep failing to get their proposal accepted.
 
