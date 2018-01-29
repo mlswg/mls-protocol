@@ -42,6 +42,7 @@ normative:
   RFC2119:
 
 informative:
+  dhreuse: DOI.10.1504/IJACT.2010.038308
         
 
 --- abstract
@@ -168,6 +169,8 @@ document are to be interpreted as described in {{!RFC2119}}.
 * Requires:
   * DH group
   * Injection from DH outputs to private keys
+* Provides:
+  * Only holders of a private leaf key can derive the tree root key
 * Node content:
   * Public key
   * Private key (optional)
@@ -337,7 +340,7 @@ as well as providing public keys that the client can use for key
 derivation and signing.  The client's identity key is intended to be
 stable through the lifetime of the group; there is no mechanism to
 change it.  Init keys are intend to be used one time only (or
-perhaps a small number of times, see {{#init-key-reuse}}).
+perhaps a small number of times, see [[#init-key-reuse]]).
 
 The init\_keys array MUST have the same length as the cipher\_suites
 array, and each entry in the init\_keys array MUST be a public key
@@ -693,12 +696,39 @@ Alternatively, the hash of the previous message can also be included as an addit
 
 # Security Considerations
 
-The security goals of MLS are described in [[the architecture doc]]. A complete security analysis is
-outside of the scope of this document.
+The security goals of MLS are described in [[the architecture doc]]. We describe here how the
+protocol achieves its goals at a high level, though a complete security analysis is outside of the
+scope of this document.
 
 ## Confidentiality of the Group Secrets
 
+Group secrets are derived from (i) previous group secrets, and (ii) the root key of a ratcheting
+tree. As long only group members know a leaf key in the group, therefore, the root key of the
+group's ratcheting tree is secret and thus so are all values derived from it.
+
+Initial leaf keys are known only by their owner and the group creator, because they are derived from
+an authenticated key exchange protocol. Subsequent leaf keys are known only by their owner. [[TODO:
+or by someone who replaced them.]]
+
+Note that the long-term identity keys used by the protocol must be distributed correctly for parties
+to authenticate their peers.
+
 ## Authentication
+
+There are two forms of authentication we consider: that the group key is known only to group
+members, and that only the sender of a message could have sent it. The former property comes from
+the ratcheting trees: only group members know a leaf key, and thus only group members can compute
+the shared secret. The latter property is provided by the message signatures under identity keys.
+
+## Forward and post-compromise security
+
+Message keys are derived via a hash ratchet, which provides a form of forward secrecy: learning a
+message key does not reveal previous message or root keys. Post-compromise security is provided by
+Update operations, in which a new root key is generated from the latest racheting tree. If the
+adversary cannot derive the updated root key after an Update operation, it cannot compute any
+derived secrets.
 
 ## Init Key Reuse
 
+Prekeys are intended to be used only once and then deleted. Reuse of prekeys is not believed to be
+inherently insecure {{dhreuse}}, although it can complicate protocol analyses.
