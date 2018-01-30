@@ -41,6 +41,7 @@ author:
 normative:
 
 informative:
+  dhreuse: DOI.10.1504/IJACT.2010.038308
         
 
 --- abstract
@@ -170,6 +171,8 @@ describe the structure of protocol messages.
 * Requires:
   * DH group
   * Injection from DH outputs to private keys
+* Provides:
+  * Only holders of a private leaf key can derive the tree root key
 * Node content:
   * Public key
   * Private key (optional)
@@ -417,7 +420,7 @@ accomplishes a change in group state, and also includes two other
 important features: First, it provides a GroupInitKey so that a new
 participant can observe the latest state of the handshake and
 initialize itself.  Second, it provides a signature by a member of
-the group, together with a Merle inclusion proof that demonstrates
+the group, together with a Merkle inclusion proof that demonstrates
 that the signer is a legitimate member of the group.
 
 Before considering a handshake message valid, the recipient MUST
@@ -659,6 +662,13 @@ To prevent counter manipulation by the server, the counter's integrity can be en
 This apllies to all messages, not only state changing messages.
 
 
+## Client-side enforced ordering
+Order enforcing can be implemented on the client as well, one way to achieve it is to use two steps update protocol, first 
+client sends a proposal to update and the proposal is accepted when it gets 50%+ approval from the rest of the group, then it sends the approved update. Clients which didn't get their proposal accepted, will wait for the winner to send their update before retrying new proposals. 
+
+While this seems safer as it doesn't rely on the server, it is more complex and harder to implement. It also could cause starvation for some clients if they keep failing to get their proposal accepted.
+
+
 # Message Protection
 
 * The primary purpose of this protocol is AKE
@@ -695,9 +705,39 @@ Alternatively, the hash of the previous message can also be included as an addit
 
 # Security Considerations
 
+The security goals of MLS are described in [[the architecture doc]]. We describe here how the
+protocol achieves its goals at a high level, though a complete security analysis is outside of the
+scope of this document.
+
 ## Confidentiality of the Group Secrets
+
+Group secrets are derived from (i) previous group secrets, and (ii) the root key of a ratcheting
+tree. As long only group members know a leaf key in the group, therefore, the root key of the
+group's ratcheting tree is secret and thus so are all values derived from it.
+
+Initial leaf keys are known only by their owner and the group creator, because they are derived from
+an authenticated key exchange protocol. Subsequent leaf keys are known only by their owner. [[TODO:
+or by someone who replaced them.]]
+
+Note that the long-term identity keys used by the protocol must be distributed correctly for parties
+to authenticate their peers.
 
 ## Authentication
 
+There are two forms of authentication we consider: that the group key is known only to group
+members, and that only the sender of a message could have sent it. The former property comes from
+the ratcheting trees: only group members know a leaf key, and thus only group members can compute
+the shared secret. The latter property is provided by the message signatures under identity keys.
+
+## Forward and post-compromise security
+
+Message keys are derived via a hash ratchet, which provides a form of forward secrecy: learning a
+message key does not reveal previous message or root keys. Post-compromise security is provided by
+Update operations, in which a new root key is generated from the latest racheting tree. If the
+adversary cannot derive the updated root key after an Update operation, it cannot compute any
+derived secrets.
+
 ## Init Key Reuse
 
+Prekeys are intended to be used only once and then deleted. Reuse of prekeys is not believed to be
+inherently insecure {{dhreuse}}, although it can complicate protocol analyses.
