@@ -138,22 +138,47 @@ describe the structure of protocol messages.
 
 # Balanced Binary Trees
 
-* The protocol uses two types of tree structures:
-  * Merkle trees for commitment to a set + compact membership proofs
-  * Asynchronous ratchet trees for deriving secrets shared among a group of participants
-  * Both trees share a common structure and terminology
-  * Differ only in how nodes are created and combined
-* Structure: Maximally balanced
-  * Note flat representation
-* Terminology:
-  * Direct path for a node in a tree
-    * The direct path for a node consists of the node, and each of its ancestors until the root
-  * Copath for a node in a tree (== Merkle inclusion proof)
-    * The copath for a node consists of every node in its path's sibling node (aside from the root
-      node, which has no sibling)
-  * Frontier of a tree
-    * The frontier of a tree is the set of nodes that would be the copath of a node added to the right
-      of the tree
+The protocol uses two types of binary tree structures:
+
+  * Merkle trees for efficiently committing to a set of group participants.
+  * Asychronous ratcheting trees for deriving shared secrets among this group of
+    participants.
+
+For both types of tree, we use the following terminology:
+
+  * Leaf nodes refer to any node in the tree which has no children.
+  * Parent nodes refer to any node in the tree which has children. Note that
+    both of these tree structures require every parent node to have two defined
+    children.
+  * Root nodes refer to the single node in a tree which has no children.
+  * Intermediate nodes refer to any node which has both a parent and children.
+  * Subtrees refer to any node and - recursively - all of its children.
+  * The size, `|T|`, of a tree, `T`, refers to the total number of leaf
+    nodes in that tree or subtree.
+  * Fully balanced refers to a binary tree `T` for which both subtrees contain
+    the same number of nodes, and are both fully balanced themselves. This
+    necessarily implies that a fully balanced tree has a power-of-two number of
+    leaves.
+  * Left-balanced refers to a binary tree `T` for which the left branch of every
+    subtree `S` is a fully balanced binary tree containing `2^ceil(lg |S| - 1)`
+    leaves.
+  * The "nth" leaf node refers to the "nth" leaf node counting from the left of
+    the tree.
+  * The direct path for a node in a tree consists of the node, and all of its
+    ancestors up to the root.
+  * The copath for a node in a tree consists of the sibling node of every node
+    in its direct path - excluding the root, which has no sibling.
+  * The frontier of a tree is the set of nodes that would constitute the copath
+    of a new leaf node added to the tree - whilst maintaining the tree as
+    left-balanced.
+
+We extend both types of tree to include a concept of "blank" nodes; which are
+used to replace group members who have been removed. We expand on how these are
+used and implemented in the sections below.
+
+The merkle tree and asynchronous ratcheting tree in this protocol share a common
+structure; with the `nth` leaf node owned by the `nth` group participant.
+
 * Instance must specify:
   * Required crypto parameters
   * Node content
