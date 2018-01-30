@@ -163,12 +163,21 @@ describe the structure of protocol messages.
 
 ## Merkle Trees
 
-* Used to generate a compact committment of a collection of values, with short proofs
-* Requires: Hash function
-* Node content: Hash value
-* Leaf creation: Leaf hash
-* Combining rule: Pair hash
+Merkle trees are used to efficiently commit to a collection of leaf nodes. We
+require a hash function to construct the tree.
 
+For these purposes, we construct the Merkle trees as left-balanced binary trees.
+The value of each parent node is the hash of the concatenation of its child
+nodes. The nth leaf node - numbered from the left - is the public identity key
+of the nth group member. For any group member who has been removed from the
+tree, we use the empty string.
+
+### Merkle Proofs
+
+A proof of a given leaf being a member of the Merkle tree consists of the value
+of the leaf node, as well as the values of each node in its copath. From these
+values, its path to the root can be verified; proving the inclusion of the leaf
+in the Merkle tree.
 
 ## Ratchet Trees
 
@@ -198,7 +207,7 @@ compute the new key.
 
 Nodes in a ratchet tree can have a special value "\_", used to indicate that the
 node should be ignored during path computations. Such nodes are used to replace
-leaves when participants are deleted from the group (see section 7.5 below).
+leaves when participants are deleted from the group.
 
 If any node in the copath of a leaf is \_, it should be ignored during the
 computation of the path. For example, if `A`'s copath is `B, \_, C, D`; its path
@@ -212,17 +221,6 @@ If two sibling nodes are both \_, their parent value also becomes \_.
 
 Blank nodes effectively result in an unbalanced tree, but allow the
 tree management to behave as for a balanced tree for programming simplicity.
-
-### Punctured Ratchet Trees
-
-* Used to send to a subset of a ratchet tree group, for update or delete
-* "Punctured tree" == ordered list of intermediate nodes that cover all but punctures
-  * Ordering is breadth-first
-  * ... or equivalently, numerical
-* To compute from a full ratchet tree + list of punctures:
-  * For each puncture, mark nodes in its direct path as "not OK"
-  * Puncture tree heads are nodes that are OK whose parents are not OK
-
 
 # Group State
 
