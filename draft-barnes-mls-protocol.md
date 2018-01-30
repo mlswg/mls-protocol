@@ -138,15 +138,20 @@ document are to be interpreted as described in {{!RFC2119}}.
 
 * The protocol uses two types of tree structures:
   * Merkle trees for commitment to a set + compact membership proofs
-  * Ratchet trees for deriving secrets shared among a group of participants
+  * Asynchronous ratchet trees for deriving secrets shared among a group of participants
   * Both trees share a common structure and terminology
   * Differ only in how nodes are created and combined
 * Structure: Maximally balanced
   * Note flat representation
 * Terminology:
-  * Frontier of a tree
-  * Copath for a node in a tree (== Merkle inclusion proof)
   * Direct path for a node in a tree
+    * The direct path for a node consists of the node, and each of its ancestors until the root
+  * Copath for a node in a tree (== Merkle inclusion proof)
+    * The copath for a node consists of every node in its path's sibling node (aside from the root
+      node, which has no sibling)
+  * Frontier of a tree
+    * The frontier of a tree is the set of nodes that would be the copath of a node added to the right
+      of the tree
 * Instance must specify:
   * Required crypto parameters
   * Node content
@@ -165,17 +170,26 @@ document are to be interpreted as described in {{!RFC2119}}.
 
 ## Ratchet Trees
 
-* Used to generate secrets known to a group
-* Requires:
-  * DH group
-  * Injection from DH outputs to private keys
-* Provides:
-  * Only holders of a private leaf key can derive the tree root key
-* Node content:
-  * Public key
-  * Private key (optional)
-  * Private key seed data (optional)
-* Leaf creation: Just import data
+Ratchet trees are used for generating the shared group secrets. These are
+constructed as a series of Diffie-Hellman keys in a binary tree arrangement,
+with each user knowing their direct path, and thus being able to compute the
+shared root secret.
+
+To construct these trees, we require:
+* A Diffie-Hellman group
+* A key-derivation function providing a key pair from the output of a
+  Diffie-Hellman key exchange
+
+Ratchet trees are constructed as left-balanced trees, defined such that each
+parent node's key pair is derived from the Diffie-Hellman shared secret of its
+two child nodes. To compute the root key pair, a participant must know the
+public keys of nodes in its own copath, as well as its own leaf private key.
+
+Ratchet trees constructed this way provide the property that one must hold at
+least one private key from the tree to compute the root key. With all
+participants holding one leaf private key; this allows any individual to update
+their own key and change the shared root key, such that only group members can
+compute the new key.
 
 
 ### Blank Ratchet Tree Nodes
