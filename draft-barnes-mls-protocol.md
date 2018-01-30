@@ -39,7 +39,6 @@ author:
 
 
 normative:
-  RFC2119:
 
 informative:
   dhreuse: DOI.10.1504/IJACT.2010.038308
@@ -95,6 +94,9 @@ document are to be interpreted as described in {{!RFC2119}}.
 * Participant: Holder of a private key.  Could be user or device
 * Group: A collection of participants with shared private state
 * Assumed to be used over a messaging system, see arch doc
+
+We use the TLS presentation language {{!I-D.ietf-tls-tls13}} to
+describe the structure of protocol messages.
 
 
 # Protocol Overview
@@ -340,7 +342,7 @@ as well as providing public keys that the client can use for key
 derivation and signing.  The client's identity key is intended to be
 stable through the lifetime of the group; there is no mechanism to
 change it.  Init keys are intend to be used one time only (or
-perhaps a small number of times, see [[#init-key-reuse]]).
+perhaps a small number of times, see {{init-key-reuse}}).
 
 The init\_keys array MUST have the same length as the cipher\_suites
 array, and each entry in the init\_keys array MUST be a public key
@@ -494,7 +496,7 @@ UserInitKey to initialize his state as follows:
 
 * Compute the participant's leaf key pair by combining the init key in
   the UserInitKey with the prior epoch's update key pair
-* Use the frontiers in the GroupPreKey of the Handshake message to
+* Use the frontiers in the GroupInitKey of the Handshake message to
   add its keys to the trees
 
 An existing participant receiving a GroupAdd message first verifies
@@ -503,7 +505,7 @@ against the identity tree held by the participant.  The participant
 then updates its state as follows:
 
 * Compute the new participant's leaf key pair by combining the leaf
-  key in the UserPreKey with the prior epoch add key pair
+  key in the UserInitKey with the prior epoch add key pair
 * Update the group's identity tree and ratchet tree with the new
   participant's information
 
@@ -533,13 +535,13 @@ struct {
 A new participant generates this message using the following steps:
 
 * Fetch a GroupInitKey for the group
-* Use the frontiers in the GroupPreKey to add its keys to the trees
+* Use the frontiers in the GroupInitKey to add its keys to the trees
 * Compute the direct path from the new participant's leaf in the new
   ratchet tree (the add\_path).
 
 An existing participant receiving a UserAdd first verifies the
 signature on the message, then verifies its identity inclusion proof
-against the updated identity tree expressed in the GroupPreKey of
+against the updated identity tree expressed in the GroupInitKey of
 the Handshake message (since the signer is not included in the prior
 group state held by the existing participant).  The participant then
 updates its state as follows:
@@ -640,7 +642,7 @@ delete path.
 
 
 
-# Sequencing of State Changes [stub]
+# Sequencing of State Changes
 
 * Each state-changing message is premised on a given starting state
 * Thus, there is a need to deconflict if two messages are generated from the same state
@@ -666,7 +668,8 @@ client sends a proposal to update and the proposal is accepted when it gets 50%+
 
 While this seems safer as it doesn't rely on the server, it is more complex and harder to implement. It also could cause starvation for some clients if they keep failing to get their proposal accepted.
 
-# Message Protection [stub]
+
+# Message Protection
 
 * The primary purpose of this protocol is AKE
 * No current specification for how negotiated keys are used
