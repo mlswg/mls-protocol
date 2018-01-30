@@ -39,7 +39,6 @@ author:
 
 
 normative:
-  RFC2119:
 
 informative:
         
@@ -94,6 +93,9 @@ document are to be interpreted as described in {{!RFC2119}}.
 * Participant: Holder of a private key.  Could be user or device
 * Group: A collection of participants with shared private state
 * Assumed to be used over a messaging system, see arch doc
+
+We use the TLS presentation language {{!I-D.ietf-tls-tls13}} to
+describe the structure of protocol messages.
 
 
 # Protocol Overview
@@ -337,7 +339,7 @@ as well as providing public keys that the client can use for key
 derivation and signing.  The client's identity key is intended to be
 stable through the lifetime of the group; there is no mechanism to
 change it.  Init keys are intend to be used one time only (or
-perhaps a small number of times, see {{#init-key-reuse}}).
+perhaps a small number of times, see {{init-key-reuse}}).
 
 The init\_keys array MUST have the same length as the cipher\_suites
 array, and each entry in the init\_keys array MUST be a public key
@@ -637,7 +639,7 @@ delete path.
 
 
 
-# Sequencing of State Changes [stub]
+# Sequencing of State Changes
 
 * Each state-changing message is premised on a given starting state
 * Thus, there is a need to deconflict if two messages are generated from the same state
@@ -657,7 +659,7 @@ To prevent counter manipulation by the server, the counter's integrity can be en
 This apllies to all messages, not only state changing messages.
 
 
-# Message Protection [stub]
+# Message Protection
 
 * The primary purpose of this protocol is AKE
 * No current specification for how negotiated keys are used
