@@ -194,12 +194,22 @@ compute the new key.
 
 ### Blank Ratchet Tree Nodes
 
-* Nodes can have a special value "\_"
-* Combining rules:
-  * \_ + \_ = \_
-  * \_ + A = A + \_ = A
-* Effectively moves neighbor up a level without changing tree structure
+Nodes in a ratchet tree can have a special value "\_", used to indicate that the
+node should be ignored during path computations. Such nodes are used to replace
+leaves when participants are deleted from the group (see section 7.5 below).
 
+If any node in the copath of a leaf is \_, it should be ignored during the
+computation of the path. For example, if `A`'s copath is `B, \_, C, D`; its path
+is computed as
+
+~~~~~
+DH(A, B), DH(DH(A, B), C), DH(DH(DH(A, B), C), D)
+~~~~~
+
+If two sibling nodes are both \_, their parent value also becomes \_.
+
+Blank nodes effectively result in an unbalanced tree, but allow the
+tree management to behave as for a balanced tree for programming simplicity.
 
 ### Punctured Ratchet Trees
 
