@@ -101,40 +101,75 @@ describe the structure of protocol messages.
 
 # Protocol Overview
 
-* Goal: Produce a series of states whose private values are known only to group members
-  * Forward secrecy
-  * Post compromise secrecy (with respect to...)
-* Creator of a group creates an initial state that includes an initial set of participants
-* Participants exchange message to produce new shared states
-  * Add and remove participants
-  * Update for PCS
-* Each state has a causal link to its successor(s); a logical DAG
+The goal of this protocol is to allow a group of participants to exchange confidential and
+authenticated messages. It does so by deriving a sequence of keys known only to group members. Keys
+should be secret against an active network adversary and should have both forward and
+post-compromise secrecy with respect to compromise of a participant.
 
-* Potential participants publish UserInitKey messages
-* Init:
-  * Group creator downloads UserInitKeys for participants, broadcasts GroupInit message
-  * Participants receive GroupInit message, compute group state
-  * Note that creator is "double-joined" with all participants until they update
+We describe the information stored by each participant as a _state_, which includes both public and
+private data. An initial state, including an initial set of participants, is set up by a group
+creator using the _Init_ algorithm and based on pre-published from the initial members. The creator
+sends the GroupInit message to the participants, who can then set up their own group state deriving
+the same shared keys. Participants then exchange messages to produce new shared states which are
+causally linked to their predecessors, forming a logical DAG of states. Participants can send
+_Update_ messages for post-compromise secrecy, and new participants can be added or existing
+participants removed.
+
+The protocol algorithms we specify here follow. Each algorithm specifies both (i) how a participant
+performs the operation and (ii) how other participants update their state based on it.
+
+* PreRegister [[TODO: need to specify this]]
+
+  This algorithm describes how potential group participants can publish UserInitKey messages which
+  can later be used to add them to groups without further input.
+
+* Init
+
+  This algorithm describes how a group is created. The creator downloads UserInitKeys for the
+  initial group participants, and performs an initial computation to derive a shared group key. They
+  produce a GroupInit message describing the new group, which is broadcast to all members. Upon
+  receiving this members, new participants perform a similar computation to derive the same group
+  key and group state. After executing this algorithm, all group members share an authenticated
+  secret key.
+
 * Group-initiated Add
-  * Group member downloads UserInitKey for new participant, broadcasts GroupAdd message
-  * Existing participants receive GroupAdd, compute new group state from current state
-  * New participant receives GroupAdd, computes new group state from private key ~ UserInitKey
-  * Note that add sender is "double-joined" until all participants update
-* User-initiated Add
-  * On state changes, relevant public data gathered in a GroupInitKey message
-  * New participant downloads GroupInitKey, brodcasts UserAdd message
-  * Existing participants receive UserAdd, compute new group state from current state
-  * New participant receives UserAdd, computes new group state from private key
-* Key Update
-  * Updating participant generates fresh key pair and Update message
-  * Participants receive Update message, compute new group state
-  * This prevents the holder of the old key pair from computing future group states
-* Delete
-  * Deleting participant generates and broadcasts a Delete message
-  * Participants receive Delete message, compute new group state
-  * This prevents the holders of the deleted users' private keys from computing future group states
-  * Those private keys will still be included in group computations until siblings / cousins update
 
+  This algorithm describes how a group participant can add a new user to a group. The adder
+  downloads a UserInitKey for the new participant, and performs a local computation to derive a new
+  group key. They produce a GroupAdd message which is broadcast to all current members as well as
+  the newly-added member. All recipients of the GroupAdd message compute the updated group state;
+  the new member uses their private key to do so, while existing members use their current group
+  state. After executing this algorithm, the new member is added to the group and shares the group
+  state.
+
+* User-initiated Add
+
+  This algorithm describes how a new user can join a group without a direct invitation. When the
+  group state changes, relevant public data is gathered into a GroupInitKey message which is sent to
+  the new user. The new user can then perform a local computation to derive an updated group state,
+  and produce a UserAdd message which is sent to all existing members. All recipients of the UserAdd
+  update their group state based on their existing state. After executing this algorithm, the new
+  member is added to the group and shares the group state.
+
+* Key Update
+
+  This algorithm describes how any participant can update their own private keys to fresh ones,
+  updating the group state and group key. The updater generates a fresh key pair and produces an
+  Update message which describes the change to the group state, broadcasting it to the group. All
+  recipients then update their group state based on the Update message, deriving a new group
+  state. After executing this algorithm, all members share an updated group state which a holder of
+  the old key pair can no longer derive; thus, Update provides a form of PCS.
+
+* Delete
+
+  This algorithm describes how any participant can remove another participant from a group. The
+  deleting participant generates and broadcasts a Delete message. Upon receiving this message, all
+  participants except the deleted one can compute a new group state. After executing this algorithm,
+  holders of the deleted users' private keys cannot compute this or future group states (although
+  these private keys will still be included in group computations until siblings / cousins update).
+
+Note that the group creator is "double-joined" with all participants until they update, as is the
+sender of a group-initiated add until the newly added member updates.
 
 # Balanced Binary Trees
 
