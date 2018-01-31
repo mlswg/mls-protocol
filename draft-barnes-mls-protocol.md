@@ -503,6 +503,47 @@ struct {
 ~~~~~
 
 
+# Tree Operations
+
+Over the lifetime of a group, changes need to be made to its state; which are
+accomplished via a number of primitives on the underlying trees:
+
+* Initializing a group.
+* Adding a participant.
+* Updating a leaf key.
+* Blanking out a leaf key.
+
+## Initializing a group
+
+An individual can initialize a group by creating its Asynchronous Ratcheting Tree and
+Merkle Tree.
+
+First the individual fetches identity keys and initialization keys for all group
+participants from the Messaging Service.
+
+The identity keys are sequenced in some order, which will dictate the nth leaf
+in each of the trees. From this we can immediately form the Merkle tree of
+identities.
+
+At this point the initiator must generate two new key pairs:
+
+* Her own leaf key pair.
+* An ephemeral setup key pair.
+
+For every sibling pair (apart from her own), she computes the leaf key of the
+left member of this pair as KDF( DH( Member's Init Key, Ephemeral Setup Key) ),
+giving her one of the private keys in every pair. The right leaf in these pairs
+should just be the raw initialization key from the relevant identities. From this
+the initiator can compute the entire tree; which can be broadcast.
+
+Having computed the tree, she MUST delete the ephemeral setup key pair.
+
+In practice, group members may not wish to rely on her having deleterd this key
+pair; and so the keys for which she knew a private key should be noted. [Note:
+book-keeping left unspecified for now, and will be common with book-keeping for
+deletion; allowing the group security properties to still hold in the face of
+double-joins].
+
 # Handshake Messages
 
 Over the lifetime of a group, changes need to be made to the group's
