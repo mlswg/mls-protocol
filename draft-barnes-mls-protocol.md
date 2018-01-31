@@ -136,7 +136,7 @@ describe the structure of protocol messages.
   * Those private keys will still be included in group computations until siblings / cousins update
 
 
-# Balanced Binary Trees
+# Binary Trees
 
 The protocol uses two types of binary tree structures:
 
@@ -144,26 +144,70 @@ The protocol uses two types of binary tree structures:
   * Asychronous ratcheting trees for deriving shared secrets among this group of
     participants.
 
-For both types of tree, we use the following terminology:
+The two trees in the protocol share a common structure, allowing us to maintain
+a direct mapping between their nodes when manipulating group membership. The
+`nth` leaf in each tree is owned by the `nth` group participant.
 
-  * Leaf nodes refer to any node in the tree which has no children.
-  * Parent nodes refer to any node in the tree which has children. Note that
-    both of these tree structures require every parent node to have two defined
-    children.
-  * Root nodes refer to the single node in a tree which has no children.
-  * Intermediate nodes refer to any node which has both a parent and children.
-  * Subtrees refer to any node and - recursively - all of its children.
-  * The size, `|T|`, of a tree, `T`, refers to the total number of leaf
-    nodes in that tree or subtree.
-  * Fully balanced refers to a binary tree `T` for which both subtrees contain
-    the same number of nodes, and are both fully balanced themselves. This
-    necessarily implies that a fully balanced tree has a power-of-two number of
-    leaves.
-  * Left-balanced refers to a binary tree `T` for which the left branch of every
-    subtree `S` is a fully balanced binary tree containing `2^ceil(lg |S| - 1)`
-    leaves.
-  * The "nth" leaf node refers to the "nth" leaf node counting from the left of
-    the tree.
+## Terminology
+
+We use a common set of terminology to refer to both types of binary tree.
+
+### Leaf nodes
+
+A leaf node is any node in the tree which has no children. These are
+instantiated independently of other nodes, and contribute to the values in their
+ancestor nodes.
+
+### Parent nodes
+
+Parent nodes refer to any node in the tree which has children. Both tree
+structures used in this protocol require every parent node to have two defined
+children. The value used at a parent node depends on the values of its child
+nodes.
+
+### Root node
+
+The root node is the single node in a tree which has no parent. For a tree with
+just one leaf node, this node will be the root itself. Otherwise a root node
+must be a parent node.
+
+### Intermediate nodes
+
+An intermediate node is any node which has both children and a parent. This
+makes them all parent nodes aside from the root node.
+
+### Subtrees
+
+A subtree is any node and all of its descendents. For example, in the tree
+below, two possible subtrees - `A` and `B` - are marked; although the tree
+itself is also a subtree in itself.
+
+~~~~~
+   / \
+  A    \
+ / \   /\
+A   A    B
+~~~~~
+
+#### Subtree sizing
+
+The size, `|T|`, of a subtree `T` refers to the number of leaf nodes it
+contains. In the example above, `|A| = 2` and `|B| = 1`.
+
+### Balanced binary trees
+
+A binary tree is balanced if it is either a single leaf, or if it is a parent
+node for which both of its subtrees are balanced binary trees. In practice this
+implies that a balanced binary tree has a power-of-two number of leaves.
+
+### Left-balanced trees
+
+A binary tree is left-balanced if - for every subtree `S` within the tree - its
+left branch is a balanced binary tree of size `2^ceil(lg |S| - 1)`.
+
+In a left-balanced tree, the `nth` leaf node refers to the `nth` leaf node in
+the tree when counting from the left.
+
   * The direct path for a node in a tree consists of the node, and all of its
     ancestors up to the root.
   * The copath for a node in a tree consists of the sibling node of every node
@@ -176,26 +220,25 @@ We extend both types of tree to include a concept of "blank" nodes; which are
 used to replace group members who have been removed. We expand on how these are
 used and implemented in the sections below.
 
-The merkle tree and asynchronous ratcheting tree in this protocol share a common
-structure; with the `nth` leaf node owned by the `nth` group participant.
-
-* Instance must specify:
-  * Required crypto parameters
-  * Node content
-  * Combining rule
-  * Leaf creation rule
-
 
 ## Merkle Trees
 
-Merkle trees are used to efficiently commit to a collection of leaf nodes. We
-require a hash function to construct the tree.
+Merkle trees are used to efficiently commit to a collection of group members.
+We require a hash function to construct this tree.
 
-For these purposes, we construct the Merkle trees as left-balanced binary trees.
-The value of each parent node is the hash of the concatenation of its child
-nodes. The nth leaf node - numbered from the left - is the public identity key
-of the nth group member. For any group member who has been removed from the
-tree, we use the empty string.
+Our Merkle trees are constructed as left-balanced binary trees. The value of
+each parent node is the hash of the concatenation of its child nodes. The value
+of the `nth` leaf node is the public identity key of the nth group member.
+Blank leaf nodes have a value of the empty string.
+
+The below tree provides an example of a size 2 tree, containing identity keys
+`A` and `B`.
+
+~~~~~
+   Hash( A || B )
+ /               \
+A                 B
+~~~~~
 
 ### Merkle Proofs
 
@@ -203,6 +246,17 @@ A proof of a given leaf being a member of the Merkle tree consists of the value
 of the leaf node, as well as the values of each node in its copath. From these
 values, its path to the root can be verified; proving the inclusion of the leaf
 in the Merkle tree.
+
+In the below tree, we star the Merkle proof of membership for leaf node
+`A`. For brevity, we notate `Hash( A || B)` as `AB`.
+
+~~~~~
+      ABCD
+    /      \
+  AB        CD*
+ /  \      /  \
+A   B*   C    D
+~~~~~
 
 ## Ratchet Trees
 
@@ -212,6 +266,7 @@ with each user knowing their direct path, and thus being able to compute the
 shared root secret.
 
 To construct these trees, we require:
+
 * A Diffie-Hellman group
 * A key-derivation function providing a key pair from the output of a
   Diffie-Hellman key exchange
