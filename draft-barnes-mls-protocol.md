@@ -187,69 +187,37 @@ a direct mapping between their nodes when manipulating group membership. The
 
 We use a common set of terminology to refer to both types of binary tree.
 
-### Leaf nodes
+**Nodes**
 
-A leaf node is any node in the tree which has no children. These are
-instantiated independently of other nodes, and contribute to the values in their
-ancestor nodes.
+Trees consist of various different types of _nodes_. A node is a _leaf_ if it has no children, and a
+_parent_ otherwise; note that all parents in our Merkle or asynchronous ratcheting trees have
+precisely two children. A node is the _root_ of a tree if it has no parents, and _intermediate_ if
+it has both children and parents. The _descendants_ of a node are that node, its children, and the
+descendants of its children, and we say a tree _contains_ a node if that node is a descendant of the
+root of the tree. Nodes are _siblings_ if they share the same parent.
 
-### Parent nodes
+**Trees**
 
-Parent nodes refer to any node in the tree which has children. Both tree
-structures used in this protocol require every parent node to have two defined
-children. The value used at a parent node depends on the values of its child
-nodes.
+A _subtree_ of a tree is the tree given by the descendants of any node. The _size_ of a tree or
+subtree is the number of leaf nodes it contains.
 
-### Root node
+A binary tree is _balanced_ if it is either a single leaf, or if it is a parent node for which both of
+its subtrees are balanced binary trees of the same size. This implies that a balanced binary tree has a
+power-of-two number of leaves.
 
-The root node is the single node in a tree which has no parent. For a tree with
-just one leaf node, this node will be the root itself. Otherwise a root node
-must be a parent node.
+A binary tree is _left-balanced_ if the left child of every non-leaf node `x` is a balanced binary
+tree of size `2^ceil(lg |S| - 1)`, where `S` is the subtree rooted at `x`. In a left-balanced tree,
+the `nth` leaf node refers to the `nth` leaf node in the tree when counting from the left.
 
-### Intermediate nodes
+**Paths**
 
-An intermediate node is any node which has both children and a parent. This
-makes them all parent nodes aside from the root node.
+The _direct path_ of a root is the empty list, and of any other node is the concatenation of that
+node with the direct path of its parent. The _copath_ of a node is the list of siblings of nodes in
+its direct path, excluding the root, which has no sibling. The _frontier_ of a node is the set of
+nodes that would constitute the copath of a new leaf node added to the tree, whilst maintaining the
+tree as left-balanced.
 
-### Subtrees
-
-A subtree is any node and all of its descendents. For example, in the tree
-below, two possible subtrees - `A` and `B` - are marked; although the tree
-itself is also a subtree in itself.
-
-~~~~~
-   / \
-  A    \
- / \   /\
-A   A    B
-~~~~~
-
-#### Subtree sizing
-
-The size, `|T|`, of a subtree `T` refers to the number of leaf nodes it
-contains. In the example above, `|A| = 2` and `|B| = 1`.
-
-### Balanced binary trees
-
-A binary tree is balanced if it is either a single leaf, or if it is a parent
-node for which both of its subtrees are balanced binary trees. In practice this
-implies that a balanced binary tree has a power-of-two number of leaves.
-
-### Left-balanced trees
-
-A binary tree is left-balanced if - for every subtree `S` within the tree - its
-left branch is a balanced binary tree of size `2^ceil(lg |S| - 1)`.
-
-In a left-balanced tree, the `nth` leaf node refers to the `nth` leaf node in
-the tree when counting from the left.
-
-  * The direct path for a node in a tree consists of the node, and all of its
-    ancestors up to the root.
-  * The copath for a node in a tree consists of the sibling node of every node
-    in its direct path - excluding the root, which has no sibling.
-  * The frontier of a tree is the set of nodes that would constitute the copath
-    of a new leaf node added to the tree - whilst maintaining the tree as
-    left-balanced.
+**Blank nodes**
 
 We extend both types of tree to include a concept of "blank" nodes; which are
 used to replace group members who have been removed. We expand on how these are
