@@ -377,7 +377,7 @@ defined by the ciphersuite, using the following three types:
 uint16 CipherSuite;
 opaque DHPublicKey<1..2^16-1>;
 opaque SignaturePublicKey<1..2^16-1>;
-opauqe MerkleNode<1..255>
+opaque MerkleNode<1..255>
 ~~~~~
 
 ## Key Schedule
