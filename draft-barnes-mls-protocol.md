@@ -1103,9 +1103,12 @@ group key exchange among participants.  In order to protect messages sent among
 those participants, an application will need to specify how messages are protected.
 
 For every epoch, the root key of the ratcheting tree can be used to
-derive key material for symmetric operations such as encryption/AEAD and MAC.
+derive key material for symmetric operations such as encryption/AEAD and MAC;
+AEAD or MAC MUST be used to ensure that the message originated from a member
+of the group.
 
-In addition, asymmetric signatures SHOULD be used to ensure message authenticity.
+In addition, asymmetric signatures SHOULD be used to authenticate the sender
+of a message.
 
 In combination with server-side enforced ordering, data from previous messages
 is used (as a salt when hashing) to:
@@ -1150,13 +1153,20 @@ authentication service for parties to authenticate their legitimate peers.
 
 ## Authentication
 
-There are two forms of authentication we consider. The first of those is an implicit
-group authentication property which derives from a property of the ratcheting trees:
-if all members of the group are honnest, then the shared group key only beiing known
-to group members. This implies that a participant in the group has sent a message.
+There are two forms of authentication we consider. The first form
+considers authentication with respect to the group. That is, the group
+members can verify that a message originated from one of the members
+of the group. This is implicitly guaranteed by the secrecy of the
+shared key derived from the ratcheting trees: if all members of the
+group are honest, then the shared group key is only known to the group
+members. By using AEAD or appropriate MAC with this shared key, we can
+guarantee that a participant in the group (who knows the shared secret
+key) has sent a message.
 
-The second authentication property is that a message has been sent by a specific member
-of the group. The latter property is provided by the message signatures under identity keys.
+The second form considers authentication with respect to the sender,
+meaning the group members can verify that a message originated from a
+particular member of the group. This property is provided by digital
+signatures on the messages under identity keys.
 
 ## Forward and post-compromise security
 
@@ -1198,7 +1208,7 @@ TODO: Registries for protocol parameters, e.g., ciphersuites
   Twitter \\
   singuva@twitter.com
 
-* Albert Kwong \\
+* Albert Kwon \\
   MIT \\
   kwonal@mit.edu
 
