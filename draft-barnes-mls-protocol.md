@@ -102,7 +102,8 @@ size of the group.
 
 In this document, we describe a protocol based on tree structures
 that enable asynchronous group keying with forward secrecy and
-post-compromise security.  The use of "asynchronous ratcheting trees" allows the
+post-compromise security.  The use of "asynchronous ratcheting trees"
+[[cite https://eprint.iacr.org/2017/666.pdf]] allows the
 members of the group to derive and update shared keys with costs
 that scale as the log of the group size.  The use of Merkle trees to
 store identity information allows strong authentication of group
