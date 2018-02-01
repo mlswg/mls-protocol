@@ -1066,26 +1066,29 @@ scope of this document.
 ## Confidentiality of the Group Secrets
 
 Group secrets are derived from (i) previous group secrets, and (ii) the root key of a ratcheting
-tree. As long only group members know a leaf key in the group, therefore, the root key of the
+tree. Only group members know their leaf secret key in the group, therefore, the root key of the
 group's ratcheting tree is secret and thus so are all values derived from it.
 
 Initial leaf keys are known only by their owner and the group creator, because they are derived from
 an authenticated key exchange protocol. Subsequent leaf keys are known only by their owner. [[TODO:
 or by someone who replaced them.]]
 
-Note that the long-term identity keys used by the protocol must be distributed correctly for parties
-to authenticate their peers.
+Note that the long-term identity keys used by the protocol MUST be distributed by an honnest
+authentication service for parties to authenticate their legitimate peers.
 
 ## Authentication
 
-There are two forms of authentication we consider: that the group key is known only to group
-members, and that only the sender of a message could have sent it. The former property comes from
-the ratcheting trees: only group members know a leaf key, and thus only group members can compute
-the shared secret. The latter property is provided by the message signatures under identity keys.
+There are two forms of authentication we consider. The first of those is an implicit
+group authentication property which derives from a property of the ratcheting trees:
+if all members of the group are honnest, then the shared group key only beiing known
+to group members. This implies that a participant in the group has sent a message.
+
+The second authentication property is that a message has been sent by a specific member
+of the group. The latter property is provided by the message signatures under identity keys.
 
 ## Forward and post-compromise security
 
-Message keys are derived via a hash ratchet, which provides a form of forward secrecy: learning a
+Message encryption keys are derived via a hash ratchet, which provides a form of forward secrecy: learning a
 message key does not reveal previous message or root keys. Post-compromise security is provided by
 Update operations, in which a new root key is generated from the latest racheting tree. If the
 adversary cannot derive the updated root key after an Update operation, it cannot compute any
