@@ -137,7 +137,7 @@ describe the structure of protocol messages.
 # Basic Assumptions
 
 This protocol is designed to execute in the context of a messaging
-service as described in {{!I-D.rescorla-mls-architecture}}.  In
+service as described in [I-D.rescorla-mls-architecture].  In
 particular, we assume that the messaging service provides two
 services:
 
@@ -384,7 +384,7 @@ used to replace group members who have been removed. We expand on how these are
 used and implemented in the sections below.
 
 (Note that left-balanced binary trees are the same structure that is used for the
-Merkle trees in the Certificate Transparency protocol {{?I-D.ietf-trans-rfc6962bis}}.)
+Merkle trees in the Certificate Transparency protocol {{?I-D.ietf-trans-rfc6962-bis}}.)
 
 ## Merkle Trees
 
@@ -394,9 +394,9 @@ We require a hash function to construct this tree.
 Each node in a Merkle tree is the output of the hash function,
 computed as follows:
 
-* Leaf nodes: H( 0x01 || leaf-value )
-* Parent nodes: H( 0x02 || left-value || right-value)
-* Blank leaf nodes: H( 0x00 )
+* Leaf nodes: `H( 0x01 || leaf-value )`
+* Parent nodes: `H( 0x02 || left-value || right-value)`
+* Blank leaf nodes: `H( 0x00 )`
 
 The below tree provides an example of a size 2 tree, containing identity keys
 `A` and `B`.
