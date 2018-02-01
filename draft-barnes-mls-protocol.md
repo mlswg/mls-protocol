@@ -1095,3 +1095,37 @@ inherently insecure {{dhreuse}}, although it can complicate protocol analyses.
 # IANA Considerations
 
 TODO: Registries for protocol parameters, e.g., ciphersuites
+
+# Contributors
+
+* Benjamin Beurdouche \\
+  INRIA \\
+  benjamin.beurdouche@ens.fr
+
+* Karthikeyan Bhargavan \\
+  INRIA \\
+  karthikeyan.bhargavan@inria.fr
+
+* Cas Cremers \\
+  University of Oxford \\
+  cas.cremers@cs.ox.ac.uk
+
+* Alan Duric \\
+  Wire \\
+  alan@wire.com
+
+* Srinivas Inguva \\
+  Twitter \\
+  singuva@twitter.com
+
+* Albert Kwong \\
+  MIT \\
+  kwonal@mit.edu
+
+* Eric Rescorla \\
+  Mozilla \\
+  ekr@rtfm.com
+
+* Thyla van der Merwe \\
+  Royal Holloway, University of London \\
+  tjvdmerwe@gmail.com
