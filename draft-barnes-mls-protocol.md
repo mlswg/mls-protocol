@@ -735,10 +735,9 @@ struct {
 
 # Handshake Messages
 
-Over the lifetime of a group, changes need to be made to the group's
-state:
+Over the lifetime of a group, its state will change for:
 
-* Initializing a group
+* Group initialization
 * A current member adding a new participant
 * A new participant adding themselves
 * A current participant updating its leaf key
@@ -751,18 +750,16 @@ messages are exchanged throughout the lifetime of a group, whenever
 a change is made to the group state.
 
 An MLS handshake message encapsulates a specific message that
-accomplishes a change in group state, and also includes two other
-important features: First, it provides a GroupInitKey so that a new
-participant can observe the latest state of the handshake and
-initialize itself.  Second, it provides a signature by a member of
-the group, together with a Merkle inclusion proof that demonstrates
-that the signer is a legitimate member of the group.
+accomplishes a change to the group state. It also includes two other
+important features: a GroupInitKey so that a new participant can observe
+the latest state of the handshake and initialize itself; it also provides
+a signature by a member of the group, together with a Merkle inclusion
+proof that demonstrates that the signer is a legitimate member of the group.
 
 Before considering a handshake message valid, the recipient MUST
-verify both that the signature is valid and that the Merkle
-inclusion proof is valid.  The input to the signature computations
-comprises the entire handshake message except for the signature
-field.
+verify that both the signature and the Merkle inclusion proof are valid.
+The input to the signature computations comprises the entire handshake
+message except for the signature field.
 
 The Merkle tree head to be used for validating the inclusion
 proof MUST be one that the recipient trusts to represent the current
@@ -813,8 +810,8 @@ the O(N) complexity of direct initialization. ]]
 
 ## GroupAdd
 
-An GroupAdd message is sent by a group member to add a new
-participant to the group.  The contents of the message are simply
+A GroupAdd message is sent by a group member to add a new
+participant to the group.  The content of the message is only
 the UserInitKey for the user being added.
 
 ~~~~~
@@ -823,8 +820,8 @@ struct {
 } GroupAdd;
 ~~~~~
 
-A group member generates such a message by downloading a UserInitKey
-for the user to be added.  The added participant processes the
+A group member generates such a message by requesting a UserInitKey
+for the user to be added, to the cache.  The new participant processes the
 message together with the private key corresponding to the
 UserInitKey to initialize his state as follows:
 
@@ -961,13 +958,13 @@ This need for sequencing is not a problem as long as each time a
 group member sends a handshake message, it is based on the most
 current state of the group.  In practice, however, there is a risk
 that two members will generate handshake messages simultaneously,
-based on the same state.  
+based on the same state.
 
 When this happens, there is a need for the members of the group to
 deconflict the simultaneous handshake messages.  There are two
 general approaches:
 
-* Have the server enforce a total order
+* Have the delivery service enforce a total order
 * Have a signal in the message that clients can use to break ties
 
 In either case, there is a risk of starvation.  In a sufficiently
@@ -977,7 +974,7 @@ which this is a practical problem will depend on the dynamics of the
 application.
 
 Regardless of how messages are kept in sequence, implementations
-MUST only update their cryptographic state when handshake messages
+MUST only update their cryptographic state when valid handshake messages
 are received.  Generation of handshake messages MUST be stateless,
 since the endpoint cannot know at that time whether the change
 implied by the handshake message will succeed or not.
@@ -985,7 +982,7 @@ implied by the handshake message will succeed or not.
 
 ## Server-side enforced ordering
 
-With this approach, the server ensures that incoming messages are added to an
+With this approach, the delivery service ensures that incoming messages are added to an
 ordered queue and outgoing messages are dispatched in the same order. The server
 is trusted to resolve conflicts during race-conditions (when two members send a
 message at the same time), as the server doesn't have any additional knowledge
@@ -1006,7 +1003,7 @@ This applies to all messages, not only state changing messages.
 ## Client-side enforced ordering
 
 Order enforcing can be implemented on the client as well, one way to achieve it
-is to use two steps update protocol, first client sends a proposal to update and
+is to use two steps update protocol: the first client sends a proposal to update and
 the proposal is accepted when it gets 50%+ approval from the rest of the group,
 then it sends the approved update. Clients which didn't get their proposal accepted,
 will wait for the winner to send their update before retrying new proposals.
@@ -1019,22 +1016,25 @@ failing to get their proposal accepted.
 # Message Protection
 
 The primary purpose of this protocol is to enable an authenticated
-key exchange among a group of participants.  In order to protect
-messages sent among those participants, an application will also
-need to specify how messages are protected.
+group key exchange among participants.  In order to protect messages sent among
+those participants, an application will need to specify how messages are protected.
 
 For every epoch, the root key of the ratcheting tree can be used to derive key material for:
 
  * symmetric encryption (using AEAD)
  * symmetric signatures (HMAC) (optional)
 
-In addition, asymmetric signatures should be used to ensure message authenticity.
+[BB. I don't immediately see why HMAC as AEAD already provides a MAC for its payload...]
+
+In addition, asymmetric signatures SHOULD be used to ensure message authenticity.
 
 In combination with server-side enforced ordering, data from previous messages
-can be used (as a salt when hashing) to:
+is used (as a salt when hashing) to:
 
  * add freshness to derived symmetric keys
  * create channel-binding between messages to achieve some form of transcript security
+
+[BB. Replace 2. by "cryptographically bind the transcript of all previous messages with the current group shared secret" ?]
 
 Possible candidates for that are:
 
@@ -1042,14 +1042,20 @@ Possible candidates for that are:
  * the counter of the previous message (needs to be known to new members of the group)
  * the hash of the previous message (strong indication that other participants saw the same history)
 
+[BB. More than an indication, it should be an unforgeable proof that they have the same history]
+
 The requirement for this is that all participants know these values.
 If additional clear-text fields are attached to messages (like the counter), those
 fields can be protected by a signed message envelope.
+
+[BB. I would go for MUST be authenticated instead]
 
 Alternatively, the hash of the previous message can also be included as an additional
 field rather than change the encryption key. This allows for a more flexible approach,
 because the receiving party can choose to ignore it (if the value is not known, or if
 transcript security is not required).
+
+[BB. Not sure to understand this...]
 
 # Security Considerations
 
