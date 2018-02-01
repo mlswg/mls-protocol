@@ -59,6 +59,7 @@ with forward secrecy and post-compromise security.
 
 --- middle
 
+
 # Introduction
 
 Groups of agents who want to send each other encrypted messages need
@@ -85,6 +86,7 @@ system for deriving group keys which provides post-compromise
 security with efficient rekeys and without requiring any two parties
 to be online concurrently.
 
+
 # Terminology
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
@@ -97,6 +99,7 @@ document are to be interpreted as described in {{!RFC2119}}.
 
 We use the TLS presentation language {{!I-D.ietf-tls-tls13}} to
 describe the structure of protocol messages.
+
 
 # Protocol Overview
 
@@ -170,12 +173,13 @@ performs the operation and (ii) how other participants update their state based 
 Note that the group creator is "double-joined" with all participants until they update, as is the
 sender of a group-initiated add until the newly added member updates.
 
+
 # Binary Trees
 
 The protocol uses two types of binary tree structures:
 
   * Merkle trees for efficiently committing to a set of group participants.
-  * Asychronous ratcheting trees for deriving shared secrets among this group of
+  * Asynchronous ratcheting trees for deriving shared secrets among this group of
     participants.
 
 The two trees in the protocol share a common structure, allowing us to maintain
@@ -245,7 +249,6 @@ A                 B
 [[EKR: Isn't the convention here to have some sort of disambiguator to
 prevent substitution]]
 
-
 ### Merkle Proofs
 
 A proof of a given leaf being a member of the Merkle tree consists of the value
@@ -299,8 +302,6 @@ participants holding one leaf private key; this allows any individual to update
 their own key and change the shared root key, such that only group members can
 compute the new key.
 
-
-
 ### Blank Ratchet Tree Nodes
 
 Nodes in a ratchet tree can have a special value "\_", used to indicate that the
@@ -323,6 +324,7 @@ If two sibling nodes are both \_, their parent value also becomes \_.
 
 Blank nodes effectively result in an unbalanced tree, but allow the
 tree management to behave as for a balanced tree for programming simplicity.
+
 
 # Group State
 
@@ -360,7 +362,6 @@ about each state of the group:
 8. The current message root key
 9. The current update key pair
 10. The current init secret
-
 
 ## Cryptographic Objects
 
@@ -458,7 +459,6 @@ messages provide information about a group that a new user can use
 to join the group without any of the existing members of the group
 being online.
 
-
 ## UserInitKey
 
 A UserInitKey object specifies what cipher suites a client supports,
@@ -476,7 +476,7 @@ cipher\_suites array.
 The whole structure is signed using the client's identity key.  A
 UserInitKey object with an invalid signature field MUST be
 considered malformed.  The input to the signature computation
-comprises all of the fields except for the signture field.
+comprises all of the fields except for the signature field.
 
 ~~~~~
 struct {
@@ -557,11 +557,12 @@ the initiator can compute the entire tree; which can be broadcast.
 
 Having computed the tree, she MUST delete the ephemeral setup key pair.
 
-In practice, group members may not wish to rely on her having deleterd this key
+In practice, group members may not wish to rely on her having deleted this key
 pair; and so the keys for which she knew a private key should be noted. [Note:
 book-keeping left unspecified for now, and will be common with book-keeping for
 deletion; allowing the group security properties to still hold in the face of
 double-joins].
+
 
 # Handshake Messages
 
@@ -632,7 +633,6 @@ struct {
 } Handshake;
 ~~~~~
 
-
 ## Init
 
 [[ Direct initialization is currently undefined.  A participant can
@@ -640,7 +640,6 @@ create a group by initializing its own state to reflect a group
 including only itself, then adding the initial participants.  This
 has computation and communication complexity O(N log N) instead of
 the O(N) complexity of direct initialization. ]]
-
 
 ## GroupAdd
 
@@ -684,7 +683,6 @@ the prior epoch's secret.  This would reduce the "double-join"
 problem, at the cost of the GroupAdd having to include a new ratchet
 frontier. ]]
 
-
 ## UserAdd
 
 A UserAdd message is sent by a new group participant to add
@@ -719,7 +717,6 @@ updates its state as follows:
 The update secret resulting from this change is the secret for the
 root node of the ratchet tree.
 
-
 ## Update
 
 An Update message is sent by a group participant to update its leaf
@@ -748,7 +745,6 @@ then updates its state as follows:
 
 The update secret resulting from this change is the secret for the
 root node of the ratchet tree.
-
 
 ## Delete
 
@@ -818,20 +814,35 @@ delete path.
 
 ## Server-side enforced ordering
 
-With this approach, the server ensures that incoming messages are added to an ordered queue and outgoing messages are dispatched in the same order. The server is trusted to resolve conflicts during race-conditions (when two members send a message at the same time), as the server doesn't have any additional knowledge thanks to the confidentiality of the messages.
+With this approach, the server ensures that incoming messages are added to an
+ordered queue and outgoing messages are dispatched in the same order. The server
+is trusted to resolve conflicts during race-conditions (when two members send a
+message at the same time), as the server doesn't have any additional knowledge
+thanks to the confidentiality of the messages.
 
-Messages should have a counter field sent in clear-text that can be checked by the server and used for tie-breaking. The counter starts at 0 and is incremented for every new incoming message. If two group members send a message with the same counter, the first message to arrive will be accepted by the server and the second one will be rejected. The rejected message needs to be sent again with the correct counter number.
+Messages should have a counter field sent in clear-text that can be checked by
+the server and used for tie-breaking. The counter starts at 0 and is incremented
+for every new incoming message. If two group members send a message with the same
+counter, the first message to arrive will be accepted by the server and the second
+one will be rejected. The rejected message needs to be sent again with the correct
+counter number.
 
-To prevent counter manipulation by the server, the counter's integrity can be ensured by including the counter in a signed message envelope.
+To prevent counter manipulation by the server, the counter's integrity can be
+ensured by including the counter in a signed message envelope.
 
-This apllies to all messages, not only state changing messages.
-
+This applies to all messages, not only state changing messages.
 
 ## Client-side enforced ordering
-Order enforcing can be implemented on the client as well, one way to achieve it is to use two steps update protocol, first
-client sends a proposal to update and the proposal is accepted when it gets 50%+ approval from the rest of the group, then it sends the approved update. Clients which didn't get their proposal accepted, will wait for the winner to send their update before retrying new proposals.
 
-While this seems safer as it doesn't rely on the server, it is more complex and harder to implement. It also could cause starvation for some clients if they keep failing to get their proposal accepted.
+Order enforcing can be implemented on the client as well, one way to achieve it
+is to use two steps update protocol, first client sends a proposal to update and
+the proposal is accepted when it gets 50%+ approval from the rest of the group,
+then it sends the approved update. Clients which didn't get their proposal accepted,
+will wait for the winner to send their update before retrying new proposals.
+
+While this seems safer as it doesn't rely on the server, it is more complex and
+harder to implement. It also could cause starvation for some clients if they keep
+failing to get their proposal accepted.
 
 
 # Message Protection
@@ -849,9 +860,10 @@ For every epoch, the root key of the ratcheting tree can be used to derive key m
  * symmetric encryption (using AEAD)
  * symmetric signatures (HMAC) (optional)
 
-In addition, asymmetric signatures should be used to ensure message athenticity.
+In addition, asymmetric signatures should be used to ensure message authenticity.
 
-In combination with server-side enforced ordering, data from previous messages can be used (as a salt when hashing) to:
+In combination with server-side enforced ordering, data from previous messages
+can be used (as a salt when hashing) to:
 
  * add freshness to derived symmetric keys
  * create channel-binding between messages to achieve some form of transcript security
@@ -864,9 +876,14 @@ Possible candidates for that are:
  * ... ?
 
 The requirement for this is that all participants know these values.
-If additional clear-text fields are attached to messages (like the counter), those fields can be protected by a signed message envelope.
+If additional clear-text fields are attached to messages (like the counter), those
+fields can be protected by a signed message envelope.
 
-Alternatively, the hash of the previous message can also be included as an additional field rather than change the encryption key. This allows for a more flexible approach, because the receiving party can choose to ignore it (if the value is not known, or if transcript security is not required).
+Alternatively, the hash of the previous message can also be included as an additional
+field rather than change the encryption key. This allows for a more flexible approach,
+because the receiving party can choose to ignore it (if the value is not known, or if
+transcript security is not required).
+
 
 # Security Considerations
 
