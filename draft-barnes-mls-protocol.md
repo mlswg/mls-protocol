@@ -39,7 +39,6 @@ author:
 
 
 normative:
-  IEEE1363: DOI.10.1109/IEEESTD.2009.4773330
   X962:
        title: "Public Key Cryptography For The Financial Services Industry: The Elliptic Curve Digital Signature Algorithm (ECDSA)"
        date: 1998
@@ -47,6 +46,7 @@ normative:
          org: ANSI
        seriesinfo:
          ANSI: X9.62
+  IEEE1363: DOI.10.1109/IEEESTD.2009.4773330
 
 
 informative:
