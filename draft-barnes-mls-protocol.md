@@ -90,7 +90,8 @@ For groups of size greater than two, a common strategy is to
 unilaterally broadcast symmetric "sender" keys over existing shared
 symmetric channels, and then for each agent to send messages to the
 group encrypted with their own sender key. Unfortunately, while this
-is efficient and (with the addition of a hash ratchet) provides
+improves efficiency over pairwise broadcast of individual messages  and
+(with the addition of a hash ratchet) provides
 forward secrecy, it is difficult to achieve post-compromise security with
 sender keys. An adversary who learns a sender key can often indefinitely and
 passively eavesdrop on that sender's messages.  Generating and
@@ -101,11 +102,11 @@ size of the group.
 
 In this document, we describe a protocol based on tree structures
 that enable asynchronous group keying with forward secrecy and
-post-compromise security.  The use of "ratchet trees" allows the
+post-compromise security.  The use of "asynchronous ratcheting trees" allows the
 members of the group to derive and update shared keys with costs
 that scale as the log of the group size.  The use of Merkle trees to
 store identity information allows strong authentication of group
-membership, again with log cost.
+membership, again with logarithmic cost.
 
 
 # Terminology
@@ -381,11 +382,13 @@ All trees used in this protocol are left-balanced binary trees. A
 binary tree is _full_ (and _balanced_) if it its size is a power of
 two and for any parent node in the tree, its left and right subtrees
 have the same size. A binary tree is _left-balanced_ if for every
-parent, the left subtree of that parent is a full subtree.  Note that
-given a list of `n` items, there is a unique left-balanced binary tree
-structure with these elements as leaves.  In such a left-balanced
-tree, the `k-th` leaf node refers to the `k-th` leaf node in the tree
-when counting from the left, starting from 0.
+parent, either the parent is balanced, or the left subtree of that
+parent is the largest full subtree that could be constructed from
+the leaves present in the parent's own subtree.  Note
+that given a list of `n` items, there is a unique left-balanced
+binary tree structure with these elements as leaves.  In such a
+left-balanced tree, the `k-th` leaf node refers to the `k-th` leaf
+node in the tree when counting from the left, starting from 0.
 
 The _direct path_ of a root is the empty list, and of any other node
 is the concatenation of that node with the direct path of its
