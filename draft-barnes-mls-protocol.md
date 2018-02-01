@@ -337,7 +337,6 @@ may be offline for a long time, the group will need to be able to
 maintain security in the presence of double-joins. ]]
 
 
-
 # Binary Trees
 
 The protocol uses two types of binary tree structures:
@@ -545,7 +544,7 @@ about each state of the group:
 ## Cryptographic Objects
 
 Each MLS session uses a single ciphersuite that specifies the
-following values to be used in group key computations:
+following primitives to be used in group key computations:
 
 * A hash function
 * A Diffie-Hellman group
@@ -564,6 +563,31 @@ opaque DHPublicKey<1..2^16-1>;
 opaque SignaturePublicKey<1..2^16-1>;
 opaque MerkleNode<1..255>
 ~~~~~
+
+### Curve25519 with SHA-256
+
+This ciphersuite uses the following primitives:
+
+* Hash function: SHA-256
+* Diffie-Hellman group: Curve25519 {{?RFC7748}}
+
+Given an octet string X, the private key produced by the
+Derive-Key-Pair operation is SHA-256(X).  (Recall that any 32-octet
+string is a valid Curve25519 private key.)  The corresponding public
+key is X25519(SHA-256(X), 9).
+
+
+### P-256 with SHA-256
+
+This ciphersuite uses the following primitives:
+
+* Hash function: SHA-256
+* Diffie-Hellman group: secp256r1 (NIST P-256)
+
+Given an octet string X, the private key produced by the
+Derive-Key-Pair operation is SHA-256(X), interpreted as a big-endian
+integer.  The corresponding public key is the result of multiplying
+the standard P-256 base point by this integer.
 
 
 ## Key Schedule
@@ -1048,7 +1072,6 @@ field rather than change the encryption key. This allows for a more flexible app
 because the receiving party can choose to ignore it (if the value is not known, or if
 transcript security is not required).
 
-
 # Security Considerations
 
 The security goals of MLS are described in [[the architecture doc]]. We describe here how the
@@ -1087,3 +1110,8 @@ derived secrets.
 
 Prekeys are intended to be used only once and then deleted. Reuse of prekeys is not believed to be
 inherently insecure {{dhreuse}}, although it can complicate protocol analyses.
+
+
+# IANA Considerations
+
+TODO: Registries for protocol parameters, e.g., ciphersuites
