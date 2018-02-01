@@ -143,7 +143,7 @@ services:
 * For each group, a broadcast channel that will relay the same
   message to all members of a group.  For the most part, we assume
   that this channel delivers messages in the same order to all
-  participants.
+  participants.  (See {{sequencing}} for further considerations.)
 
 * A cache to which participants can publish initialization keys, and
   from which participant can download initialization keys for other
@@ -446,21 +446,21 @@ To construct these trees, we require:
 
 Each node in a ratchet tree contains up to three values:
 
-* An octet string "seed" (optional)
+* A secret octet string (optional)
 * A DH private key (optional)
 * A DH public key
 
-To compute the private values (seed and private key) for a given
+To compute the private values (secret and private key) for a given
 node, one must first know the private key from one of its children,
 and the public key from the other child.  Then the value of the
 parent is computed as follows:
 
-* seed = DH(L, R)
-* private, public = Derive-Key-Pair(seed)
+* secret = DH(L, R)
+* private, public = Derive-Key-Pair(secret)
 
 Ratchet trees are constructed as left-balanced trees, defined such that each
 parent node's key pair is derived from the Diffie-Hellman shared secret of its
-two child nodes. To compute the root seed and private key, a participant must know the
+two child nodes. To compute the root secret and private key, a participant must know the
 public keys of nodes in its own copath, as well as its own leaf private key.
 
 For example, the ratchet tree consisting of the private keys (A, B, C, D)
@@ -710,47 +710,6 @@ struct {
 ~~~~~
 
 
-# Tree Operations
-
-Over the lifetime of a group, changes need to be made to its state; which are
-accomplished via a number of primitives on the underlying trees:
-
-* Initializing a group.
-* Adding a participant.
-* Updating a leaf key.
-* Blanking out a leaf key.
-
-## Initializing a group
-
-An individual can initialize a group by creating its Asynchronous Ratcheting Tree and
-Merkle Tree.
-
-First the individual fetches identity keys and initialization keys for all group
-participants from the Messaging Service.
-
-The identity keys are sequenced in some order, which will dictate the nth leaf
-in each of the trees. From this we can immediately form the Merkle tree of
-identities.
-
-At this point the initiator must generate two new key pairs:
-
-* Her own leaf key pair.
-* An ephemeral setup key pair.
-
-For every sibling pair (apart from her own), she computes the leaf key of the
-left member of this pair as KDF( DH( Member's Init Key, Ephemeral Setup Key) ),
-giving her one of the private keys in every pair. The right leaf in these pairs
-should just be the raw initialization key from the relevant identities. From this
-the initiator can compute the entire tree; which can be broadcast.
-
-Having computed the tree, she MUST delete the ephemeral setup key pair.
-
-In practice, group members may not wish to rely on her having deleterd this key
-pair; and so the keys for which she knew a private key should be noted. [Note:
-book-keeping left unspecified for now, and will be common with book-keeping for
-deletion; allowing the group security properties to still hold in the face of
-double-joins].
-
 # Handshake Messages
 
 Over the lifetime of a group, changes need to be made to the group's
@@ -809,6 +768,7 @@ struct {
         case delete:    Delete;
     };
 
+    uint32 prior_epoch;
     GroupInitKey init_key;
 
     uint32 signer_index;
@@ -995,14 +955,38 @@ delete path.
 
 
 
-# Sequencing of State Changes
+# Sequencing of State Changes {#sequencing}
 
-* Each state-changing message is premised on a given starting state
-* Thus, there is a need to deconflict if two messages are generated from the same state
-* General approaches
-  * Have the server enforce a total order
-  * Create some in-message tie-breaker
-* In any case, risk of starvation
+Each handshake message is premised on a given starting state,
+indicated in its `prior_epoch` field.  If the changes implied by a
+handshake messages are made starting from a different state, the
+results will be incorrect.
+
+This need for sequencing is not a problem as long as each time a
+group member sends a handshake message, it is based on the most
+current state of the group.  In practice, however, there is a risk
+that two members will generate handshake messages simultaneously,
+based on the same state.  
+
+When this happens, there is a need for the members of the group to
+deconflict the simultaneous handshake messages.  There are two
+general approaches:
+
+* Have the server enforce a total order
+* Have a signal in the message that clients can use to break ties
+
+In either case, there is a risk of starvation.  In a sufficiently
+busy group, a given member may never be able to send a handshake
+message, because he always loses to other members.  The degree to
+which this is a practical problem will depend on the dynamics of the
+application.
+
+Regardless of how messages are kept in sequence, implementations
+MUST only update their cryptographic state when handshake messages
+are received.  Generation of handshake messages MUST be stateless,
+since the endpoint cannot know at that time whether the change
+implied by the handshake message will succeed or not.
+
 
 ## Server-side enforced ordering
 
@@ -1024,13 +1008,10 @@ While this seems safer as it doesn't rely on the server, it is more complex and 
 
 # Message Protection
 
-* The primary purpose of this protocol is AKE
-* No current specification for how negotiated keys are used
-* Message protection scheme will need to indicate which state a key was derived from
-* Will probably also want:
-  * Hash-based key ratchets
-  * ... per sender, to avoid races
-  * Transcript integrity
+The primary purpose of this protocol is to enable an authenticated
+key exchange among a group of participants.  In order to protect
+messages sent among thsoe participants, an application will also
+need to specify how messages are protected.
 
 For every epoch, the root key of the ratcheting tree can be used to derive key material for:
 
@@ -1049,7 +1030,6 @@ Possible candidates for that are:
  * the key used for the previous message (hash ratcheting)
  * the counter of the previous message (needs to be known to new members of the group)
  * the hash of the previous message (strong indication that other participants saw the same history)
- * ... ?
 
 The requirement for this is that all participants know these values.
 If additional clear-text fields are attached to messages (like the counter), those fields can be protected by a signed message envelope.
