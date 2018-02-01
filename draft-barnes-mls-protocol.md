@@ -390,13 +390,13 @@ Merkle trees in the Certificate Transparency protocol {{?I-D.ietf-trans-rfc6962b
 ## Merkle Trees
 
 Merkle trees are used to efficiently commit to a collection of group members.
-We require a hash function to construct this tree.
+We require a hash function, denoted H, to construct this tree.
 
 Each node in a Merkle tree is the output of the hash function,
 computed as follows:
 
 * Leaf nodes: H( 0x01 || leaf-value )
-* Parent nodes: H( 0x02 || left-value || right-value)
+* Parent nodes: H( 0x02 || left-value || right-value )
 * Blank leaf nodes: H( 0x00 )
 
 The below tree provides an example of a size 2 tree, containing identity keys
@@ -409,9 +409,8 @@ The below tree provides an example of a size 2 tree, containing identity keys
 H(1 || A) *     * H(1 || B)
 ~~~~~
 
-In Merkle trees, blank nodes appear only at the leaves.  In
-computation of intermediate nodes, they are treated in the same way
-as other nodes.
+In Merkle trees, blank nodes appear only at the leaves.  In computation of
+intermediate nodes, they are treated in the same way as other nodes.
 
 ### Merkle Proofs
 
@@ -420,8 +419,8 @@ of the leaf node, as well as the values of each node in its copath. From these
 values, its path to the root can be verified; proving the inclusion of the leaf
 in the Merkle tree.
 
-In the below tree, we star the Merkle proof of membership for leaf node
-`A`. For brevity, we notate `Hash( A || B)` as `AB`.
+In the below tree, we denote with a star the Merkle proof of membership for
+leaf node `A`. For brevity, we notate `Hash( A || B)` as `AB`.
 
 ~~~~~
       ABCD
@@ -434,15 +433,15 @@ A   B*    C    D
 
 ## Ratchet Trees
 
-Ratchet trees are used for generating the shared group secrets. These are
+Ratchet trees are used for generating shared group secrets. These are
 constructed as a series of Diffie-Hellman keys in a binary tree arrangement,
 with each user knowing their direct path, and thus being able to compute the
 shared root secret.
 
 To construct these trees, we require:
 
-* A Diffie-Hellman group
-* A function Derive-Key-Pair that produces a key pair from an octet
+* a Diffie-Hellman finite-field group or elliptic curve;
+* a Derive-Key-Pair function that produces a key pair from an octet
   string, such as the output of a DH computation
 
 Each node in a ratchet tree contains up to three values:
@@ -462,7 +461,7 @@ parent is computed as follows:
 Ratchet trees are constructed as left-balanced trees, defined such that each
 parent node's key pair is derived from the Diffie-Hellman shared secret of its
 two child nodes. To compute the root secret and private key, a participant must know the
-public keys of nodes in its own copath, as well as its own leaf private key.
+public keys of nodes of its copath, as well as its own leaf private key.
 
 For example, the ratchet tree consisting of the private keys (A, B, C, D)
 is constructed as follows:
@@ -476,7 +475,7 @@ A    B    C    D
 ~~~~~
 
 Ratchet trees constructed this way provide the property that one must hold at
-least one private key from the tree to compute the root key. With all
+least one private key from the tree to compute the secret root key. With all
 participants holding one leaf private key; this allows any individual to update
 their own key and change the shared root key, such that only group members can
 compute the new key.
