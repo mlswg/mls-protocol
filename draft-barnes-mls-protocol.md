@@ -874,11 +874,6 @@ key for nodes in its direct path.  This creates that a malicious
 participant could cause a denial of service by sending a handshake
 message with invalid values for public keys in the ratchet tree. ]]
 
-[[ OPEN ISSUE: Handshake messages need to be processed in sequence,
-so there is a risk of race conditions where two endpoints generate
-handshake messages premised on the same initial state.  Some initial
-thoughts are in {{sequencing}}. ]]
-
 
 ## Init
 
@@ -1029,6 +1024,10 @@ root node of the ratchet tree after both updates.
 
 # Sequencing of State Changes {#sequencing}
 
+[[ OPEN ISSUE: This section has an initial set of considerations
+regarding sequencing.  It would be good to have some more detailed
+discussion, and hopefully have a mechanism to deal with this issue. ]]
+
 Each handshake message is premised on a given starting state,
 indicated in its `prior_epoch` field.  If the changes implied by a
 handshake messages are made starting from a different state, the
@@ -1094,6 +1093,11 @@ failing to get their proposal accepted.
 
 
 # Message Protection
+
+[[ OPEN ISSUE: This section has initial considerations about message
+protection.  This issue clearly needs more specific recommendations,
+possibly a protocol specification in this document or a separate
+one. ]]
 
 The primary purpose of this protocol is to enable an authenticated
 key exchange among a group of participants.  In order to protect
