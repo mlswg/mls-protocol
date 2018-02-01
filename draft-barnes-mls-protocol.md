@@ -66,8 +66,8 @@ with forward secrecy and post-compromise security.
 Groups of agents who want to send each other encrypted messages need
 a way to derive shared symmetric encryption keys. For two parties,
 this problem has been studied thoroughly, with the Double Ratchet
-emerging as a common solution {{doubleratchet}}. Channels implementing the Double
-Ratchet enjoy fine-grained forward secrecy as well as post-compromise
+emerging as a common solution {{doubleratchet}}. Channels implementing the
+Double Ratchet enjoy fine-grained forward secrecy as well as post-compromise
 security, but are nonetheless efficient enough for heavy use over
 low-bandwidth networks.
 
@@ -76,8 +76,8 @@ unilaterally broadcast symmetric "sender" keys over existing shared
 symmetric channels, and then for each agent to send messages to the
 group encrypted with their own sender key. Unfortunately, while this
 is efficient and (with the addition of a hash ratchet) provides
-forward secrecy, it is difficult to achieve post-compromise security with sender keys. An
-adversary who learns a sender key can often indefinitely and
+forward secrecy, it is difficult to achieve post-compromise security with
+sender keys. An adversary who learns a sender key can often indefinitely and
 passively eavesdrop on that sender's messages.  Generating and
 distributing a new sender key provides a form of post-compromise
 security with regard to that sender.  However, it requires
@@ -181,7 +181,7 @@ There are four major operations in the lifecycle of a group:
 * Removal of a member
 
 Before the initialization of a group, participants publish
-UserInitKey objects to a cache provided to the messaging service.
+UserInitKey objects to a cache provided by the Messaging Service.
 
 ~~~~~
                                                           Group
@@ -199,19 +199,21 @@ A              B              C            Cache         Channel
 ~~~~~
 
 When a participant A wants to establish a group with B and C, it
-first downloads InitKeys for B and C.  It then initializes a group
-group state containing only itself and uses the InitKeys to compute
-GroupAdd messages that add B and C, in a sequence chosen by A.
-These messages are broadcast to the group, and processed in sequence
+first downloads InitKeys for B and C.  It then initializes a group state
+containing only itself and uses the InitKeys to compute GroupAdd messages
+to add B and C, in a sequence chosen by A.
+These messages are broadcasted to the Group, and processed in sequence
 by B and C.  Messages received before a participant has joined the
 group are ignored.  Only after A has received its GroupAdd messages
-back from the server does it update its state to reflect their
-addition.
+back from the server does it update its state to reflect their addition.
 
 
 ~~~~~
                                                           Group
 A              B              C            Cache         Channel
+|              |              |              |              |
+|     Request(UserInitKeyB, UserInitKeyC)    |              |
+|------------------------------------------->|              |
 |              |              |              |              |
 |         UserInitKeyB, UserInitKeyC         |              |
 |<-------------------------------------------|              |
@@ -236,8 +238,8 @@ A              B              C            Cache         Channel
 ~~~~~
 
 Subsequent additions of group members proceed in the same way.  Any
-member of the group can download an InitKey for the new participant
-and broadcast a GroupAdd that the current group can use to update
+member of the group can download an InitKey for a new participant
+and broadcast a GroupAdd which the current group can use to update
 their state and the new participant can use to initialize its state.
 
 It is sometimes necessary for a new participant to join without
@@ -252,7 +254,7 @@ member has published a GroupInitKey reflecting the current state of
 the group (A, B, C).  The new participant Z downloads that
 GroupInitKey from the cache, generates a UserAdd message, and
 broadcasts it to the group.  Once current members process this
-message, they will have a shared state that also includes Z.   
+message, they will have a shared state that also includes Z.
 
 ~~~~~
                                                           Group
@@ -276,15 +278,17 @@ A              B     ...      Z            Cache         Channel
 |              |              |              |              |
 ~~~~~
 
-To obtain forward secrecy and post-compromise security, each
-participant periodically updates its leaf key, the DH key pair that
+To enforce forward secrecy and post-compromise security of messages,
+each participant periodically updates its leaf key, the DH key pair that
 represents its contribution to the group key.  Any member of the
-group can send an update at any time by generating a fresh leaf key
+group can send an Update at any time by generating a fresh leaf key
 pair and sending an Update message that describes how to update the
 group key with that new key pair.  Once all participants have
 processed this message, the group's secrets will be unknown to an
-attacker that had compromised the sender's prior DH leaf private
-key.
+attacker that had compromised the sender's prior DH leaf private key.
+It is left to the application to determine the interval of time between
+Update messages, this policy can enforce a change for each message as
+it could enforce sending an update every week or more.
 
 ~~~~~
                                                           Group
@@ -301,12 +305,12 @@ A              B     ...      Z            Cache         Channel
 |              |              |              |              |
 ~~~~~
 
-Users are deleted from the group in a similar way.  (After all, a
-key update is effectively removing the old leaf from the group!)
+Users are deleted from the group in a similar way, as a key update
+is effectively removing the old leaf from the group.
 Any member of the group can generate a Delete message that adds new
 entropy to the group state that is known to all members except the
-deleted member.  After the other participants process this message,
-the group's secrets will be unknown to the deleted participant. 
+deleted member.  After other participants have processed this message,
+the group's secrets will be unknown to the deleted participant.
 
 ~~~~~
                                                           Group
