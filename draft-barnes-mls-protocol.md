@@ -49,7 +49,7 @@ informative:
 
 Messaging applications are increasingly making use of end-to-end
 security mechanisms to ensure that messages are only accessible to
-the communicating endpoints, not any servers involved in delivering
+the communicating endpoints, and not to any servers involved in delivering
 messages.  Establishing keys to provide such protections is
 challenging for group chat settings, in which more than two
 participants need to agree on a key but may not be online at the same
@@ -82,7 +82,7 @@ passively eavesdrop on that sender's messages.  Generating and
 distributing a new sender key provides a form of post-compromise
 security with regard to that sender.  However, it requires
 computation and communications resources that scale linearly as the
-size of the group. 
+size of the group.
 
 In this document, we describe a protocol based on tree structures
 that enable asynchronous group keying with forward secrecy and
@@ -101,31 +101,31 @@ document are to be interpreted as described in {{!RFC2119}}.
 
 Participant:
 : An agent that uses this protocol to establish shared cryptographic
-state with other participants.  A participant is defined by the
-cryptographic keys it holds.  An application may use one participant
-per device (keeping keys local to each device) or sync keys among
-a user's devices so that each user appears as a single participant.
+  state with other participants.  A participant is defined by the
+  cryptographic keys it holds.  An application may use one participant
+  per device (keeping keys local to each device) or sync keys among
+  a user's devices so that each user appears as a single participant.
 
 Group:
 : A collection of participants with shared cryptographic state.
 
 Member:
 : A participant that is included in the shared state of a group, and
-has access to the group's secrets.
+  has access to the group's secrets.
 
 Initialization Key:
 : A short-lived Diffie-Hellman key pair used to introduce a new
-member to a group.  Initialization keys can be published for both
-indidvidual participants (UserInitKey) and groups (GroupInitKey).
+  member to a group.  Initialization keys can be published for both
+  individual participants (UserInitKey) and groups (GroupInitKey).
 
 Leaf Key:
 : A short-lived Diffie-Hellman key pair that represents a group
-member's contribution to the group secret, so called because the
-participants leaf keys are the leaves in the group's ratchet tree.
+  member's contribution to the group secret, so called because the
+  participants leaf keys are the leaves in the group's ratchet tree.
 
 Identity Key:
 : A long-lived signing key pair used to authenticate the sender of a
-message.
+  message.
 
 Terminology specific to tree computations is described in
 {{binary-trees}}.
@@ -136,25 +136,22 @@ describe the structure of protocol messages.
 
 # Basic Assumptions
 
-This protocol is designed to execute in the context of a messaging
-service as described in {{!I-D.rescorla-mls-architecture}}.  In
-particular, we assume that the messaging service provides two
-services:
+This protocol is designed to execute in the context of a Messaging Service (MS)
+as described in {{!I-D.rescorla-mls-architecture}}.  In particular, we assume
+the MS to provide the following services:
 
-* For each group, a broadcast channel that will relay the same
-  message to all members of a group.  For the most part, we assume
-  that this channel delivers messages in the same order to all
-  participants.  (See {{sequencing}} for further considerations.)
+* A long-term identity key provider which allows participants to authenticate
+  protocol messages in a group. These keys MUST be kept for the lifetime of the
+  group as there is no mechanism in the protocol for changing a participant's
+  identity key.
 
-* A cache to which participants can publish initialization keys, and
-  from which participant can download initialization keys for other
-  participants.
+* A broadcast channel, for each group, which will relay a message to all members
+  of a group.  For the most part, we assume that this channel delivers messages
+  in the same order to all participants.  (See {{sequencing}} for further
+  considerations.)
 
-We also assume that each participant is provisioned with a long-term
-identity key for use in authenticating protocol messages.  The
-identity key that a participant uses with a particular group must be
-kept for the lifetime of the group; there is no mechanism in the
-protocol for changing a participants identity key.
+* A cache to which participants can publish initialization keys, and from which
+  participant can download initialization keys for other participants.
 
 
 # Protocol Overview
@@ -167,11 +164,11 @@ post-compromise secrecy with respect to compromise of a participant.
 We describe the information stored by each participant as a _state_, which includes both public and
 private data. An initial state, including an initial set of participants, is set up by a group
 creator using the _Init_ algorithm and based on information pre-published by the initial members. The creator
-sends the GroupInit message to the participants, who can then set up their own group state deriving
-the same shared keys. Participants then exchange messages to produce new shared states which are
-causally linked to their predecessors, forming a logical DAG of states. Participants can send
-_Update_ messages for post-compromise secrecy, and new participants can be added or existing
-participants removed.
+sends the _GroupInit_ message to the participants, who can then set up their own group state and derive
+the same shared key. Participants then exchange messages to produce new shared states which are
+causally linked to their predecessors, forming a logical Directed Acyclic Graph (DAG) of states.
+Participants can send _Update_ messages for post-compromise secrecy and new participants can be
+added or existing participants removed from the group.
 
 The protocol algorithms we specify here follow. Each algorithm specifies both (i) how a participant
 performs the operation and (ii) how other participants update their state based on it.
