@@ -719,7 +719,7 @@ Update Secret -> HKDF-Extract = Epoch Secret
 In order to facilitate asynchronous addition of participants to a
 group, it is possible to pre-publish initialization keys that
 provide some public information about a user or group.  UserInitKey
-messages provide information about a potential user, that a group member can use to
+messages provide information about a potential group member, that a group member can use to
 add this user to a group without asynchronously.  GroupInitKey
 messages provide information about a group that a new user can use
 to join the group without any of the existing members of the group
@@ -878,8 +878,8 @@ struct {
 } GroupAdd;
 ~~~~~
 
-A group member generates such a message by requesting a UserInitKey
-for the user to be added, to the cache.  The new participant processes the
+A group member generates such a message by requesting from the cache
+a UserInitKey for the user to be added.  The new participant processes the
 message together with the private key corresponding to the
 UserInitKey to initialize his state as follows:
 
@@ -1077,12 +1077,8 @@ The primary purpose of this protocol is to enable an authenticated
 group key exchange among participants.  In order to protect messages sent among
 those participants, an application will need to specify how messages are protected.
 
-For every epoch, the root key of the ratcheting tree can be used to derive key material for:
-
- * symmetric encryption (using AEAD)
- * symmetric signatures (HMAC) (optional)
-
-[BB. I don't immediately see why HMAC as AEAD already provides a MAC for its payload...]
+For every epoch, the root key of the ratcheting tree can be used to
+derive key material for symmetric operations such as encryption/AEAD and MAC.
 
 In addition, asymmetric signatures SHOULD be used to ensure message authenticity.
 
@@ -1090,30 +1086,23 @@ In combination with server-side enforced ordering, data from previous messages
 is used (as a salt when hashing) to:
 
  * add freshness to derived symmetric keys
- * create channel-binding between messages to achieve some form of transcript security
-
-[BB. Replace 2. by "cryptographically bind the transcript of all previous messages with the current group shared secret" ?]
+ * cryptographically bind the transcript of all previous messages with the current
+   group shared secret
 
 Possible candidates for that are:
 
  * the key used for the previous message (hash ratcheting)
  * the counter of the previous message (needs to be known to new members of the group)
- * the hash of the previous message (strong indication that other participants saw the same history)
-
-[BB. More than an indication, it should be an unforgeable proof that they have the same history]
+ * the hash of the previous message (proof that other participants saw the same history)
 
 The requirement for this is that all participants know these values.
 If additional clear-text fields are attached to messages (like the counter), those
-fields can be protected by a signed message envelope.
-
-[BB. I would go for MUST be authenticated instead]
+fields MUST be protected by a signed message envelope.
 
 Alternatively, the hash of the previous message can also be included as an additional
 field rather than change the encryption key. This allows for a more flexible approach,
 because the receiving party can choose to ignore it (if the value is not known, or if
 transcript security is not required).
-
-[BB. Not sure to understand this...]
 
 # Security Considerations
 
@@ -1124,14 +1113,14 @@ scope of this document.
 ## Confidentiality of the Group Secrets
 
 Group secrets are derived from (i) previous group secrets, and (ii) the root key of a ratcheting
-tree. Only group members know their leaf secret key in the group, therefore, the root key of the
+tree. Only group members know their leaf private key in the group, therefore, the root key of the
 group's ratcheting tree is secret and thus so are all values derived from it.
 
 Initial leaf keys are known only by their owner and the group creator, because they are derived from
 an authenticated key exchange protocol. Subsequent leaf keys are known only by their owner. [[TODO:
 or by someone who replaced them.]]
 
-Note that the long-term identity keys used by the protocol MUST be distributed by an honnest
+Note that the long-term identity keys used by the protocol MUST be distributed by an "honnest"
 authentication service for parties to authenticate their legitimate peers.
 
 ## Authentication
