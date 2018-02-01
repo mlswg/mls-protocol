@@ -1,6 +1,6 @@
 ---
-title: Messaging Layer Security Protocol
-abbrev: MLS Protocol
+title: The Messaging Layer Security (MLS) Protocol
+abbrev: MLS
 docname: draft-barnes-mls-protocol-latest
 category: info
 
@@ -39,13 +39,7 @@ author:
 
 
 normative:
-  IEEE1363:
-       title: "Standard Specifications for Public Key Cryptography"
-       date: 2000
-       author:
-         org: IEEE
-       seriesinfo:
-         IEEE 1363
+  IEEE1363: DOI.10.1109/IEEESTD.2009.4773330
   X962:
        title: "Public Key Cryptography For The Financial Services Industry: The Elliptic Curve Digital Signature Algorithm (ECDSA)"
        date: 1998
@@ -58,6 +52,7 @@ normative:
 informative:
   doubleratchet: DOI.10.1109/EuroSP.2017.27
   dhreuse: DOI.10.1504/IJACT.2010.038308
+  keyagreement: DOI.10.6028/NIST.SP.800-56Ar2
 
 
 --- abstract
@@ -631,7 +626,7 @@ other than for computing other secrets.)
 Clients MUST validate remote public values by ensuring
 that the point is a valid point on the elliptic curve.
 The appropriate validation procedures are defined in Section 4.3.7 of {{X962}}
-and alternatively in Section 5.6.2.3 of {{?KEYAGREEMENT=DOI.10.6028/NIST.SP.800-56Ar2}}.
+and alternatively in Section 5.6.2.3 of {{keyagreement}}.
 This process consists of three steps: (1) verify that the value is not the point at
 infinity (O), (2) verify that for Y = (x, y) both integers are in the correct
 interval, (3) ensure that (x, y) is a correct solution to the elliptic curve equation.
