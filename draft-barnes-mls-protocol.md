@@ -39,6 +39,21 @@ author:
 
 
 normative:
+  IEEE1363:
+       title: "Standard Specifications for Public Key Cryptography"
+       date: 2000
+       author:
+         org: IEEE
+       seriesinfo:
+         IEEE 1363
+  X962:
+       title: "Public Key Cryptography For The Financial Services Industry: The Elliptic Curve Digital Signature Algorithm (ECDSA)"
+       date: 1998
+       author:
+         org: ANSI
+       seriesinfo:
+         ANSI: X9.62
+
 
 informative:
   doubleratchet: DOI.10.1109/EuroSP.2017.27
@@ -49,7 +64,7 @@ informative:
 
 Messaging applications are increasingly making use of end-to-end
 security mechanisms to ensure that messages are only accessible to
-the communicating endpoints, not any servers involved in delivering
+the communicating endpoints, and not to any servers involved in delivering
 messages.  Establishing keys to provide such protections is
 challenging for group chat settings, in which more than two
 participants need to agree on a key but may not be online at the same
@@ -66,24 +81,24 @@ with forward secrecy and post-compromise security.
 Groups of agents who want to send each other encrypted messages need
 a way to derive shared symmetric encryption keys. For two parties,
 this problem has been studied thoroughly, with the Double Ratchet
-emerging as a common solution {{doubleratchet}}. Channels implementing the Double
-Ratchet enjoy fine-grained forward secrecy as well as post-compromise
+emerging as a common solution {{doubleratchet}}. Channels implementing the
+Double Ratchet enjoy fine-grained forward secrecy as well as post-compromise
 security, but are nonetheless efficient enough for heavy use over
 low-bandwidth networks.
 
-For groups of size greater than two, common strategy is to
+For groups of size greater than two, a common strategy is to
 unilaterally broadcast symmetric "sender" keys over existing shared
 symmetric channels, and then for each agent to send messages to the
 group encrypted with their own sender key. Unfortunately, while this
 improves efficiency over pairwise broadcast of individual messages  and
 (with the addition of a hash ratchet) provides
-forward secrecy, it is difficult to achieve post-compromise security with sender keys. An
-adversary who learns a sender key can often indefinitely and
+forward secrecy, it is difficult to achieve post-compromise security with
+sender keys. An adversary who learns a sender key can often indefinitely and
 passively eavesdrop on that sender's messages.  Generating and
 distributing a new sender key provides a form of post-compromise
 security with regard to that sender.  However, it requires
 computation and communications resources that scale linearly as the
-size of the group. 
+size of the group.
 
 In this document, we describe a protocol based on tree structures
 that enable asynchronous group keying with forward secrecy and
@@ -102,31 +117,31 @@ document are to be interpreted as described in {{!RFC2119}}.
 
 Participant:
 : An agent that uses this protocol to establish shared cryptographic
-state with other participants.  A participant is defined by the
-cryptographic keys it holds.  An application may use one participant
-per device (keeping keys local to each device) or sync keys among
-a user's devices so that each user appears as a single participant.
+  state with other participants.  A participant is defined by the
+  cryptographic keys it holds.  An application may use one participant
+  per device (keeping keys local to each device) or sync keys among
+  a user's devices so that each user appears as a single participant.
 
 Group:
 : A collection of participants with shared cryptographic state.
 
 Member:
 : A participant that is included in the shared state of a group, and
-has access to the group's secrets.
+  has access to the group's secrets.
 
 Initialization Key:
 : A short-lived Diffie-Hellman key pair used to introduce a new
-member to a group.  Initialization keys can be published for both
-indidvidual participants (UserInitKey) and groups (GroupInitKey).
+  member to a group.  Initialization keys can be published for both
+  individual participants (UserInitKey) and groups (GroupInitKey).
 
 Leaf Key:
 : A short-lived Diffie-Hellman key pair that represents a group
-member's contribution to the group secret, so called because the
-participants leaf keys are the leaves in the group's ratchet tree.
+  member's contribution to the group secret, so called because the
+  participants leaf keys are the leaves in the group's ratchet tree.
 
 Identity Key:
 : A long-lived signing key pair used to authenticate the sender of a
-message.
+  message.
 
 Terminology specific to tree computations is described in
 {{binary-trees}}.
@@ -137,25 +152,22 @@ describe the structure of protocol messages.
 
 # Basic Assumptions
 
-This protocol is designed to execute in the context of a messaging
-service as described in [I-D.rescorla-mls-architecture].  In
-particular, we assume that the messaging service provides two
-services:
+This protocol is designed to execute in the context of a Messaging Service (MS)
+as described in [I-D.rescorla-mls-architecture].  In particular, we assume
+the MS provides the following services:
 
-* For each group, a broadcast channel that will relay the same
-  message to all members of a group.  For the most part, we assume
-  that this channel delivers messages in the same order to all
-  participants.  (See {{sequencing}} for further considerations.)
+* A long-term identity key provider which allows participants to authenticate
+  protocol messages in a group. These keys MUST be kept for the lifetime of the
+  group as there is no mechanism in the protocol for changing a participant's
+  identity key.
 
-* A cache to which participants can publish initialization keys, and
-  from which participant can download initialization keys for other
-  participants.
+* A broadcast channel, for each group, which will relay a message to all members
+  of a group.  For the most part, we assume that this channel delivers messages
+  in the same order to all participants.  (See {{sequencing}} for further
+  considerations.)
 
-We also assume that each participant is provisioned with a long-term
-identity key for use in authenticating protocol messages.  The
-identity key that a participant uses with a particular group must be
-kept for the lifetime of the group; there is no mechanism in the
-protocol for changing a participants identity key.
+* A cache to which participants can publish initialization keys, and from which
+  participant can download initialization keys for other participants.
 
 
 # Protocol Overview
@@ -168,11 +180,11 @@ post-compromise secrecy with respect to compromise of a participant.
 We describe the information stored by each participant as a _state_, which includes both public and
 private data. An initial state, including an initial set of participants, is set up by a group
 creator using the _Init_ algorithm and based on information pre-published by the initial members. The creator
-sends the GroupInit message to the participants, who can then set up their own group state deriving
-the same shared keys. Participants then exchange messages to produce new shared states which are
-causally linked to their predecessors, forming a logical DAG of states. Participants can send
-_Update_ messages for post-compromise secrecy, and new participants can be added or existing
-participants removed.
+sends the _GroupInit_ message to the participants, who can then set up their own group state and derive
+the same shared key. Participants then exchange messages to produce new shared states which are
+causally linked to their predecessors, forming a logical Directed Acyclic Graph (DAG) of states.
+Participants can send _Update_ messages for post-compromise secrecy and new participants can be
+added or existing participants removed from the group.
 
 The protocol algorithms we specify here follow. Each algorithm specifies both (i) how a participant
 performs the operation and (ii) how other participants update their state based on it.
@@ -185,11 +197,11 @@ There are four major operations in the lifecycle of a group:
 * Removal of a member
 
 Before the initialization of a group, participants publish
-UserInitKey objects to a cache provided to the messaging service.
+UserInitKey objects to a directory provided to the Messaging Service.
 
 ~~~~~
                                                           Group
-A              B              C            Cache         Channel
+A              B              C          Directory       Channel
 |              |              |              |              |
 | UserInitKeyA |              |              |              |
 |------------------------------------------->|              |
@@ -203,45 +215,44 @@ A              B              C            Cache         Channel
 ~~~~~
 
 When a participant A wants to establish a group with B and C, it
-first downloads InitKeys for B and C.  It then initializes a group
-group state containing only itself and uses the InitKeys to compute
-GroupAdd messages that add B and C, in a sequence chosen by A.
-These messages are broadcast to the group, and processed in sequence
+first downloads InitKeys for B and C.  It then initializes a group state
+containing only itself and uses the InitKeys to compute GroupAdd messages
+to add B and C, in a sequence chosen by A.
+These messages are broadcasted to the Group, and processed in sequence
 by B and C.  Messages received before a participant has joined the
 group are ignored.  Only after A has received its GroupAdd messages
-back from the server does it update its state to reflect their
-addition.
+back from the server does it update its state to reflect their addition.
 
 
 ~~~~~
-                                                          Group
-A              B              C            Cache         Channel
-|              |              |              |              |
-|         UserInitKeyB, UserInitKeyC         |              |
-|<-------------------------------------------|              |
-|              |              |              |              |
-|              |              |              | GroupAdd(B)  |
-|---------------------------------------------------------->|
-|              |              |              |              |
-|              |              |              | GroupAdd(C)  |
-|---------------------------------------------------------->|
-|              |              |              |              |
-|              |              |              | GroupAdd(B)  |
-|<----------------------------------------------------------|
-|state.add(B)  |<-------------------------------------------|
-|              |state.init()  |x----------------------------|
-|              |              |              |              |
-|              |              |              | GroupAdd(C)  |
-|<----------------------------------------------------------|
-|state.add(C)  |<-------------------------------------------|
-|              |state.add(C)  |<----------------------------|
-|              |              |state.init()  |              |
-|              |              |              |              |
+                                                               Group
+A              B              C          Directory            Channel
+|              |              |              |                   |
+|         UserInitKeyB, UserInitKeyC         |                   |
+|<-------------------------------------------|                   |
+|              |              |              |                   |
+|              |              |              | GroupAdd(A->AB)   |
+|--------------------------------------------------------------->|
+|              |              |              |                   |
+|              |              |              | GroupAdd(AB->ABC) |
+|--------------------------------------------------------------->|
+|              |              |              |                   |
+|              |              |              | GroupAdd(A->AB)   |
+|<---------------------------------------------------------------|
+|state.add(B)  |<------------------------------------------------|
+|              |state.init()  |x---------------------------------|
+|              |              |              |                   |
+|              |              |              | GroupAdd(AB->ABC) |
+|<---------------------------------------------------------------|
+|state.add(C)  |<------------------------------------------------|
+|              |state.add(C)  |<---------------------------------|
+|              |              |state.init()  |                   |
+|              |              |              |                   |
 ~~~~~
 
 Subsequent additions of group members proceed in the same way.  Any
-member of the group can download an InitKey for the new participant
-and broadcast a GroupAdd that the current group can use to update
+member of the group can download an InitKey for a new participant
+and broadcast a GroupAdd which the current group can use to update
 their state and the new participant can use to initialize its state.
 
 It is sometimes necessary for a new participant to join without
@@ -256,11 +267,11 @@ member has published a GroupInitKey reflecting the current state of
 the group (A, B, C).  The new participant Z downloads that
 GroupInitKey from the cache, generates a UserAdd message, and
 broadcasts it to the group.  Once current members process this
-message, they will have a shared state that also includes Z.   
+message, they will have a shared state that also includes Z.
 
 ~~~~~
                                                           Group
-A              B     ...      Z            Cache         Channel
+A              B     ...      Z          Directory       Channel
 | GroupInitKey |              |              |              |
 |------------------------------------------->|              |
 |              |              |              |              |
@@ -269,10 +280,10 @@ A              B     ...      Z            Cache         Channel
 |              |              | GroupInitKey |              |
 |              |              |<-------------|              |
 |              |              |              |              |
-|              |              | UserAdd(D)   |              |
+|              |              | UserAdd(.->D)|              |
 |              |              |---------------------------->|
 |              |              |              |              |
-|              |              |              | UserAdd(D)   |
+|              |              |              | UserAdd(.->D)|
 |<----------------------------------------------------------|
 |state.add(D)  |<-------------------------------------------|
 |              |state.add(D)  |<----------------------------|
@@ -280,15 +291,18 @@ A              B     ...      Z            Cache         Channel
 |              |              |              |              |
 ~~~~~
 
-To obtain forward secrecy and post-compromise security, each
-participant periodically updates its leaf key, the DH key pair that
+To enforce forward secrecy and post-compromise security of messages,
+each participant periodically updates its leaf key, the DH key pair that
 represents its contribution to the group key.  Any member of the
-group can send an update at any time by generating a fresh leaf key
+group can send an Update at any time by generating a fresh leaf key
 pair and sending an Update message that describes how to update the
 group key with that new key pair.  Once all participants have
 processed this message, the group's secrets will be unknown to an
-attacker that had compromised the sender's prior DH leaf private
-key.
+attacker that had compromised the sender's prior DH leaf private key.
+
+It is left to the application to determine the interval of time between
+Update messages. This policy could require a change for each message, or
+it could require sending an update every week or more.
 
 ~~~~~
                                                           Group
@@ -305,12 +319,16 @@ A              B     ...      Z            Cache         Channel
 |              |              |              |              |
 ~~~~~
 
-Users are deleted from the group in a similar way.  (After all, a
-key update is effectively removing the old leaf from the group!)
+Users are deleted from the group in a similar way, as a key update
+is effectively removing the old leaf from the group.
 Any member of the group can generate a Delete message that adds new
 entropy to the group state that is known to all members except the
-deleted member.  After the other participants process this message,
-the group's secrets will be unknown to the deleted participant. 
+deleted member.  After other participants have processed this message,
+the group's secrets will be unknown to the deleted participant.
+Note that this does not necessarily imply that any member
+is actually allowed to evict other members; groups can layer
+authentication-based access control policies on top of these
+basic mechanism.
 
 ~~~~~
                                                           Group
@@ -326,19 +344,6 @@ A              B     ...      Z            Cache         Channel
 |              |              |              |              |
 |              |              |              |              |
 ~~~~~
-
-
-[[ NOTE: The GroupAdd and Delete operations create a "double-join"
-situation, where a participants leaf key is also known to another
-participant.  Implementations should ensure that the double-joined participant
-in this situation will delete the additional private state; however we cannot
-rely in this as a formal security property.  When a participant A is double-joined to another B,
-trivially deleting A will not remove them from the conversation, since they
-will still hold the leaf key for B, so we will require additional book-keeping
-that allows the double-join to be fixed at this point.  These situations are resolved
-by updates from neighbouring participants, but since operations are asynchronous and participants
-may be offline for a long time, the group will need to be able to
-maintain security in the presence of double-joins. ]]
 
 
 # Binary Trees
@@ -357,16 +362,21 @@ a direct mapping between their nodes when manipulating group membership. The
 
 We use a common set of terminology to refer to both types of binary tree.
 
-Trees consist of various different types of _nodes_. A node is a _leaf_ if it has no children, and a
-_parent_ otherwise; note that all parents in our Merkle or asynchronous ratcheting trees have
-precisely two children, a _left_ child and a _right_ child. A node is the _root_ of a tree if it has no parents, and _intermediate_ if
-it has both children and parents. The _descendants_ of a node are that node, its children, and the
-descendants of its children, and we say a tree _contains_ a node if that node is a descendant of the
-root of the tree. Nodes are _siblings_ if they share the same parent.
+Trees consist of various different types of _nodes_. A node is a
+_leaf_ if it has no children, and a _parent_ otherwise; note that all
+parents in our Merkle or asynchronous ratcheting trees have precisely
+two children, a _left_ child and a _right_ child. A node is the _root_
+of a tree if it has no parents, and _intermediate_ if it has both
+children and parents. The _descendants_ of a node are that node, its
+children, and the descendants of its children, and we say a tree
+_contains_ a node if that node is a descendant of the root of the
+tree. Nodes are _siblings_ if they share the same parent.
 
-A _subtree_ of a tree is the tree given by the descendants of any node, the _head_ of the subtree The _size_ of a tree or
-subtree is the number of leaf nodes it contains.  For a given parent
-node, its _left subtree_ is the subtree with its left child as head (respectively _right subtree_).
+A _subtree_ of a tree is the tree given by the descendants of any
+node, the _head_ of the subtree The _size_ of a tree or subtree is the
+number of leaf nodes it contains.  For a given parent node, its _left
+subtree_ is the subtree with its left child as head (respectively
+_right subtree_).
 
 All trees used in this protocol are left-balanced binary trees. A
 binary tree is _full_ (and _balanced_) if it its size is a power of
@@ -380,22 +390,24 @@ binary tree structure with these elements as leaves.  In such a
 left-balanced tree, the `k-th` leaf node refers to the `k-th` leaf
 node in the tree when counting from the left, starting from 0.
 
-The _direct path_ of a root is the empty list, and of any other node is the concatenation of that
-node with the direct path of its parent. The _copath_ of a node is the list of siblings of nodes in
-its direct path, excluding the root, which has no sibling. The _frontier_ of a tree is the set of
-intermediate.
+The _direct path_ of a root is the empty list, and of any other node
+is the concatenation of that node with the direct path of its
+parent. The _copath_ of a node is the list of siblings of nodes in its
+direct path, excluding the root, which has no sibling. The _frontier_
+of a tree is the set of intermediate.
 
-We extend both types of tree to include a concept of "blank" nodes; which are
-used to replace group members who have been removed. We expand on how these are
-used and implemented in the sections below.
+We extend both types of tree to include a concept of "blank" nodes;
+which are used to replace group members who have been removed. We
+expand on how these are used and implemented in the sections below.
 
-(Note that left-balanced binary trees are the same structure that is used for the
-Merkle trees in the Certificate Transparency protocol {{?I-D.ietf-trans-rfc6962-bis}}.)
+(Note that left-balanced binary trees are the same structure that is
+used for the Merkle trees in the Certificate Transparency protocol
+{{?I-D.ietf-trans-rfc6962-bis}}.)
 
 ## Merkle Trees
 
 Merkle trees are used to efficiently commit to a collection of group members.
-We require a hash function to construct this tree.
+We require a hash function, denoted H, to construct this tree.
 
 Each node in a Merkle tree is the output of the hash function,
 computed as follows:
@@ -414,9 +426,8 @@ The below tree provides an example of a size 2 tree, containing identity keys
 H(1 || A) *     * H(1 || B)
 ~~~~~
 
-In Merkle trees, blank nodes appear only at the leaves.  In
-computation of intermediate nodes, they are treated in the same way
-as other nodes.
+In Merkle trees, blank nodes appear only at the leaves.  In computation of
+intermediate nodes, they are treated in the same way as other nodes.
 
 ### Merkle Proofs
 
@@ -425,8 +436,8 @@ of the leaf node, as well as the values of each node in its copath. From these
 values, its path to the root can be verified; proving the inclusion of the leaf
 in the Merkle tree.
 
-In the below tree, we star the Merkle proof of membership for leaf node
-`A`. For brevity, we notate `Hash( A || B)` as `AB`.
+In the below tree, we denote with a star the Merkle proof of membership for
+leaf node `A`. For brevity, we notate `Hash( A || B)` as `AB`.
 
 ~~~~~
       ABCD
@@ -439,15 +450,15 @@ A   B*    C    D
 
 ## Ratchet Trees
 
-Ratchet trees are used for generating the shared group secrets. These are
+Ratchet trees are used for generating shared group secrets. These are
 constructed as a series of Diffie-Hellman keys in a binary tree arrangement,
 with each user knowing their direct path, and thus being able to compute the
 shared root secret.
 
 To construct these trees, we require:
 
-* A Diffie-Hellman group
-* A function Derive-Key-Pair that produces a key pair from an octet
+* a Diffie-Hellman finite-field group or elliptic curve;
+* a Derive-Key-Pair function that produces a key pair from an octet
   string, such as the output of a DH computation
 
 Each node in a ratchet tree contains up to three values:
@@ -467,7 +478,7 @@ parent is computed as follows:
 Ratchet trees are constructed as left-balanced trees, defined such that each
 parent node's key pair is derived from the Diffie-Hellman shared secret of its
 two child nodes. To compute the root secret and private key, a participant must know the
-public keys of nodes in its own copath, as well as its own leaf private key.
+public keys of nodes of its copath, as well as its own leaf private key.
 
 For example, the ratchet tree consisting of the private keys (A, B, C, D)
 is constructed as follows:
@@ -481,7 +492,7 @@ A    B    C    D
 ~~~~~
 
 Ratchet trees constructed this way provide the property that one must hold at
-least one private key from the tree to compute the root key. With all
+least one private key from the tree to compute the secret root key. With all
 participants holding one leaf private key; this allows any individual to update
 their own key and change the shared root key, such that only group members can
 compute the new key.
@@ -512,9 +523,9 @@ tree management to behave as for a balanced tree for programming simplicity.
 
 # Group State
 
-Logically, the state of an MLS group at a given time comprises:
+The state of an MLS group at a given time comprises:
 
-* A group ID
+* A group identifier (GID)
 * A ciphersuite used for cryptographic computations
 * A Merkle tree over the participants' identity keys
 * A ratchet tree over the participants' leaf key pairs
@@ -527,23 +538,23 @@ sequence of states.  The time in which each individual state is used
 is called an "epoch", and each state is assigned an epoch number
 that increments when the state changes.
 
-MLS handshake message provide each node with enough information
+MLS handshake messages provide each node with enough information
 about the trees to authenticate messages within the group and
 compute the group secrets.
 
-Thus, each participant will need store the following information
+Thus, each participant will need to store the following information
 about each state of the group:
 
 1. The participant's index in the identity/ratchet trees
-2. The private key for the participant's leaf key pair
-3. The private key for the participant's identity key pair
+2. The private key associated to the participant's leaf public key
+3. The private key associated to the participant's identity public key
 4. The current epoch number
-5. The group ID
+5. The group identifier (GID)
 6. A subset of the identity tree comprising at least the copath for
    the participant's leaf
 7. A subset of the ratchet tree comprising at least the copath for
    the participant's leaf
-8. The current message master secret
+8. The current message encryption shared secret, called master secret
 9. The current add key pair
 10. The current init secret
 
@@ -553,15 +564,14 @@ Each MLS session uses a single ciphersuite that specifies the
 following primitives to be used in group key computations:
 
 * A hash function
-* A Diffie-Hellman group
+* A Diffie-Hellman finite-field group or elliptic curve
 
 The ciphersuite must also specify an algorithm `Derive-Key-Pair`
 that maps octet strings with the same length as the output of the
 hash function to key pairs for the Diffie-Hellman group.
- 
-Public keys and Merkle tree nodes used in the protocol are opaque
-values in a format defined by the ciphersuite, using the following
-four types:
+
+Public keys and Merkle tree nodes used in the protocol are opaque values
+in a format defined by the ciphersuite, using the following four types:
 
 ~~~~~
 uint16 CipherSuite;
@@ -575,12 +585,20 @@ opaque MerkleNode<1..255>
 This ciphersuite uses the following primitives:
 
 * Hash function: SHA-256
-* Diffie-Hellman group: Curve25519 {{?RFC7748}}
+* Diffie-Hellman group: Curve25519 {{!RFC7748}}
 
 Given an octet string X, the private key produced by the
 Derive-Key-Pair operation is SHA-256(X).  (Recall that any 32-octet
 string is a valid Curve25519 private key.)  The corresponding public
 key is X25519(SHA-256(X), 9).
+
+Implementations SHOULD use the approach
+specified in {{RFC7748}} to calculate the Diffie-Hellman shared secret.
+Implementations MUST check whether the computed Diffie-Hellman shared
+secret is the all-zero value and abort if so, as described in
+Section 6 of {{RFC7748}}.  If implementers use an alternative
+implementation of these elliptic curves, they SHOULD perform the
+additional checks specified in Section 7 of {{RFC7748]}
 
 
 ### P-256 with SHA-256
@@ -595,6 +613,29 @@ Derive-Key-Pair operation is SHA-256(X), interpreted as a big-endian
 integer.  The corresponding public key is the result of multiplying
 the standard P-256 base point by this integer.
 
+P-256 ECDH calculations (including parameter
+and key generation as well as the shared secret calculation) are
+performed according to {{IEEE1363}} using the ECKAS-DH1 scheme with the identity
+map as key derivation function (KDF), so that the shared secret is the
+x-coordinate of the ECDH shared secret elliptic curve point represented
+as an octet string.  Note that this octet string (Z in IEEE 1363 terminology)
+as output by FE2OSP, the Field Element to Octet String Conversion
+Primitive, has constant length for any given field; leading zeros
+found in this octet string MUST NOT be truncated.
+
+(Note that this use of the identity KDF is a technicality.  The
+complete picture is that ECDH is employed with a non-trivial KDF
+because MLS does not directly use this secret for anything
+other than for computing other secrets.)
+
+Clients MUST validate remote public values by ensuring
+that the point is a valid point on the elliptic curve.
+The appropriate validation procedures are defined in Section 4.3.7 of {{X962}}
+and alternatively in Section 5.6.2.3 of {{?KEYAGREEMENT=DOI.10.6028/NIST.SP.800-56Ar2}}.
+This process consists of three steps: (1) verify that the value is not the point at
+infinity (O), (2) verify that for Y = (x, y) both integers are in the correct
+interval, (3) ensure that (x, y) is a correct solution to the elliptic curve equation.
+For these curves, implementers do not need to verify membership in the correct subgroup.
 
 ## Key Schedule
 
@@ -617,7 +658,7 @@ struct {
 } HkdfLabel;
 ~~~~~
 
-The Hash function used by HKDF is the cipher suite hash algorithm.
+The Hash function used by HKDF is the ciphersuite hash algorithm.
 Hash.length is its output length in bytes.  In the below diagram:
 
 * HKDF-Extract takes its Salt argument form the top and its IKM
@@ -630,15 +671,15 @@ following information to derive new epoch secrets:
 * The init secret from the previous epoch
 * The update secret for the current epoch
 * The handshake message that caused the epoch change
-* The current group ID and epoch
+* The current group identifier (GID) and epoch
 
 The derivation of the update secret depends on the change being
 made, as described below.
 
-For adds, the new user does not know the prior epoch init secret.
-Instead, entropy from the prior epoch is added via the update
-secret, and an all-zero vector with the same length as a hash output
-is used in the place of the init secret.
+For UserAdd or GroupAdd, the new user does not know the prior epoch init secret.
+Instead, entropy from the prior epoch is added via the update secret,
+and an all-zero vector with the same length as a hash output is used
+in the place of the init secret.
 
 Given these inputs, the derivation of secrets for an epoch
 proceeds as shown in the following diagram:
@@ -662,7 +703,7 @@ Update Secret -> HKDF-Extract = Epoch Secret
                Derive-Secret(., "init", ID, Epoch, Msg)
                      |
                      V
-               Init Secret [n-1]
+               Init Secret [n]
 ~~~~~
 
 
@@ -671,20 +712,20 @@ Update Secret -> HKDF-Extract = Epoch Secret
 In order to facilitate asynchronous addition of participants to a
 group, it is possible to pre-publish initialization keys that
 provide some public information about a user or group.  UserInitKey
-messages provide information a user that a group member can use to
-add the user to a group without the user being online.  GroupInitKey
+messages provide information about a potential group member, that a group member can use to
+add this user to a group without asynchronously.  GroupInitKey
 messages provide information about a group that a new user can use
 to join the group without any of the existing members of the group
 being online.
 
 ## UserInitKey
 
-A UserInitKey object specifies what cipher suites a client supports,
+A UserInitKey object specifies what ciphersuites a client supports,
 as well as providing public keys that the client can use for key
 derivation and signing.  The client's identity key is intended to be
 stable through the lifetime of the group; there is no mechanism to
-change it.  Init keys are intend to be used one time only (or
-perhaps a small number of times, see {{init-key-reuse}}).
+change it.  Init keys are intended to be used a very limited number of
+times, potentially once. (see {{init-key-reuse}}).
 
 The init\_keys array MUST have the same length as the cipher\_suites
 array, and each entry in the init\_keys array MUST be a public key
@@ -742,10 +783,9 @@ struct {
 
 # Handshake Messages
 
-Over the lifetime of a group, changes need to be made to the group's
-state:
+Over the lifetime of a group, its state will change for:
 
-* Initializing a group
+* Group initialization
 * A current member adding a new participant
 * A new participant adding themselves
 * A current participant updating its leaf key
@@ -758,16 +798,17 @@ messages are exchanged throughout the lifetime of a group, whenever
 a change is made to the group state.
 
 An MLS handshake message encapsulates a specific message that
-accomplishes a change in group state, and also includes two other
-important features: First, it provides a GroupInitKey so that a new
-participant can observe the latest state of the handshake and
-initialize itself.  Second, it provides a signature by a member of
-the group, together with a Merkle inclusion proof that demonstrates
-that the signer is a legitimate member of the group.
+accomplishes a change to the group state. It also includes two other
+important features: a GroupInitKey so that a new participant can observe
+the latest state of the handshake and initialize itself; it also provides
+a signature by a member of the group, together with a Merkle inclusion
+proof that demonstrates that the signer is a legitimate member of the group.
 
 Before considering a handshake message valid, the recipient MUST
-verify both that the signature is valid and that the Merkle
-inclusion proof is valid.  The input to the signature computations
+verify both that the signature is valid, the Merkle
+inclusion proof is valid, and the sender is authorized to
+make the change accoding to group policy.
+The input to the signature computations
 comprises the entire handshake message except for the signature
 field.
 
@@ -810,9 +851,32 @@ struct {
 } Handshake;
 ~~~~~
 
+[[ OPEN ISSUE: There will be a need to integrate credentials from an
+authentication service that associate identities to the identity
+keys used to sign messages.  This integration will enable meaningful
+authentication (of identities, rather than keys), and will need to
+be done in such a way as to prevent unknown key share attacks. ]]
+
+[[ OPEN ISSUE: The GroupAdd and Delete operations create a "double-join"
+situation, where a participants leaf key is also known to another
+participant.  When a participant A is double-joined to another B,
+deleting A will not remove them from the conversation, since they
+will still hold the leaf key for B.  These situations are resolved
+by updates, but since operations are asynchronous and participants
+may be offline for a long time, the group will need to be able to
+maintain security in the presence of double-joins. ]]
+
+[[ OPEN ISSUE: It is not possible for the recipient of a handshake
+message to verify that ratchet tree information in the message is
+accurate, because each node can only compute the secret and private
+key for nodes in its direct path.  This creates that a malicious
+participant could cause a denial of service by sending a handshake
+message with invalid values for public keys in the ratchet tree. ]]
+
+
 ## Init
 
-[[ Direct initialization is currently undefined.  A participant can
+[[ OPEN ISSUE: Direct initialization is currently undefined.  A participant can
 create a group by initializing its own state to reflect a group
 including only itself, then adding the initial participants.  This
 has computation and communication complexity O(N log N) instead of
@@ -820,8 +884,8 @@ the O(N) complexity of direct initialization. ]]
 
 ## GroupAdd
 
-An GroupAdd message is sent by a group member to add a new
-participant to the group.  The contents of the message are simply
+A GroupAdd message is sent by a group member to add a new
+participant to the group.  The content of the message is only
 the UserInitKey for the user being added.
 
 ~~~~~
@@ -830,8 +894,8 @@ struct {
 } GroupAdd;
 ~~~~~
 
-A group member generates such a message by downloading a UserInitKey
-for the user to be added.  The added participant processes the
+A group member generates such a message by requesting from the cache
+a UserInitKey for the user to be added.  The new participant processes the
 message together with the private key corresponding to the
 UserInitKey to initialize his state as follows:
 
@@ -959,6 +1023,10 @@ root node of the ratchet tree after both updates.
 
 # Sequencing of State Changes {#sequencing}
 
+[[ OPEN ISSUE: This section has an initial set of considerations
+regarding sequencing.  It would be good to have some more detailed
+discussion, and hopefully have a mechanism to deal with this issue. ]]
+
 Each handshake message is premised on a given starting state,
 indicated in its `prior_epoch` field.  If the changes implied by a
 handshake messages are made starting from a different state, the
@@ -968,13 +1036,13 @@ This need for sequencing is not a problem as long as each time a
 group member sends a handshake message, it is based on the most
 current state of the group.  In practice, however, there is a risk
 that two members will generate handshake messages simultaneously,
-based on the same state.  
+based on the same state.
 
 When this happens, there is a need for the members of the group to
 deconflict the simultaneous handshake messages.  There are two
 general approaches:
 
-* Have the server enforce a total order
+* Have the delivery service enforce a total order
 * Have a signal in the message that clients can use to break ties
 
 In either case, there is a risk of starvation.  In a sufficiently
@@ -984,7 +1052,7 @@ which this is a practical problem will depend on the dynamics of the
 application.
 
 Regardless of how messages are kept in sequence, implementations
-MUST only update their cryptographic state when handshake messages
+MUST only update their cryptographic state when valid handshake messages
 are received.  Generation of handshake messages MUST be stateless,
 since the endpoint cannot know at that time whether the change
 implied by the handshake message will succeed or not.
@@ -992,7 +1060,7 @@ implied by the handshake message will succeed or not.
 
 ## Server-side enforced ordering
 
-With this approach, the server ensures that incoming messages are added to an
+With this approach, the delivery service ensures that incoming messages are added to an
 ordered queue and outgoing messages are dispatched in the same order. The server
 is trusted to resolve conflicts during race-conditions (when two members send a
 message at the same time), as the server doesn't have any additional knowledge
@@ -1013,7 +1081,7 @@ This applies to all messages, not only state changing messages.
 ## Client-side enforced ordering
 
 Order enforcing can be implemented on the client as well, one way to achieve it
-is to use two steps update protocol, first client sends a proposal to update and
+is to use two steps update protocol: the first client sends a proposal to update and
 the proposal is accepted when it gets 50%+ approval from the rest of the group,
 then it sends the approved update. Clients which didn't get their proposal accepted,
 will wait for the winner to send their update before retrying new proposals.
@@ -1025,33 +1093,36 @@ failing to get their proposal accepted.
 
 # Message Protection
 
+[[ OPEN ISSUE: This section has initial considerations about message
+protection.  This issue clearly needs more specific recommendations,
+possibly a protocol specification in this document or a separate
+one. ]]
+
 The primary purpose of this protocol is to enable an authenticated
-key exchange among a group of participants.  In order to protect
-messages sent among those participants, an application will also
-need to specify how messages are protected.
+group key exchange among participants.  In order to protect messages sent among
+those participants, an application will need to specify how messages are protected.
 
-For every epoch, the root key of the ratcheting tree can be used to derive key material for:
+For every epoch, the root key of the ratcheting tree can be used to
+derive key material for symmetric operations such as encryption/AEAD and MAC.
 
- * symmetric encryption (using AEAD)
- * symmetric signatures (HMAC) (optional)
-
-In addition, asymmetric signatures should be used to ensure message authenticity.
+In addition, asymmetric signatures SHOULD be used to ensure message authenticity.
 
 In combination with server-side enforced ordering, data from previous messages
-can be used (as a salt when hashing) to:
+is used (as a salt when hashing) to:
 
  * add freshness to derived symmetric keys
- * create channel-binding between messages to achieve some form of transcript security
+ * cryptographically bind the transcript of all previous messages with the current
+   group shared secret
 
 Possible candidates for that are:
 
  * the key used for the previous message (hash ratcheting)
  * the counter of the previous message (needs to be known to new members of the group)
- * the hash of the previous message (strong indication that other participants saw the same history)
+ * the hash of the previous message (proof that other participants saw the same history)
 
 The requirement for this is that all participants know these values.
 If additional clear-text fields are attached to messages (like the counter), those
-fields can be protected by a signed message envelope.
+fields MUST be protected by a signed message envelope.
 
 Alternatively, the hash of the previous message can also be included as an additional
 field rather than change the encryption key. This allows for a more flexible approach,
@@ -1067,26 +1138,29 @@ scope of this document.
 ## Confidentiality of the Group Secrets
 
 Group secrets are derived from (i) previous group secrets, and (ii) the root key of a ratcheting
-tree. As long only group members know a leaf key in the group, therefore, the root key of the
+tree. Only group members know their leaf private key in the group, therefore, the root key of the
 group's ratcheting tree is secret and thus so are all values derived from it.
 
 Initial leaf keys are known only by their owner and the group creator, because they are derived from
 an authenticated key exchange protocol. Subsequent leaf keys are known only by their owner. [[TODO:
 or by someone who replaced them.]]
 
-Note that the long-term identity keys used by the protocol must be distributed correctly for parties
-to authenticate their peers.
+Note that the long-term identity keys used by the protocol MUST be distributed by an "honnest"
+authentication service for parties to authenticate their legitimate peers.
 
 ## Authentication
 
-There are two forms of authentication we consider: that the group key is known only to group
-members, and that only the sender of a message could have sent it. The former property comes from
-the ratcheting trees: only group members know a leaf key, and thus only group members can compute
-the shared secret. The latter property is provided by the message signatures under identity keys.
+There are two forms of authentication we consider. The first of those is an implicit
+group authentication property which derives from a property of the ratcheting trees:
+if all members of the group are honnest, then the shared group key only beiing known
+to group members. This implies that a participant in the group has sent a message.
+
+The second authentication property is that a message has been sent by a specific member
+of the group. The latter property is provided by the message signatures under identity keys.
 
 ## Forward and post-compromise security
 
-Message keys are derived via a hash ratchet, which provides a form of forward secrecy: learning a
+Message encryption keys are derived via a hash ratchet, which provides a form of forward secrecy: learning a
 message key does not reveal previous message or root keys. Post-compromise security is provided by
 Update operations, in which a new root key is generated from the latest racheting tree. If the
 adversary cannot derive the updated root key after an Update operation, it cannot compute any
@@ -1101,3 +1175,37 @@ inherently insecure {{dhreuse}}, although it can complicate protocol analyses.
 # IANA Considerations
 
 TODO: Registries for protocol parameters, e.g., ciphersuites
+
+# Contributors
+
+* Benjamin Beurdouche \\
+  INRIA \\
+  benjamin.beurdouche@ens.fr
+
+* Karthikeyan Bhargavan \\
+  INRIA \\
+  karthikeyan.bhargavan@inria.fr
+
+* Cas Cremers \\
+  University of Oxford \\
+  cas.cremers@cs.ox.ac.uk
+
+* Alan Duric \\
+  Wire \\
+  alan@wire.com
+
+* Srinivas Inguva \\
+  Twitter \\
+  singuva@twitter.com
+
+* Albert Kwong \\
+  MIT \\
+  kwonal@mit.edu
+
+* Eric Rescorla \\
+  Mozilla \\
+  ekr@rtfm.com
+
+* Thyla van der Merwe \\
+  Royal Holloway, University of London \\
+  tjvdmerwe@gmail.com
