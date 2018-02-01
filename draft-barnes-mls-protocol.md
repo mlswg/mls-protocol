@@ -345,16 +345,6 @@ A              B     ...      Z            Cache         Channel
 ~~~~~
 
 
-[[ NOTE: The GroupAdd and Delete operations create a "double-join"
-situation, where a participants leaf key is also known to another
-participant.  When a participant A is double-joined to another B,
-deleting A will not remove them from the conversation, since they
-will still hold the leaf key for B.  These situations are resolved
-by updates, but since operations are asynchronous and participants
-may be offline for a long time, the group will need to be able to
-maintain security in the presence of double-joins. ]]
-
-
 # Binary Trees
 
 The protocol uses two types of binary tree structures:
@@ -862,9 +852,32 @@ struct {
 } Handshake;
 ~~~~~
 
+[[ OPEN ISSUE: There will be a need to integrate credentials from an
+authentication service that associate identities to the identity
+keys used to sign messages.  This integration will enable meaningful
+authentication (of identities, rather than keys), and will need to
+be done in such a way as to prevent unknown key share attacks. ]]
+
+[[ OPEN ISSUE: The GroupAdd and Delete operations create a "double-join"
+situation, where a participants leaf key is also known to another
+participant.  When a participant A is double-joined to another B,
+deleting A will not remove them from the conversation, since they
+will still hold the leaf key for B.  These situations are resolved
+by updates, but since operations are asynchronous and participants
+may be offline for a long time, the group will need to be able to
+maintain security in the presence of double-joins. ]]
+
+[[ OPEN ISSUE: It is not possible for the recipient of a handshake
+message to verify that ratchet tree information in the message is
+accurate, because each node can only compute the secret and private
+key for nodes in its direct path.  This creates that a malicious
+participant could cause a denial of service by sending a handshake
+message with invalid values for public keys in the ratchet tree. ]]
+
+
 ## Init
 
-[[ Direct initialization is currently undefined.  A participant can
+[[ OPEN ISSUE: Direct initialization is currently undefined.  A participant can
 create a group by initializing its own state to reflect a group
 including only itself, then adding the initial participants.  This
 has computation and communication complexity O(N log N) instead of
@@ -1011,6 +1024,10 @@ root node of the ratchet tree after both updates.
 
 # Sequencing of State Changes {#sequencing}
 
+[[ OPEN ISSUE: This section has an initial set of considerations
+regarding sequencing.  It would be good to have some more detailed
+discussion, and hopefully have a mechanism to deal with this issue. ]]
+
 Each handshake message is premised on a given starting state,
 indicated in its `prior_epoch` field.  If the changes implied by a
 handshake messages are made starting from a different state, the
@@ -1076,6 +1093,11 @@ failing to get their proposal accepted.
 
 
 # Message Protection
+
+[[ OPEN ISSUE: This section has initial considerations about message
+protection.  This issue clearly needs more specific recommendations,
+possibly a protocol specification in this document or a separate
+one. ]]
 
 The primary purpose of this protocol is to enable an authenticated
 key exchange among a group of participants.  In order to protect
