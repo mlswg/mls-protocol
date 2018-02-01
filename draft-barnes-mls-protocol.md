@@ -506,9 +506,9 @@ tree management to behave as for a balanced tree for programming simplicity.
 
 # Group State
 
-Logically, the state of an MLS group at a given time comprises:
+The state of an MLS group at a given time comprises:
 
-* A group ID
+* A group identifier (GID)
 * A ciphersuite used for cryptographic computations
 * A Merkle tree over the participants' identity keys
 * A ratchet tree over the participants' leaf key pairs
@@ -521,23 +521,23 @@ sequence of states.  The time in which each individual state is used
 is called an "epoch", and each state is assigned an epoch number
 that increments when the state changes.
 
-MLS handshake message provide each node with enough information
+MLS handshake messages provide each node with enough information
 about the trees to authenticate messages within the group and
 compute the group secrets.
 
-Thus, each participant will need store the following information
+Thus, each participant will need to store the following information
 about each state of the group:
 
 1. The participant's index in the identity/ratchet trees
-2. The private key for the participant's leaf key pair
-3. The private key for the participant's identity key pair
+2. The private key associated to the participant's leaf public key
+3. The private key associated to the participant's identity public key
 4. The current epoch number
-5. The group ID
+5. The group identifier (GID)
 6. A subset of the identity tree comprising at least the copath for
    the participant's leaf
 7. A subset of the ratchet tree comprising at least the copath for
    the participant's leaf
-8. The current message master secret
+8. The current message encryption shared secret, called master secret
 9. The current add key pair
 10. The current init secret
 
@@ -547,15 +547,14 @@ Each MLS session uses a single ciphersuite that specifies the
 following primitives to be used in group key computations:
 
 * A hash function
-* A Diffie-Hellman group
+* A Diffie-Hellman finite-field group or elliptic curve
 
 The ciphersuite must also specify an algorithm `Derive-Key-Pair`
 that maps octet strings with the same length as the output of the
 hash function to key pairs for the Diffie-Hellman group.
- 
-Public keys and Merkle tree nodes used in the protocol are opaque
-values in a format defined by the ciphersuite, using the following
-four types:
+
+Public keys and Merkle tree nodes used in the protocol are opaque values
+in a format defined by the ciphersuite, using the following four types:
 
 ~~~~~
 uint16 CipherSuite;
@@ -611,7 +610,7 @@ struct {
 } HkdfLabel;
 ~~~~~
 
-The Hash function used by HKDF is the cipher suite hash algorithm.
+The Hash function used by HKDF is the ciphersuite hash algorithm.
 Hash.length is its output length in bytes.  In the below diagram:
 
 * HKDF-Extract takes its Salt argument form the top and its IKM
@@ -624,15 +623,15 @@ following information to derive new epoch secrets:
 * The init secret from the previous epoch
 * The update secret for the current epoch
 * The handshake message that caused the epoch change
-* The current group ID and epoch
+* The current group identifier (GID) and epoch
 
 The derivation of the update secret depends on the change being
 made, as described below.
 
-For adds, the new user does not know the prior epoch init secret.
-Instead, entropy from the prior epoch is added via the update
-secret, and an all-zero vector with the same length as a hash output
-is used in the place of the init secret.
+For UserAdd or GroupAdd, the new user does not know the prior epoch init secret.
+Instead, entropy from the prior epoch is added via the update secret,
+and an all-zero vector with the same length as a hash output is used
+in the place of the init secret.
 
 Given these inputs, the derivation of secrets for an epoch
 proceeds as shown in the following diagram:
@@ -656,7 +655,7 @@ Update Secret -> HKDF-Extract = Epoch Secret
                Derive-Secret(., "init", ID, Epoch, Msg)
                      |
                      V
-               Init Secret [n-1]
+               Init Secret [n]
 ~~~~~
 
 
@@ -665,20 +664,20 @@ Update Secret -> HKDF-Extract = Epoch Secret
 In order to facilitate asynchronous addition of participants to a
 group, it is possible to pre-publish initialization keys that
 provide some public information about a user or group.  UserInitKey
-messages provide information a user that a group member can use to
-add the user to a group without the user being online.  GroupInitKey
+messages provide information about a potential user, that a group member can use to
+add this user to a group without asynchronously.  GroupInitKey
 messages provide information about a group that a new user can use
 to join the group without any of the existing members of the group
 being online.
 
 ## UserInitKey
 
-A UserInitKey object specifies what cipher suites a client supports,
+A UserInitKey object specifies what ciphersuites a client supports,
 as well as providing public keys that the client can use for key
 derivation and signing.  The client's identity key is intended to be
 stable through the lifetime of the group; there is no mechanism to
-change it.  Init keys are intend to be used one time only (or
-perhaps a small number of times, see {{init-key-reuse}}).
+change it.  Init keys are intended to be used a very limited number of
+times, potentially once. (see {{init-key-reuse}}).
 
 The init\_keys array MUST have the same length as the cipher\_suites
 array, and each entry in the init\_keys array MUST be a public key
