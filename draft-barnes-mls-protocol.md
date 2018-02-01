@@ -107,7 +107,7 @@ post-compromise secrecy with respect to compromise of a participant.
 
 We describe the information stored by each participant as a _state_, which includes both public and
 private data. An initial state, including an initial set of participants, is set up by a group
-creator using the _Init_ algorithm and based on information pre-published bythe initial members. The creator
+creator using the _Init_ algorithm and based on information pre-published by the initial members. The creator
 sends the GroupInit message to the participants, who can then set up their own group state deriving
 the same shared keys. Participants then exchange messages to produce new shared states which are
 causally linked to their predecessors, forming a logical DAG of states. Participants can send
