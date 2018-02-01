@@ -42,7 +42,7 @@ normative:
 
 informative:
   dhreuse: DOI.10.1504/IJACT.2010.038308
-        
+
 
 --- abstract
 
@@ -69,7 +69,7 @@ Ratchet enjoy fine-grained forward secrecy as well as post-compromise
 security, but are nonetheless efficient enough for heavy use over
 low-bandwidth networks.
 
-For groups of size greater than two, the state of the art is to
+For groups of size greater than two, common strategy is to
 unilaterally broadcast symmetric "sender" keys over existing shared
 symmetric channels, and then for each agent to send messages to the
 group encrypted with their own sender key. Unfortunately, while this
@@ -98,7 +98,6 @@ document are to be interpreted as described in {{!RFC2119}}.
 We use the TLS presentation language {{!I-D.ietf-tls-tls13}} to
 describe the structure of protocol messages.
 
-
 # Protocol Overview
 
 The goal of this protocol is to allow a group of participants to exchange confidential and
@@ -108,7 +107,7 @@ post-compromise secrecy with respect to compromise of a participant.
 
 We describe the information stored by each participant as a _state_, which includes both public and
 private data. An initial state, including an initial set of participants, is set up by a group
-creator using the _Init_ algorithm and based on pre-published from the initial members. The creator
+creator using the _Init_ algorithm and based on information pre-published by the initial members. The creator
 sends the GroupInit message to the participants, who can then set up their own group state deriving
 the same shared keys. Participants then exchange messages to produce new shared states which are
 causally linked to their predecessors, forming a logical DAG of states. Participants can send
@@ -223,7 +222,6 @@ We extend both types of tree to include a concept of "blank" nodes; which are
 used to replace group members who have been removed. We expand on how these are
 used and implemented in the sections below.
 
-
 ## Merkle Trees
 
 Merkle trees are used to efficiently commit to a collection of group members.
@@ -243,6 +241,11 @@ The below tree provides an example of a size 2 tree, containing identity keys
 A                 B
 ~~~~~
 
+
+[[EKR: Isn't the convention here to have some sort of disambiguator to
+prevent substitution]]
+
+
 ### Merkle Proofs
 
 A proof of a given leaf being a member of the Merkle tree consists of the value
@@ -258,7 +261,7 @@ In the below tree, we star the Merkle proof of membership for leaf node
     /      \
   AB        CD*
  /  \      /  \
-A   B*   C    D
+A   B*    C    D
 ~~~~~
 
 ## Ratchet Trees
@@ -279,11 +282,23 @@ parent node's key pair is derived from the Diffie-Hellman shared secret of its
 two child nodes. To compute the root key pair, a participant must know the
 public keys of nodes in its own copath, as well as its own leaf private key.
 
+For example, the ratchet tree consisting of the private keys (A, B, C, D)
+is constructed as follows:
+
+~~~~~
+DH(DH(AB), DH(CD))
+    /      \
+ DH(AB)    DH(CD)
+ /  \      /  \
+A    B    C    D
+~~~~~
+
 Ratchet trees constructed this way provide the property that one must hold at
 least one private key from the tree to compute the root key. With all
 participants holding one leaf private key; this allows any individual to update
 their own key and change the shared root key, such that only group members can
 compute the new key.
+
 
 
 ### Blank Ratchet Tree Nodes
@@ -293,11 +308,15 @@ node should be ignored during path computations. Such nodes are used to replace
 leaves when participants are deleted from the group.
 
 If any node in the copath of a leaf is \_, it should be ignored during the
-computation of the path. For example, if `A`'s copath is `B, \_, C, D`; its path
-is computed as
+computation of the path. For example, the tree consisting of the private
+keys (A, _, C, D)
 
 ~~~~~
-DH(A, B), DH(DH(A, B), C), DH(DH(DH(A, B), C), D)
+  DH(A, DH(CD))
+   /      \
+  A       DH(CD)
+ / \      /  \
+A   _    C    D
 ~~~~~
 
 If two sibling nodes are both \_, their parent value also becomes \_.
@@ -309,7 +328,7 @@ tree management to behave as for a balanced tree for programming simplicity.
 
 Logically, the state of an MLS group at a given time comprises:
 
-* A group ID 
+* A group ID
 * A ciphersuite used for cryptographic computations
 * A Merkle tree over the participants' identity keys
 * A ratchet tree over the participants' leaf key pairs
@@ -352,14 +371,14 @@ following values to be used in group key computations:
 * A Diffie-Hellman group
 
 Public keys used in the protocol are opaque values in a format
-defined by the ciphersuite.
+defined by the ciphersuite, using the following three types:
 
 ~~~~~
 uint16 CipherSuite;
 opaque DHPublicKey<1..2^16-1>;
 opaque SignaturePublicKey<1..2^16-1>;
+opauqe MerkleNode<1..255>
 ~~~~~
-
 
 ## Key Schedule
 
@@ -456,7 +475,7 @@ cipher\_suites array.
 
 The whole structure is signed using the client's identity key.  A
 UserInitKey object with an invalid signature field MUST be
-considered mal-formed.  The input to the signature computation
+considered malformed.  The input to the signature computation
 comprises all of the fields except for the signture field.
 
 ~~~~~
@@ -581,9 +600,9 @@ list of participant identity keys.
 
 ~~~~~
 enum {
-    none(0), 
+    none(0),
     init(1),
-    user_add(2), 
+    user_add(2),
     group_add(3),
     update(4),
     delete(5),
@@ -746,7 +765,7 @@ struct {
 
 The sender of a Delete message creates it in the following way:
 
-* Compute the ordered list of subtree heads by puncturing the deleted
+* Compute the ordered list of subtree heads by removing the deleted
   participants' leaves from the current ratchet tree
 * Generate a fresh DH key pair and initialize a "delete path" to the
   one-element list containing that key pair
@@ -764,7 +783,7 @@ have the same length.
 
 Note that the sender of a Delete message must enough information
 about the ratchet tree so that it has all of the subtree heads
-resulting from the puncture operation.  This criterion is met if the
+resulting from the delete operation.  This criterion is met if the
 sender has a copath for each of the deleted participants.
 
 An existing participant receiving a Delete message first verifies
@@ -809,8 +828,8 @@ This apllies to all messages, not only state changing messages.
 
 
 ## Client-side enforced ordering
-Order enforcing can be implemented on the client as well, one way to achieve it is to use two steps update protocol, first 
-client sends a proposal to update and the proposal is accepted when it gets 50%+ approval from the rest of the group, then it sends the approved update. Clients which didn't get their proposal accepted, will wait for the winner to send their update before retrying new proposals. 
+Order enforcing can be implemented on the client as well, one way to achieve it is to use two steps update protocol, first
+client sends a proposal to update and the proposal is accepted when it gets 50%+ approval from the rest of the group, then it sends the approved update. Clients which didn't get their proposal accepted, will wait for the winner to send their update before retrying new proposals.
 
 While this seems safer as it doesn't rely on the server, it is more complex and harder to implement. It also could cause starvation for some clients if they keep failing to get their proposal accepted.
 
@@ -825,25 +844,25 @@ While this seems safer as it doesn't rely on the server, it is more complex and 
   * ... per sender, to avoid races
   * Transcript integrity
 
-For every epoch, the root key of the ratcheting tree can be used to derive key material for: 
+For every epoch, the root key of the ratcheting tree can be used to derive key material for:
 
  * symmetric encryption (using AEAD)
  * symmetric signatures (HMAC) (optional)
- 
+
 In addition, asymmetric signatures should be used to ensure message athenticity.
 
 In combination with server-side enforced ordering, data from previous messages can be used (as a salt when hashing) to:
 
  * add freshness to derived symmetric keys
  * create channel-binding between messages to achieve some form of transcript security
- 
+
 Possible candidates for that are:
 
  * the key used for the previous message (hash ratcheting)
  * the counter of the previous message (needs to be known to new members of the group)
  * the hash of the previous message (strong indication that other participants saw the same history)
  * ... ?
- 
+
 The requirement for this is that all participants know these values.
 If additional clear-text fields are attached to messages (like the counter), those fields can be protected by a signed message envelope.
 
