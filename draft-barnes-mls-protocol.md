@@ -39,6 +39,21 @@ author:
 
 
 normative:
+  IEEE1363:
+       title: "Standard Specifications for Public Key Cryptography"
+       date: 2000
+       author:
+         org: IEEE
+       seriesinfo:
+         IEEE 1363
+  X962:
+       title: "Public Key Cryptography For The Financial Services Industry: The Elliptic Curve Digital Signature Algorithm (ECDSA)"
+       date: 1998
+       author:
+         org: ANSI
+       seriesinfo:
+         ANSI: X9.62
+
 
 informative:
   doubleratchet: DOI.10.1109/EuroSP.2017.27
@@ -71,7 +86,7 @@ Ratchet enjoy fine-grained forward secrecy as well as post-compromise
 security, but are nonetheless efficient enough for heavy use over
 low-bandwidth networks.
 
-For groups of size greater than two, common strategy is to
+For groups of size greater than two, a common strategy is to
 unilaterally broadcast symmetric "sender" keys over existing shared
 symmetric channels, and then for each agent to send messages to the
 group encrypted with their own sender key. Unfortunately, while this
@@ -82,7 +97,7 @@ passively eavesdrop on that sender's messages.  Generating and
 distributing a new sender key provides a form of post-compromise
 security with regard to that sender.  However, it requires
 computation and communications resources that scale linearly as the
-size of the group. 
+size of the group.
 
 In this document, we describe a protocol based on tree structures
 that enable asynchronous group keying with forward secrecy and
@@ -184,11 +199,11 @@ There are four major operations in the lifecycle of a group:
 * Removal of a member
 
 Before the initialization of a group, participants publish
-UserInitKey objects to a cache provided to the messaging service.
+UserInitKey objects to a directory provided to the messaging service.
 
 ~~~~~
                                                           Group
-A              B              C            Cache         Channel
+A              B              C          Directory       Channel
 |              |              |              |              |
 | UserInitKeyA |              |              |              |
 |------------------------------------------->|              |
@@ -213,29 +228,29 @@ addition.
 
 
 ~~~~~
-                                                          Group
-A              B              C            Cache         Channel
-|              |              |              |              |
-|         UserInitKeyB, UserInitKeyC         |              |
-|<-------------------------------------------|              |
-|              |              |              |              |
-|              |              |              | GroupAdd(B)  |
-|---------------------------------------------------------->|
-|              |              |              |              |
-|              |              |              | GroupAdd(C)  |
-|---------------------------------------------------------->|
-|              |              |              |              |
-|              |              |              | GroupAdd(B)  |
-|<----------------------------------------------------------|
-|state.add(B)  |<-------------------------------------------|
-|              |state.init()  |x----------------------------|
-|              |              |              |              |
-|              |              |              | GroupAdd(C)  |
-|<----------------------------------------------------------|
-|state.add(C)  |<-------------------------------------------|
-|              |state.add(C)  |<----------------------------|
-|              |              |state.init()  |              |
-|              |              |              |              |
+                                                               Group
+A              B              C          Directory            Channel
+|              |              |              |                   |
+|         UserInitKeyB, UserInitKeyC         |                   |
+|<-------------------------------------------|                   |
+|              |              |              |                   |
+|              |              |              | GroupAdd(A->AB)   |
+|--------------------------------------------------------------->|
+|              |              |              |                   |
+|              |              |              | GroupAdd(AB->ABC) |
+|--------------------------------------------------------------->|
+|              |              |              |                   |
+|              |              |              | GroupAdd(A->AB)   |
+|<---------------------------------------------------------------|
+|state.add(B)  |<------------------------------------------------|
+|              |state.init()  |x---------------------------------|
+|              |              |              |                   |
+|              |              |              | GroupAdd(AB->ABC) |
+|<---------------------------------------------------------------|
+|state.add(C)  |<------------------------------------------------|
+|              |state.add(C)  |<---------------------------------|
+|              |              |state.init()  |                   |
+|              |              |              |                   |
 ~~~~~
 
 Subsequent additions of group members proceed in the same way.  Any
@@ -255,11 +270,11 @@ member has published a GroupInitKey reflecting the current state of
 the group (A, B, C).  The new participant Z downloads that
 GroupInitKey from the cache, generates a UserAdd message, and
 broadcasts it to the group.  Once current members process this
-message, they will have a shared state that also includes Z.   
+message, they will have a shared state that also includes Z.
 
 ~~~~~
                                                           Group
-A              B     ...      Z            Cache         Channel
+A              B     ...      Z          Directory       Channel
 | GroupInitKey |              |              |              |
 |------------------------------------------->|              |
 |              |              |              |              |
@@ -268,10 +283,10 @@ A              B     ...      Z            Cache         Channel
 |              |              | GroupInitKey |              |
 |              |              |<-------------|              |
 |              |              |              |              |
-|              |              | UserAdd(D)   |              |
+|              |              | UserAdd(.->D)|              |
 |              |              |---------------------------->|
 |              |              |              |              |
-|              |              |              | UserAdd(D)   |
+|              |              |              | UserAdd(.->D)|
 |<----------------------------------------------------------|
 |state.add(D)  |<-------------------------------------------|
 |              |state.add(D)  |<----------------------------|
@@ -280,14 +295,13 @@ A              B     ...      Z            Cache         Channel
 ~~~~~
 
 To obtain forward secrecy and post-compromise security, each
-participant periodically updates its leaf key, the DH key pair that
-represents its contribution to the group key.  Any member of the
+participant periodically updates its leaf key, i.e., the DH key pair
+that represents its contribution to the group key.  Any member of the
 group can send an update at any time by generating a fresh leaf key
 pair and sending an Update message that describes how to update the
 group key with that new key pair.  Once all participants have
 processed this message, the group's secrets will be unknown to an
-attacker that had compromised the sender's prior DH leaf private
-key.
+attacker that had compromised the sender's prior DH leaf private key.
 
 ~~~~~
                                                           Group
@@ -309,7 +323,11 @@ key update is effectively removing the old leaf from the group!)
 Any member of the group can generate a Delete message that adds new
 entropy to the group state that is known to all members except the
 deleted member.  After the other participants process this message,
-the group's secrets will be unknown to the deleted participant. 
+the group's secrets will be unknown to the deleted participant.
+Note that this does not necessarily imply that any member
+is actually allowed to evict other members; groups can layer
+authentication-based access control policies on top of these
+basic mechanism.
 
 ~~~~~
                                                           Group
@@ -353,38 +371,45 @@ a direct mapping between their nodes when manipulating group membership. The
 
 We use a common set of terminology to refer to both types of binary tree.
 
-Trees consist of various different types of _nodes_. A node is a _leaf_ if it has no children, and a
-_parent_ otherwise; note that all parents in our Merkle or asynchronous ratcheting trees have
-precisely two children, a _left_ child and a _right_ child. A node is the _root_ of a tree if it has no parents, and _intermediate_ if
-it has both children and parents. The _descendants_ of a node are that node, its children, and the
-descendants of its children, and we say a tree _contains_ a node if that node is a descendant of the
-root of the tree. Nodes are _siblings_ if they share the same parent.
+Trees consist of various different types of _nodes_. A node is a
+_leaf_ if it has no children, and a _parent_ otherwise; note that all
+parents in our Merkle or asynchronous ratcheting trees have precisely
+two children, a _left_ child and a _right_ child. A node is the _root_
+of a tree if it has no parents, and _intermediate_ if it has both
+children and parents. The _descendants_ of a node are that node, its
+children, and the descendants of its children, and we say a tree
+_contains_ a node if that node is a descendant of the root of the
+tree. Nodes are _siblings_ if they share the same parent.
 
-A _subtree_ of a tree is the tree given by the descendants of any node, the _head_ of the subtree The _size_ of a tree or
-subtree is the number of leaf nodes it contains.  For a given parent
-node, its _left subtree_ is the subtree with its left child as head (respectively _right subtree_).
+A _subtree_ of a tree is the tree given by the descendants of any
+node, the _head_ of the subtree The _size_ of a tree or subtree is the
+number of leaf nodes it contains.  For a given parent node, its _left
+subtree_ is the subtree with its left child as head (respectively
+_right subtree_).
 
 All trees used in this protocol are left-balanced binary trees. A
 binary tree is _full_ (and _balanced_) if it its size is a power of
 two and for any parent node in the tree, its left and right subtrees
 have the same size. A binary tree is _left-balanced_ if for every
-parent, the left subtree of that parent is a full subtree.  Note
-that given a list of `n` items, there is a unique left-balanced
-binary tree structure with these elements as leaves.  In such a
-left-balanced tree, the `k-th` leaf node refers to the `k-th` leaf
-node in the tree when counting from the left, starting from 0.
+parent, the left subtree of that parent is a full subtree.  Note that
+given a list of `n` items, there is a unique left-balanced binary tree
+structure with these elements as leaves.  In such a left-balanced
+tree, the `k-th` leaf node refers to the `k-th` leaf node in the tree
+when counting from the left, starting from 0.
 
-The _direct path_ of a root is the empty list, and of any other node is the concatenation of that
-node with the direct path of its parent. The _copath_ of a node is the list of siblings of nodes in
-its direct path, excluding the root, which has no sibling. The _frontier_ of a tree is the set of
-intermediate.
+The _direct path_ of a root is the empty list, and of any other node
+is the concatenation of that node with the direct path of its
+parent. The _copath_ of a node is the list of siblings of nodes in its
+direct path, excluding the root, which has no sibling. The _frontier_
+of a tree is the set of intermediate.
 
-We extend both types of tree to include a concept of "blank" nodes; which are
-used to replace group members who have been removed. We expand on how these are
-used and implemented in the sections below.
+We extend both types of tree to include a concept of "blank" nodes;
+which are used to replace group members who have been removed. We
+expand on how these are used and implemented in the sections below.
 
-(Note that left-balanced binary trees are the same structure that is used for the
-Merkle trees in the Certificate Transparency protocol {{?I-D.ietf-trans-rfc6962-bis}}.)
+(Note that left-balanced binary trees are the same structure that is
+used for the Merkle trees in the Certificate Transparency protocol
+{{?I-D.ietf-trans-rfc6962-bis}}.)
 
 ## Merkle Trees
 
@@ -552,7 +577,7 @@ following primitives to be used in group key computations:
 The ciphersuite must also specify an algorithm `Derive-Key-Pair`
 that maps octet strings with the same length as the output of the
 hash function to key pairs for the Diffie-Hellman group.
- 
+
 Public keys and Merkle tree nodes used in the protocol are opaque
 values in a format defined by the ciphersuite, using the following
 four types:
@@ -569,12 +594,20 @@ opaque MerkleNode<1..255>
 This ciphersuite uses the following primitives:
 
 * Hash function: SHA-256
-* Diffie-Hellman group: Curve25519 {{?RFC7748}}
+* Diffie-Hellman group: Curve25519 {{!RFC7748}}
 
 Given an octet string X, the private key produced by the
 Derive-Key-Pair operation is SHA-256(X).  (Recall that any 32-octet
 string is a valid Curve25519 private key.)  The corresponding public
 key is X25519(SHA-256(X), 9).
+
+Implementations SHOULD use the approach
+specified in {{RFC7748}} to calculate the Diffie-Hellman shared secret.
+Implementations MUST check whether the computed Diffie-Hellman shared
+secret is the all-zero value and abort if so, as described in
+Section 6 of {{RFC7748}}.  If implementers use an alternative
+implementation of these elliptic curves, they SHOULD perform the
+additional checks specified in Section 7 of {{RFC7748]}
 
 
 ### P-256 with SHA-256
@@ -589,6 +622,29 @@ Derive-Key-Pair operation is SHA-256(X), interpreted as a big-endian
 integer.  The corresponding public key is the result of multiplying
 the standard P-256 base point by this integer.
 
+P-256 ECDH calculations (including parameter
+and key generation as well as the shared secret calculation) are
+performed according to {{IEEE1363}} using the ECKAS-DH1 scheme with the identity
+map as key derivation function (KDF), so that the shared secret is the
+x-coordinate of the ECDH shared secret elliptic curve point represented
+as an octet string.  Note that this octet string (Z in IEEE 1363 terminology)
+as output by FE2OSP, the Field Element to Octet String Conversion
+Primitive, has constant length for any given field; leading zeros
+found in this octet string MUST NOT be truncated.
+
+(Note that this use of the identity KDF is a technicality.  The
+complete picture is that ECDH is employed with a non-trivial KDF
+because MLS does not directly use this secret for anything
+other than for computing other secrets.)
+
+Clients MUST validate remote public values by ensuring
+that the point is a valid point on the elliptic curve.
+The appropriate validation procedures are defined in Section 4.3.7 of {{X962}}
+and alternatively in Section 5.6.2.3 of {{?KEYAGREEMENT=DOI.10.6028/NIST.SP.800-56Ar2}}.
+This process consists of three steps: (1) verify that the value is not the point at
+infinity (O), (2) verify that for Y = (x, y) both integers are in the correct
+interval, (3) ensure that (x, y) is a correct solution to the elliptic curve equation.
+For these curves, implementers do not need to verify membership in the correct subgroup.
 
 ## Key Schedule
 
@@ -760,8 +816,10 @@ the group, together with a Merkle inclusion proof that demonstrates
 that the signer is a legitimate member of the group.
 
 Before considering a handshake message valid, the recipient MUST
-verify both that the signature is valid and that the Merkle
-inclusion proof is valid.  The input to the signature computations
+verify both that the signature is valid, the Merkle
+inclusion proof is valid, and the sender is authorized to
+make the change accoding to group policy.
+The input to the signature computations
 comprises the entire handshake message except for the signature
 field.
 
@@ -962,7 +1020,7 @@ This need for sequencing is not a problem as long as each time a
 group member sends a handshake message, it is based on the most
 current state of the group.  In practice, however, there is a risk
 that two members will generate handshake messages simultaneously,
-based on the same state.  
+based on the same state.
 
 When this happens, there is a need for the members of the group to
 deconflict the simultaneous handshake messages.  There are two
