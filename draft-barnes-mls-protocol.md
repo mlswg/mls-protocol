@@ -41,6 +41,7 @@ author:
 normative:
 
 informative:
+  doubleratchet: DOI.10.1109/EuroSP.2017.27
   dhreuse: DOI.10.1504/IJACT.2010.038308
 
 
@@ -62,9 +63,9 @@ with forward secrecy and post-compromise security.
 # Introduction
 
 Groups of agents who want to send each other encrypted messages need
-a way to derive shared symmetric encryption keys. For two parties
+a way to derive shared symmetric encryption keys. For two parties,
 this problem has been studied thoroughly, with the Double Ratchet
-emerging as a common solution; channels implementing the Double
+emerging as a common solution {{doubleratchet}}. Channels implementing the Double
 Ratchet enjoy fine-grained forward secrecy as well as post-compromise
 security, but are nonetheless efficient enough for heavy use over
 low-bandwidth networks.
@@ -74,29 +75,86 @@ unilaterally broadcast symmetric "sender" keys over existing shared
 symmetric channels, and then for each agent to send messages to the
 group encrypted with their own sender key. Unfortunately, while this
 is efficient and (with the addition of a hash ratchet) provides
-forward secrecy, it does not have post-compromise security. An
-adversary who learns a sender key can therefore indefinitely and
-passively eavesdrop on that sender's messages.
+forward secrecy, it is difficult to achieve post-compromise security with sender keys. An
+adversary who learns a sender key can often indefinitely and
+passively eavesdrop on that sender's messages.  Generating and
+distributing a new sender key provides a form of post-compromise
+security with regard to that sender.  However, it requires
+computation and communications resources that scale linearly as the
+size of the group. 
 
-Rekeying, or generating new sender keys, provides a form of
-post-compromise security. However, it requires a separate message to
-each potential receiver. In this document we describe a tree-based
-system for deriving group keys which provides post-compromise
-security with efficient rekeys and without requiring any two parties
-to be online concurrently.
+In this document, we describe a protocol based on tree structures
+that enable asynchronous group keying with forward secrecy and
+post-compromise security.  The use of "ratchet trees" allows the
+members of the group to derive and update shared keys with costs
+that scale as the log of the group size.  The use of Merkle trees to
+store identity information allows strong authentication of group
+membership, again with log cost.
 
-# Terminology
+
+# Terminology and Basic Assumptions
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
 "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
 document are to be interpreted as described in {{!RFC2119}}.
 
-* Participant: Holder of a private key.  Could be user or device
-* Group: A collection of participants with shared private state
-* Assumed to be used over a messaging system, see arch doc
+Participant:
+: An agent that uses this protocol to establish shared cryptographic
+state with other participants.  A participant is defined by the
+cryptographic keys it holds.  An application may use one participant
+per device (keeping keys local to each device) or sync keys among
+a user's devices so that each user appears as a single participant.
+
+Group:
+: A collection of participants with shared cryptographic state.
+
+Member:
+: A participant that is included in the shared state of a group, and
+has access to the group's secrets.
+
+Initialization Key:
+: A short-lived Diffie-Hellman key pair used to introduce a new
+member to a group.  Initialization keys can be published for both
+indidvidual participants (UserInitKey) and groups (GroupInitKey).
+
+Leaf Key:
+: A short-lived Diffie-Hellman key pair that represents a group
+member's contribution to the group secret, so called because the
+participants leaf keys are the leaves in the group's ratchet tree.
+
+Identity Key:
+: A long-lived signing key pair used to authenticate the sender of a
+message.
+
+Terminology specific to tree computations is described in
+{{binary-trees}}.
 
 We use the TLS presentation language {{!I-D.ietf-tls-tls13}} to
 describe the structure of protocol messages.
+
+
+# Basic Assumptions
+
+This protocol is designed to execute in the context of a messaging
+service as described in {{!I-D.rescorla-mls-architecture}}.  In
+particular, we assume that the messaging service provides two
+services:
+
+* For each group, a broadcast channel that will relay the same
+  message to all members of a group.  For the most part, we assume
+  that this channel delivers messages in the same order to all
+  participants.
+
+* A cache to which participants can publish initialization keys, and
+  from which participant can download initialization keys for other
+  participants.
+
+We also assume that each participant is provisioned with a long-term
+identity key for use in authenticating protocol messages.  The
+identity key that a participant uses with a particular group must be
+kept for the lifetime of the group; there is no mechanism in the
+protocol for changing a participants identity key.
+
 
 # Protocol Overview
 
@@ -117,58 +175,166 @@ participants removed.
 The protocol algorithms we specify here follow. Each algorithm specifies both (i) how a participant
 performs the operation and (ii) how other participants update their state based on it.
 
-* PreRegister [[TODO: need to specify this]]
+There are four major operations in the lifecycle of a group:
 
-  This algorithm describes how potential group participants can publish UserInitKey messages which
-  can later be used to add them to groups without further input.
+* Adding a member, initiated by a current member
+* Adding a member, initiated by the new member
+* Key update
+* Removal of a member
 
-* Init
+Before the initialization of a group, participants publish
+UserInitKey objects to a cache provided to the messaging service.
 
-  This algorithm describes how a group is created. The creator downloads UserInitKeys for the
-  initial group participants, and performs an initial computation to derive a shared group key. They
-  produce a GroupInit message describing the new group, which is broadcast to all members. Upon
-  receiving this members, new participants perform a similar computation to derive the same group
-  key and group state. After executing this algorithm, all group members share an authenticated
-  secret key.
+~~~~~
+                                                          Group
+A              B              C            Cache         Channel
+|              |              |              |              |
+| UserInitKeyA |              |              |              |
+|------------------------------------------->|              |
+|              |              |              |              |
+|              | UserInitKeyB |              |              |
+|              |---------------------------->|              |
+|              |              |              |              |
+|              |              | UserInitKeyC |              |
+|              |              |------------->|              |
+|              |              |              |              |
+~~~~~
 
-* Group-initiated Add
+When a participant A wants to establish a group with B and C, it
+first downloads InitKeys for B and C.  It then initializes a group
+group state containing only itself and uses the InitKeys to compute
+GroupAdd messages that add B and C, in a sequence chosen by A.
+These messages are broadcast to the group, and processed in sequence
+by B and C.  Messages received before a participant has joined the
+group are ignored.  Only after A has received its GroupAdd messages
+back from the server does it update its state to reflect their
+addition.
 
-  This algorithm describes how a group participant can add a new user to a group. The adder
-  downloads a UserInitKey for the new participant, and performs a local computation to derive a new
-  group key. They produce a GroupAdd message which is broadcast to all current members as well as
-  the newly-added member. All recipients of the GroupAdd message compute the updated group state;
-  the new member uses their private key to do so, while existing members use their current group
-  state. After executing this algorithm, the new member is added to the group and shares the group
-  state.
 
-* User-initiated Add
+~~~~~
+                                                          Group
+A              B              C            Cache         Channel
+|              |              |              |              |
+|         UserInitKeyB, UserInitKeyC         |              |
+|<-------------------------------------------|              |
+|              |              |              |              |
+|              |              |              | GroupAdd(B)  |
+|---------------------------------------------------------->|
+|              |              |              |              |
+|              |              |              | GroupAdd(C)  |
+|---------------------------------------------------------->|
+|              |              |              |              |
+|              |              |              | GroupAdd(B)  |
+|<----------------------------------------------------------|
+|state.add(B)  |<-------------------------------------------|
+|              |state.init()  |x----------------------------|
+|              |              |              |              |
+|              |              |              | GroupAdd(C)  |
+|<----------------------------------------------------------|
+|state.add(C)  |<-------------------------------------------|
+|              |state.add(C)  |<----------------------------|
+|              |              |state.init()  |              |
+|              |              |              |              |
+~~~~~
 
-  This algorithm describes how a new user can join a group without a direct invitation. When the
-  group state changes, relevant public data is gathered into a GroupInitKey message which is sent to
-  the new user. The new user can then perform a local computation to derive an updated group state,
-  and produce a UserAdd message which is sent to all existing members. All recipients of the UserAdd
-  update their group state based on their existing state. After executing this algorithm, the new
-  member is added to the group and shares the group state.
+Subsequent additions of group members proceed in the same way.  Any
+member of the group can download an InitKey for the new participant
+and broadcast a GroupAdd that the current group can use to update
+their state and the new participant can use to initialize its state.
 
-* Key Update
+It is sometimes necessary for a new participant to join without
+an explicit invitation from a current member.  For example, if a
+user that is authorized to be in the group logs in on a new device,
+that device will need to join the group as a new participant, but
+will not have been invited.
 
-  This algorithm describes how any participant can update their own private keys to fresh ones,
-  updating the group state and group key. The updater generates a fresh key pair and produces an
-  Update message which describes the change to the group state, broadcasting it to the group. All
-  recipients then update their group state based on the Update message, deriving a new group
-  state. After executing this algorithm, all members share an updated group state which a holder of
-  the old key pair can no longer derive; thus, Update provides a form of PCS.
+In these "user-initiated join" cases, the "InitKey + Add message"
+flow is reversed.  We assume that at some previous point, a group
+member has published a GroupInitKey reflecting the current state of
+the group (A, B, C).  The new participant Z downloads that
+GroupInitKey from the cache, generates a UserAdd message, and
+broadcasts it to the group.  Once current members process this
+message, they will have a shared state that also includes Z.   
 
-* Delete
+~~~~~
+                                                          Group
+A              B     ...      Z            Cache         Channel
+| GroupInitKey |              |              |              |
+|------------------------------------------->|              |
+|              |              |              |              |
+~              ~              ~              ~              ~
+|              |              |              |              |
+|              |              | GroupInitKey |              |
+|              |              |<-------------|              |
+|              |              |              |              |
+|              |              | UserAdd(D)   |              |
+|              |              |---------------------------->|
+|              |              |              |              |
+|              |              |              | UserAdd(D)   |
+|<----------------------------------------------------------|
+|state.add(D)  |<-------------------------------------------|
+|              |state.add(D)  |<----------------------------|
+|              |              |state.init()  |              |
+|              |              |              |              |
+~~~~~
 
-  This algorithm describes how any participant can remove another participant from a group. The
-  deleting participant generates and broadcasts a Delete message. Upon receiving this message, all
-  participants except the deleted one can compute a new group state. After executing this algorithm,
-  holders of the deleted users' private keys cannot compute this or future group states (although
-  these private keys will still be included in group computations until siblings / cousins update).
+To obtain forward secrecy and post-compromise security, each
+participant periodically updates its leaf key, the DH key pair that
+represents its contribution to the group key.  Any member of the
+group can send an update at any time by generating a fresh leaf key
+pair and sending an Update message that describes how to update the
+group key with that new key pair.  Once all participants have
+processed this message, the group's secrets will be unknown to an
+attacker that had compromised the sender's prior DH leaf private
+key.
 
-Note that the group creator is "double-joined" with all participants until they update, as is the
-sender of a group-initiated add until the newly added member updates.
+~~~~~
+                                                          Group
+A              B     ...      Z            Cache         Channel
+|              |              |              |              |
+| Update(A)    |              |              |              |
+|---------------------------------------------------------->|
+|              |              |              |              |
+|              |              |              | Update(A)    |
+|<----------------------------------------------------------|
+|state.upd(D)  |<-------------------------------------------|
+|              |state.upd(D)  |<----------------------------|
+|              |              |state.upd(A)  |              |
+|              |              |              |              |
+~~~~~
+
+Users are deleted from the group in a similar way.  (After all, a
+key update is effectively removing the old leaf from the group!)
+Any member of the group can generate a Delete message that adds new
+entropy to the group state that is known to all members except the
+deleted member.  After the other participants process this message,
+the group's secrets will be unknown to the deleted participant. 
+
+~~~~~
+                                                          Group
+A              B     ...      Z            Cache         Channel
+|              |              |              |              |
+|              |              | Delete(B)    |              |
+|              |              |---------------------------->|
+|              |              |              |              |
+|              |              |              | Delete(B)    |
+|<----------------------------------------------------------|
+|state.del(B)  |              |<----------------------------|
+|              |              |state.del(B)  |              |
+|              |              |              |              |
+|              |              |              |              |
+~~~~~
+
+
+[[ NOTE: The GroupAdd and Delete operations create a "double-join"
+situation, where a participants leaf key is also known to another
+participant.  When a participant A is double-joined to another B,
+deleting A will not remove them from the conversation, since they
+will still hold the leaf key for B.  These situations are resolved
+by updates, but since operations are asynchronous and participants
+may be offline for a long time, the group will need to be able to
+maintain security in the presence of double-joins. ]]
+
 
 # Binary Trees
 
@@ -186,64 +352,64 @@ a direct mapping between their nodes when manipulating group membership. The
 
 We use a common set of terminology to refer to both types of binary tree.
 
-**Nodes**
-
 Trees consist of various different types of _nodes_. A node is a _leaf_ if it has no children, and a
 _parent_ otherwise; note that all parents in our Merkle or asynchronous ratcheting trees have
-precisely two children. A node is the _root_ of a tree if it has no parents, and _intermediate_ if
+precisely two children, a _left_ child and a _right_ child. A node is the _root_ of a tree if it has no parents, and _intermediate_ if
 it has both children and parents. The _descendants_ of a node are that node, its children, and the
 descendants of its children, and we say a tree _contains_ a node if that node is a descendant of the
 root of the tree. Nodes are _siblings_ if they share the same parent.
 
-**Trees**
+A _subtree_ of a tree is the tree given by the descendants of any node, the _head_ of the subtree The _size_ of a tree or
+subtree is the number of leaf nodes it contains.  For a given parent
+node, its _left subtree_ is the subtree with its left child as head (respectively _right subtree_).
 
-A _subtree_ of a tree is the tree given by the descendants of any node. The _size_ of a tree or
-subtree is the number of leaf nodes it contains.
-
-A binary tree is _balanced_ if it is either a single leaf, or if it is a parent node for which both of
-its subtrees are balanced binary trees of the same size. This implies that a balanced binary tree has a
-power-of-two number of leaves.
-
-A binary tree is _left-balanced_ if the left child of every non-leaf node `x` is a balanced binary
-tree of size `2^ceil(lg |S| - 1)`, where `S` is the subtree rooted at `x`. In a left-balanced tree,
-the `nth` leaf node refers to the `nth` leaf node in the tree when counting from the left.
-
-**Paths**
+All trees used in this protocol are left-balanced binary trees. A
+binary tree is _full_ (and _balanced_) if it its size is a power of
+two and for any parent node in the tree, its left and right subtrees
+have the same size. A binary tree is _left-balanced_ if for every
+parent, the left subtree of that parent is a full subtree.  Note
+that given a list of `n` items, there is a unique left-balanced
+binary tree structure with these elements as leaves.  In such a
+left-balanced tree, the `k-th` leaf node refers to the `k-th` leaf
+node in the tree when counting from the left, starting from 0.
 
 The _direct path_ of a root is the empty list, and of any other node is the concatenation of that
 node with the direct path of its parent. The _copath_ of a node is the list of siblings of nodes in
-its direct path, excluding the root, which has no sibling. The _frontier_ of a node is the set of
-nodes that would constitute the copath of a new leaf node added to the tree, whilst maintaining the
-tree as left-balanced.
-
-**Blank nodes**
+its direct path, excluding the root, which has no sibling. The _frontier_ of a tree is the set of
+intermediate.
 
 We extend both types of tree to include a concept of "blank" nodes; which are
 used to replace group members who have been removed. We expand on how these are
 used and implemented in the sections below.
+
+(Note that left-balanced binary trees are the same structure that is used for the
+Merkle trees in the Certificate Transparency protocol {{?I-D.ietf-trans-rfc6962bis}}.)
 
 ## Merkle Trees
 
 Merkle trees are used to efficiently commit to a collection of group members.
 We require a hash function to construct this tree.
 
-Our Merkle trees are constructed as left-balanced binary trees. The value of
-each parent node is the hash of the concatenation of its child nodes. The value
-of the `nth` leaf node is the public identity key of the nth group member.
-Blank leaf nodes have a value of the empty string.
+Each node in a Merkle tree is the output of the hash function,
+computed as follows:
+
+* Leaf nodes: H( 0x01 || leaf-value )
+* Parent nodes: H( 0x02 || left-value || right-value)
+* Blank leaf nodes: H( 0x00 )
 
 The below tree provides an example of a size 2 tree, containing identity keys
 `A` and `B`.
 
 ~~~~~
-   Hash( A || B )
- /               \
-A                 B
+             * H(2 || H(1 || A) || H(1 || B))
+            / \
+           /   \
+H(1 || A) *     * H(1 || B)
 ~~~~~
 
-
-[[EKR: Isn't the convention here to have some sort of disambiguator to
-prevent substitution]]
+In Merkle trees, blank nodes appear only at the leaves.  In
+computation of intermediate nodes, they are treated in the same way
+as other nodes.
 
 
 ### Merkle Proofs
@@ -264,6 +430,7 @@ In the below tree, we star the Merkle proof of membership for leaf node
 A   B*    C    D
 ~~~~~
 
+
 ## Ratchet Trees
 
 Ratchet trees are used for generating the shared group secrets. These are
@@ -274,12 +441,26 @@ shared root secret.
 To construct these trees, we require:
 
 * A Diffie-Hellman group
-* A key-derivation function providing a key pair from the output of a
-  Diffie-Hellman key exchange
+* A function Derive-Key-Pair that produces a key pair from an octet
+  string, such as the output of a DH computation
+
+Each node in a ratchet tree contains up to three values:
+
+* An octet string "seed" (optional)
+* A DH private key (optional)
+* A DH public key
+
+To compute the private values (seed and private key) for a given
+node, one must first know the private key from one of its children,
+and the public key from the other child.  Then the value of the
+parent is computed as follows:
+
+* seed = DH(L, R)
+* private, public = Derive-Key-Pair(seed)
 
 Ratchet trees are constructed as left-balanced trees, defined such that each
 parent node's key pair is derived from the Diffie-Hellman shared secret of its
-two child nodes. To compute the root key pair, a participant must know the
+two child nodes. To compute the root seed and private key, a participant must know the
 public keys of nodes in its own copath, as well as its own leaf private key.
 
 For example, the ratchet tree consisting of the private keys (A, B, C, D)
@@ -324,6 +505,7 @@ If two sibling nodes are both \_, their parent value also becomes \_.
 Blank nodes effectively result in an unbalanced tree, but allow the
 tree management to behave as for a balanced tree for programming simplicity.
 
+
 # Group State
 
 Logically, the state of an MLS group at a given time comprises:
@@ -364,21 +546,27 @@ about each state of the group:
 
 ## Cryptographic Objects
 
-Each MLS session uses a single cipher suite that specifies the
+Each MLS session uses a single ciphersuite that specifies the
 following values to be used in group key computations:
 
 * A hash function
 * A Diffie-Hellman group
 
-Public keys used in the protocol are opaque values in a format
-defined by the ciphersuite, using the following three types:
+The ciphersuite must also specify an algorithm `Derive-Key-Pair`
+that maps octet strings with the same length as the output of the
+hash function to key pairs for the Diffie-Hellman group.
+ 
+Public keys and Merkle tree nodes used in the protocol are opaque
+values in a format defined by the ciphersuite, using the following
+four types:
 
 ~~~~~
 uint16 CipherSuite;
 opaque DHPublicKey<1..2^16-1>;
 opaque SignaturePublicKey<1..2^16-1>;
-opauqe MerkleNode<1..255>
+opaque MerkleNode<1..255>
 ~~~~~
+
 
 ## Key Schedule
 
