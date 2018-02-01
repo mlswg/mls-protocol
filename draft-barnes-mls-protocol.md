@@ -1017,7 +1017,7 @@ failing to get their proposal accepted.
 
 The primary purpose of this protocol is to enable an authenticated
 key exchange among a group of participants.  In order to protect
-messages sent among thsoe participants, an application will also
+messages sent among those participants, an application will also
 need to specify how messages are protected.
 
 For every epoch, the root key of the ratcheting tree can be used to derive key material for:
