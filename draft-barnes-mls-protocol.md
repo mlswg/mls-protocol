@@ -512,7 +512,7 @@ Logically, the state of an MLS group at a given time comprises:
 * A ciphersuite used for cryptographic computations
 * A Merkle tree over the participants' identity keys
 * A ratchet tree over the participants' leaf key pairs
-* A message root key (known only to participants)
+* A message master secret (known only to participants)
 * An add key pair (private key known only to participants)
 * An init secret (known only to participants)
 
@@ -537,8 +537,8 @@ about each state of the group:
    the participant's leaf
 7. A subset of the ratchet tree comprising at least the copath for
    the participant's leaf
-8. The current message root key
-9. The current update key pair
+8. The current message master secret
+9. The current add key pair
 10. The current init secret
 
 ## Cryptographic Objects
@@ -626,16 +626,19 @@ following information to derive new epoch secrets:
 * The handshake message that caused the epoch change
 * The current group ID and epoch
 
-The derivation of the epoch key pair depends on the change being
-made.  For the first epoch, when there is no previous epoch key
-pair, the creator of the group generates a fresh key pair and
-publishes it to the initial set of participants.
+The derivation of the update secret depends on the change being
+made, as described below.
+
+For adds, the new user does not know the prior epoch init secret.
+Instead, entropy from the prior epoch is added via the update
+secret, and an all-zero vector with the same length as a hash output
+is used in the place of the init secret.
 
 Given these inputs, the derivation of secrets for an epoch
 proceeds as shown in the following diagram:
 
 ~~~~~
-               Init Secret [n-1]
+               Init Secret [n-1] (or 0)
                      |
                      V
 Update Secret -> HKDF-Extract = Epoch Secret
@@ -724,7 +727,7 @@ struct {
     uint32 group_size;
     opaque group_id<0..2^16-1>;
     CipherSuite cipher_suite;
-    DHPublicKey update_key;
+    DHPublicKey add_key;
     MerkleNode identity_frontier<0..2^16-1>;
     DHPublicKey ratchet_frontier<0..2^16-1>;
 } GroupInitKey;
@@ -827,7 +830,7 @@ message together with the private key corresponding to the
 UserInitKey to initialize his state as follows:
 
 * Compute the participant's leaf key pair by combining the init key in
-  the UserInitKey with the prior epoch's update key pair
+  the UserInitKey with the prior epoch's add key pair
 * Use the frontiers in the GroupInitKey of the Handshake message to
   add its keys to the trees
 
@@ -921,54 +924,31 @@ participants from the group.
 
 ~~~~~
 struct {
-    uint32 deleted<1..2^16-1>;
-    DHPublicKey heads<1..2^16-1>;
+    uint32 deleted;
     DHPublicKey path<1..2^16-1>;
 } Delete;
 ~~~~~
 
-The sender of a Delete message creates it in the following way:
+The sender of a Delete message must know the deleted node's copath.
+Based on this knowledge, it computes a Delete message as follows:
 
-* Compute the ordered list of subtree heads by removing the deleted
-  participants' leaves from the current ratchet tree
-* Generate a fresh DH key pair and initialize a "delete path" to the
-  one-element list containing that key pair
-* For each subtree head in the list:
-  * Perform a DH computation between the subtree head's public key
-    and the private key from the last key pair in the delete path
-  * Derive a DH key pair from the output of that DH computation
-  * Append the resulting key pair to the delete path
+* Generate a fresh leaf key pair
+* Compute the direct path from the deleted node's index with the
+  fresh leaf key pair in the current ratchet tree
 
-The head field in the Delete message holds the public keys
-corresponding to the subtree heads.  The path field holds the public
-keys corresponding to the delete path, with the last element omitted
-(it is unnecessary).  As a result, the heads and path arrays MUST
-have the same length.
-
-Note that the sender of a Delete message must enough information
-about the ratchet tree so that it has all of the subtree heads
-resulting from the delete operation.  This criterion is met if the
-sender has a copath for each of the deleted participants.
-
-An existing participant receiving a Delete message first verifies
+An existing participant receiving a Update message first verifies
 the signature on the message, then verifies its identity proof
 against the identity tree held by the participant.  The participant
 then updates its state as follows:
 
-* Compute the ordered list of subtree heads by puncturing the deleted
-  participants' leaves from the current ratchet tree
-* Find a public key in the list of subtree heads for which the
-  private key is known to the recipient
-* Perform a DH computation between the known subtree head private
-  key and the public key in the delete path at the same index
-* For each remaining element in the list of subtree heads:
-  * Derive a DH key pair from the last DH output
-  * Perform a DH computation between the private key of the derived
-    key pair with the subtree head's public key
+* Update the cached ratchet tree by replacing nodes in the direct
+  path from the deleted leaf with the corresponding nodes in the
+  Update message
+* Update the cached ratchet tree and identity tree by replacing the
+  deleted node's leaves with blank nodes
 
-The update secret for this change is the last DH output from the
-delete path.
-
+The update secret resulting from this change is the secret for the
+root node of the ratchet tree after both updates.
 
 
 # Sequencing of State Changes {#sequencing}
@@ -1108,7 +1088,7 @@ derived secrets.
 
 ## Init Key Reuse
 
-Prekeys are intended to be used only once and then deleted. Reuse of prekeys is not believed to be
+Initialization keys are intended to be used only once and then deleted. Reuse of init keys is not believed to be
 inherently insecure {{dhreuse}}, although it can complicate protocol analyses.
 
 
