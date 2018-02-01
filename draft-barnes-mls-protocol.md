@@ -1164,6 +1164,12 @@ meaning the group members can verify that a message originated from a
 particular member of the group. This property is provided by digital
 signatures on the messages under identity keys.
 
+[[ OPEN ISSUE: Signatures under the identity keys, while simple, have
+the side-effect of publicly and thoroughly breaking any form of
+deniability. We may wish to allow other options, such as (ii) a key
+chained off of the identity key, or (iii) some other key obtained
+through a different manner, such as a pairwise deniable channel. ]]
+
 ## Forward and post-compromise security
 
 Message encryption keys are derived via a hash ratchet, which provides a form of forward secrecy: learning a
