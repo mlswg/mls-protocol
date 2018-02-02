@@ -970,8 +970,9 @@ updates its state as follows:
   message, replacing any common nodes with the values in the add
   path
 
-The update secret resulting from this change is the secret for the
-root node of the ratchet tree.
+The update secret resulting from this change is the output of a DH
+computation between the private key for the root of the ratchet tree
+and the add public key from the previous epoch.
 
 ## Update
 
