@@ -64,6 +64,13 @@ informative:
   dhreuse: DOI.10.1504/IJACT.2010.038308
   keyagreement: DOI.10.6028/NIST.SP.800-56Ar2
 
+  signal:
+    target: https://www.signal.org/docs/specifications/doubleratchet/
+    title: "The Double Ratchet Algorithm"
+    author:
+       - name: Trevor Perrin (ed)
+       - name: Moxie Marlinspike
+
 
 --- abstract
 
@@ -73,9 +80,10 @@ the communicating endpoints, and not to any servers involved in delivering
 messages.  Establishing keys to provide such protections is
 challenging for group chat settings, in which more than two
 participants need to agree on a key but may not be online at the same
-time.  In this document, we specify a group key establishment
+time.  In this document, we specify a key establishment
 protocol that provides efficient asynchronous group key establishment
-with forward secrecy and post-compromise security.
+with forward secrecy and post-compromise security for groups
+in size ranging from two to thousands.
 
 
 --- middle
@@ -84,7 +92,8 @@ with forward secrecy and post-compromise security.
 # Introduction
 
 DISCLAIMER: This is a work-in-progress draft of MLS and has not yet
-seen significant security analysis.
+seen significant security analysis. It should not be used as a basis
+for building production systems.
 
 RFC EDITOR: PLEASE REMOVE THE FOLLOWING PARAGRAPH The source for
 this draft is maintained in GitHub. Suggested changes should be
@@ -96,8 +105,8 @@ the MLS mailing list.
 Groups of agents who want to send each other encrypted messages need
 a way to derive shared symmetric encryption keys. For two parties,
 this problem has been studied thoroughly, with the Double Ratchet
-emerging as a common solution {{doubleratchet}}. Channels implementing the
-Double Ratchet enjoy fine-grained forward secrecy as well as post-compromise
+emerging as a common solution {{doubleratchet}} {{signal}}.
+Channels implementing the Double Ratchet enjoy fine-grained forward secrecy as well as post-compromise
 security, but are nonetheless efficient enough for heavy use over
 low-bandwidth networks.
 
@@ -129,6 +138,9 @@ authentication of group membership, again with logarithmic cost.
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
 "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
 document are to be interpreted as described in {{!RFC2119}}.
+
+[TODO: The architecture document uses "Client" instead of "Participant".
+Harmonize terminology.]
 
 Participant:
 : An agent that uses this protocol to establish shared cryptographic
@@ -181,7 +193,7 @@ the MS provides the following services:
   in the same order to all participants.  (See {{sequencing}} for further
   considerations.)
 
-* A cache to which participants can publish initialization keys, and from which
+* A directory to which participants can publish initialization keys, and from which
   participant can download initialization keys for other participants.
 
 
@@ -280,7 +292,7 @@ In these "user-initiated join" cases, the "InitKey + Add message"
 flow is reversed.  We assume that at some previous point, a group
 member has published a GroupInitKey reflecting the current state of
 the group (A, B, C).  The new participant Z downloads that
-GroupInitKey from the cache, generates a UserAdd message, and
+GroupInitKey from the directory, generates a UserAdd message, and
 broadcasts it to the group.  Once current members process this
 message, they will have a shared state that also includes Z.
 
@@ -321,7 +333,7 @@ it could require sending an update every week or more.
 
 ~~~~~
                                                           Group
-A              B     ...      Z            Cache         Channel
+A              B     ...      Z          Directory        Channel
 |              |              |              |              |
 | Update(A)    |              |              |              |
 |---------------------------------------------------------->|
@@ -347,7 +359,7 @@ basic mechanism.
 
 ~~~~~
                                                           Group
-A              B     ...      Z            Cache         Channel
+A              B     ...      Z          Directory       Channel
 |              |              |              |              |
 |              |              | Delete(B)    |              |
 |              |              |---------------------------->|
@@ -452,7 +464,7 @@ values, its path to the root can be verified; proving the inclusion of the leaf
 in the Merkle tree.
 
 In the below tree, we denote with a star the Merkle proof of membership for
-leaf node `A`. For brevity, we notate `Hash( A || B)` as `AB`.
+leaf node `A`. For brevity, we notate `Hash(0x02 || A || B)` as `AB`.
 
 ~~~~~
       ABCD
@@ -493,7 +505,7 @@ parent is computed as follows:
 Ratchet trees are constructed as left-balanced trees, defined such that each
 parent node's key pair is derived from the Diffie-Hellman shared secret of its
 two child nodes. To compute the root secret and private key, a participant must know the
-public keys of nodes of its copath, as well as its own leaf private key.
+public keys of nodes in its copath, as well as its own leaf private key.
 
 For example, the ratchet tree consisting of the private keys (A, B, C, D)
 is constructed as follows:
@@ -520,7 +532,7 @@ leaves when participants are deleted from the group.
 
 If any node in the copath of a leaf is \_, it should be ignored during the
 computation of the path. For example, the tree consisting of the private
-keys (A, _, C, D)
+keys (A, _, C, D) is constructed as follows:
 
 ~~~~~
   DH(A, DH(CD))
@@ -561,15 +573,15 @@ Thus, each participant will need to store the following information
 about each state of the group:
 
 1. The participant's index in the identity/ratchet trees
-2. The private key associated to the participant's leaf public key
-3. The private key associated to the participant's identity public key
+2. The private key associated with the participant's leaf public key
+3. The private key associated with the participant's identity public key
 4. The current epoch number
 5. The group identifier (GID)
 6. A subset of the identity tree comprising at least the copath for
    the participant's leaf
 7. A subset of the ratchet tree comprising at least the copath for
    the participant's leaf
-8. The current message encryption shared secret, called master secret
+8. The current message encryption shared secret, called the master secret
 9. The current add key pair
 10. The current init secret
 
@@ -594,6 +606,11 @@ opaque DHPublicKey<1..2^16-1>;
 opaque SignaturePublicKey<1..2^16-1>;
 opaque MerkleNode<1..255>
 ~~~~~
+
+[[OPEN ISSUE: In some cases we will want to include a raw key when
+we sign and in others we may want to include an identity or a
+certificate containing the key. This type needs to be extended
+to accommodate that.]]
 
 ### Curve25519 with SHA-256
 
@@ -738,7 +755,7 @@ being online.
 A UserInitKey object specifies what ciphersuites a client supports,
 as well as providing public keys that the client can use for key
 derivation and signing.  The client's identity key is intended to be
-stable through the lifetime of the group; there is no mechanism to
+stable throughout the lifetime of the group; there is no mechanism to
 change it.  Init keys are intended to be used a very limited number of
 times, potentially once. (see {{init-key-reuse}}).
 
@@ -814,15 +831,18 @@ a change is made to the group state.
 
 An MLS handshake message encapsulates a specific message that
 accomplishes a change to the group state. It also includes two other
-important features: a GroupInitKey so that a new participant can observe
-the latest state of the handshake and initialize itself; it also provides
-a signature by a member of the group, together with a Merkle inclusion
-proof that demonstrates that the signer is a legitimate member of the group.
+important features:
+
+* A GroupInitKey so that a new participant can observe
+  the latest state of the handshake and initialize itself
+
+* A signature by a member of the group, together with a Merkle inclusion
+  proof that demonstrates that the signer is a legitimate member of the group.
 
 Before considering a handshake message valid, the recipient MUST
 verify both that the signature is valid, the Merkle
 inclusion proof is valid, and the sender is authorized to
-make the change accoding to group policy.
+make the change according to group policy.
 The input to the signature computations
 comprises the entire handshake message except for the signature
 field.
@@ -884,8 +904,8 @@ maintain security in the presence of double-joins. ]]
 [[ OPEN ISSUE: It is not possible for the recipient of a handshake
 message to verify that ratchet tree information in the message is
 accurate, because each node can only compute the secret and private
-key for nodes in its direct path.  This creates that a malicious
-participant could cause a denial of service by sending a handshake
+key for nodes in its direct path.  This creates the possibility
+that a malicious participant could cause a denial of service by sending a handshake
 message with invalid values for public keys in the ratchet tree. ]]
 
 
@@ -909,7 +929,7 @@ struct {
 } GroupAdd;
 ~~~~~
 
-A group member generates such a message by requesting from the cache
+A group member generates such a message by requesting from the directory
 a UserInitKey for the user to be added.  The new participant processes the
 message together with the private key corresponding to the
 UserInitKey to initialize his state as follows:
@@ -1096,8 +1116,8 @@ This applies to all messages, not only state changing messages.
 
 ## Client-side enforced ordering
 
-Order enforcing can be implemented on the client as well, one way to achieve it
-is to use two steps update protocol: the first client sends a proposal to update and
+Order enforcement can be implemented on the client as well, one way to achieve it
+is to use a two step update protocol: the first client sends a proposal to update and
 the proposal is accepted when it gets 50%+ approval from the rest of the group,
 then it sends the approved update. Clients which didn't get their proposal accepted,
 will wait for the winner to send their update before retrying new proposals.
@@ -1106,6 +1126,7 @@ While this seems safer as it doesn't rely on the server, it is more complex and
 harder to implement. It also could cause starvation for some clients if they keep
 failing to get their proposal accepted.
 
+[[OPEN ISSUE: Another possibility here is batching + deterministic selection.]]
 
 # Message Protection
 
@@ -1164,7 +1185,7 @@ Initial leaf keys are known only by their owner and the group creator, because t
 an authenticated key exchange protocol. Subsequent leaf keys are known only by their owner. [[TODO:
 or by someone who replaced them.]]
 
-Note that the long-term identity keys used by the protocol MUST be distributed by an "honnest"
+Note that the long-term identity keys used by the protocol MUST be distributed by an "honest"
 authentication service for parties to authenticate their legitimate peers.
 
 ## Authentication
@@ -1185,16 +1206,16 @@ particular member of the group. This property is provided by digital
 signatures on the messages under identity keys.
 
 [[ OPEN ISSUE: Signatures under the identity keys, while simple, have
-the side-effect of publicly and thoroughly breaking any form of
-deniability. We may wish to allow other options, such as (ii) a key
+the side-effect of preclude deniability. We may wish to allow other options, such as (ii) a key
 chained off of the identity key, or (iii) some other key obtained
-through a different manner, such as a pairwise deniable channel. ]]
+through a different manner, such as a pairwise channel that
+provides deniability for the message contents.]]
 
 ## Forward and post-compromise security
 
 Message encryption keys are derived via a hash ratchet, which provides a form of forward secrecy: learning a
 message key does not reveal previous message or root keys. Post-compromise security is provided by
-Update operations, in which a new root key is generated from the latest racheting tree. If the
+Update operations, in which a new root key is generated from the latest ratcheting tree. If the
 adversary cannot derive the updated root key after an Update operation, it cannot compute any
 derived secrets.
 
