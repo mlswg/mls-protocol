@@ -83,7 +83,7 @@ participants need to agree on a key but may not be online at the same
 time.  In this document, we specify a key establishment
 protocol that provides efficient asynchronous group key establishment
 with forward secrecy and post-compromise security for groups
-in size ranging from two to thousande.
+in size ranging from two to thousands.
 
 
 --- middle
@@ -139,7 +139,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
 "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
 document are to be interpreted as described in {{!RFC2119}}.
 
-[TODO: The architecture document uses "Client" isntead of "Participant".
+[TODO: The architecture document uses "Client" instead of "Participant".
 Harmonize terminology.]
 
 Participant:
@@ -610,7 +610,7 @@ opaque MerkleNode<1..255>
 [[OPEN ISSUE: In some cases we will want to include a raw key when
 we sign and in others we may want to include an identity or a
 certificate containing the key. This type needs to be extended
-to accomodate that.]]
+to accommodate that.]]
 
 ### Curve25519 with SHA-256
 
@@ -842,7 +842,7 @@ important features:
 Before considering a handshake message valid, the recipient MUST
 verify both that the signature is valid, the Merkle
 inclusion proof is valid, and the sender is authorized to
-make the change accoding to group policy.
+make the change according to group policy.
 The input to the signature computations
 comprises the entire handshake message except for the signature
 field.
@@ -1215,7 +1215,7 @@ provides deniability for the message contents.]]
 
 Message encryption keys are derived via a hash ratchet, which provides a form of forward secrecy: learning a
 message key does not reveal previous message or root keys. Post-compromise security is provided by
-Update operations, in which a new root key is generated from the latest racheting tree. If the
+Update operations, in which a new root key is generated from the latest ratcheting tree. If the
 adversary cannot derive the updated root key after an Update operation, it cannot compute any
 derived secrets.
 
