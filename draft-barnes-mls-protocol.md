@@ -139,6 +139,9 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
 "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
 document are to be interpreted as described in {{!RFC2119}}.
 
+[TODO: The architecture document uses "Client" isntead of "Participant".
+Harmonize terminology.]
+
 Participant:
 : An agent that uses this protocol to establish shared cryptographic
   state with other participants.  A participant is defined by the
@@ -190,7 +193,7 @@ the MS provides the following services:
   in the same order to all participants.  (See {{sequencing}} for further
   considerations.)
 
-* A cache to which participants can publish initialization keys, and from which
+* A directory to which participants can publish initialization keys, and from which
   participant can download initialization keys for other participants.
 
 
@@ -289,7 +292,7 @@ In these "user-initiated join" cases, the "InitKey + Add message"
 flow is reversed.  We assume that at some previous point, a group
 member has published a GroupInitKey reflecting the current state of
 the group (A, B, C).  The new participant Z downloads that
-GroupInitKey from the cache, generates a UserAdd message, and
+GroupInitKey from the directory, generates a UserAdd message, and
 broadcasts it to the group.  Once current members process this
 message, they will have a shared state that also includes Z.
 
@@ -330,7 +333,7 @@ it could require sending an update every week or more.
 
 ~~~~~
                                                           Group
-A              B     ...      Z            Cache         Channel
+A              B     ...      Z          Directory        Channel
 |              |              |              |              |
 | Update(A)    |              |              |              |
 |---------------------------------------------------------->|
@@ -356,7 +359,7 @@ basic mechanism.
 
 ~~~~~
                                                           Group
-A              B     ...      Z            Cache         Channel
+A              B     ...      Z          Directory       Channel
 |              |              |              |              |
 |              |              | Delete(B)    |              |
 |              |              |---------------------------->|
@@ -918,7 +921,7 @@ struct {
 } GroupAdd;
 ~~~~~
 
-A group member generates such a message by requesting from the cache
+A group member generates such a message by requesting from the directory
 a UserInitKey for the user to be added.  The new participant processes the
 message together with the private key corresponding to the
 UserInitKey to initialize his state as follows:
