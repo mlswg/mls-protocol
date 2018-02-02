@@ -721,6 +721,37 @@ Update Secret -> HKDF-Extract = Epoch Secret
                Init Secret [n]
 ~~~~~
 
+Over the lifetime of the group, this operation is applied
+repeatedly to update the group's secrets as the membership evolves
+or leaf keys are updated.  Fresh entropy is always derived from the
+group's ratchet tree.  When participants are added, the root key
+pair of the tree is used with the add key pair to generate the
+update secret.  When leaf keys are updated or participants are
+removed, the root secret for the tree is used as the update secret.
+
+~~~~~
+   Epoch N-1           Epoch N                   Epoch N+1
+...=========   =======================    =======================
+
+    +-> Msg    0              +-> Msg                    +-> Msg
+    |          |              |                          |    
+    |          V              |                          |    
+...-+-> Init   HKDF -> Epoch -+-> Init -> HKDF -> Epoch -+-> Init ...
+    |          ^              |           ^              |    
+    |          |              |           |              |    
+    +-> Add -> DH             +-> Add     |              +-> Add
+               |                          |               
+               |                          |               
+               R                          R               
+              / \                        / \              
+             /   \                      /   \             
+            /_____\                    /_____\            
+                                       
+            UserAdd                     Update
+            GroupAdd                    Delete
+
+~~~~~
+
 
 # Initialization Keys
 
