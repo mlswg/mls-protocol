@@ -1185,7 +1185,7 @@ Initial leaf keys are known only by their owner and the group creator, because t
 an authenticated key exchange protocol. Subsequent leaf keys are known only by their owner. [[TODO:
 or by someone who replaced them.]]
 
-Note that the long-term identity keys used by the protocol MUST be distributed by an "honnest"
+Note that the long-term identity keys used by the protocol MUST be distributed by an "honest"
 authentication service for parties to authenticate their legitimate peers.
 
 ## Authentication
@@ -1206,10 +1206,10 @@ particular member of the group. This property is provided by digital
 signatures on the messages under identity keys.
 
 [[ OPEN ISSUE: Signatures under the identity keys, while simple, have
-the side-effect of publicly and thoroughly breaking any form of
-deniability. We may wish to allow other options, such as (ii) a key
+the side-effect of preclude deniability. We may wish to allow other options, such as (ii) a key
 chained off of the identity key, or (iii) some other key obtained
-through a different manner, such as a pairwise deniable channel. ]]
+through a different manner, such as a pairwise channel that
+provides deniability for the message contents.]]
 
 ## Forward and post-compromise security
 
