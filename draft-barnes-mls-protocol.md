@@ -64,6 +64,13 @@ informative:
   dhreuse: DOI.10.1504/IJACT.2010.038308
   keyagreement: DOI.10.6028/NIST.SP.800-56Ar2
 
+  signal:
+    target: https://www.signal.org/docs/specifications/doubleratchet/
+    title: "The Double Ratchet Algorithm"
+    author:
+       - name: Trevor Perrin (ed)
+       - name: Moxie Marlinspike
+
 
 --- abstract
 
@@ -73,9 +80,10 @@ the communicating endpoints, and not to any servers involved in delivering
 messages.  Establishing keys to provide such protections is
 challenging for group chat settings, in which more than two
 participants need to agree on a key but may not be online at the same
-time.  In this document, we specify a group key establishment
+time.  In this document, we specify a key establishment
 protocol that provides efficient asynchronous group key establishment
-with forward secrecy and post-compromise security.
+with forward secrecy and post-compromise security for groups
+in size ranging from two to thousande.
 
 
 --- middle
@@ -84,7 +92,8 @@ with forward secrecy and post-compromise security.
 # Introduction
 
 DISCLAIMER: This is a work-in-progress draft of MLS and has not yet
-seen significant security analysis.
+seen significant security analysis. It should not be used as a basis
+for building production systems.
 
 RFC EDITOR: PLEASE REMOVE THE FOLLOWING PARAGRAPH The source for
 this draft is maintained in GitHub. Suggested changes should be
@@ -96,8 +105,8 @@ the MLS mailing list.
 Groups of agents who want to send each other encrypted messages need
 a way to derive shared symmetric encryption keys. For two parties,
 this problem has been studied thoroughly, with the Double Ratchet
-emerging as a common solution {{doubleratchet}}. Channels implementing the
-Double Ratchet enjoy fine-grained forward secrecy as well as post-compromise
+emerging as a common solution {{doubleratchet}} {{signal}}.
+Channels implementing the Double Ratchet enjoy fine-grained forward secrecy as well as post-compromise
 security, but are nonetheless efficient enough for heavy use over
 low-bandwidth networks.
 
