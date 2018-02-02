@@ -403,12 +403,15 @@ A _subtree_ of a tree is the tree given by the descendants of any
 node, the _head_ of the subtree The _size_ of a tree or subtree is the
 number of leaf nodes it contains.  For a given parent node, its _left
 subtree_ is the subtree with its left child as head (respectively
-_right subtree_).
+_right subtree_). 
 
 All trees used in this protocol are left-balanced binary trees. A
 binary tree is _full_ (and _balanced_) if it its size is a power of
 two and for any parent node in the tree, its left and right subtrees
-have the same size. A binary tree is _left-balanced_ if for every
+have the same size. If a subtree is full and it is not a subset of
+any other full subtree, then it is _maximal_.
+
+A binary tree is _left-balanced_ if for every
 parent, either the parent is balanced, or the left subtree of that
 parent is the largest full subtree that could be constructed from
 the leaves present in the parent's own subtree.  Note
@@ -421,7 +424,27 @@ The _direct path_ of a root is the empty list, and of any other node
 is the concatenation of that node with the direct path of its
 parent. The _copath_ of a node is the list of siblings of nodes in its
 direct path, excluding the root, which has no sibling. The _frontier_
-of a tree is the set of intermediate.
+of a tree is the list of heads of the maximal full subtrees of the
+tree, ordered from left to right.
+
+For example, in the below tree:
+
+* The direct path of C is (C, CD, ABCD)
+* The copath of C is (D, AB, EFG)
+* The frontier of the tree is (ABCD, EF, G)
+
+~~~~~
+            ABCDEFG
+           /      \
+          /        \
+         /          \
+     ABCD            EFG
+    /    \          /   \
+   /      \        /     \
+  AB      CD      EF      \
+ /  \    /  \    /  \      \
+A    B  C    D  E    F     G
+~~~~~
 
 We extend both types of tree to include a concept of "blank" nodes;
 which are used to replace group members who have been removed. We
