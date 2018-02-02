@@ -1240,4 +1240,4 @@ TODO: Registries for protocol parameters, e.g., ciphersuites
 
 * Thyla van der Merwe \\
   Royal Holloway, University of London \\
-  tjvdmerwe@gmail.com
+  thyla.van.der@merwe.tech
