@@ -68,7 +68,7 @@ informative:
     target: https://www.signal.org/docs/specifications/doubleratchet/
     title: "The Double Ratchet Algorithm"
     author:
-       - name: Trevor Perrin (ed)
+       - name: Trevor Perrin(ed)
        - name: Moxie Marlinspike
 
 
@@ -403,7 +403,7 @@ A _subtree_ of a tree is the tree given by the descendants of any
 node, the _head_ of the subtree The _size_ of a tree or subtree is the
 number of leaf nodes it contains.  For a given parent node, its _left
 subtree_ is the subtree with its left child as head (respectively
-_right subtree_). 
+_right subtree_).
 
 All trees used in this protocol are left-balanced binary trees. A
 binary tree is _full_ (and _balanced_) if it its size is a power of
