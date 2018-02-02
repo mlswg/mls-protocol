@@ -50,6 +50,16 @@ normative:
 
 
 informative:
+  art:
+    target: https://eprint.iacr.org/2017/666.pdf
+    title: "On Ends-to-Ends Encryption: Asynchronous Group Messaging with Strong Security Guarantees"
+    author:
+      - name: Katriel Cohn-Gordon
+      - name: Cas Cremers
+      - name: Luke Garratt
+      - name: Jon Millican
+      - name: Kevin Milner
+    date: 2018-01-18
   doubleratchet: DOI.10.1109/EuroSP.2017.27
   dhreuse: DOI.10.1504/IJACT.2010.038308
   keyagreement: DOI.10.6028/NIST.SP.800-56Ar2
@@ -107,12 +117,11 @@ size of the group.
 
 In this document, we describe a protocol based on tree structures
 that enable asynchronous group keying with forward secrecy and
-post-compromise security.  The use of "asynchronous ratcheting trees"
-[[cite https://eprint.iacr.org/2017/666.pdf]] allows the
-members of the group to derive and update shared keys with costs
-that scale as the log of the group size.  The use of Merkle trees to
-store identity information allows strong authentication of group
-membership, again with logarithmic cost.
+post-compromise security.  The use of "asynchronous ratcheting
+trees" {{art}} allows the members of the group to derive and update
+shared keys with costs that scale as the log of the group size.  The
+use of Merkle trees to store identity information allows strong
+authentication of group membership, again with logarithmic cost.
 
 
 # Terminology
