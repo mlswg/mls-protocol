@@ -653,7 +653,7 @@ Implementations MUST check whether the computed Diffie-Hellman shared
 secret is the all-zero value and abort if so, as described in
 Section 6 of {{RFC7748}}.  If implementers use an alternative
 implementation of these elliptic curves, they SHOULD perform the
-additional checks specified in Section 7 of {{RFC7748]}
+additional checks specified in Section 7 of {{RFC7748}}
 
 
 ### P-256 with SHA-256
@@ -716,7 +716,7 @@ struct {
 The Hash function used by HKDF is the ciphersuite hash algorithm.
 Hash.length is its output length in bytes.  In the below diagram:
 
-* HKDF-Extract takes its Salt argument form the top and its IKM
+* HKDF-Extract takes its Salt argument from the top and its IKM
   argument from the left
 * Derive-Secret takes its Secret argument from the incoming arrow
 
@@ -768,7 +768,7 @@ In order to facilitate asynchronous addition of participants to a
 group, it is possible to pre-publish initialization keys that
 provide some public information about a user or group.  UserInitKey
 messages provide information about a potential group member, that a group member can use to
-add this user to a group without asynchronously.  GroupInitKey
+add this user to a group asynchronously.  GroupInitKey
 messages provide information about a group that a new user can use
 to join the group without any of the existing members of the group
 being online.
