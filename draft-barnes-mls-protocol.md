@@ -102,7 +102,7 @@ Instructions are on that page as well. Editorial changes can be
 managed in GitHub, but any substantive change should be discussed on
 the MLS mailing list.
 
-Groups of agents who want to send each other encrypted messages need
+A group of agents who want to send each other encrypted messages needs
 a way to derive shared symmetric encryption keys. For two parties,
 this problem has been studied thoroughly, with the Double Ratchet
 emerging as a common solution {{doubleratchet}} {{signal}}.
@@ -110,7 +110,7 @@ Channels implementing the Double Ratchet enjoy fine-grained forward secrecy as w
 security, but are nonetheless efficient enough for heavy use over
 low-bandwidth networks.
 
-For groups of size greater than two, a common strategy is to
+For a group of size greater than two, a common strategy is to
 unilaterally broadcast symmetric "sender" keys over existing shared
 symmetric channels, and then for each agent to send messages to the
 group encrypted with their own sender key. Unfortunately, while this
