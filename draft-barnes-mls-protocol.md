@@ -817,12 +817,6 @@ identity key and a fresh leaf key pair).
 * The frontier of the identity tree, as a sequence of hash values
 * The frontier of the ratchet tree, as a sequence of public keys
 
-GroupInitKey messages are not themselves signed.  A GroupInitKey
-should not be published "bare"; instead, it should be published by
-constructing a handshake message with type "none", which will
-include a signature by a member of the group and a proof of
-membership in the group.
-
 ~~~~~
 struct {
     uint32 epoch;
@@ -835,6 +829,8 @@ struct {
 } GroupInitKey;
 ~~~~~
 
+[[ TODO: Enable signing of GroupInitKeys, with proof of membership,
+as for Handshake messages. ]]
 
 # Handshake Messages
 
@@ -853,14 +849,10 @@ messages are exchanged throughout the lifetime of a group, whenever
 a change is made to the group state.
 
 An MLS handshake message encapsulates a specific message that
-accomplishes a change to the group state. It also includes two other
-important features:
-
-* A GroupInitKey so that a new participant can observe
-  the latest state of the handshake and initialize itself
-
-* A signature by a member of the group, together with a Merkle inclusion
-  proof that demonstrates that the signer is a legitimate member of the group.
+accomplishes a change to the group state. It also includes a
+signature by a member of the group, together with a Merkle inclusion
+proof that demonstrates that the signer is a legitimate member of
+the group.
 
 Before considering a handshake message valid, the recipient MUST
 verify both that the signature is valid, the Merkle
@@ -898,8 +890,8 @@ struct {
     };
 
     uint32 prior_epoch;
-    GroupInitKey init_key;
 
+    uint32 group_size;
     uint32 signer_index;
     MerkleNode identity_proof<1..2^16-1>;
     SignaturePublicKey identity_key;
@@ -948,19 +940,21 @@ the UserInitKey for the user being added.
 
 ~~~~~
 struct {
-    UserInitKey init_key;
+    UserInitKey user_init_key;
+    GroupInitKey group_init_key;
 } GroupAdd;
 ~~~~~
 
-A group member generates such a message by requesting from the directory
-a UserInitKey for the user to be added.  The new participant processes the
-message together with the private key corresponding to the
-UserInitKey to initialize his state as follows:
+A group member generates such a message by requesting from the
+directory a UserInitKey for the user to be added, and adding a
+current GroupInitKey reflecting the current state of the group
+(before the addition).  The new participant processes the message
+together with the private key corresponding to the UserInitKey to
+initialize his state as follows:
 
 * Compute the participant's leaf key pair by combining the init key in
   the UserInitKey with the prior epoch's add key pair
-* Use the frontiers in the GroupInitKey of the Handshake message to
-  add its keys to the trees
+* Use the frontiers in the GroupInitKey to add its keys to the trees
 
 An existing participant receiving a GroupAdd message first verifies
 the signature on the message, then verifies its identity proof
@@ -1003,12 +997,12 @@ A new participant generates this message using the following steps:
 
 An existing participant receiving a UserAdd first verifies the
 signature on the message, then verifies its identity inclusion proof
-against the updated identity tree expressed in the GroupInitKey of
-the Handshake message (since the signer is not included in the prior
-group state held by the existing participant).  The participant then
+against an updated identity tree including the new user as its
+rightmost leaf (since the signer is not included in the prior group
+state held by the existing participant).  The participant then
 updates its state as follows:
 
-* Update trees with the descriptions in the new GroupInitKey
+* Add the new participant's identity key to the identity tree
 * Update the local ratchet tree with the add path in the UserAdd
   message, replacing any common nodes with the values in the add
   path
