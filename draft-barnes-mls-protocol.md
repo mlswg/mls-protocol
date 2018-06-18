@@ -1151,6 +1151,66 @@ failing to get their proposal accepted.
 
 [[OPEN ISSUE: Another possibility here is batching + deterministic selection.]]
 
+## Client Secrets
+
+To avoid conflicts when using the same Group secret, each Member MUST
+have his unique Client secret derived from the root key of the ratcheting tree
+and client's index in the ratcheting tree.
+
+This is achieved by using HKDF:
+
+~~~~~
+Derive-Client-Secret(Secret, Index, Msg) =
+     HKDF-Expand(Secret, ClientHkdfLabel, Length)
+
+Where ClientHkdfLabel is specified as:
+
+struct {
+    uint32 tree_index = Index;
+    opaque message<1..2^16-1> = Msg;
+} ClientHkdfLabel;
+~~~~~
+
+HKDF Output is used as the Client Secret
+
+## Generating message keys using KDF chains
+We adopt {{doubleratchet}} for MLS in a way that Diffie-Hellman ratchet is replaced
+by {{art}} and each Member has his own sending KDF ratchet. 
+KDF chain is advanced before every sent message.
+
+~~~~~
+               Client secret
+                     |
+                     V
+      Contant -> HKDF-Extract = Chain Key, Message Key
+                     |
+                 Chain key 
+                     |
+                     V
+      Contant -> HKDF-Extract = Chain Key, Message Key
+                     |
+                 Chain key 
+                     |
+                     V
+      Contant -> HKDF-Extract = Chain Key, Message Key
+                     |                     
+                     V
+                    ...
+
+~~~~~
+
+## Handling Out-Of-Order Messages
+
+As in {{doubleratchet}}, each message must include the message's number in the
+Member's sending chain (N=0,1,2,...) and the length (number of message keys)
+in the previous epoch (PN). This enables the recipient to advance to the relevant
+message key while storing skipped message keys in case the skipped messages arrive later.
+
+On receiving a message, if a new epoch is created then the received PN minus the length of
+the current receiving chain is the number of skipped messages in that receiving chain. The
+received N is the number of skipped messages in the new receiving chain (i.e. the chain after
+new epoch has been created).
+
 # Message Protection
 
 [[ OPEN ISSUE: This section has initial considerations about message
