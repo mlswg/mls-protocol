@@ -126,8 +126,10 @@ size of the group.
 
 In this document, we describe a protocol based on tree structures
 that enable asynchronous group keying with forward secrecy and
-post-compromise security.  The use of "asynchronous ratcheting
-trees" {{art}} allows the members of the group to derive and update
+post-compromise security.  This document propose two approaches, one
+using "asynchronous ratcheting trees" {{art}}, the other using an
+asynchronous key-encapsulation mechanism for tree structures called TreeKEM.
+Both mechanisms allow the members of the group to derive and update
 shared keys with costs that scale as the log of the group size.  The
 use of Merkle trees to store identity information allows strong
 authentication of group membership, again with logarithmic cost.
@@ -325,7 +327,7 @@ group can send an Update at any time by generating a fresh leaf key
 pair and sending an Update message that describes how to update the
 group key with that new key pair.  Once all participants have
 processed this message, the group's secrets will be unknown to an
-attacker that had compromised the sender's prior DH leaf private key.
+attacker that had compromised the sender's prior leaf private key.
 
 It is left to the application to determine the interval of time between
 Update messages. This policy could require a change for each message, or
@@ -378,7 +380,7 @@ A              B     ...      Z          Directory       Channel
 The protocol uses two types of binary tree structures:
 
   * Merkle trees for efficiently committing to a set of group participants.
-  * Asynchronous ratcheting trees for deriving shared secrets among this group of
+  * Ratchet trees for deriving shared secrets among this group of
     participants.
 
 The two trees in the protocol share a common structure, allowing us to maintain
@@ -391,7 +393,7 @@ We use a common set of terminology to refer to both types of binary tree.
 
 Trees consist of various different types of _nodes_. A node is a
 _leaf_ if it has no children, and a _parent_ otherwise; note that all
-parents in our Merkle or asynchronous ratcheting trees have precisely
+parents in our Merkle or Ratchet trees have precisely
 two children, a _left_ child and a _right_ child. A node is the _root_
 of a tree if it has no parents, and _intermediate_ if it has both
 children and parents. The _descendants_ of a node are that node, its
@@ -443,7 +445,7 @@ For example, in the below tree:
    /      \        /     \
   AB      CD      EF      \
  /  \    /  \    /  \      \
-A    B  C    D  E    F     G
+A    B  C    D  E    F      G
 ~~~~~
 
 We extend both types of tree to include a concept of "blank" nodes;
@@ -500,30 +502,41 @@ A   B*    C    D
 
 ## Ratchet Trees
 
-Ratchet trees are used for generating shared group secrets. These are
-constructed as a series of Diffie-Hellman keys in a binary tree arrangement,
-with each user knowing their direct path, and thus being able to compute the
-shared root secret.
+This document present two different potential approaches, ART and TreeKEM,
+for generating and managing group secrets using Ratchet tree datastructures.
+These are constructed as a series of asymetric keypairs in a left-balanced
+binary tree arrangement, with each user knowing their direct path, and thus
+being able to compute the shared root secret.
 
 To construct these trees, we require:
 
-* a Diffie-Hellman finite-field group or elliptic curve;
-* a Derive-Key-Pair function that produces a key pair from an octet
-  string, such as the output of a DH computation
+* a Derive-Key-Pair function that produces a key pair from
+  an octet string;
+* a Diffie-Hellman finite-field group or elliptic curve (ART);
+* an asymmetric Key Encapsulation Mechanism and a Hash function (TreeKEM).
 
 Each node in a ratchet tree contains up to three values:
 
 * A secret octet string (optional)
-* A DH private key (optional)
-* A DH public key
+* An asymmetric private key (optional)
+* An asymmetric public key
 
 To compute the private values (secret and private key) for a given
 node, one must first know the private key from one of its children,
-and the public key from the other child.  Then the value of the
-parent is computed as follows:
+and the public key from the other child.
 
-* secret = DH(L, R)
-* private, public = Derive-Key-Pair(secret)
+Ratchet trees constructed in ART or TreeKEM provide the property that one must hold at
+least one private key from the tree to compute the secret root key. With all
+participants holding one leaf private key; this allows any individual to update
+their own key and change the shared root key, such that only group members can
+compute the new key.
+
+### Ratchet Trees for ART
+
+In ART the value of the parent is computed as follows:
+
+* parent_secret = DH(L, R)
+* parent_private, parent_public = Derive-Key-Pair(parent_secret)
 
 Ratchet trees are constructed as left-balanced trees, defined such that each
 parent node's key pair is derived from the Diffie-Hellman shared secret of its
@@ -541,11 +554,25 @@ DH(DH(AB), DH(CD))
 A    B    C    D
 ~~~~~
 
-Ratchet trees constructed this way provide the property that one must hold at
-least one private key from the tree to compute the secret root key. With all
-participants holding one leaf private key; this allows any individual to update
-their own key and change the shared root key, such that only group members can
-compute the new key.
+### Ratchet Trees for TreeKEM
+
+The key computations for each Node differs in TreeKEM. The general idea behind
+TreeKEM is to obtain better messaging complexity on concurrent events by not
+forcing contributivity of all leaves to the keys of the *intermediate* nodes.
+Instead, modification of a key will lead to sending to the copath the
+information necessary to be able to recompute the root key through a
+Key Encapsulation Mechanism (KEM) which can be typically post-quantum resistant.
+
+* parent_secret = Hash(A||B)
+* parent_private, parent_public = Derive-Key-Pair(parent_secret)
+
+~~~~~
+   H(H(A||B)||H(C||D))
+       /      \
+   H(A||B)   H(C||D)
+    /  \      /  \
+   A    B    C    D
+~~~~~
 
 ### Blank Ratchet Tree Nodes
 
@@ -555,7 +582,7 @@ leaves when participants are deleted from the group.
 
 If any node in the copath of a leaf is \_, it should be ignored during the
 computation of the path. For example, the tree consisting of the private
-keys (A, _, C, D) is constructed as follows:
+keys (A, _, C, D) is constructed as follows (representation for ART):
 
 ~~~~~
   DH(A, DH(CD))
@@ -613,19 +640,20 @@ about each state of the group:
 Each MLS session uses a single ciphersuite that specifies the
 following primitives to be used in group key computations:
 
-* A hash function
-* A Diffie-Hellman finite-field group or elliptic curve
+* A hash function;
+* A Diffie-Hellman finite-field group or elliptic curve (ART);
+* A key encapsulation mechanism (TreeKEM).
 
 The ciphersuite must also specify an algorithm `Derive-Key-Pair`
 that maps octet strings with the same length as the output of the
-hash function to key pairs for the Diffie-Hellman group.
+hash function to key pairs for the asymmetric encryption scheme.
 
 Public keys and Merkle tree nodes used in the protocol are opaque values
 in a format defined by the ciphersuite, using the following four types:
 
 ~~~~~
 uint16 CipherSuite;
-opaque DHPublicKey<1..2^16-1>;
+opaque PublicKey<1..2^16-1>;
 opaque SignaturePublicKey<1..2^16-1>;
 opaque MerkleNode<1..255>
 ~~~~~
@@ -635,7 +663,7 @@ we sign and in others we may want to include an identity or a
 certificate containing the key. This type needs to be extended
 to accommodate that.]]
 
-### Curve25519 with SHA-256
+### ART: Curve25519 with SHA-256
 
 This ciphersuite uses the following primitives:
 
@@ -656,7 +684,7 @@ implementation of these elliptic curves, they SHOULD perform the
 additional checks specified in Section 7 of {{RFC7748}}
 
 
-### P-256 with SHA-256
+### ART: P-256 with SHA-256
 
 This ciphersuite uses the following primitives:
 
@@ -691,6 +719,19 @@ This process consists of three steps: (1) verify that the value is not the point
 infinity (O), (2) verify that for Y = (x, y) both integers are in the correct
 interval, (3) ensure that (x, y) is a correct solution to the elliptic curve equation.
 For these curves, implementers do not need to verify membership in the correct subgroup.
+
+### TreeKEM: ECIES or any PQ KEM with SHA-256
+
+This ciphersuite uses the following primitives:
+
+* Hash function: SHA-256
+* Key Encapsulation: ECIES or any PQ KEM
+
+A significant advantage of TreeKEM over ART is that intermediate node secrets
+are sent via a Key Encapsulation Mechanism (KEM) which can be cryptographically
+resistant to quantic adversaries unlike Elliptic Curve operations.
+
+
 
 ## Key Schedule
 
@@ -784,7 +825,7 @@ times, potentially once. (see {{init-key-reuse}}).
 
 The init\_keys array MUST have the same length as the cipher\_suites
 array, and each entry in the init\_keys array MUST be a public key
-for the DH group defined by the corresponding entry in the
+for the DH group or KEM defined by the corresponding entry in the
 cipher\_suites array.
 
 The whole structure is signed using the client's identity key.  A
@@ -795,7 +836,7 @@ comprises all of the fields except for the signature field.
 ~~~~~
 struct {
     CipherSuite cipher_suites<0..255>;
-    DHPublicKey init_keys<1..2^16-1>;
+    PublicKey init_keys<1..2^16-1>;
     SignaturePublicKey identity_key;
     SignatureScheme algorithm;
     opaque signature<0..2^16-1>;
@@ -829,7 +870,7 @@ struct {
     uint32 group_size;
     opaque group_id<0..2^16-1>;
     CipherSuite cipher_suite;
-    DHPublicKey add_key;
+    PublicKey add_key;
     MerkleNode identity_frontier<0..2^16-1>;
     DHPublicKey ratchet_frontier<0..2^16-1>;
 } GroupInitKey;
@@ -850,7 +891,8 @@ In MLS, these changes are accomplished by broadcasting "handshake"
 messages to the group.  Note that unlike TLS and DTLS, there is not
 a consolidated handshake phase to the protocol.  Rather, handshake
 messages are exchanged throughout the lifetime of a group, whenever
-a change is made to the group state.
+a change is made to the group state. This means a an unbounded number
+of interleaved application and handshake messages.
 
 An MLS handshake message encapsulates a specific message that
 accomplishes a change to the group state. It also includes two other
@@ -972,9 +1014,12 @@ then updates its state as follows:
 * Update the group's identity tree and ratchet tree with the new
   participant's information
 
-The update secret resulting from this change is the output of a DH
-computation between the private key for the root of the ratchet tree
-and the add public key from the previous epoch.
+In the case of ART, an update secret resulting from this change is
+the output of a DH computation between the private key for the root
+of the ratchet tree and the add public key from the previous epoch.
+
+In TreeKEM, an update secret is the result of the key derivation of
+the private root of the ratchet tree with the previous group shared secret.
 
 [[ ALTERNATIVE: The sender could also generate the new participant's
 leaf using a fresh key pair, as opposed to a key pair derived from
@@ -990,7 +1035,7 @@ GroupInitKey for the group.
 
 ~~~~~
 struct {
-    DHPublicKey add_path<1..2^16-1>;
+    PublicKey add_path<1..2^16-1>;
 } UserAdd;
 ~~~~~
 
@@ -1013,9 +1058,12 @@ updates its state as follows:
   message, replacing any common nodes with the values in the add
   path
 
-The update secret resulting from this change is the output of a DH
-computation between the private key for the root of the ratchet tree
-and the add public key from the previous epoch.
+In the case of ART, the update secret resulting from this change is
+the output of a DH computation between the private key for the root
+of the ratchet tree and the add public key from the previous epoch.
+
+In the case of TreeKEM, the update secret is the output of the Key Derivation
+of the private root of the ratchet tree with the previous group shared secret.
 
 ## Update
 
@@ -1025,7 +1073,8 @@ regard to the participant's prior leaf private key.
 
 ~~~~~
 struct {
-    DHPublicKey ratchetPath<1..2^16-1>;
+    PublicKey ratchetPath<1..2^16-1>;
+    PrivateKey ratchetParent<1..2^16-1> (TreeKEM only)
 } Update;
 ~~~~~
 
@@ -1054,7 +1103,7 @@ participants from the group.
 ~~~~~
 struct {
     uint32 deleted;
-    DHPublicKey path<1..2^16-1>;
+    PublicKey path<1..2^16-1>;
 } Delete;
 ~~~~~
 
@@ -1079,6 +1128,10 @@ then updates its state as follows:
 The update secret resulting from this change is the secret for the
 root node of the ratchet tree after both updates.
 
+In ART the result of the DH computation with blank nodes will lock
+out the evicted member.
+
+In TreeKEM the update message will simply not be sent to the removed node.
 
 # Sequencing of State Changes {#sequencing}
 
@@ -1104,11 +1157,20 @@ general approaches:
 * Have the delivery service enforce a total order
 * Have a signal in the message that clients can use to break ties
 
-In either case, there is a risk of starvation.  In a sufficiently
+In ART, in either case, there is a risk of starvation.  In a sufficiently
 busy group, a given member may never be able to send a handshake
 message, because he always loses to other members.  The degree to
 which this is a practical problem will depend on the dynamics of the
 application.
+
+In TreeKEM, because of the non-contributivity of intermediate nodes
+update messages can be applied one after the other without the Delivery
+Service having to reject any handshake message which makes TreeKEM
+more resilient regarding the concurrency of handshake messages.
+The Messaging system can decide to choose the order for applying
+the state changes. Note that there are certain cases (if no total ordering
+is applied by the Delivery Service) where the ordering is important
+for security, ie. all updates must be executed before deletes.
 
 Regardless of how messages are kept in sequence, implementations
 MUST only update their cryptographic state when valid handshake messages
@@ -1127,10 +1189,10 @@ thanks to the confidentiality of the messages.
 
 Messages should have a counter field sent in clear-text that can be checked by
 the server and used for tie-breaking. The counter starts at 0 and is incremented
-for every new incoming message. If two group members send a message with the same
+for every new incoming message. In ART, if two group members send a message with the same
 counter, the first message to arrive will be accepted by the server and the second
 one will be rejected. The rejected message needs to be sent again with the correct
-counter number.
+counter number. In TreeKEM, the message does not necessarily need to be resent.
 
 To prevent counter manipulation by the server, the counter's integrity can be
 ensured by including the counter in a signed message envelope.
@@ -1187,6 +1249,7 @@ The requirement for this is that all participants know these values.
 If additional clear-text fields are attached to messages (like the counter), those
 fields MUST be protected by a signed message envelope.
 
+[BB. This seems both odd and unwise...]
 Alternatively, the hash of the previous message can also be included as an additional
 field rather than change the encryption key. This allows for a more flexible approach,
 because the receiving party can choose to ignore it (if the value is not known, or if
