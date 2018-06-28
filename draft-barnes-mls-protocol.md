@@ -563,7 +563,7 @@ Instead, modification of a key will lead to sending to the copath the
 information necessary to be able to recompute the root key through a
 Key Encapsulation Mechanism (KEM) which can be typically post-quantum resistant.
 
-* parent_secret = Hash(A||B)
+* parent_secret = Hash(A OR B)
 * parent_private, parent_public = Derive-Key-Pair(parent_secret)
 
 ~~~~~
@@ -929,7 +929,7 @@ enum {
 
 struct {
     HandshakeType msg_type;
-    uint24 inner_length;
+    uint32 inner_length;
     select (Handshake.msg_type) {
         case none:      struct{};
         case init:      Init;
@@ -984,20 +984,14 @@ the O(N) complexity of direct initialization. ]]
 
 ## GroupAdd
 
-A GroupAdd message is sent by a group member to add a new
-participant to the group.  The content of the message is only
-the UserInitKey for the user being added.
-
-~~~~~
-struct {
-    UserInitKey init_key;
-} GroupAdd;
-~~~~~
+A GroupAdd message is sent by a group member to add a new participant
+to the group.
 
 A group member generates such a message by requesting from the directory
-a UserInitKey for the user to be added.  The new participant processes the
-message together with the private key corresponding to the
-UserInitKey to initialize his state as follows:
+a UserInitKey for the user to be added.
+
+The new participant processes the message and the private key corresponding
+to the UserInitKey to initialize his state as follows:
 
 * Compute the participant's leaf key pair by combining the init key in
   the UserInitKey with the prior epoch's add key pair
@@ -1005,9 +999,9 @@ UserInitKey to initialize his state as follows:
   add its keys to the trees
 
 An existing participant receiving a GroupAdd message first verifies
-the signature on the message, then verifies its identity proof
-against the identity tree held by the participant.  The participant
-then updates its state as follows:
+the signature on the message, then verifies its identity proof against
+the identity tree held by the participant. The participant then updates
+its state as follows:
 
 * Compute the new participant's leaf key pair by combining the leaf
   key in the UserInitKey with the prior epoch add key pair
@@ -1033,12 +1027,6 @@ A UserAdd message is sent by a new group participant to add
 themselves to the group, based on having already had access to a
 GroupInitKey for the group.
 
-~~~~~
-struct {
-    PublicKey add_path<1..2^16-1>;
-} UserAdd;
-~~~~~
-
 A new participant generates this message using the following steps:
 
 * Fetch a GroupInitKey for the group
@@ -1054,7 +1042,7 @@ group state held by the existing participant).  The participant then
 updates its state as follows:
 
 * Update trees with the descriptions in the new GroupInitKey
-* Update the local ratchet tree with the add path in the UserAdd
+* Update the local ratchet tree with the information in the UserAdd
   message, replacing any common nodes with the values in the add
   path
 
@@ -1071,13 +1059,6 @@ An Update message is sent by a group participant to update its leaf
 key pair.  This operation provides post-compromise security with
 regard to the participant's prior leaf private key.
 
-~~~~~
-struct {
-    PublicKey ratchetPath<1..2^16-1>;
-    PrivateKey ratchetParent<1..2^16-1> (TreeKEM only)
-} Update;
-~~~~~
-
 The sender of an Update message creates it in the following way:
 
 * Generate a fresh leaf key pair
@@ -1089,7 +1070,7 @@ against the identity tree held by the participant.  The participant
 then updates its state as follows:
 
 * Update the cached ratchet tree by replacing nodes in the direct
-  path from the updated leaf with the corresponding nodes in the
+  path from the updated leaf using the information contained in the
   Update message
 
 The update secret resulting from this change is the secret for the
@@ -1100,38 +1081,84 @@ root node of the ratchet tree.
 A delete message is sent by a group member to remove one or more
 participants from the group.
 
-~~~~~
-struct {
-    uint32 deleted;
-    PublicKey path<1..2^16-1>;
-} Delete;
-~~~~~
-
 The sender of a Delete message must know the deleted node's copath.
 Based on this knowledge, it computes a Delete message as follows:
 
 * Generate a fresh leaf key pair
-* Compute the direct path from the deleted node's index with the
-  fresh leaf key pair in the current ratchet tree
 
-An existing participant receiving a Update message first verifies
+An existing participant receiving a Delete message first verifies
 the signature on the message, then verifies its identity proof
 against the identity tree held by the participant.  The participant
 then updates its state as follows:
 
 * Update the cached ratchet tree by replacing nodes in the direct
-  path from the deleted leaf with the corresponding nodes in the
-  Update message
+  path from the deleted leaf using the information in the Delete message
 * Update the cached ratchet tree and identity tree by replacing the
   deleted node's leaves with blank nodes
 
 The update secret resulting from this change is the secret for the
 root node of the ratchet tree after both updates.
 
-In ART the result of the DH computation with blank nodes will lock
-out the evicted member.
+## Message formatting
 
-In TreeKEM the update message will simply not be sent to the removed node.
+In TreeKEM all handshake messages have are formed with the
+following content:
+
+~~~~~
+struct {
+    uint32 leaf_public_key_length;
+    opaque leaf_public_key;
+    uint32 parent_private_key_length;
+    opaque parent_private_key;
+} KEMPlaintext;
+~~~~~
+
+These messages are sent to each individual nodes, in the copath
+of a modified leaf, encrypted under their public key as follows:
+
+~~~~~
+struct {
+    uint32 length;
+    opaque content[KEMCiphertext.length];
+} KEMCiphertext;
+~~~~~
+
+In ART, each message has its specific content but the payload
+is sent in cleartext indifferently to all members in the copath.
+
+~~~~~
+struct {
+    select (Handshake.msg_type) {
+        case none:      struct{};
+        case init:      Init;
+        case user_add:
+             struct { PublicKey add_path<1..2^16-1>; };
+        case group_add:
+             struct { UserInitKey init_key; };
+        case update:
+             struct { PublicKey ratchetPath<1..2^16-1>; };
+        case delete:
+             struct {
+                 uint32 deleted;
+                 PublicKey path<1..2^16-1>;
+             };
+    };
+} ARTPlaintext;
+~~~~~
+
+All Handshake messages are built in the following way:
+
+~~~~~
+struct {
+    select (ART|TreeKEM) {
+        case ART:
+            ARTPlaintext content[Handshake.msg_type];
+        case TreeKEM:
+            KEMCiphertext content;
+    }
+} (Init|UserAdd|GroupAdd|Update|Delete);
+~~~~~
+
 
 # Sequencing of State Changes {#sequencing}
 
