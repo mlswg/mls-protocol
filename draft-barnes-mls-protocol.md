@@ -126,7 +126,7 @@ size of the group.
 
 In this document, we describe a protocol based on tree structures
 that enable asynchronous group keying with forward secrecy and
-post-compromise security.  This document propose two approaches, one
+post-compromise security.  This document describes two candidate approaches, one
 using "asynchronous ratcheting trees" {{art}}, the other using an
 asynchronous key-encapsulation mechanism for tree structures called TreeKEM.
 Both mechanisms allow the members of the group to derive and update
@@ -504,7 +504,7 @@ A   B*    C    D
 
 This document present two different potential approaches, ART and TreeKEM,
 for generating and managing group secrets using Ratchet tree datastructures.
-These are constructed as a series of asymetric keypairs in a left-balanced
+Both are constructed as a series of asymetric keypairs in a left-balanced
 binary tree arrangement, with each user knowing their direct path, and thus
 being able to compute the shared root secret.
 
@@ -533,7 +533,7 @@ compute the new key.
 
 ### Ratchet Trees for ART
 
-In ART the value of the parent is computed as follows:
+In ART the parent secret is computed as follows:
 
 * parent_secret = DH(L, R)
 * parent_private, parent_public = Derive-Key-Pair(parent_secret)
@@ -556,20 +556,40 @@ A    B    C    D
 
 ### Ratchet Trees for TreeKEM
 
-The key computations for each Node differs in TreeKEM. The general idea behind
+The key computation differ for each Node in TreeKEM. The general idea behind
 TreeKEM is to obtain better messaging complexity on concurrent events by not
 forcing contributivity of all leaves to the keys of the *intermediate* nodes.
 Instead, modification of a key will lead to sending to the copath the
 information necessary to be able to recompute the root key through a
 Key Encapsulation Mechanism (KEM) which can be typically post-quantum resistant.
 
-* parent_secret = Hash(A OR B)
+TreeKEM improves the efficiency of concurrent updates by allowing
+them to be merged, rather than forcing one update to be selected and
+others to be discarded, which leads to additionnal complexity costs.
+Instead, the last update to the key at a given node replaces all previous updates
+using the following rules:
+
+* parent_secret = Hash(node_secret)
 * parent_private, parent_public = Derive-Key-Pair(parent_secret)
 
+Consider the following Ratchet tree, where A was the was the last leaf to perform
+an update of its secret.
 ~~~~~
-   H(H(A||B)||H(C||D))
+        H(H(A))
        /      \
-   H(A||B)   H(C||D)
+     H(A)     H(D)
+    /  \      /  \
+   A    B    C    D
+~~~~~
+
+This means that a Ratchet tree in the following state, where A has updated last,
+will be updated by C in such a way way that only the contribution from C will
+be kept in the new root node.
+
+~~~~~
+        H(H(C))
+       /      \
+     H(A)     H(C)
     /  \      /  \
    A    B    C    D
 ~~~~~
@@ -582,16 +602,17 @@ leaves when participants are deleted from the group.
 
 If any node in the copath of a leaf is \_, it should be ignored during the
 computation of the path. For example, the tree consisting of the private
-keys (A, _, C, D) is constructed as follows (representation for ART):
+keys (A, _, C, D) is constructed as follows:
 
 ~~~~~
-  DH(A, DH(CD))
+  COMPUTE(A, COMPUTE(CD))
    /      \
-  A       DH(CD)
+  A       COMPUTE(CD)
  / \      /  \
 A   _    C    D
 ~~~~~
 
+The COMPUTE operation represents any mechanism provider by ART or TreeKEM.
 If two sibling nodes are both \_, their parent value also becomes \_.
 
 Blank nodes effectively result in an unbalanced tree, but allow the
@@ -725,12 +746,7 @@ For these curves, implementers do not need to verify membership in the correct s
 This ciphersuite uses the following primitives:
 
 * Hash function: SHA-256
-* Key Encapsulation: ECIES or any PQ KEM
-
-A significant advantage of TreeKEM over ART is that intermediate node secrets
-are sent via a Key Encapsulation Mechanism (KEM) which can be cryptographically
-resistant to quantic adversaries unlike Elliptic Curve operations.
-
+* Key Encapsulation: ECIES
 
 
 ## Key Schedule
@@ -891,7 +907,7 @@ In MLS, these changes are accomplished by broadcasting "handshake"
 messages to the group.  Note that unlike TLS and DTLS, there is not
 a consolidated handshake phase to the protocol.  Rather, handshake
 messages are exchanged throughout the lifetime of a group, whenever
-a change is made to the group state. This means a an unbounded number
+a change is made to the group state. This means an unbounded number
 of interleaved application and handshake messages.
 
 An MLS handshake message encapsulates a specific message that
@@ -1276,7 +1292,6 @@ The requirement for this is that all participants know these values.
 If additional clear-text fields are attached to messages (like the counter), those
 fields MUST be protected by a signed message envelope.
 
-[BB. This seems both odd and unwise...]
 Alternatively, the hash of the previous message can also be included as an additional
 field rather than change the encryption key. This allows for a more flexible approach,
 because the receiving party can choose to ignore it (if the value is not known, or if
