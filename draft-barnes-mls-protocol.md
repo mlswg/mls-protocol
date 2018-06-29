@@ -565,14 +565,14 @@ Key Encapsulation Mechanism (KEM) which can be typically post-quantum resistant.
 
 TreeKEM improves the efficiency of concurrent updates by allowing
 them to be merged, rather than forcing one update to be selected and
-others to be discarded, which leads to additionnal complexity costs.
+others to be discarded, which leads to additionnal communication complexity costs.
 Instead, the last update to the key at a given node replaces all previous updates
 using the following rules:
 
 * parent_secret = Hash(node_secret)
 * parent_private, parent_public = Derive-Key-Pair(parent_secret)
 
-Consider the following Ratchet tree, where A was the was the last leaf to perform
+Consider the following Ratchet tree, where A was the last leaf to perform
 an update of its secret.
 ~~~~~
         H(H(A))
@@ -593,6 +593,55 @@ be kept in the new root node.
     /  \       /  \
    A    B     C'   D
 ~~~~~
+
+This behavior allows completely concurrent updates which is likely to
+be most of the cases of concurrency related issues in during the lifetime
+of the group.
+This change in the secret values of the nodes requires participant C to
+provide the required information, H(C') and H(H(C')) to every other
+participant so that they can derive the new root secret.
+
+In order to do so, the participant will compute the sequence of hashes
+H(C'), H(H(C')) up-to the root node. It will also compute the sequence
+of ciphertexts, containing for each group on the copath to the root the
+new key for its parent. In this example, participant D would receive the
+secret H(C') for its parent by C. The node on AB being in the copath of
+C to the root, it would (hence A and B would to) receive the secret for
+its parent H(H(C')) encrypted under its current private key.
+
+Note that encrypting the new key to the previous root private key to
+distribute it to all participants is unsecure because it leads to insider
+attacks.
+
+This strategy of sending the key of the parent to each node in the copath
+of the participant performing an operation is at the basis of all group
+operations in TreeKEM. Only the recipients will differ depending on the
+kind of operations to perform.
+For instance, in a different operation, such as removing a participant
+through a Delete message, TreeKEM performs a key update that will not
+be sent to the removed participant but only to its copath such that he will
+not have access to the new key, hence won't be able to decrypt messages
+that will follow.
+
+While operations leading to key update may be completely concurrent, it
+is not the case that all operations can permute. Indeed, a concurrent
+execution of an Update with a Delete operation may lead a user to be locked
+out by a delete and then reinstalled in the group by receiving an update.
+To avoid this issue, a participant receiving two concurrent messages which
+are not Update MUST process all Update messages before performing the
+operations for the Delete. Fortunately in MLS the Delivery Service can
+enforce total ordering of the messages to avoid this problem all together.
+
+MLS requires that all operations performing changes to a group state
+MUST be authenticated. Having access to group root secret means that
+the participant is a legitimate receiver of the messages but does not
+mean that participants can't act on behalf of each other. To protect
+against this, the participant MUST sign the Handshake messages as those
+are the ones triggering group operations. On receiption of a Handshake
+message, a participant MUST verify the signature before performing the
+group operation on its local state. This avoids, for example, a
+participant to claim that another participant has change its key.
+
 
 ### Blank Ratchet Tree Nodes
 
