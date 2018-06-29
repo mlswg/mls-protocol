@@ -587,11 +587,11 @@ will be updated by C in such a way way that only the contribution from C will
 be kept in the new root node.
 
 ~~~~~
-        H(H(C))
-       /      \
-     H(A)     H(C)
-    /  \      /  \
-   A    B    C    D
+        H(H(C'))
+       /       \
+     H(A)     H(C')
+    /  \       /  \
+   A    B     C'   D
 ~~~~~
 
 ### Blank Ratchet Tree Nodes
