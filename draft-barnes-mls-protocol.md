@@ -584,7 +584,7 @@ an update of its secret.
 
 This means that a Ratchet tree in the following state, where A has updated last,
 will be updated by C in such a way way that only the contribution from C will
-be kept in the new root node.
+be propagated to root node.
 
 ~~~~~
         H(H(C'))
@@ -594,9 +594,11 @@ be kept in the new root node.
    A    B     C'   D
 ~~~~~
 
-This behavior allows completely concurrent updates which is likely to
-be most of the cases of concurrency related issues in during the lifetime
-of the group.
+This behavior allows for concurrent updates in TreeKEM. In MLS, refreshing
+keys through an Update message is from far the most frequent group operation.
+Hence it was crucial to be able to process these operations concurrently,
+behavior that is unfornately impossible with ART.
+
 This change in the secret values of the nodes requires participant C to
 provide the required information, H(C') and H(H(C')) to every other
 participant so that they can derive the new root secret.
@@ -610,7 +612,7 @@ C to the root, it would (hence A and B would to) receive the secret for
 its parent H(H(C')) encrypted under its current private key.
 
 Note that encrypting the new key to the previous root private key to
-distribute it to all participants is unsecure because it leads to insider
+distribute it to all participants is insecure because it leads to insider
 attacks.
 
 This strategy of sending the key of the parent to each node in the copath
@@ -632,15 +634,30 @@ are not Update MUST process all Update messages before performing the
 operations for the Delete. Fortunately in MLS the Delivery Service can
 enforce total ordering of the messages to avoid this problem all together.
 
+Concurrency is the usual reason for keeping multiple versions of the
+group state and the associated keys. In MLS it is RECOMMANDED to keep
+the last 10 group states and the associated keys for a maximum of 7 days.
+Passed the time limit, the implementation of the protocol MUST securely erase
+group secrets to restore the security guarantees expected by the other
+participants of the group. This limit in time has been chosen to provide
+a participant enough time for its client to connect the messaging service
+and catch up with the current group state. For the same reason MLS requires
+that all participants MUST update their leaf key at least once every 7 days
+at most, otherwise it might be deleted from the group as he poses a
+security threat to the group by retaining its secrets. Note that this
+requirement obviously does not force the user of the application to
+send an Application message but just for its device to be connected to
+the network at least every 7 days.
+
 MLS requires that all operations performing changes to a group state
 MUST be authenticated. Having access to group root secret means that
 the participant is a legitimate receiver of the messages but does not
-mean that participants can't act on behalf of each other. To protect
+mean that participants can't perform actions on behalf of each other. To protect
 against this, the participant MUST sign the Handshake messages as those
-are the ones triggering group operations. On receiption of a Handshake
+are the ones triggering group operations. On reception of a Handshake
 message, a participant MUST verify the signature before performing the
 group operation on its local state. This avoids, for example, a
-participant to claim that another participant has change its key.
+participant to claim that another participant has changed its key.
 
 
 ### Blank Ratchet Tree Nodes
@@ -651,17 +668,29 @@ leaves when participants are deleted from the group.
 
 If any node in the copath of a leaf is \_, it should be ignored during the
 computation of the path. For example, the tree consisting of the private
-keys (A, _, C, D) is constructed as follows:
+keys (A, _, C, D) is constructed as follows for ART:
 
 ~~~~~
-  COMPUTE(A, COMPUTE(CD))
+  DH(A, DH(CD))
    /      \
-  A       COMPUTE(CD)
+  A       DH(CD)
  / \      /  \
 A   _    C    D
 ~~~~~
 
-The COMPUTE operation represents any mechanism provider by ART or TreeKEM.
+Replacing a node by \_ in TreeKEM, means performing an update on any leaf
+without sending the new key to the the blanked leaf.
+In the following example, participant A update its key to A' and derive the new
+sequence of keys up-to the path. Here A only send H(H(A')) to the parent
+node of C and D but does not send H(A') to B which evicts it from the Group.
+~~~~~
+    H(H(A'))
+    /    \
+ H(A')    H(C)
+  / \    /  \
+ A'  _  C    D
+~~~~~
+
 If two sibling nodes are both \_, their parent value also becomes \_.
 
 Blank nodes effectively result in an unbalanced tree, but allow the
