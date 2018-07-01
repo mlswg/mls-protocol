@@ -554,6 +554,9 @@ DH(DH(AB), DH(CD))
 A    B    C    D
 ~~~~~
 
+The details about Ratchet tree operations for ART are left out of this
+section. For more details please refer to "asynchronous ratcheting trees" {{art}}.
+
 ### Ratchet Trees for TreeKEM
 
 The key computation differ for each Node in TreeKEM. The general idea behind
@@ -571,6 +574,9 @@ using the following rules:
 
 * parent_secret = Hash(node_secret)
 * parent_private, parent_public = Derive-Key-Pair(parent_secret)
+
+Unlike the previous section, this section details the group operations
+for the TreeKEM group key establishment protocol.
 
 Consider participants A, B, C and D that are not yet part of a group.
 All participants to each have a pair of assymetric identity keys and a leaf secret.
