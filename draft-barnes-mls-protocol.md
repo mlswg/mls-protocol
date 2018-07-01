@@ -558,10 +558,10 @@ A    B    C    D
 
 The key computation differ for each Node in TreeKEM. The general idea behind
 TreeKEM is to obtain better messaging complexity on concurrent events by not
-forcing contributivity of all leaves to the keys of the *intermediate* nodes.
-Instead, modification of a key will lead to sending to the copath the
-information necessary to be able to recompute the root key through a
-Key Encapsulation Mechanism (KEM) which can be typically post-quantum resistant.
+forcing contributivity of all leaves to the secrets of the *intermediate* nodes.
+Instead, modification of a leaf secret will lead to sending to the copath the
+information necessary to be able to recompute the root secret through a
+Key Encapsulation Mechanism (KEM) which can typically be post-quantum resistant.
 
 TreeKEM improves the efficiency of concurrent updates by allowing
 them to be merged, rather than forcing one update to be selected and
@@ -572,46 +572,139 @@ using the following rules:
 * parent_secret = Hash(node_secret)
 * parent_private, parent_public = Derive-Key-Pair(parent_secret)
 
-Consider the following Ratchet tree, where A was the last leaf to perform
-an update of its secret.
+Consider participants A, B, C and D that are not yet part of a group.
+All participants to each have a pair of assymetric identity keys and a leaf secret.
+
 ~~~~~
-        H(H(A))
+   A    B    C    D
+~~~~~
+
+To create a Group in TreeKEM, the group creator will generate new secrets
+that will be shared with other participants. In the following example, we
+will consider that participant D is the initial creator of the group, but
+the creator could be out of the group. The process would work similarily.
+
+Participant D will first generate leaf secrets for participants A, B and C.
+Additionally, D determines the number of nodes needed to define a Ratchet tree
+large enough to fit all participants, then computes the acurate number
+of parent secrets by Hashing its own leaf secret: here, H(D) and H(H(D)).
+
+After this steps, participant D has the following view of the Group,
+where it temporarily knows the leaf secret for A, B and C.
+
+~~~~~
+        H(H(D))
+              \
+              H(D)
+                 \
+   A    B    C    D
+~~~~~
+
+The creator will complete its view of the tree by computing missing nodes
+according to a policy. Typically all initial parent nodes will be computed
+as the hash of the secret of its Right child.
+
+Because the parent_secret value of A and B was computed as H(B),
+the current state of the Ratchet tree is now the following.
+
+~~~~~
+        H(H(D))
        /      \
-     H(A)     H(D)
+     H(B)     H(D)
     /  \      /  \
    A    B    C    D
 ~~~~~
 
-This means that a Ratchet tree in the following state, where A has updated last,
-will be updated by C in such a way way that only the contribution from C will
-be propagated to root node.
+When the group is created by participant D, participants A, B and C do not
+have any information about the view that D has about the
+Ratchet tree. Hence, participant D has to send this information over to the
+other participants. Specifically, it will encrypt the accurate information
+to each other participant using a Key Encapsulation Mechanism (KEM) using
+the other participants public identity keys.
+
+To that purpouse, the creator will send the following encrypted values:
+
+* Participant A will receive:
+  - its leaf secret;
+  - its parent secret H(B);
+  - its root secret H(H(D));
+  - the public keys associated to the nodes in its copath:
+    - the node holding B;
+    - the node holding H(D).
+
+* Participant B will receive:
+  - its leaf secret;
+  - its root secret H(H(D));
+  - the public keys associated to the nodes in its copath:
+    - the node holding A;
+    - the node holding H(D).
+
+* Participant C will receive:
+  - its leaf secret;
+  - its parent secret H(D);
+  - the public keys associated to the nodes in its copath:
+    - the node holding D;
+    - the node holding H(H(B)).
+
+Note that B can derive its parent secret and the associated identity
+public and private keys. C has knowledge of H(D) so it can do the same
+for that node as-well as derive the root secret and the associated
+parent_public and parent_secret values. If the creator had been an
+outsider instead, participant D would have received information too.
+
+At this point, if no other actions have been performed, all participants
+have access to the group root shared secret. For security reasons participant
+A, B and D MUST refresh their leaf secret to prevent D from having
+access to it.
+
+~~~~~
+        H(H(D))
+       /      \
+     H(B)     H(D)
+    /  \      /  \
+   A    B    C    D
+~~~~~
+
+Updating a leaf secret in TreeKEM consists for a participant
+to update its own leaf secret and use the KEM mechanism to propagate
+its view of the group state to other participant.
+
+After updating, participant C has the following view of the group:
 
 ~~~~~
         H(H(C'))
        /       \
-     H(A)     H(C')
+     H(B)     H(C')
     /  \       /  \
    A    B     C'   D
 ~~~~~
+
+Participant C updates the group state in such a way that all intermediate
+nodes of its path up-to the root will be updated *only* by its own contributions.
+To be precise, the sequence of parent secrets are formed the hash ratchet
+of its new secret: H(C') and H(H(C')).
 
 This behavior allows for concurrent updates in TreeKEM. In MLS, refreshing
 keys through an Update message is from far the most frequent group operation.
 Hence it was crucial to be able to process these operations concurrently,
 behavior that is unfornately impossible with ART.
+While, in TreeKEM, the intermediate secrets are not contributive,
+the keys that will be generated from the root group secret can be by
+being derived from the new group secret and the previous group secret.
 
-This change in the secret values of the nodes requires participant C to
-provide the required information, H(C') and H(H(C')) to every other
-participant so that they can derive the new root secret.
+For the other participants to be able to update their view of the Group
+state, the participant performing the update of its leaf key must send
+the necessary information to the others.
 
-In order to do so, the participant will compute the sequence of hashes
-H(C'), H(H(C')) up-to the root node. It will also compute the sequence
-of ciphertexts, containing for each group on the copath to the root the
-new key for its parent. In this example, participant D would receive the
-secret H(C') for its parent by C. The node on AB being in the copath of
-C to the root, it would (hence A and B would to) receive the secret for
-its parent H(H(C')) encrypted under its current private key.
-
-Note that encrypting the new key to the previous root private key to
+For instance, for each group in the copath to the root, participant C will
+compute the ciphertext containing the new key to their parent.
+In this example, participant D would receive the secret H(C') for its parent by C.
+The node on AB, parent to A and B, being in the copath of C to the root
+would receive the secret for the parent of their shared node H(H(C'))
+encrypted under its current public_key(AB), _  = Derive-Key-Pair(H(B)).
+Obviously, since H(B) is know by A and B, they now know the new group
+root secret: H(H(C'))
+Note that encrypting the new root key to the previous root private key to
 distribute it to all participants is insecure because it leads to insider
 attacks.
 
@@ -619,11 +712,24 @@ This strategy of sending the key of the parent to each node in the copath
 of the participant performing an operation is at the basis of all group
 operations in TreeKEM. Only the recipients will differ depending on the
 kind of operations to perform.
-For instance, in a different operation, such as removing a participant
-through a Delete message, TreeKEM performs a key update that will not
-be sent to the removed participant but only to its copath such that he will
-not have access to the new key, hence won't be able to decrypt messages
-that will follow.
+For instance, removing a participant by performing a Delete operation,
+consists in performing an Update and omit sending the information
+that would have been necessary for the removed user to compute the new
+group root secret.
+
+~~~~~
+        H(H(A'))
+       /       \
+     H(A')     H(C)
+    /   \      /  \
+   A'    B    C    D
+~~~~~
+
+In this group, if participant A decides to remove participant D from the
+group, it can update its leaf secret but instead of sending H(H(A')) to
+the node currently holding H(C), send this value directly to participant C.
+In this case, participant D has no way to have access to the following
+root secret, hence is excluded.
 
 While operations leading to key update may be completely concurrent, it
 is not the case that all operations can permute. Indeed, a concurrent
