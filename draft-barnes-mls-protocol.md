@@ -1343,7 +1343,7 @@ since the endpoint cannot know at that time whether the change
 implied by the handshake message will succeed or not.
 
 
-## Server-side enforced ordering
+## Server-Enforced Ordering
 
 With this approach, the delivery service ensures that incoming messages are added to an
 ordered queue and outgoing messages are dispatched in the same order. The server
@@ -1363,7 +1363,7 @@ ensured by including the counter in a signed message envelope.
 
 This applies to all messages, not only state changing messages.
 
-## Client-side enforced ordering
+## Client-Enforced Ordering
 
 Order enforcement can be implemented on the client as well, one way to achieve it
 is to use a two step update protocol: the first client sends a proposal to update and
@@ -1376,10 +1376,59 @@ harder to implement. It also could cause starvation for some clients if they kee
 failing to get their proposal accepted.
 
 
-## Concurrent updates
+## Merging Updates
 
-[[ TODO: Paste Beurdouche text ]]
+When TreeKEM is in use, it is possible to partly address the problem
+of concurrent changes by having the recipients of the changes merge
+them, rather than having the senders retry.  Because the value of
+intermediate node is determined by its last updated child (as
+opposed to both its children in ART), TreeKEM updates can be merged
+by recipients as long as the recipients agree on an order -- the
+only question is which node was last updated.
 
+Recall that the processing of a TreeKEM update proceeds in two steps:
+
+1. Compute updated secret values by hashing up the tree
+2. Update the tree with the new secret and public values
+
+To merge an ordered list of updates, a recipient simply performs
+these updates in the specified order.  
+
+For example, suppose we have a tree in the following configuration:
+
+~~~~~
+      H(H(D))
+     /       \
+  H(B)      H(D)
+  /  \      /  \
+ A    B    C    D
+~~~~~
+
+Now suppose B and C simultaneously decide to update to X and Y,
+respectively.  They will send out updates of the following form:
+
+~~~~~
+  Update from B      Update from C
+  =============      =============
+      H(H(X))            H(H(Y))
+     /                         \    
+  H(X)                         H(Y)    
+     \                         /     
+      X                       Y      
+~~~~~
+
+Assuming that the ordering agreed by the group says that B's update
+should be processed before C's, the other participants in the group
+will overwrite the root value for B with the root value from C, and
+all arrive at the following state:
+
+~~~~~
+      H(H(Y))
+     /       \
+  H(X)      H(Y)
+  /  \      /  \
+ A    X    Y    D
+~~~~~
 
 # Message Protection
 
