@@ -1266,22 +1266,24 @@ then updates its state as follows:
 The update secret resulting from this change is the secret for the
 root node of the ratchet tree.
 
-## Delete
+## Remove
 
-A delete message is sent by a group member to remove one or more
+A Remove message is sent by a group member to remove one or more
 participants from the group.
 
 ~~~~~
 struct {
     uint32 deleted;
     DirectPath path;
-} Delete;
+} Remove;
 ~~~~~
 
-The sender of a Delete message must know the deleted node's copath.
-Based on this knowledge, it computes a Delete message as follows:
+The sender of a Remove message generates it as as follows:
 
 * Generate a fresh leaf key pair
+* Compute its direct path in the current ratchet tree, starting from
+  the deleted leaf (Note: In ART, this requires knowing the deleted
+  node's copath)
 
 An existing participant receiving a Delete message first verifies
 the signature on the message, then verifies its identity proof
