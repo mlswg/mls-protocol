@@ -587,219 +587,72 @@ X, then the tree will have the following structure.
 X    B     C    D
 ~~~~~
 
-[[ TODO - Disposition ]]
+### Ratchet Tree Updates
 
-The key computation differ for each Node in TreeKEM. The general idea behind
-TreeKEM is to obtain better messaging complexity on concurrent events by not
-forcing contributivity of all leaves to the secrets of the *intermediate* nodes.
-Instead, modification of a leaf secret will lead to sending to the copath the
-information necessary to be able to recompute the root secret through a
-Key Encapsulation Mechanism (KEM) which can typically be post-quantum resistant.
+In order to update the state of the group such as adding and
+removing participants, MLS messages are used to make changes to the
+group's ratchet tree.  While the details of update processing differ
+between ART and TreeKEM (as described below), in both cases the
+participant proposing an update to the tree transmits a
+representation of a set of tree nodes along the direct path from a
+leaf to the root. Other participants in the group can use these
+nodes to update their view of the tree, aligning their copy of the
+tree to the sender's.
 
-TreeKEM improves the efficiency of concurrent updates by allowing
-them to be merged, rather than forcing one update to be selected and
-others to be discarded, which leads to additionnal communication complexity costs.
-Instead, the last update to the key at a given node replaces all previous updates
-using the following rules:
+In ART, the transmitted nodes are represented by their public keys.
+Receivers process an update with the following steps:
 
-* parent_secret = Hash(node_secret)
-* parent_private, parent_public = Derive-Key-Pair(parent_secret)
+1. Replace the public keys in the cached tree with the received
+   values
+2. Whenever a public key is updated for a node whose sibling has a
+   private key populated:
+   * Perform a DH operation and update the node's parent
+   * Repeat the prior step until reaching the root
 
-Unlike the previous section, this section details the group operations
-for the TreeKEM group key establishment protocol.
+In TreeKEM, the sender transmits a node by sending the public key
+for the node and an encrypted version of the secret value for the
+node.  The secret value is encrypted in such a way that it can be
+decrypted only by holders of the private key for one of its
+children, namely the child that is not in the direct path being
+transmitted.  (That is, each node in the direct path is encrypted
+for holders of the private key for a node in the corresponding
+copath.) For leaf nodes, no encrypted secret is transmitted.
 
-Consider participants A, B, C and D that are not yet part of a group.
-All participants to each have a pair of assymetric identity keys and a leaf secret.
+A TreeKEM update is processed with the following steps:
 
-~~~~~
-   A    B    C    D
-~~~~~
+1. Compute the updated secret values
+  * Identify a node in the direct path for which the local participant
+    has the private key
+  * Decrypt the secret value for that node
+  * Compute secret values for ancestors of that node by hashing the
+    decrypted secret
+2. Merge the updated secrets into the tree
+  * Replace the public keys for nodes on the direct path with the
+    received public keys
+  * For nodes where an updated secret was computed in step 1,
+    replace the secret value for the node with the updated value
 
-To create a Group in TreeKEM, the group creator will generate new secrets
-that will be shared with other participants. In the following example, we
-will consider that participant D is the initial creator of the group, but
-the creator could be out of the group. The process would work similarily.
-
-Participant D will first generate leaf secrets for participants A, B and C.
-Additionally, D determines the number of nodes needed to define a Ratchet tree
-large enough to fit all participants, then computes the acurate number
-of parent secrets by Hashing its own leaf secret: here, H(D) and H(H(D)).
-
-After this steps, participant D has the following view of the Group,
-where it temporarily knows the leaf secret for A, B and C.
-
-~~~~~
-        H(H(D))
-              \
-              H(D)
-                 \
-   A    B    C    D
-~~~~~
-
-The creator will complete its view of the tree by computing missing nodes
-according to a policy. Typically all initial parent nodes will be computed
-as the hash of the secret of its Right child.
-
-Because the parent_secret value of A and B was computed as H(B),
-the current state of the Ratchet tree is now the following.
+For example, suppose we had the following tree:
 
 ~~~~~
-        H(H(D))
-       /      \
-     H(B)     H(D)
-    /  \      /  \
-   A    B    C    D
+      G
+    /   \
+   /     \
+  E       F
+ / \     / \
+A   B   C   D
 ~~~~~
 
-When the group is created by participant D, participants A, B and C do not
-have any information about the view that D has about the
-Ratchet tree. Hence, participant D has to send this information over to the
-other participants. Specifically, it will encrypt the accurate information
-to each other participant using a Key Encapsulation Mechanism (KEM) using
-the other participants public identity keys.
+If an update is made along the direct path B-E-G, then the following
+values will be transmitted (using pk(X) to represent the public key
+corresponding to the secret value X and E(K, S) to represent
+public-key encryption to the public key K of the secret value S):
 
-To that purpouse, the creator will send the following encrypted values:
-
-* Participant A will receive:
-  - its leaf secret;
-  - its parent secret H(B);
-  - its root secret H(H(D));
-  - the public keys associated to the nodes in its copath:
-    - the node holding B;
-    - the node holding H(D).
-
-* Participant B will receive:
-  - its leaf secret;
-  - its root secret H(H(D));
-  - the public keys associated to the nodes in its copath:
-    - the node holding A;
-    - the node holding H(D).
-
-* Participant C will receive:
-  - its leaf secret;
-  - its parent secret H(D);
-  - the public keys associated to the nodes in its copath:
-    - the node holding D;
-    - the node holding H(H(B)).
-
-Note that B can derive its parent secret and the associated identity
-public and private keys. C has knowledge of H(D) so it can do the same
-for that node as-well as derive the root secret and the associated
-parent_public and parent_secret values. If the creator had been an
-outsider instead, participant D would have received information too.
-
-At this point, if no other actions have been performed, all participants
-have access to the group root shared secret. For security reasons participant
-A, B and D MUST refresh their leaf secret to prevent D from having
-access to it.
-
-~~~~~
-        H(H(D))
-       /      \
-     H(B)     H(D)
-    /  \      /  \
-   A    B    C    D
-~~~~~
-
-Updating a leaf secret in TreeKEM consists for a participant
-to update its own leaf secret and use the KEM mechanism to propagate
-its view of the group state to other participant.
-
-After updating, participant C has the following view of the group:
-
-~~~~~
-        H(H(C'))
-       /       \
-     H(B)     H(C')
-    /  \       /  \
-   A    B     C'   D
-~~~~~
-
-Participant C updates the group state in such a way that all intermediate
-nodes of its path up-to the root will be updated *only* by its own contributions.
-To be precise, the sequence of parent secrets are formed the hash ratchet
-of its new secret: H(C') and H(H(C')).
-
-This behavior allows for concurrent updates in TreeKEM. In MLS, refreshing
-keys through an Update message is from far the most frequent group operation.
-Hence it was crucial to be able to process these operations concurrently,
-behavior that is unfornately impossible with ART.
-While, in TreeKEM, the intermediate secrets are not contributive,
-the keys that will be generated from the root group secret can be by
-being derived from the new group secret and the previous group secret.
-
-For the other participants to be able to update their view of the Group
-state, the participant performing the update of its leaf key must send
-the necessary information to the others.
-
-For instance, for each group in the copath to the root, participant C will
-compute the ciphertext containing the new key to their parent.
-In this example, participant D would receive the secret H(C') for its parent by C.
-The node on AB, parent to A and B, being in the copath of C to the root
-would receive the secret for the parent of their shared node H(H(C'))
-encrypted under its current public_key(AB), _  = Derive-Key-Pair(H(B)).
-Obviously, since H(B) is know by A and B, they now know the new group
-root secret: H(H(C'))
-Note that encrypting the new root key to the previous root private key to
-distribute it to all participants is insecure because it leads to insider
-attacks.
-
-This strategy of sending the key of the parent to each node in the copath
-of the participant performing an operation is at the basis of all group
-operations in TreeKEM. Only the recipients will differ depending on the
-kind of operations to perform.
-For instance, removing a participant by performing a Delete operation,
-consists in performing an Update and omit sending the information
-that would have been necessary for the removed user to compute the new
-group root secret.
-
-~~~~~
-        H(H(A'))
-       /       \
-     H(A')     H(C)
-    /   \      /  \
-   A'    B    C    D
-~~~~~
-
-In this group, if participant A decides to remove participant D from the
-group, it can update its leaf secret but instead of sending H(H(A')) to
-the node currently holding H(C), send this value directly to participant C.
-In this case, participant D has no way to have access to the following
-root secret, hence is excluded.
-
-While operations leading to key update may be completely concurrent, it
-is not the case that all operations can permute. Indeed, a concurrent
-execution of an Update with a Delete operation may lead a user to be locked
-out by a delete and then reinstalled in the group by receiving an update.
-To avoid this issue, a participant receiving two concurrent messages which
-are not Update MUST process all Update messages before performing the
-operations for the Delete. Fortunately in MLS the Delivery Service can
-enforce total ordering of the messages to avoid this problem all together.
-
-Concurrency is the usual reason for keeping multiple versions of the
-group state and the associated keys. In MLS it is RECOMMANDED to keep
-the last 10 group states and the associated keys for a maximum of 7 days.
-Passed the time limit, the implementation of the protocol MUST securely erase
-group secrets to restore the security guarantees expected by the other
-participants of the group. This limit in time has been chosen to provide
-a participant enough time for its client to connect the messaging service
-and catch up with the current group state. For the same reason MLS requires
-that all participants MUST update their leaf key at least once every 7 days
-at most, otherwise it might be deleted from the group as he poses a
-security threat to the group by retaining its secrets. Note that this
-requirement obviously does not force the user of the application to
-send an Application message but just for its device to be connected to
-the network at least every 7 days.
-
-MLS requires that all operations performing changes to a group state
-MUST be authenticated. Having access to group root secret means that
-the participant is a legitimate receiver of the messages but does not
-mean that participants can't perform actions on behalf of each other. To protect
-against this, the participant MUST sign the Handshake messages as those
-are the ones triggering group operations. On reception of a Handshake
-message, a participant MUST verify the signature before performing the
-group operation on its local state. This avoids, for example, a
-participant to claim that another participant has changed its key.
+| Public Key | Ciphertext  |
+|:-----------|:------------|
+| pk(G)      | E(pk(F), G) |
+| pk(E)      | E(pk(A), E) |
+| pk(B)      |             |
 
 
 ### Blank Ratchet Tree Nodes
@@ -810,7 +663,7 @@ leaves when participants are deleted from the group.
 
 If any node in the copath of a leaf is \_, it should be ignored during the
 computation of the path. For example, the tree consisting of the private
-keys (A, _, C, D) is constructed as follows for ART:
+keys (A, \_, C, D) is constructed as follows for ART:
 
 ~~~~~
   DH(A, DH(CD))
@@ -991,36 +844,46 @@ the corresponding ART ciphersuite.
 Encryption keys are derived from shared secrets by taking the first
 16 bytes of H(Z), where Z is the shared secret and H is SHA-256.
 
-## Tree Nodes
 
-Each message in MLS contains a collection of tree nodes that
-recipients use to update their state.  ART and TreeKEM transmit
-different information about each tree node.  With ART, the sender
-only needs to transmit the public key for a node.  With TreeKEM, the
-sender also transmits the secret value of the node, encrypted for
-one of the node's children (the child not being updated by a given
-message).
+## Direct Paths
+
+As described in {{ratchet-tree-updates}}, each MLS message needs to
+transmit node values along the direct path from a leaf to the root.
+In ART, this simply entails sending the public key for each node.
+In TreeKEM, the path contains a public key for the leaf node, and a
+public key and encrypted secret value for intermediate nodes in the
+path.  In both cases, the path is ordered from the leaf to the root;
+each node MUST be the parent of its predecessor.
 
 ~~~~~
+DHPublicKey ARTPath<0..2^16-1>;
+
+struct {
+    DHPublicKey ephemeral_key;
+    opaque nonce<0..255>;
+    opaque ciphertext<0..255>;
+} ECIESCiphertext;
+
 struct {
     DHPublicKey public_key;
+    ECIESCiphertext ciphertext;
+} TreeKEMNode;
+
+struct {
+  DHPublicKey leaf;
+  TreeKEMNode intermediates<0..2^16-1>;
+} TreeKEMPath;
+
+struct {
     select (mode) {
-      case ART:
-          struct{}
-      case TreeKEM:
-          struct {
-              DHPublicKey ephemeral_key;
-              opaque nonce<0..255>;
-              opaque ciphertext<0..255>;
-          }
-    }
-} TreeNode
+        case ART: ARTPath;
+        case TreeKEM: TreeKEMPath;
+    };
+} DirectPath;
 ~~~~~
 
-When using TreeKEM, the participant generating the TreeNode encrypts
-the secret value for the node (without further formatting) using the
-AEAD encryption algorithm specified by the ciphersuite in use.  The
-inputs to the AEAD computation are as follows:
+When using TreeKEM, the ECIESCiphertext values encoding the
+encrypted secret values are computed as follows:
 
 * Generate an ephemeral DH key pair (x, x\*G) in the DH group
   specified by the ciphersuite in use
@@ -1032,7 +895,7 @@ inputs to the AEAD computation are as follows:
   * Nonce: A random nonce N of the size required by the algorithm
   * Additional Authenticated Data: The empty octet string
   * Plaintext: The secret value, without any further formatting
-* Encode the TreeNode with the following values:
+* Encode the ECIESCiphertext with the following values:
   * ephemeral\_key: The ephemeral public key x\*G
   * nonce: The random nonce N
   * ciphertext: The AEAD output
@@ -1040,6 +903,7 @@ inputs to the AEAD computation are as follows:
 Decryption is performed in the corresponding way, using the private
 key of the non-updated child and the ephemeral public key
 transmitted in the message.
+
 
 ## Key Schedule
 
@@ -1297,20 +1161,29 @@ to the group.
 
 ~~~~~
 struct {
-    UserInitKey init_key;
-    TreeNode add_path<1..2^16-1>;
+    PublicKey ephemeral;
+    DirectPath add_path<1..2^16-1>;
 } GroupAdd;
 ~~~~~
 
 A group member generates this message using the following steps:
 
 * Requesting from the directory a UserInitKey for the user to be added
-* Generate a leaf secret
+* Generate a fresh ephemeral DH key pair
+* Generate the leaf secret for the new node as the output of a DH
+  operation between the ephemeral key pair and the public key in the
+  UserInitKey
+* Use the ratchet frontier and the new leaf secret to compute the
+  direct path between the new leaf and the new root
+
+The public key of the ephemeral key pair is placed in the
+`ephemeral` field of the GroupAdd message.  The computed direct path
+is placed in the `add_path` field.
 
 The new participant processes the message and the private key corresponding
 to the UserInitKey to initialize his state as follows:
 
-* Compute the participant's leaf key pair by combining the init key in
+* Compute the participant's leaf secret by combining the init key in
   the UserInitKey with the prior epoch's add key pair
 * Use the frontiers in the GroupInitKey of the Handshake message to
   add its keys to the trees
@@ -1325,25 +1198,19 @@ its state as follows:
 * Update the group's identity tree and ratchet tree with the new
   participant's information
 
-In the case of ART, an update secret resulting from this change is
-the output of a DH computation between the private key for the root
-of the ratchet tree and the add public key from the previous epoch.
-
-[[ ALTERNATIVE: The sender could also generate the new participant's
-leaf using a fresh key pair, as opposed to a key pair derived from
-the prior epoch's secret.  This would reduce the "double-join"
-problem, at the cost of the GroupAdd having to include a new ratchet
-frontier. ]]
+The update secret resulting from this change is the output of a DH
+computation between the private key for the root of the ratchet tree
+and the add public key from the previous epoch.
 
 ## UserAdd
 
 A UserAdd message is sent by a new group participant to add
-themselves to the group, based on having already had access to a
+themself to the group, based on having already had access to a
 GroupInitKey for the group.
 
 ~~~~~
 struct {
-    TreeNode add_path<1..2^16-1>;
+    DirectPath add_path;
 } UserAdd;
 ~~~~~
 
@@ -1366,12 +1233,9 @@ updates its state as follows:
   message, replacing any common nodes with the values in the add
   path
 
-In the case of ART, the update secret resulting from this change is
-the output of a DH computation between the private key for the root
-of the ratchet tree and the add public key from the previous epoch.
-
-In the case of TreeKEM, the update secret is the output of the Key Derivation
-of the private root of the ratchet tree with the previous group shared secret.
+The update secret resulting from this change is the output of a DH
+computation between the private key for the root of the ratchet tree
+and the add public key from the previous epoch.
 
 ## Update
 
@@ -1381,7 +1245,7 @@ regard to the participant's prior leaf private key.
 
 ~~~~~
 struct {
-    TreeNode update_path<1..2^16-1>;
+    DirectPath update_path;
 } Update;
 ~~~~~
 
@@ -1410,7 +1274,7 @@ participants from the group.
 ~~~~~
 struct {
     uint32 deleted;
-    TreeNode path<1..2^16-1>;
+    DirectPath path;
 } Delete;
 ~~~~~
 
@@ -1511,7 +1375,11 @@ While this seems safer as it doesn't rely on the server, it is more complex and
 harder to implement. It also could cause starvation for some clients if they keep
 failing to get their proposal accepted.
 
-[[OPEN ISSUE: Another possibility here is batching + deterministic selection.]]
+
+## Concurrent updates
+
+[[ TODO: Paste Beurdouche text ]]
+
 
 # Message Protection
 
