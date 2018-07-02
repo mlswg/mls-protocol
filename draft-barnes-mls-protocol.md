@@ -851,9 +851,9 @@ about each state of the group:
 Each MLS session uses a single ciphersuite that specifies the
 following primitives to be used in group key computations:
 
-* A hash function;
-* A Diffie-Hellman finite-field group or elliptic curve (ART);
-* A key encapsulation mechanism (TreeKEM).
+* A hash function
+* A Diffie-Hellman finite-field group or elliptic curve
+* An AEAD encryption algorithm (TreeKEM only) {{!RFC5116}}
 
 The ciphersuite must also specify an algorithm `Derive-Key-Pair`
 that maps octet strings with the same length as the output of the
@@ -864,7 +864,7 @@ in a format defined by the ciphersuite, using the following four types:
 
 ~~~~~
 uint16 CipherSuite;
-opaque PublicKey<1..2^16-1>;
+opaque DHPublicKey<1..2^16-1>;
 opaque SignaturePublicKey<1..2^16-1>;
 opaque MerkleNode<1..255>
 ~~~~~
@@ -874,12 +874,13 @@ we sign and in others we may want to include an identity or a
 certificate containing the key. This type needs to be extended
 to accommodate that.]]
 
-### ART: Curve25519 with SHA-256
+### ART with Curve25519 and SHA-256
 
 This ciphersuite uses the following primitives:
 
 * Hash function: SHA-256
 * Diffie-Hellman group: Curve25519 {{!RFC7748}}
+* AEAD: N/A
 
 Given an octet string X, the private key produced by the
 Derive-Key-Pair operation is SHA-256(X).  (Recall that any 32-octet
@@ -895,12 +896,13 @@ implementation of these elliptic curves, they SHOULD perform the
 additional checks specified in Section 7 of {{RFC7748}}
 
 
-### ART: P-256 with SHA-256
+### ART with P-256 and SHA-256
 
 This ciphersuite uses the following primitives:
 
 * Hash function: SHA-256
 * Diffie-Hellman group: secp256r1 (NIST P-256)
+* AEAD: N/A
 
 Given an octet string X, the private key produced by the
 Derive-Key-Pair operation is SHA-256(X), interpreted as a big-endian
@@ -931,13 +933,83 @@ infinity (O), (2) verify that for Y = (x, y) both integers are in the correct
 interval, (3) ensure that (x, y) is a correct solution to the elliptic curve equation.
 For these curves, implementers do not need to verify membership in the correct subgroup.
 
-### TreeKEM: ECIES or any PQ KEM with SHA-256
+### TreeKEM with Curve25519, SHA-256, and AES-128-GCM
 
-This ciphersuite uses the following primitives:
+This ciphersuite uses the following primities:
 
 * Hash function: SHA-256
-* Key Encapsulation: ECIES
+* Diffie-Hellman group: Curve25519 {{!RFC7748}}
+* AEAD: AES-128-GCM 
 
+DH and Derive-Key-Pair operations are performed in the same way as
+the corresponding ART ciphersuite.
+
+Encryption keys are derived from shared secrets by taking the first
+16 bytes of H(Z), where Z is the shared secret and H is SHA-256.
+
+### TreeKEM with P-256, SHA-256, and AES-128-GCM
+
+This ciphersuite uses the following primities:
+
+* Hash function: P-256
+* Diffie-Hellman group: secp256r1 (NIST P-256)
+* AEAD: AES-128-GCM 
+
+DH and Derive-Key-Pair operations are performed in the same way as
+the corresponding ART ciphersuite.
+
+Encryption keys are derived from shared secrets by taking the first
+16 bytes of H(Z), where Z is the shared secret and H is SHA-256.
+
+## Tree Nodes
+
+Each message in MLS contains a collection of tree nodes that
+recipients use to update their state.  ART and TreeKEM transmit
+different information about each tree node.  With ART, the sender
+only needs to transmit the public key for a node.  With TreeKEM, the
+sender also transmits the secret value of the node, encrypted for
+one of the node's children (the child not being updated by a given
+message).
+
+~~~~~
+struct {
+    DHPublicKey public_key;
+    select (mode) {
+      case ART:
+          struct{}
+      case TreeKEM:
+          struct {
+              DHPublicKey ephemeral_key;
+              opaque nonce<0..255>;
+              opaque ciphertext<0..255>;
+          }
+    }
+} TreeNode
+~~~~~
+
+When using TreeKEM, the participant generating the TreeNode encrypts
+the secret value for the node (without further formatting) using the
+AEAD encryption algorithm specified by the ciphersuite in use.  The
+inputs to the AEAD computation are as follows:
+
+* Generate an ephemeral DH key pair (x, x\*G) in the DH group
+  specified by the ciphersuite in use
+* Compute the shared secret Z with the node's other child
+* Generate a fresh nonce N
+* Encrypt the node's secret value using the AEAD algorithm specified
+  by the ciphersuite in use, with the following inputs:
+  * Key: A key derived from Z as specified by the ciphersuite
+  * Nonce: A random nonce N of the size required by the algorithm
+  * Additional Authenticated Data: The empty octet string
+  * Plaintext: The secret value, without any further formatting
+* Encode the TreeNode with the following values:
+  * ephemeral\_key: The ephemeral public key x\*G
+  * nonce: The random nonce N
+  * ciphertext: The AEAD output
+
+Decryption is performed in the corresponding way, using the private
+key of the non-updated child and the ephemeral public key
+transmitted in the message.
 
 ## Key Schedule
 
@@ -1042,7 +1114,7 @@ comprises all of the fields except for the signature field.
 ~~~~~
 struct {
     CipherSuite cipher_suites<0..255>;
-    PublicKey init_keys<1..2^16-1>;
+    DHPublicKey init_keys<1..2^16-1>;
     SignaturePublicKey identity_key;
     SignatureScheme algorithm;
     opaque signature<0..2^16-1>;
@@ -1076,9 +1148,9 @@ struct {
     uint32 group_size;
     opaque group_id<0..2^16-1>;
     CipherSuite cipher_suite;
-    PublicKey add_key;
+    DHPublicKey add_key;
     MerkleNode identity_frontier<0..2^16-1>;
-    DHPublicKey ratchet_frontier<0..2^16-1>;
+    TreeNode ratchet_frontier<0..2^16-1>;
 } GroupInitKey;
 ~~~~~
 
@@ -1135,7 +1207,7 @@ enum {
 
 struct {
     HandshakeType msg_type;
-    uint32 inner_length;
+    uint24 inner_length;
     select (Handshake.msg_type) {
         case none:      struct{};
         case init:      Init;
@@ -1193,6 +1265,13 @@ the O(N) complexity of direct initialization. ]]
 A GroupAdd message is sent by a group member to add a new participant
 to the group.
 
+~~~~~
+struct {
+    UserInitKey init_key;
+    TreeNode add_path<1..2^16-1>;
+} GroupAdd;
+~~~~~
+
 A group member generates such a message by requesting from the directory
 a UserInitKey for the user to be added.
 
@@ -1233,6 +1312,12 @@ A UserAdd message is sent by a new group participant to add
 themselves to the group, based on having already had access to a
 GroupInitKey for the group.
 
+~~~~~
+struct {
+    TreeNode add_path<1..2^16-1>;
+} UserAdd;
+~~~~~
+
 A new participant generates this message using the following steps:
 
 * Fetch a GroupInitKey for the group
@@ -1265,6 +1350,12 @@ An Update message is sent by a group participant to update its leaf
 key pair.  This operation provides post-compromise security with
 regard to the participant's prior leaf private key.
 
+~~~~~
+struct {
+    TreeNode update_path<1..2^16-1>;
+} Update;
+~~~~~
+
 The sender of an Update message creates it in the following way:
 
 * Generate a fresh leaf key pair
@@ -1287,6 +1378,13 @@ root node of the ratchet tree.
 A delete message is sent by a group member to remove one or more
 participants from the group.
 
+~~~~~
+struct {
+    uint32 deleted;
+    TreeNode path<1..2^16-1>;
+} Delete;
+~~~~~
+
 The sender of a Delete message must know the deleted node's copath.
 Based on this knowledge, it computes a Delete message as follows:
 
@@ -1304,66 +1402,6 @@ then updates its state as follows:
 
 The update secret resulting from this change is the secret for the
 root node of the ratchet tree after both updates.
-
-## Message formatting
-
-In TreeKEM all handshake messages have are formed with the
-following content:
-
-~~~~~
-struct {
-    uint32 leaf_public_key_length;
-    opaque leaf_public_key;
-    uint32 parent_private_key_length;
-    opaque parent_private_key;
-} KEMPlaintext;
-~~~~~
-
-These messages are sent to each individual nodes, in the copath
-of a modified leaf, encrypted under their public key as follows:
-
-~~~~~
-struct {
-    uint32 length;
-    opaque content[KEMCiphertext.length];
-} KEMCiphertext;
-~~~~~
-
-In ART, each message has its specific content but the payload
-is sent in cleartext indifferently to all members in the copath.
-
-~~~~~
-struct {
-    select (Handshake.msg_type) {
-        case none:      struct{};
-        case init:      Init;
-        case user_add:
-             struct { PublicKey add_path<1..2^16-1>; };
-        case group_add:
-             struct { UserInitKey init_key; };
-        case update:
-             struct { PublicKey ratchetPath<1..2^16-1>; };
-        case delete:
-             struct {
-                 uint32 deleted;
-                 PublicKey path<1..2^16-1>;
-             };
-    };
-} ARTPlaintext;
-~~~~~
-
-All Handshake messages are built in the following way:
-
-~~~~~
-struct {
-    select (ART|TreeKEM) {
-        case ART:
-            ARTPlaintext content[Handshake.msg_type];
-        case TreeKEM:
-            KEMCiphertext content;
-    }
-} (Init|UserAdd|GroupAdd|Update|Delete);
-~~~~~
 
 
 # Sequencing of State Changes {#sequencing}
