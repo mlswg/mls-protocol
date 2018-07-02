@@ -393,7 +393,7 @@ We use a common set of terminology to refer to both types of binary tree.
 
 Trees consist of various different types of _nodes_. A node is a
 _leaf_ if it has no children, and a _parent_ otherwise; note that all
-parents in our Merkle or Ratchet trees have precisely
+parents in our Merkle or ratchet trees have precisely
 two children, a _left_ child and a _right_ child. A node is the _root_
 of a tree if it has no parents, and _intermediate_ if it has both
 children and parents. The _descendants_ of a node are that node, its
@@ -502,40 +502,41 @@ A   B*    C    D
 
 ## Ratchet Trees
 
-This document present two different potential approaches, ART and TreeKEM,
-for generating and managing group secrets using Ratchet tree datastructures.
-Both are constructed as a series of asymetric keypairs in a left-balanced
-binary tree arrangement, with each user knowing their direct path, and thus
-being able to compute the shared root secret.
+Ratchet trees are used for generating shared group secrets. In this
+section, we describe the structure of a ratchet tree, along with two
+ways to manage a ratchet tree, called ART and TreeKEM.
 
 To construct these trees, we require:
 
-* a Derive-Key-Pair function that produces a key pair from
-  an octet string;
-* a Diffie-Hellman finite-field group or elliptic curve (ART);
-* an asymmetric Key Encapsulation Mechanism and a Hash function (TreeKEM).
+* A Diffie-Hellman finite-field group or elliptic curve
+* A Derive-Key-Pair function that produces a key pair from
+  an octet string
+* A hash function (TreeKEM only)
 
-Each node in a ratchet tree contains up to three values:
+A ratchet tree is a left-balanced binary tree, in which each node
+contains up to three values:
 
 * A secret octet string (optional)
 * An asymmetric private key (optional)
 * An asymmetric public key
 
-To compute the private values (secret and private key) for a given
-node, one must first know the private key from one of its children,
-and the public key from the other child.
+The private key and public key for a node are derived from its
+secret value using the Derive-Key-Pair operation.
 
-Ratchet trees constructed in ART or TreeKEM provide the property that one must hold at
-least one private key from the tree to compute the secret root key. With all
-participants holding one leaf private key; this allows any individual to update
-their own key and change the shared root key, such that only group members can
-compute the new key.
+The relationships between nodes are different for ART and TreeKEM.
+In either case, the ratchet tree structure ensures the following
+property: A party can compute the secret value for the root of the
+tree if and only if that party holds the secret value for another
+node lower in the tree (together with public information).  Each
+participant holds one leaf secret; each participant can update the
+root secret by changing their leaf secret.
 
 ### Ratchet Trees for ART
 
-In ART the parent secret is computed as follows:
+In ART the contents of a parent node are computed from its children
+as follows:
 
-* parent_secret = DH(L, R)
+* parent_secret = DH(left_child, right_child)
 * parent_private, parent_public = Derive-Key-Pair(parent_secret)
 
 Ratchet trees are constructed as left-balanced trees, defined such that each
@@ -554,10 +555,39 @@ DH(DH(AB), DH(CD))
 A    B    C    D
 ~~~~~
 
-The details about Ratchet tree operations for ART are left out of this
-section. For more details please refer to "asynchronous ratcheting trees" {{art}}.
-
 ### Ratchet Trees for TreeKEM
+
+In TreeKEM, the contents of a parent node are computed from one of
+its children as follows:
+
+* parent_secret = Hash(child_secret)
+* parent_private, parent_public = Derive-Key-Pair(parent_secret)
+
+The contents of the parent are based on the latest-updated child.
+For example, if participants with leaf secrets A, B, C, and D join a
+group in that order, then the resulting tree will have the following
+structure:
+
+~~~~~
+     H(H(D))
+    /       \
+ H(B)       H(D)
+ /  \       /  \
+A    B     C    D
+~~~~~
+
+If the first participant subsequently changes its leaf secret to be
+X, then the tree will have the following structure.
+
+~~~~~
+     H(H(X))
+    /       \
+ H(X)       H(D)
+ /  \       /  \
+X    B     C    D
+~~~~~
+
+[[ TODO - Disposition ]]
 
 The key computation differ for each Node in TreeKEM. The general idea behind
 TreeKEM is to obtain better messaging complexity on concurrent events by not
@@ -1272,8 +1302,10 @@ struct {
 } GroupAdd;
 ~~~~~
 
-A group member generates such a message by requesting from the directory
-a UserInitKey for the user to be added.
+A group member generates this message using the following steps:
+
+* Requesting from the directory a UserInitKey for the user to be added
+* Generate a leaf secret
 
 The new participant processes the message and the private key corresponding
 to the UserInitKey to initialize his state as follows:
@@ -1296,9 +1328,6 @@ its state as follows:
 In the case of ART, an update secret resulting from this change is
 the output of a DH computation between the private key for the root
 of the ratchet tree and the add public key from the previous epoch.
-
-In TreeKEM, an update secret is the result of the key derivation of
-the private root of the ratchet tree with the previous group shared secret.
 
 [[ ALTERNATIVE: The sender could also generate the new participant's
 leaf using a fresh key pair, as opposed to a key pair derived from
