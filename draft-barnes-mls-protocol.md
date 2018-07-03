@@ -202,7 +202,7 @@ the MS provides the following services:
 # Protocol Overview
 
 The goal of this protocol is to allow a group of participants to exchange confidential and
-authenticated messages. It does so by deriving a sequence of keys known only to group members. Keys
+authenticated messages. It does so by deriving a sequence of secrets and keys known only to group members. Those
 should be secret against an active network adversary and should have both forward and
 post-compromise secrecy with respect to compromise of a participant.
 
@@ -210,7 +210,7 @@ We describe the information stored by each participant as a _state_, which inclu
 private data. An initial state, including an initial set of participants, is set up by a group
 creator using the _Init_ algorithm and based on information pre-published by the initial members. The creator
 sends the _GroupInit_ message to the participants, who can then set up their own group state and derive
-the same shared key. Participants then exchange messages to produce new shared states which are
+the same shared secret. Participants then exchange messages to produce new shared states which are
 causally linked to their predecessors, forming a logical Directed Acyclic Graph (DAG) of states.
 Participants can send _Update_ messages for post-compromise secrecy and new participants can be
 added or existing participants removed from the group.
@@ -220,10 +220,10 @@ performs the operation and (ii) how other participants update their state based 
 
 There are four major operations in the lifecycle of a group:
 
-* Adding a member, initiated by a current member
-* Adding a member, initiated by the new member
-* Key update
-* Removal of a member
+* Adding a member, initiated by a current member;
+* Adding a member, initiated by the new member;
+* Updating the lead secret of a member;
+* Removing a member.
 
 Before the initialization of a group, participants publish
 UserInitKey objects to a directory provided to the Messaging Service.
@@ -321,13 +321,13 @@ A              B     ...      Z          Directory       Channel
 ~~~~~
 
 To enforce forward secrecy and post-compromise security of messages,
-each participant periodically updates its leaf key, the DH key pair that
-represents its contribution to the group key.  Any member of the
-group can send an Update at any time by generating a fresh leaf key
-pair and sending an Update message that describes how to update the
-group key with that new key pair.  Once all participants have
+each participant periodically updates its leaf secret which represents
+its contribution to the group secret.  Any member of the
+group can send an Update at any time by generating fresh leaf secret and keys
+and send an Update message that describes how to update the
+group secret with that new information.  Once all participants have
 processed this message, the group's secrets will be unknown to an
-attacker that had compromised the sender's prior leaf private key.
+attacker that had compromised the sender's prior leaf secret.
 
 It is left to the application to determine the interval of time between
 Update messages. This policy could require a change for each message, or
@@ -342,13 +342,13 @@ A              B     ...      Z          Directory        Channel
 |              |              |              |              |
 |              |              |              | Update(A)    |
 |<----------------------------------------------------------|
-|state.upd(D)  |<-------------------------------------------|
-|              |state.upd(D)  |<----------------------------|
+|state.upd(A)  |<-------------------------------------------|
+|              |state.upd(A)  |<----------------------------|
 |              |              |state.upd(A)  |              |
 |              |              |              |              |
 ~~~~~
 
-Users are deleted from the group in a similar way, as a key update
+Users are deleted from the group in a similar way, as an update
 is effectively removing the old leaf from the group.
 Any member of the group can generate a Delete message that adds new
 entropy to the group state that is known to all members except the
