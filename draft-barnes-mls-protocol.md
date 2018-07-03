@@ -823,7 +823,7 @@ This ciphersuite uses the following primities:
 
 * Hash function: SHA-256
 * Diffie-Hellman group: Curve25519 {{!RFC7748}}
-* AEAD: AES-128-GCM 
+* AEAD: AES-128-GCM
 
 DH and Derive-Key-Pair operations are performed in the same way as
 the corresponding ART ciphersuite.
@@ -837,7 +837,7 @@ This ciphersuite uses the following primities:
 
 * Hash function: P-256
 * Diffie-Hellman group: secp256r1 (NIST P-256)
-* AEAD: AES-128-GCM 
+* AEAD: AES-128-GCM
 
 DH and Derive-Key-Pair operations are performed in the same way as
 the corresponding ART ciphersuite.
@@ -1395,7 +1395,7 @@ Recall that the processing of a TreeKEM update proceeds in two steps:
 2. Update the tree with the new secret and public values
 
 To merge an ordered list of updates, a recipient simply performs
-these updates in the specified order.  
+these updates in the specified order.
 
 For example, suppose we have a tree in the following configuration:
 
@@ -1414,10 +1414,10 @@ respectively.  They will send out updates of the following form:
   Update from B      Update from C
   =============      =============
       H(H(X))            H(H(Y))
-     /                         \    
-  H(X)                         H(Y)    
-     \                         /     
-      X                       Y      
+     /                         \
+  H(X)                         H(Y)
+     \                         /
+      X                       Y
 ~~~~~
 
 Assuming that the ordering agreed by the group says that B's update
