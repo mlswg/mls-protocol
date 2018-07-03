@@ -678,6 +678,7 @@ without sending the new key to the the blanked leaf.
 In the following example, participant A update its key to A' and derive the new
 sequence of keys up-to the path. Here A only send H(H(A')) to the parent
 node of C and D but does not send H(A') to B which evicts it from the Group.
+
 ~~~~~
     H(H(A'))
     /    \
