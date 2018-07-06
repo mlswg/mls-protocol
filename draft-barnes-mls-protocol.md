@@ -957,7 +957,7 @@ proceeds as shown in the following diagram:
                Init Secret [n-1] (or 0)
                      |
                      V
-Update Secret -> HKDF-Extract = Group Secret
+Update Secret -> HKDF-Extract = Epoch Secret
                      |
                      +--> Derive-Secret(., "mls add", ID, Epoch, Msg)
                      |       |
@@ -1535,8 +1535,9 @@ Application Secret changes.
 
 ## Message Encryption and Decryption
 
-The Group participants should use the Application AEAD Keys to AEAD encrypt
-and decrypt their Application message as follows:
+The Group participants should use the Application AEAD Keys associated with
+the negotiated MLS ciphersuite to AEAD encrypt and decrypt their
+Application messages as follows:
 
 ~~~~~
     struct {
@@ -1553,9 +1554,25 @@ and decrypt their Application message as follows:
 
 ~~~~~
 
-The classical AEAD primitives MUST be AES_GCM and CHACHA20_POLY1305.
-These SHOULD be replaced by a PQ scheme when the Group Key Establishment mechanism
-provides strong security guarantees against a Quantum adversary.
+[[ OPEN ISSUE: Should the padding be required for Application messages ?
+It is unclear if it is necessary or not for the Handshake messages.
+Can an adversary get more that the position of a participant in the tree
+without padding ?
+
+Padding of Application messages MUST be enforced to provide some resistance
+to traffic analysis techniques over encrypted traffic.
+{{?CLINIC=DOI.10.1007/978-3-319-08506-7_8}}
+{{?HCJ16=DOI.10.1186/s13635-016-0030-7}}
+
+While MLS is less suceptible to serve the same payload multiple time across
+a lot of ciphertexts than traditionnal web servers, it might still provide
+the attacker enough information to mount an attack. If Alice asks Bob:
+"When are we going to the movie ?" the answer "Wednesday" might be leaked
+by the ciphertext length to an adversary expecting Alice to provide Bob
+with a day of the week at some point in their discussion. To improve protection
+against timing side-channels, if the padding mechanism is used it MUST be
+implemented in a "constant-time" at the MLS layer and above. ]]
+
 
 # Security Considerations
 
