@@ -1557,21 +1557,27 @@ Application messages as follows:
 [[ OPEN ISSUE: Should the padding be required for Application messages ?
 It is unclear if it is necessary or not for the Handshake messages.
 Can an adversary get more that the position of a participant in the tree
-without padding ?
+without padding ? Should the base ciphertext block length be negotiated or
+is is reasonnable to allow leaking an interval for the length of the plaintext
+by allowing to send a variable number of ciphertext blocks ? ]]
 
-Padding of Application messages MUST be enforced to provide some resistance
-to traffic analysis techniques over encrypted traffic.
+Padding of Application messages SHOULD be enforced to provide some resistance
+against traffic analysis techniques over encrypted traffic.
 {{?CLINIC=DOI.10.1007/978-3-319-08506-7_8}}
 {{?HCJ16=DOI.10.1186/s13635-016-0030-7}}
-
-While MLS is less suceptible to serve the same payload multiple time across
+While MLS might be less suceptible to serve the same payload multiple time across
 a lot of ciphertexts than traditionnal web servers, it might still provide
 the attacker enough information to mount an attack. If Alice asks Bob:
 "When are we going to the movie ?" the answer "Wednesday" might be leaked
 by the ciphertext length to an adversary expecting Alice to provide Bob
-with a day of the week at some point in their discussion. To improve protection
-against timing side-channels, if the padding mechanism is used it MUST be
-implemented in a "constant-time" at the MLS layer and above. ]]
+with a day of the week at some point in their discussion.
+
+Similarily to TLS 1.3, the MLS messages MUST be padded before AEAD encryption
+with zero-valued bytes. Upon AEAD decryption, the length field of the plaintext
+is used to compute the number of bytes to be removed from the plaintext to get the
+correct data.
+If the padding mechanism is used to improve protection against timing side-channels,
+it MUST be implemented in a "constant-time" at the MLS layer and above.
 
 
 # Security Considerations
