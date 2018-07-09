@@ -1465,29 +1465,34 @@ regarding who can encrypt and decrypt Application messages.
 
 ## Updating the Application Secret
 
-As each Application Secret MUST be updated to provide Application messages
-with better FS and PCS guarantees. The next generation of Application Secret
-is computed by generating an Application_Secret_N+1 from Application_Secret_N
-as described in this section then re-deriving the traffic keys as described in
-the key schedule (see {{key-schedule}}).
+Each Application secret MUST be updated after each message to provide
+better FS and PCS guarantees.
 
-The next-generation Application_Secret_N+1 is independant from an update
-triggered by a Group secret change and is computed as:
+Senders MUST use the generation N+1 of the application secret, where N is
+the last generation they received.
+Recipients SHOULD delete older generations of application secret and as soon
+as possible, within usability bounds.
+
+The next generation of Application Secret is computed by deriving an
+Application_Secret_N+1 from Application_Secret_N as follows:
 
 ~~~~
 Application_Secret_N+1 =
     HKDF-Expand-Label(Application_Secret_N,"mls app upd", App_Context, Hash.length)
 ~~~~
 
-Once Application_Secret_N+1 and its associated traffic keys have
-been computed, implementations SHOULD delete Application_Secret_N and
-its associated traffic keys as soon as possible. For MLS, the usability
-probably requires to keep the Application secrets and keys for a certain
-amount of time to retain the ability to decrypt messages possibly in transit
-while the updating being done. Note that keeping these secrets will considerably
-weaken the cryptographic security guarantees expected at the protocol level.
+The Application context provided together with the previous Application secret
+is used to bind the content of the message with the next key and add some freshness.
 
-[[OPEN ISSUE: How should we maintain a Transcript hash of the Application Data ?
+For MLS, the usability probably requires to keep the Application secrets and
+keys for a certain amount of time to retain the ability to decrypt messages
+possibly in transit while the updating being done.
+Note that keeping these secrets will considerably weaken the cryptographic
+security guarantees expected at the protocol level.
+
+[[OPEN ISSUE: Should the App_Context be a hash of the Application Data ?
+Hashing all the data is obviously very costly, an other solution could be
+to add a pseudo-random contribution to each message and only hash these.
 It would be surprising if the message counter was enough.]]
 
 ## Application AEAD Key Calculation
@@ -1598,7 +1603,7 @@ or by someone who replaced them.]]
 Note that the long-term identity keys used by the protocol MUST be distributed by an "honest"
 authentication service for parties to authenticate their legitimate peers.
 
-## Authentication
+## Authentication {#authentication}
 
 There are two forms of authentication we consider. The first form
 considers authentication with respect to the group. That is, the group
