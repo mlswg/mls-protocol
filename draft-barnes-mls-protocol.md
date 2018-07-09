@@ -1463,6 +1463,33 @@ a change of the Group Secret. Hence this change MUST be applied before encryptin
 any new Application message. This is required for obvious confidentiality reasons
 regarding who can encrypt and decrypt Application messages.
 
+Updating the Application secret and deriving the associated AEAD key and IV is
+performed according the the following Application key schedule:
+
+## Application Key Schedule {#key-schedule-application}
+
+~~~~~
+           Application Secret [n-1]
+                     |
+                     +--> HKDF-Expand-Label(.,"mls app key", [sender]_id, key_length)
+                     |    = Application AEAD Key [n-1]
+                     |
+                     +--> HKDF-Expand-Label(.,"mls app iv", [sender]_id, key_length)
+                     |    = Application AEAD IV [n-1]
+                     |
+                     V
+           HKDF-Expand-Label(.,"mls app upd", App_Context, Hash.length)
+                     |
+                     V
+           Application Secret [n]
+                     |
+                     +--> HKDF-Expand-Label(.,"mls app key", [sender]_id, key_length)
+                     |    = Application AEAD Key [n]
+                     |
+                     +--> HKDF-Expand-Label(.,"mls app iv", [sender]_id, key_length)
+                          = Application AEAD IV [n]
+~~~~~
+
 ## Updating the Application Secret
 
 Each Application secret MUST be updated after each message to provide
@@ -1512,10 +1539,10 @@ The traffic keying material is generated from an input traffic secret value usin
   Hash([sender]_public_identity_key)
 
 [sender]_write_key =
-  HKDF-Expand-Label(Application Secret,"mls app key", [sender]_id, key_length)
+  HKDF-Expand-Label(Application_Secret,"mls app key", [sender]_id, key_length)
 
 [sender]_write_iv  =
-  HKDF-Expand-Label(Application Secret,"mls app iv", [sender]_id, iv_length)
+  HKDF-Expand-Label(Application_Secret,"mls app iv", [sender]_id, iv_length)
 ~~~~
 
 The identity of the sender MUST be binded to the keys and IV used for
