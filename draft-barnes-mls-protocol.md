@@ -1463,32 +1463,6 @@ a change of the Group Secret. Hence this change MUST be applied before encryptin
 any new Application message. This is required for obvious confidentiality reasons
 regarding who can encrypt and decrypt Application messages.
 
-Updating the Application secret and deriving the associated AEAD key and IV is
-performed according the the following Application key schedule:
-
-## Application Key Schedule {#key-schedule-application}
-
-~~~~~
-           Application Secret [n-1]
-                     |
-                     +--> HKDF-Expand-Label(.,"mls app key", [sender]_id, key_length)
-                     |    = Application AEAD Key [n-1]
-                     |
-                     +--> HKDF-Expand-Label(.,"mls app iv", [sender]_id, key_length)
-                     |    = Application AEAD IV [n-1]
-                     |
-                     V
-           HKDF-Expand-Label(.,"mls app upd", App_Context, Hash.length)
-                     |
-                     V
-           Application Secret [n]
-                     |
-                     +--> HKDF-Expand-Label(.,"mls app key", [sender]_id, key_length)
-                     |    = Application AEAD Key [n]
-                     |
-                     +--> HKDF-Expand-Label(.,"mls app iv", [sender]_id, key_length)
-                          = Application AEAD IV [n]
-~~~~~
 
 ## Updating the Application Secret
 
@@ -1551,6 +1525,33 @@ key of the used for signatures.
 
 All the traffic keying material is recomputed whenever the underlying
 Application Secret changes.
+
+Updating the Application secret and deriving the associated AEAD key and IV can
+be summerized as the following Application key schedule:
+
+## Application Key Schedule {#key-schedule-application}
+
+~~~~~
+           Application Secret [n-1]
+                     |
+                     +--> HKDF-Expand-Label(.,"mls app key", [sender]_id, key_length)
+                     |    = Application AEAD Key [n-1]
+                     |
+                     +--> HKDF-Expand-Label(.,"mls app iv", [sender]_id, key_length)
+                     |    = Application AEAD IV [n-1]
+                     |
+                     V
+           HKDF-Expand-Label(.,"mls app upd", App_Context, Hash.length)
+                     |
+                     V
+           Application Secret [n]
+                     |
+                     +--> HKDF-Expand-Label(.,"mls app key", [sender]_id, key_length)
+                     |    = Application AEAD Key [n]
+                     |
+                     +--> HKDF-Expand-Label(.,"mls app iv", [sender]_id, key_length)
+                          = Application AEAD IV [n]
+~~~~~
 
 ## Message Encryption and Decryption
 
