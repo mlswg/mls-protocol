@@ -1434,10 +1434,10 @@ all arrive at the following state:
 
 # Message Protection
 
-The primary purpose of the handshake protocol is to enable an authenticated
-group key exchange among participants.  In order to protect Application messages
-sent among those participants, the Application secret provided by the MLS key
-schedule is used to derive encryption keys for the Message Protection Layer.
+The primary purpose of the handshake protocol is to provide an authenticated
+group key exchange to participants. In order to protect Application messages
+sent among those participants, the Application secret provided by the Handshake
+key schedule is used to derive encryption keys for the Message Protection Layer.
 
 Application messages SHOULD be protected with the Authenticated-Encryption
 with Associated-Data (AEAD) encryption scheme associated with the MLS ciphersuite.
@@ -1447,14 +1447,12 @@ To obtain non-repudiability, Handshake messages MUST use asymmetric signatures
 to strongly authenticate the sender of a message; Application messages SHOULD
 use the signature scheme defined by the ciphersuite to provide the same property.
 
-The Application secret MUST be refreshed on a regular basis, independently from the
-Group root secret updates. This is for two main reasons: the first is to improve
-FS and PCS guarantees for the messages if an Application AEAD key gets compromised;
-the second is to avoid key exhaustion from AEAD encrypting more data under the same
-keys than expected by the encryption scheme.
-
-The Application secret MUST be rotated for each Application message.
-Since Application AEAD keys are also automatically updated at each Group operation.
+The Application secret MUST be rotated for each Application message, independently
+from the Group secret updates, in order to provide stronger cryptographic
+security properties for messages. This secret is used to derive AEAD encryption
+keys and IVs used to encrypt and decrypt Application messages.
+Since Application AEAD keys are also automatically updated at each Group operation,
+the AEAD key exhaustion bound applies on a per message basis.
 In all cases, a participant MUST NOT encrypt more than expected by the AEAD scheme
 with IV and keys generated from the same Application secrets.
 
@@ -1467,11 +1465,11 @@ regarding who can encrypt and decrypt Application messages.
 ## Updating the Application Secret
 
 Each Application secret MUST be updated after each message to provide
-better FS and PCS guarantees.
+better cryptographic security guarantees, hence:
 
-Senders MUST use the generation N+1 of the application secret, where N is
+- Senders MUST use the generation N+1 of the application secret, where N is
 the last generation they received.
-Recipients SHOULD delete older generations of application secret and as soon
+- Recipients SHOULD delete older generations of application secret and as soon
 as possible, within usability bounds.
 
 The next generation of Application Secret is computed by deriving an
@@ -1484,12 +1482,6 @@ Application_Secret_N+1 =
 
 The Application context provided together with the previous Application secret
 is used to bind the Application messages with the next key and add some freshness.
-
-For MLS, the usability probably requires to keep the Application secrets and
-keys for a certain amount of time to retain the ability to decrypt messages
-possibly in transit while the updating being done.
-Note that keeping these secrets will considerably weaken the cryptographic
-security guarantees expected at the protocol level.
 
 [[OPEN ISSUE: It might be enough to use the message counter for App_Context
 to be enough, this would be more conveniant.
@@ -1611,6 +1603,22 @@ is used to compute the number of bytes to be removed from the plaintext to get t
 correct data.
 If the padding mechanism is used to improve protection against timing side-channels,
 it MUST be implemented in a "constant-time" at the MLS layer and above.
+
+### Delayed and Reordered Application messages
+
+Since each MLSCiphertext contains the Group identifier, the epoch and a
+message counter, a participant receiving Application messages out of order
+is able to compute the correct AEAD decryption keys if he kept the Application
+secret long enough.
+
+For usability, MLS might require to keep the Application secrets for a
+certain amount of time to retain the ability to decrypt delayed or out of
+order messages, possibly still in transit while a decryption is being done.
+Note that keeping these secrets will considerably weaken the cryptographic
+security guarantees expected at the protocol level. As every other secret
+the Application secrets and all derived secret values MUST be deleted after
+a reasonnably short amount of time. It is RECOMMENDED to securely delete
+secrets after 7 days.
 
 
 # Security Considerations
