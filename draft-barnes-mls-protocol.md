@@ -1483,8 +1483,8 @@ Application_Secret_N+1 =
 The Application context provided together with the previous Application secret
 is used to bind the Application messages with the next key and add some freshness.
 
-[[OPEN ISSUE: It might be enough to use the message counter for App_Context
-to be enough, this would be more conveniant.
+[[OPEN ISSUE: It might be that using only the message counter for App_Context
+is safe, this would be more conveniant.
 Hashing all the data is obviously very costly and prevents from encrypt in
 parallel, an other solution could be to add a pseudo-random contribution to
 each message and only hash these. ]]
