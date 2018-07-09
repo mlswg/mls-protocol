@@ -1483,7 +1483,7 @@ Application_Secret_N+1 =
 ~~~~
 
 The Application context provided together with the previous Application secret
-is used to bind the content of the message with the next key and add some freshness.
+is used to bind the Application messages with the next key and add some freshness.
 
 For MLS, the usability probably requires to keep the Application secrets and
 keys for a certain amount of time to retain the ability to decrypt messages
@@ -1491,10 +1491,11 @@ possibly in transit while the updating being done.
 Note that keeping these secrets will considerably weaken the cryptographic
 security guarantees expected at the protocol level.
 
-[[OPEN ISSUE: Should the App_Context be a hash of the Application Data ?
-Hashing all the data is obviously very costly, an other solution could be
-to add a pseudo-random contribution to each message and only hash these.
-It would be surprising if the message counter was enough.]]
+[[OPEN ISSUE: It might be enough to use the message counter for App_Context
+to be enough, this would be more conveniant.
+Hashing all the data is obviously very costly and prevents from encrypt in
+parallel, an other solution could be to add a pseudo-random contribution to
+each message and only hash these. ]]
 
 ## Application AEAD Key Calculation
 
