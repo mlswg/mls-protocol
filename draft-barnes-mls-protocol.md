@@ -954,24 +954,24 @@ Given these inputs, the derivation of secrets for an epoch
 proceeds as shown in the following diagram:
 
 ~~~~~
-               Init Secret [n-1] (or 0)
+               init_secret [n-1] (or 0)
                      |
                      V
-Update Secret -> HKDF-Extract = Epoch Secret
+update_secret -> HKDF-Extract = epoch_secret
                      |
                      +--> Derive-Secret(., "mls add", ID, Epoch, Msg)
                      |       |
                      |       V
-                     |    Derive-Key-Pair(.) = Add Key Pair
+                     |    Derive-Key-Pair(.) = add_key_pair
                      |
                      +--> Derive-Secret(., "mls app", ID, Epoch, Msg)
-                     |    = Application Secret [0]
+                     |    = application_secret_[0]
                      |
                      V
                Derive-Secret(., "mls init", ID, Epoch, Msg)
                      |
                      V
-               Init Secret [n]
+               init_secret [n]
 ~~~~~
 
 
@@ -1467,8 +1467,44 @@ a change of the Group Secret. Hence this change MUST be applied before encryptin
 any new Application message. This is required for obvious confidentiality reasons
 regarding who can encrypt and decrypt Application messages.
 
+## Application Key Schedule {#key-schedule-application}
 
-## Updating the Application Secret
+Updating the Application secret and deriving the associated AEAD key and IV can
+be summerized as the following Application key schedule:
+Each participant Application secret chain looks as follows after the initial
+derivation:
+
+~~~~~
+           application_secret_N-1
+                     |
+                     +--> HKDF-Expand-Label(.,"mls app key", [sender], key_length)
+                     |    = write_key_N-1_[sender]
+                     |
+                     +--> HKDF-Expand-Label(.,"mls app iv", [sender], iv_length)
+                     |    = write_iv_N-1_[sender]
+                     |
+                     V
+           Derive-Secret(., "app upd","")
+                     |
+                     V
+           application_secret_N
+                     |
+                     +--> HKDF-Expand-Label(.,"mls app key", [sender], key_length)
+                     |    = write_key_N_[sender]
+                     |
+                     +--> HKDF-Expand-Label(.,"mls app iv", [sender], iv_length)
+                          = write_iv_N_[sender]
+~~~~~
+
+In this figure, [sender] represents the four-byte value representing the
+participant index in the tree used for the group key establishment mechanism.
+
+[[ OPEN ISSUE: At the moment there is no contributivity of Application secrets
+chained from the initial one to the next generation of Epoch secret. While this
+seems safe because cryptographic operations using the application secrets can't
+affect the group init_secret, it remains to be proven correct. ]]
+
+### Updating the Application Secret
 
 The Application secret MUST be updated after each message to provide
 better cryptographic security guarantees, hence:
@@ -1478,24 +1514,30 @@ the last generation they received.
 - Recipients SHOULD delete older generations of application secret and as soon
 as possible, within usability bounds.
 
+These rules imply that in most circumstances, an application secret will be
+used for exactly one message. However, due to delays in message transmission,
+multiple senders might use the same application secret to send. This is fine
+because the AEAD key and iv are derived per-sender. Recipients MUST NOT enforce
+a one-message-per-application-secret limit.
+
 The next generation of Application Secret is computed by deriving an
 Application_Secret_N+1 from Application_Secret_N as follows:
 
 ~~~~
-Application_Secret_N+1 =
-    HKDF-Expand-Label(Application_Secret_N,"mls app upd", App_Context, Hash.length)
+application_secret_N+1 =
+  HKDF-Expand-Label(application_secret_N,"mls app upd","",Hash.length)
 ~~~~
 
 The Application context provided together with the previous Application secret
 is used to bind the Application messages with the next key and add some freshness.
 
-[[OPEN ISSUE: It might be that using only the message counter for App_Context
-is safe, this would be more conveniant.
+[[OPEN ISSUE: Context is left empty for now, it might be that using only
+the message counter is enough, this would be more conveniant.
 Hashing all the data is obviously very costly and prevents from encrypt in
 parallel, an other solution could be to add a pseudo-random contribution to
 each message and only hash these. ]]
 
-## Application AEAD Key Calculation
+### Application AEAD Key Calculation
 
 The Application AEAD keying material is generated from the following
 input values:
@@ -1507,13 +1549,15 @@ input values:
 The traffic keying material is generated from an input traffic secret value using:
 
 ~~~~
-[sender]_write_key =
-  HKDF-Expand-Label(Application_Secret,"mls app key", "", key_length)
+write_key_[sender] =
+  HKDF-Expand-Label(Application_Secret,"mls app key", [sender], key_length)
 
-[sender]_write_iv  =
-  HKDF-Expand-Label(Application_Secret,"mls app iv", "", iv_length)
+write_iv_[sender] =
+  HKDF-Expand-Label(Application_Secret,"mls app iv", [sender], iv_length)
 ~~~~
 
+In this figure, [sender] represents the four-byte value representing the
+participant index in the tree used for the group key establishment mechanism.
 Note, that because the identity of the participant using the keys to send data
 is included in the initial Application Secret, all successive updates to the
 Application secret will implicitely inherit this ownership.
@@ -1521,38 +1565,6 @@ Application secret will implicitely inherit this ownership.
 All the traffic keying material is recomputed whenever the underlying
 Application Secret changes.
 
-Updating the Application secret and deriving the associated AEAD key and IV can
-be summerized as the following Application key schedule:
-
-## Application Key Schedule {#key-schedule-application}
-
-Each participant Application secret chain looks as follows after the initial
-derivation:
-
-~~~~~
-           Application Secret [n-1]
-                     |
-                     +--> HKDF-Expand-Label(.,"mls app key", "", key_length)
-                     |    = Application AEAD Key [n-1]
-                     |
-                     +--> HKDF-Expand-Label(.,"mls app iv", "", iv_length)
-                     |    = Application AEAD IV [n-1]
-                     |
-                     V
-           HKDF-Expand-Label(.,"mls app upd", App_Context, Hash.length)
-                     |
-                     V
-           Application Secret [n]
-                     |
-                     +--> HKDF-Expand-Label(.,"mls app key", "", key_length)
-                     |    = Application AEAD Key [n]
-                     |
-                     +--> HKDF-Expand-Label(.,"mls app iv", "", iv_length)
-                          = Application AEAD IV [n]
-~~~~~
-
-[[ OPEN ISSUE: At the moment there is no contributivity of Application secrets
-chained from the initial one to the next generation of Epoch secret.]]
 
 ## Message Encryption and Decryption
 
@@ -1569,10 +1581,10 @@ Application messages and sign them as follows:
     } MLSPlaintext;
 
     struct {
-        opaque group_id<0..2^32-1>;
-        uint32 participant_id;
-        uint32 epoch;
-        uint32 app_counter;
+        opaque group<0..2^32-1>;
+        uint32 epoch_secret;
+        uint32 generation;
+        uint32 sender;
         uint32 length;
         opaque encrypted_content[MLSCiphertext.length];
     } MLSCiphertext;
@@ -1591,8 +1603,7 @@ plaintext and avoid Group participants to impersonate other participants.
 Note, that this non-repudiability property does not necessarily contradict
 deniability (see {{authentication}}).
 
-[[ OPEN ISSUE: Should the padding be required for Application messages ?
-It is unclear if it is necessary or not for the Handshake messages.
+[[ OPEN ISSUE: Should the padding be required for Handshake messages ?
 Can an adversary get more that the position of a participant in the tree
 without padding ? Should the base ciphertext block length be negotiated or
 is is reasonnable to allow leaking an interval for the length of the plaintext
@@ -1627,11 +1638,14 @@ For usability, MLS might require to keep the Application secrets for a
 certain amount of time to retain the ability to decrypt delayed or out of
 order messages, possibly still in transit while a decryption is being done.
 Note that keeping these secrets will considerably weaken the cryptographic
-security guarantees expected at the protocol level. As every other secret
-the Application secrets and all derived secret values MUST be deleted after
-a reasonnably short amount of time. It is RECOMMENDED to securely delete
-secrets after 7 days.
+security guarantees expected at the protocol level.
 
+An old application secret will only be re-used if a participant fails to receive
+messages for some time (which would tell it to use a newer generation), or
+if it decides to send without first syncing up on the latest messages sent
+to the group. It should thus only be necessary for clients to retain a small
+number of application secrets, say five to ten, to deal with relatively
+transient delivery failures.
 
 # Security Considerations
 
