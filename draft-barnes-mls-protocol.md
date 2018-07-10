@@ -1551,6 +1551,9 @@ derivation:
                           = Application AEAD IV [n]
 ~~~~~
 
+[[ OPEN ISSUE: At the moment there is no contributivity of Application secrets
+chained from the initial one to the next generation of Epoch secret.]]
+
 ## Message Encryption and Decryption
 
 The Group participants should use the AEAD algorithm associated with
