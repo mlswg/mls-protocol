@@ -965,7 +965,7 @@ Update Secret -> HKDF-Extract = Epoch Secret
                      |    Derive-Key-Pair(.) = Add Key Pair
                      |
                      +--> Derive-Secret(., "mls app", ID, Epoch, Msg)
-                     |       = Application Secret
+                     |    = Application Secret [0]
                      |
                      V
                Derive-Secret(., "mls init", ID, Epoch, Msg)
@@ -1447,9 +1447,15 @@ To obtain non-repudiability, Handshake messages MUST use asymmetric signatures
 to strongly authenticate the sender of a message; Application messages SHOULD
 use the signature scheme defined by the ciphersuite to provide the same property.
 
-The Application secret MUST be rotated for each Application message, independently
+Each participant maintains his own chain of Application secrets, where the first
+one is derived based on a secret chained from the Epoch secret.
+As shown in {{#key-schedule}}, the initial Application secret is binded to the
+identity of each participant to avoid collisions and allow support for decryption
+of reordered messages.
+
+Subsequent Application secrets MUST be rotated for each Application message, independently
 from the Group secret updates, in order to provide stronger cryptographic
-security properties for messages. This secret is used to derive AEAD encryption
+security properties for messages. This secret is then used to derive AEAD encryption
 keys and IVs used to encrypt and decrypt Application messages.
 Since Application AEAD keys are also automatically updated at each Group operation,
 the AEAD key exhaustion bound applies on a per message basis.
@@ -1464,7 +1470,7 @@ regarding who can encrypt and decrypt Application messages.
 
 ## Updating the Application Secret
 
-Each Application secret MUST be updated after each message to provide
+The Application secret MUST be updated after each message to provide
 better cryptographic security guarantees, hence:
 
 - Senders MUST use the generation N+1 of the application secret, where N is
@@ -1496,25 +1502,21 @@ input values:
 
 - The Application Secret value;
 - A purpose value indicating the specific value being generated;
-- An identifier associated to the identity of the sender;
 - The length of the key being generated.
 
 The traffic keying material is generated from an input traffic secret value using:
 
 ~~~~
-[sender]_id =
-  Hash([sender]_public_identity_key)
-
 [sender]_write_key =
-  HKDF-Expand-Label(Application_Secret,"mls app key", [sender]_id, key_length)
+  HKDF-Expand-Label(Application_Secret,"mls app key", "", key_length)
 
 [sender]_write_iv  =
-  HKDF-Expand-Label(Application_Secret,"mls app iv", [sender]_id, iv_length)
+  HKDF-Expand-Label(Application_Secret,"mls app iv", "", iv_length)
 ~~~~
 
-The identity of the sender MUST be binded to the keys and IV used for
-AEAD encryption. This identifier should the the Hash of the public identity
-key of the used for signatures.
+Note, that because the identity of the participant using the keys to send data
+is included in the initial Application Secret, all successive updates to the
+Application secret will implicitely inherit this ownership.
 
 All the traffic keying material is recomputed whenever the underlying
 Application Secret changes.
@@ -1524,13 +1526,16 @@ be summerized as the following Application key schedule:
 
 ## Application Key Schedule {#key-schedule-application}
 
+Each participant Application secret chain looks as follows after the initial
+derivation:
+
 ~~~~~
            Application Secret [n-1]
                      |
-                     +--> HKDF-Expand-Label(.,"mls app key", [sender]_id, key_length)
+                     +--> HKDF-Expand-Label(.,"mls app key", "", key_length)
                      |    = Application AEAD Key [n-1]
                      |
-                     +--> HKDF-Expand-Label(.,"mls app iv", [sender]_id, key_length)
+                     +--> HKDF-Expand-Label(.,"mls app iv", "", iv_length)
                      |    = Application AEAD IV [n-1]
                      |
                      V
@@ -1539,10 +1544,10 @@ be summerized as the following Application key schedule:
                      V
            Application Secret [n]
                      |
-                     +--> HKDF-Expand-Label(.,"mls app key", [sender]_id, key_length)
+                     +--> HKDF-Expand-Label(.,"mls app key", "", key_length)
                      |    = Application AEAD Key [n]
                      |
-                     +--> HKDF-Expand-Label(.,"mls app iv", [sender]_id, key_length)
+                     +--> HKDF-Expand-Label(.,"mls app iv", "", iv_length)
                           = Application AEAD IV [n]
 ~~~~~
 
