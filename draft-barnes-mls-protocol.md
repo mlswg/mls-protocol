@@ -1569,7 +1569,8 @@ Application messages and sign them as follows:
     } MLSPlaintext;
 
     struct {
-        opaque group_id[32];
+        opaque group_id<0..2^32-1>;
+        uint32 participant_id;
         uint32 epoch;
         uint32 app_counter;
         uint32 length;
@@ -1578,8 +1579,11 @@ Application messages and sign them as follows:
 ~~~~~
 
 The Group identifier and epoch allows a device to know which Group secret
-should be used. The application message-counter field is used to determine
-which Application secret should be used and compute the correct AEAD keys
+should be used and from which Epoch secret to start computing other secrets
+and keys. The participant identifier is used to derive the participant
+Application secret chain from the initial shared Application secret.
+The application message-counter field is used to determine which Application
+secret should be used from the chain to compute the correct AEAD keys
 before performing decryption.
 
 The signature field, allows to privide strong authentication of the
