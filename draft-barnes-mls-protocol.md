@@ -679,13 +679,13 @@ In the following example, participant A update its key to A' and derive the new
 sequence of keys up-to the path. Here A only send H(H(A')) to the parent
 node of C and D but does not send H(A') to B which evicts it from the Group.
 
-~~~~~
+~~~
     H(H(A'))
     /    \
  H(A')    H(C)
   / \    /  \
  A'  _  C    D
-~~~~~
+~~~
 
 If two sibling nodes are both \_, their parent value also becomes \_.
 
