@@ -222,7 +222,7 @@ There are four major operations in the lifecycle of a group:
 
 * Adding a member, initiated by a current member;
 * Adding a member, initiated by the new member;
-* Updating the lead secret of a member;
+* Updating the leaf secret of a member;
 * Removing a member.
 
 Before the initialization of a group, participants publish
