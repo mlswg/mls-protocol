@@ -1460,7 +1460,7 @@ keys and IVs used to encrypt and decrypt Application messages.
 Since Application AEAD keys are also automatically updated at each Group operation,
 the AEAD key exhaustion bound applies on a per message basis.
 In all cases, a participant MUST NOT encrypt more than expected by the AEAD scheme
-with IV and keys generated from the same Application secrets.
+with Nonces and keys generated from the same Application secrets.
 
 Note that each change to the Group through a Handshake message will cause
 a change of the Group Secret. Hence this change MUST be applied before encrypting
@@ -1469,7 +1469,7 @@ regarding who can encrypt and decrypt Application messages.
 
 ## Application Key Schedule {#key-schedule-application}
 
-Updating the Application secret and deriving the associated AEAD key and IV can
+Updating the Application secret and deriving the associated AEAD key and nonce can
 be summerized as the following Application key schedule:
 Each participant Application secret chain looks as follows after the initial
 derivation:
@@ -1477,8 +1477,8 @@ derivation:
 ~~~~~
            application_secret_N-1
                      |
-                     +--> HKDF-Expand-Label(.,"mls app iv", [sender], iv_length)
-                     |    = write_iv_N-1_[sender]
+                     +--> HKDF-Expand-Label(.,"mls app nonce", [sender], nonce_length)
+                     |    = write_nonce_N-1_[sender]
                      |
                      +--> HKDF-Expand-Label(.,"mls app key", [sender], key_length)
                      |    = write_key_N-1_[sender]
@@ -1489,8 +1489,8 @@ derivation:
                      V
            application_secret_N
                      |
-                     +--> HKDF-Expand-Label(.,"mls app iv", [sender], iv_length)
-                     |    = write_iv_N_[sender]
+                     +--> HKDF-Expand-Label(.,"mls app nonce", [sender], nonce_length)
+                     |    = write_nonce_N_[sender]
                      |
                      +--> HKDF-Expand-Label(.,"mls app key", [sender], key_length)
                           = write_key_N_[sender]
@@ -1518,7 +1518,7 @@ as possible, within usability bounds.
 These rules imply that in most circumstances, an application secret will be
 used for exactly one message. However, due to delays in message transmission,
 multiple senders might use the same application secret to send. This is fine
-because the AEAD key and iv are derived per-sender. Recipients MUST NOT enforce
+because the AEAD key and nonce are derived per-sender. Recipients MUST NOT enforce
 a one-message-per-application-secret limit.
 
 The next generation of Application Secret is computed by deriving an
@@ -1550,8 +1550,8 @@ input values:
 The traffic keying material is generated from an input traffic secret value using:
 
 ~~~~
-write_iv_[sender] =
-  HKDF-Expand-Label(Application_Secret,"mls app iv", [sender], iv_length)
+write_nonce_[sender] =
+  HKDF-Expand-Label(Application_Secret,"mls app nonce", [sender], nonce_length)
 
 write_key_[sender] =
   HKDF-Expand-Label(Application_Secret,"mls app key", [sender], key_length)
