@@ -1477,11 +1477,11 @@ derivation:
 ~~~~~
            application_secret_N-1
                      |
-                     +--> HKDF-Expand-Label(.,"mls app key", [sender], key_length)
-                     |    = write_key_N-1_[sender]
-                     |
                      +--> HKDF-Expand-Label(.,"mls app iv", [sender], iv_length)
                      |    = write_iv_N-1_[sender]
+                     |
+                     +--> HKDF-Expand-Label(.,"mls app key", [sender], key_length)
+                     |    = write_key_N-1_[sender]
                      |
                      V
            Derive-Secret(., "app upd","")
@@ -1489,11 +1489,12 @@ derivation:
                      V
            application_secret_N
                      |
-                     +--> HKDF-Expand-Label(.,"mls app key", [sender], key_length)
-                     |    = write_key_N_[sender]
-                     |
                      +--> HKDF-Expand-Label(.,"mls app iv", [sender], iv_length)
-                          = write_iv_N_[sender]
+                     |    = write_iv_N_[sender]
+                     |
+                     +--> HKDF-Expand-Label(.,"mls app key", [sender], key_length)
+                          = write_key_N_[sender]
+
 ~~~~~
 
 In this figure, [sender] represents the four-byte value representing the
@@ -1549,11 +1550,11 @@ input values:
 The traffic keying material is generated from an input traffic secret value using:
 
 ~~~~
-write_key_[sender] =
-  HKDF-Expand-Label(Application_Secret,"mls app key", [sender], key_length)
-
 write_iv_[sender] =
   HKDF-Expand-Label(Application_Secret,"mls app iv", [sender], iv_length)
+
+write_key_[sender] =
+  HKDF-Expand-Label(Application_Secret,"mls app key", [sender], key_length)
 ~~~~
 
 In this figure, [sender] represents the four-byte value representing the
