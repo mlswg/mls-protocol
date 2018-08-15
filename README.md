@@ -1,6 +1,6 @@
 # 
 
-This is the working area for the individual Internet-Draft, "".
+This is the working area for the IETF MLS Working Group Internet-Draft, "".
 
 * [Editor's Copy](https://mlswg.github.io/mls-protocol/#go.draft-ietf-mls-protocol.html)
 * [Working Group Draft](https://tools.ietf.org/html/draft-ietf-mls-protocol)
@@ -21,4 +21,4 @@ This requires that you have the necessary software installed.  See
 ## Contributing
 
 See the
-[guidelines for contributions](https://github.com/ekr/mls-protocol/blob/master/CONTRIBUTING.md).
+[guidelines for contributions](https://github.com/mlswg/mls-protocol/blob/master/CONTRIBUTING.md).
