@@ -1,7 +1,7 @@
 ---
 title: The Messaging Layer Security (MLS) Protocol
 abbrev: MLS
-docname: draft-barnes-mls-protocol-latest
+docname: draft-ietf-mls-protocol-latest
 category: info
 
 ipr: trust200902
@@ -97,7 +97,7 @@ for building production systems.
 
 RFC EDITOR: PLEASE REMOVE THE FOLLOWING PARAGRAPH The source for
 this draft is maintained in GitHub. Suggested changes should be
-submitted as pull requests at https://github.com/ekr/mls-protocol.
+submitted as pull requests at https://github.com/mlswg/mls-protocol.
 Instructions are on that page as well. Editorial changes can be
 managed in GitHub, but any substantive change should be discussed on
 the MLS mailing list.
