@@ -2,9 +2,9 @@
 
 This is the working area for the individual Internet-Draft, "".
 
-* [Editor's Copy](https://ekr.github.io/mls-protocol/#go.draft-barnes-mls-protocol.html)
-* [Working Group Draft](https://tools.ietf.org/html/draft-barnes-mls-protocol)
-* [Compare Editor's Copy to Working Group Draft](https://ekr.github.io/mls-protocol/#go.draft-barnes-mls-protocol.diff)
+* [Editor's Copy](https://mlswg.github.io/mls-protocol/#go.draft-ietf-mls-protocol.html)
+* [Working Group Draft](https://tools.ietf.org/html/draft-ietf-mls-protocol)
+* [Compare Editor's Copy to Working Group Draft](https://mlswg.github.io/mls-protocol/#go.draft-ietf-mls-protocol.diff)
 
 ## Building the Draft
 

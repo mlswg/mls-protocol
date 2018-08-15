@@ -1,7 +1,7 @@
 ---
 title: The Messaging Layer Security (MLS) Protocol
 abbrev: MLS
-docname: draft-barnes-mls-protocol-latest
+docname: draft-ietf-mls-protocol-latest
 category: info
 
 ipr: trust200902
