@@ -1560,7 +1560,7 @@ Application Secret changes.
 
 ## Message Encryption and Decryption
 
-The Group participants should use the AEAD algorithm associated with
+The Group participants MUST use the AEAD algorithm associated with
 the negotiated MLS ciphersuite to AEAD encrypt and decrypt their
 Application messages and sign them as follows:
 
