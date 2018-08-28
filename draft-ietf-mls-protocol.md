@@ -1439,48 +1439,53 @@ group key exchange to participants. In order to protect Application messages
 sent among those participants, the Application secret provided by the Handshake
 key schedule is used to derive encryption keys for the Message Protection Layer.
 
-Application messages SHOULD be protected with the Authenticated-Encryption
+Application messages MUST be protected with the Authenticated-Encryption
 with Associated-Data (AEAD) encryption scheme associated with the MLS ciphersuite.
 Note that "Authenticated" in this context is not mean messages are known to
 be sent by a specific participant but only from a legitimate member of the group.
-To obtain non-repudiability, Handshake messages MUST use asymmetric signatures
+To authenticate a message from a particular member, signatures are required.
+Handshake messages MUST use asymmetric signatures
 to strongly authenticate the sender of a message; Application messages SHOULD
 use the signature scheme defined by the ciphersuite to provide the same property.
 
 Each participant maintains his own chain of Application secrets, where the first
 one is derived based on a secret chained from the Epoch secret.
-As shown in {{#key-schedule}}, the initial Application secret is binded to the
+As shown in {{#key-schedule}}, the initial Application secret is bound to the
 identity of each participant to avoid collisions and allow support for decryption
 of reordered messages.
 
 Subsequent Application secrets MUST be rotated for each Application message, independently
 from the Group secret updates, in order to provide stronger cryptographic
-security properties for messages. This secret is then used to derive AEAD encryption
-keys and IVs used to encrypt and decrypt Application messages.
-Since Application AEAD keys are also automatically updated at each Group operation,
-the AEAD key exhaustion bound applies on a per message basis.
+security properties for messages. To later encrypt and decrypt Application messages,
+we use this secret to derive AEAD encryption key and nonce.
 In all cases, a participant MUST NOT encrypt more than expected by the AEAD scheme
 with Nonces and keys generated from the same Application secrets.
 
+[[OPEN ISSUE: The AEAD key exhaustion bound applies on a per Application
+Secret basis. This depends on the number of messages per Application secrets
+that we allow. Should we set a limit ?
+]]
+
 Note that each change to the Group through a Handshake message will cause
 a change of the Group Secret. Hence this change MUST be applied before encrypting
-any new Application message. This is required for obvious confidentiality reasons
-regarding who can encrypt and decrypt Application messages.
+any new Application message. This is required for confidentiality reasons
+in order for Members to avoid receiving messages from the group after leaving or
+being added to, or excluded from the Group.
 
 ## Application Key Schedule {#key-schedule-application}
 
 Updating the Application secret and deriving the associated AEAD key and nonce can
-be summerized as the following Application key schedule:
-Each participant Application secret chain looks as follows after the initial
+be summarized as the following Application key schedule where
+each participant's Application secret chain looks as follows after the initial
 derivation:
 
 ~~~~~
            application_secret_N-1
                      |
-                     +--> HKDF-Expand-Label(.,"mls app nonce", [sender], nonce_length)
+                     +--> HKDF-Expand-Label(.,"nonce", "", nonce_length)
                      |    = write_nonce_N-1_[sender]
                      |
-                     +--> HKDF-Expand-Label(.,"mls app key", [sender], key_length)
+                     +--> HKDF-Expand-Label(.,"key", "", key_length)
                      |    = write_key_N-1_[sender]
                      |
                      V
@@ -1489,45 +1494,13 @@ derivation:
                      V
            application_secret_N
                      |
-                     +--> HKDF-Expand-Label(.,"mls app nonce", [sender], nonce_length)
+                     +--> HKDF-Expand-Label(.,"nonce", "", nonce_length)
                      |    = write_nonce_N_[sender]
                      |
-                     +--> HKDF-Expand-Label(.,"mls app key", [sender], key_length)
+                     +--> HKDF-Expand-Label(.,"key", "", key_length)
                           = write_key_N_[sender]
 
 ~~~~~
-
-In this figure, [sender] represents the four-byte value representing the
-participant index in the tree used for the group key establishment mechanism.
-
-[[ OPEN ISSUE: At the moment there is no contributivity of Application secrets
-chained from the initial one to the next generation of Epoch secret. While this
-seems safe because cryptographic operations using the application secrets can't
-affect the group init_secret, it remains to be proven correct. ]]
-
-### Updating the Application Secret
-
-The Application secret MUST be updated after each message to provide
-better cryptographic security guarantees, hence:
-
-- Senders MUST use the generation N+1 of the application secret, where N is
-the last generation they received.
-- Recipients SHOULD delete older generations of application secret and as soon
-as possible, within usability bounds.
-
-These rules imply that in most circumstances, an application secret will be
-used for exactly one message. However, due to delays in message transmission,
-multiple senders might use the same application secret to send. This is fine
-because the AEAD key and nonce are derived per-sender. Recipients MUST NOT enforce
-a one-message-per-application-secret limit.
-
-The next generation of Application Secret is computed by deriving an
-Application_Secret_N+1 from Application_Secret_N as follows:
-
-~~~~
-application_secret_N+1 =
-  HKDF-Expand-Label(application_secret_N,"mls app upd","",Hash.length)
-~~~~
 
 The Application context provided together with the previous Application secret
 is used to bind the Application messages with the next key and add some freshness.
@@ -1537,6 +1510,24 @@ the message counter is enough, this would be more conveniant.
 Hashing all the data is obviously very costly and prevents from encrypt in
 parallel, an other solution could be to add a pseudo-random contribution to
 each message and only hash these. ]]
+
+[[ OPEN ISSUE: At the moment there is no contributivity of Application secrets
+chained from the initial one to the next generation of Epoch secret. While this
+seems safe because cryptographic operations using the application secrets can't
+affect the group init_secret, it remains to be proven correct. ]]
+
+### Updating the Application Secret
+
+When the Application Secret is updated:
+
+- Senders MUST use the generation N+1 of the application secret, where N is
+the last generation they received.
+- Recipients SHOULD delete older generations of application secret and as soon
+as possible, within usability bounds.
+
+These rules imply that in most circumstances, an application secret will be
+used for exactly one message. Recipients MUST NOT enforce
+a one-message-per-application-secret limit.
 
 ### Application AEAD Key Calculation
 
@@ -1577,17 +1568,17 @@ Application messages and sign them as follows:
     struct {
         uint32 length;
         opaque content[length];
-        opaque signature[signature_length];
+        opaque signature<0..2^32-1>;
         uint8 zeros[length_of_padding];
     } MLSPlaintext;
 
     struct {
-        opaque group<0..2^32-1>;
-        uint32 epoch_secret;
+        uint8  group[32];
+        uint32 epoch;
         uint32 generation;
         uint32 sender;
         uint32 length;
-        opaque encrypted_content[MLSCiphertext.length];
+        opaque encrypted_content<0..2^32-1>;
     } MLSCiphertext;
 ~~~~~
 
@@ -1601,21 +1592,24 @@ before performing decryption.
 
 The signature field, allows to privide strong authentication of the
 plaintext and avoid Group participants to impersonate other participants.
+The signature MUST cover the metadata information about the current state
+of the group (group identifier, epoch, generation and sender) to avoid
+cross-group attacks.
 Note, that this non-repudiability property does not necessarily contradict
 deniability (see {{authentication}}).
 
 [[ OPEN ISSUE: Should the padding be required for Handshake messages ?
 Can an adversary get more that the position of a participant in the tree
 without padding ? Should the base ciphertext block length be negotiated or
-is is reasonnable to allow leaking an interval for the length of the plaintext
+is is reasonable to allow leaking an interval for the length of the plaintext
 by allowing to send a variable number of ciphertext blocks ? ]]
 
-Padding of Application messages SHOULD be enforced to provide some resistance
+Application messages SHOULD be padded to provide some resistance
 against traffic analysis techniques over encrypted traffic.
 {{?CLINIC=DOI.10.1007/978-3-319-08506-7_8}}
 {{?HCJ16=DOI.10.1186/s13635-016-0030-7}}
 While MLS might be less suceptible to serve the same payload multiple time across
-a lot of ciphertexts than traditionnal web servers, it might still provide
+a lot of ciphertexts than traditional web servers, it might still provide
 the attacker enough information to mount an attack. If Alice asks Bob:
 "When are we going to the movie ?" the answer "Wednesday" might be leaked
 by the ciphertext length to an adversary expecting Alice to provide Bob
@@ -1632,14 +1626,17 @@ it MUST be implemented in a "constant-time" at the MLS layer and above.
 
 Since each MLSCiphertext contains the Group identifier, the epoch and a
 message counter, a participant receiving Application messages out of order
-is able to compute the correct AEAD decryption keys if he kept the Application
-secret long enough.
+is able to compute the correct AEAD decryption keys if he kept long enough,
+or is able to recompute, the associated Application Secret.
 
 For usability, MLS might require to keep the Application secrets for a
 certain amount of time to retain the ability to decrypt delayed or out of
 order messages, possibly still in transit while a decryption is being done.
 Note that keeping these secrets will considerably weaken the cryptographic
 security guarantees expected at the protocol level.
+
+[[TODO: Describe here or in the Architecture spec the details. Depending
+on which Secret or key is kept alive, the security guarantees will vary.]]
 
 An old application secret will only be re-used if a participant fails to receive
 messages for some time (which would tell it to use a newer generation), or
