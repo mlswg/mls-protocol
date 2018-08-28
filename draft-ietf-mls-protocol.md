@@ -1586,7 +1586,7 @@ The Group identifier and epoch allows a device to know which Group secret
 should be used and from which Epoch secret to start computing other secrets
 and keys. The participant identifier is used to derive the participant
 Application secret chain from the initial shared Application secret.
-The application message-counter field is used to determine which Application
+The application generation field is used to determine which Application
 secret should be used from the chain to compute the correct AEAD keys
 before performing decryption.
 
@@ -1621,6 +1621,8 @@ is used to compute the number of bytes to be removed from the plaintext to get t
 correct data.
 If the padding mechanism is used to improve protection against timing side-channels,
 it MUST be implemented in a "constant-time" at the MLS layer and above.
+
+[[ TODO: Describe implementation ? ]]
 
 ### Delayed and Reordered Application messages
 
