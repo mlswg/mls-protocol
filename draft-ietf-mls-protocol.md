@@ -1441,14 +1441,14 @@ key schedule is used to derive encryption keys for the Message Protection Layer.
 
 Application messages MUST be protected with the Authenticated-Encryption
 with Associated-Data (AEAD) encryption scheme associated with the MLS ciphersuite.
-Note that "Authenticated" in this context is not mean messages are known to
+Note that "Authenticated" in this context does not mean messages are known to
 be sent by a specific participant but only from a legitimate member of the group.
 To authenticate a message from a particular member, signatures are required.
 Handshake messages MUST use asymmetric signatures
 to strongly authenticate the sender of a message; Application messages SHOULD
 use the signature scheme defined by the ciphersuite to provide the same property.
 
-Each participant maintains his own chain of Application secrets, where the first
+Each participant maintains their own chain of Application secrets, where the first
 one is derived based on a secret chained from the Epoch secret.
 As shown in {{#key-schedule}}, the initial Application secret is bound to the
 identity of each participant to avoid collisions and allow support for decryption
@@ -1590,7 +1590,7 @@ The application generation field is used to determine which Application
 secret should be used from the chain to compute the correct AEAD keys
 before performing decryption.
 
-The signature field, allows to privide strong authentication of the
+The signature field, allows to provide strong authentication of the
 plaintext and avoid Group participants to impersonate other participants.
 The signature MUST cover the metadata information about the current state
 of the group (group identifier, epoch, generation and sender) to avoid
