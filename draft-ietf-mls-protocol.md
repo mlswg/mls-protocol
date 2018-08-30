@@ -1568,7 +1568,7 @@ Application messages and sign them as follows:
     struct {
         uint32 length;
         opaque content[length];
-        opaque signature<0..2^32-1>;
+        opaque signature<0..2^16-1>;
         uint8 zeros[length_of_padding];
     } MLSPlaintext;
 
