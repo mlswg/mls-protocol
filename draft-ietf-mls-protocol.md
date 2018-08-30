@@ -1477,7 +1477,7 @@ be sent by a specific participant but only from a legitimate member of the group
 To authenticate a message from a particular member, signatures are required.
 Handshake messages MUST use asymmetric signatures
 to strongly authenticate the sender of a message; Application messages SHOULD
-use the signature scheme defined by the ciphersuite to provide the same property.
+use the signature scheme to provide the same property.
 
 Each participant maintains their own chain of Application secrets, where the first
 one is derived based on a secret chained from the Epoch secret.
@@ -1626,8 +1626,20 @@ plaintext and avoid Group participants to impersonate other participants.
 The signature MUST cover the metadata information about the current state
 of the group (group identifier, epoch, generation and sender) to avoid
 cross-group attacks.
-Note, that this non-repudiability property does not necessarily contradict
-deniability (see {{authentication}}).
+
+~~~
+    struct {
+        uint8  group[32];
+        uint32 epoch;
+        uint32 generation;
+        uint32 sender;
+        uint32 length;
+        opaque content[length];
+    } MLSSignatureContent;
+~~~
+
+[[ TODO: A preliminary formal security analysis has yet to be performed on
+this signature scheme.]]
 
 [[ OPEN ISSUE: Should the padding be required for Handshake messages ?
 Can an adversary get more that the position of a participant in the tree
