@@ -1481,7 +1481,7 @@ use the signature scheme defined by the ciphersuite to provide the same property
 
 Each participant maintains their own chain of Application secrets, where the first
 one is derived based on a secret chained from the Epoch secret.
-As shown in {{#key-schedule}}, the initial Application secret is bound to the
+As shown in {{key-schedule}}, the initial Application secret is bound to the
 identity of each participant to avoid collisions and allow support for decryption
 of reordered messages.
 
