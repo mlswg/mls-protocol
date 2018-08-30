@@ -134,6 +134,37 @@ shared keys with costs that scale as the log of the group size.  The
 use of Merkle trees to store identity information allows strong
 authentication of group membership, again with logarithmic cost.
 
+##  Change Log
+
+RFC EDITOR PLEASE DELETE THIS SECTION.
+
+
+(*) indicates changes to the wire protocol which may require implementations
+    to update.
+
+draft-01
+
+- Initial description of the Message Protection mechanism.
+
+- Initial specification proposal for the Application Key Schedule
+  using the per-participant chaining of the Application Secret design.
+
+- Initial specification proposal for an encryption mechanism to protect
+  Application Messages using an AEAD scheme.
+
+- Initial specification proposal for an authentication mechanism
+  of Application Messages using signatures.
+
+- Initial specification proposal for a padding mechanism to improving
+  protection of Application Messages against traffic analysis.
+
+- Inversion of the Group Init Add and Application Secret derivations
+  in the Handshake Key Schedule to be ease chaining in case we switch
+  design.
+
+draft-00
+
+- Initial adoption of draft-barnes-mls-protocol-01 as a WG item.
 
 # Terminology
 
