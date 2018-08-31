@@ -175,7 +175,7 @@ Identity Key:
 Terminology specific to tree computations is described in
 {{binary-trees}}.
 
-We use the TLS presentation language {{!I-D.ietf-tls-tls13}} to
+We use the TLS presentation language {{RFC8446}} to
 describe the structure of protocol messages.
 
 
