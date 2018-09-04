@@ -1527,7 +1527,7 @@ The Application context provided together with the previous Application secret
 is used to bind the Application messages with the next key and add some freshness.
 
 [[OPEN ISSUE: Context is left empty for now, it might be that using only
-the message counter is enough, this would be more conveniant.
+the message counter is enough, this would be more convenient.
 Hashing all the data is obviously very costly and prevents from encrypt in
 parallel, an other solution could be to add a pseudo-random contribution to
 each message and only hash these. ]]
@@ -1546,7 +1546,7 @@ The following rules apply to an Application Secret:
 
 - Receivers SHOULD delete an Application Secret once it has been used to
   derive the corresponding AEAD key and nonce and MAY keep those around
-  for some reasonnable period.
+  for some reasonable period.
 
 - Receivers MUST delete an Application Secret once it has been used to
   successfully decrypt a message.
@@ -1575,7 +1575,7 @@ write_key_[sender] =
 
 Note, that because the identity of the participant using the keys to send data
 is included in the initial Application Secret, all successive updates to the
-Application secret will implicitely inherit this ownership.
+Application secret will implicitly inherit this ownership.
 
 All the traffic keying material is recomputed whenever the underlying
 Application Secret changes.
@@ -1644,20 +1644,20 @@ Application messages SHOULD be padded to provide some resistance
 against traffic analysis techniques over encrypted traffic.
 {{?CLINIC=DOI.10.1007/978-3-319-08506-7_8}}
 {{?HCJ16=DOI.10.1186/s13635-016-0030-7}}
-While MLS might be less suceptible to serve the same payload multiple time across
+While MLS might be less susceptible to serve the same payload multiple time across
 a lot of ciphertexts than traditional web servers, it might still provide
 the attacker enough information to mount an attack. If Alice asks Bob:
 "When are we going to the movie ?" the answer "Wednesday" might be leaked
 by the ciphertext length to an adversary expecting Alice to provide Bob
 with a day of the week at some point in their discussion.
 
-Similarily to TLS 1.3, if padding is used, the MLS messages MUST be padded
+Similarly to TLS 1.3, if padding is used, the MLS messages MUST be padded
 before AEAD encryption with zero-valued bytes. Upon AEAD decryption,
 the length field of the plaintext is used to compute the number of bytes
 to be removed from the plaintext to get the correct data.
 As the padding mechanism is used to improve protection against traffic
 analysis, removal of the padding SHOULD be implemented in a "constant-time"
-manner at the MLS layer and above to prevent timing side-chanels that
+manner at the MLS layer and above to prevent timing side-channels that
 would provide attackers with information on the size of the plaintext.
 
 [[ TODO: Describe implementation ? ]]
