@@ -1482,7 +1482,7 @@ of reordered messages.
 
 Subsequent Application secrets MUST be rotated for each message sent in
 order to provide stronger cryptographic security guarantees. The Application
-Key Schedule use this rotation to generate fresh AEAD encryption key and nonce
+Key Schedule use this rotation to generate fresh AEAD encryption keys and nonces
 used to encrypt and decrypt future Application messages.
 In all cases, a participant MUST NOT encrypt more than expected by the security
 bounds of the AEAD scheme used.
@@ -1490,7 +1490,7 @@ bounds of the AEAD scheme used.
 Note that each change to the Group through a Handshake message will cause
 a change of the Group Secret. Hence this change MUST be applied before encrypting
 any new Application message. This is required for confidentiality reasons
-in order for Members to avoid receiving messages from the group after leaving or
+in order for Members to avoid receiving messages from the group after leaving,
 being added to, or excluded from the Group.
 
 ## Application Key Schedule {#key-schedule-application}
@@ -1605,7 +1605,7 @@ Application messages and sign them as follows:
     } MLSCiphertext;
 ~~~~~
 
-The Group identifier and epoch allows a device to know which Group secret
+The Group identifier and epoch allow a device to know which Group secrets
 should be used and from which Epoch secret to start computing other secrets
 and keys. The participant identifier is used to derive the participant
 Application secret chain from the initial shared Application secret.
@@ -1632,7 +1632,7 @@ to avoid Group participants to impersonate other participants and in order
 to prevent cross-group attacks.
 
 [[ TODO: A preliminary formal security analysis has yet to be performed on
-this signature scheme.]]
+this authentication scheme.]]
 
 [[ OPEN ISSUE: Should the padding be required for Handshake messages ?
 Can an adversary get more that the position of a participant in the tree
