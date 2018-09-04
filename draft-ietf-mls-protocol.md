@@ -1539,15 +1539,20 @@ affect the group init_secret, it remains to be proven correct. ]]
 
 ### Updating the Application Secret
 
-When the Application Secret is updated:
+The following rules apply to an Application Secret:
 
-- Senders MUST monotonically increment the generation of their
-  Application secret.
-- Recipients SHOULD delete older generations of application secret and as soon
-as possible, within usability bounds.
+- Senders MUST only use the Application Secret once and monotonically
+  increment the generation of their secret.
 
-These rules imply that in most circumstances, an application secret will be
-used for exactly one message. Note that while
+- Receivers SHOULD delete an Application Secret once it has been used to
+  derive the corresponding AEAD key and nonce and MAY keep those around
+  for some reasonnable period.
+
+- Receivers MUST delete an Application Secret once it has been used to
+  successfully decrypt a message.
+
+[[ OPEN ISSUE: A stronger requirement could be a MUST delete Application Secret N
+as soon as N+1 has been derived.]]
 
 ### Application AEAD Key Calculation
 
