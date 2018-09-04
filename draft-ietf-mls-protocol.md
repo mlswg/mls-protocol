@@ -1483,7 +1483,7 @@ of reordered messages.
 Subsequent Application secrets MUST be rotated for each message sent in
 order to provide stronger cryptographic security guarantees. The Application
 Key Schedule use this rotation to generate fresh AEAD encryption key and nonce
-provides to encrypt and decrypt future Application messages.
+used to encrypt and decrypt future Application messages.
 In all cases, a participant MUST NOT encrypt more than expected by the security
 bounds of the AEAD scheme used.
 
@@ -1621,7 +1621,7 @@ The signature field allows strong authentication of messages:
     } MLSSignatureContent;
 ~~~
 
-The signature MUST cover the metadata information about the current state
+The signature must cover the metadata information about the current state
 of the group (group identifier, epoch, generation and sender's Leaf index)
 to avoid Group participants to impersonate other participants and in order
 to prevent cross-group attacks.
@@ -1650,9 +1650,10 @@ Similarily to TLS 1.3, if padding is used, the MLS messages MUST be padded
 before AEAD encryption with zero-valued bytes. Upon AEAD decryption,
 the length field of the plaintext is used to compute the number of bytes
 to be removed from the plaintext to get the correct data.
-As the padding mechanism is used to improve protection against timing
-based side-channels, removal of the padding SHOULD be implemented in a
-"constant-time" manner at the MLS layer and above.
+As the padding mechanism is used to improve protection against traffic
+analysis, removal of the padding SHOULD be implemented in a "constant-time"
+manner at the MLS layer and above to prevent timing side-chanels that
+would provide attackers with information on the size of the plaintext.
 
 [[ TODO: Describe implementation ? ]]
 
