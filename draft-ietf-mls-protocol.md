@@ -209,7 +209,7 @@ describe the structure of protocol messages.
 # Basic Assumptions
 
 This protocol is designed to execute in the context of a Messaging Service (MS)
-as described in [I-D.omara-mls-architecture].  In particular, we assume
+as described in [I-D.ietf-mls-architecture].  In particular, we assume
 the MS provides the following services:
 
 * A long-term identity key provider which allows participants to authenticate
