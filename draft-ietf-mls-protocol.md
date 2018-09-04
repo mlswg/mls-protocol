@@ -1680,7 +1680,7 @@ on which Secret or key is kept alive, the security guarantees will vary.]]
 
 # Security Considerations
 
-The security goals of MLS are described in [[the architecture doc]]. We describe here how the
+The security goals of MLS are described in [I-D.ietf-mls-architecture]. We describe here how the
 protocol achieves its goals at a high level, though a complete security analysis is outside of the
 scope of this document.
 
