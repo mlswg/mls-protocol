@@ -986,16 +986,16 @@ proceeds as shown in the following diagram:
                      V
 update_secret -> HKDF-Extract = epoch_secret
                      |
-                     +--> Derive-Secret(., "mls add", ID, Epoch, Msg)
+                     +--> Derive-Secret(., "add", ID, Epoch, Msg)
                      |       |
                      |       V
                      |    Derive-Key-Pair(.) = add_key_pair
                      |
-                     +--> Derive-Secret(., "mls app", ID, Epoch, Msg)
+                     +--> Derive-Secret(., "app", ID, Epoch, Msg)
                      |    = application_secret_[0]
                      |
                      V
-               Derive-Secret(., "mls init", ID, Epoch, Msg)
+               Derive-Secret(., "init", ID, Epoch, Msg)
                      |
                      V
                init_secret [n]
@@ -1504,10 +1504,10 @@ derivation:
            application_secret_N-1
                      |
                      +--> HKDF-Expand-Label(.,"nonce", "", nonce_length)
-                     |    = write_nonce_N-1_[sender]
+                     |    = write_nonce_N-1
                      |
                      +--> HKDF-Expand-Label(.,"key", "", key_length)
-                     |    = write_key_N-1_[sender]
+                     |    = write_key_N-1
                      |
                      V
            Derive-Secret(., "app upd","")
@@ -1516,10 +1516,10 @@ derivation:
            application_secret_N
                      |
                      +--> HKDF-Expand-Label(.,"nonce", "", nonce_length)
-                     |    = write_nonce_N_[sender]
+                     |    = write_nonce_N
                      |
                      +--> HKDF-Expand-Label(.,"key", "", key_length)
-                          = write_key_N_[sender]
+                          = write_key_N
 
 ~~~~~
 
@@ -1544,15 +1544,13 @@ The following rules apply to an Application Secret:
 - Senders MUST only use the Application Secret once and monotonically
   increment the generation of their secret.
 
-- Receivers SHOULD delete an Application Secret once it has been used to
-  derive the corresponding AEAD key and nonce and MAY keep those around
-  for some reasonable period.
-
 - Receivers MUST delete an Application Secret once it has been used to
-  successfully decrypt a message.
+  derive the corresponding AEAD key and nonce as well as the next Application
+  Secret. Receivers MAY keep the AEAD key and nonce around for some
+  reasonable period.
 
-[[ OPEN ISSUE: A stronger requirement could be a MUST delete Application Secret N
-as soon as N+1 has been derived.]]
+- Receivers MUST delete AEAD keys and nonces once they have been used to
+  successfully decrypt a message.
 
 ### Application AEAD Key Calculation
 
@@ -1562,16 +1560,6 @@ input values:
 - The Application Secret value;
 - A purpose value indicating the specific value being generated;
 - The length of the key being generated.
-
-The traffic keying material is generated from an input traffic secret value using:
-
-~~~~
-write_nonce_[sender] =
-  HKDF-Expand-Label(Application_Secret,"nonce", "", nonce_length)
-
-write_key_[sender] =
-  HKDF-Expand-Label(Application_Secret,"key", "", key_length)
-~~~~
 
 Note, that because the identity of the participant using the keys to send data
 is included in the initial Application Secret, all successive updates to the
@@ -1589,8 +1577,7 @@ Application messages and sign them as follows:
 
 ~~~~~
     struct {
-        uint32 length;
-        opaque content[length];
+        opaque content<0..2^32-1>;
         opaque signature<0..2^16-1>;
         uint8 zeros[length_of_padding];
     } MLSPlaintext;
@@ -1621,12 +1608,12 @@ The signature field allows strong authentication of messages:
         uint32 epoch;
         uint32 generation;
         uint32 sender;
-        uint32 length;
-        opaque content[length];
+        opaque content<0..2^32-1>;
     } MLSSignatureContent;
 ~~~
 
-The signature must cover the metadata information about the current state
+The signature used in the MLSPlaintext is computed over the MLSSignatureContent
+which covers the metadata information about the current state
 of the group (group identifier, epoch, generation and sender's Leaf index)
 to avoid Group participants to impersonate other participants and in order
 to prevent cross-group attacks.
