@@ -933,7 +933,7 @@ key of the non-updated child and the ephemeral public key
 transmitted in the message.
 
 
-## Key Schedule {#key-schedule}
+## Key Schedule
 
 Group keys are derived using the HKDF-Extract and HKDF-Expand
 functions as defined in {{!RFC5869}}, as well as the functions
@@ -981,7 +981,7 @@ Given these inputs, the derivation of secrets for an epoch
 proceeds as shown in the following diagram:
 
 ~~~~~
-               init_secret [n-1] (or 0)
+               init_secret_[n-1] (or 0)
                      |
                      V
 update_secret -> HKDF-Extract = epoch_secret
@@ -998,7 +998,7 @@ update_secret -> HKDF-Extract = epoch_secret
                Derive-Secret(., "init", ID, Epoch, Msg)
                      |
                      V
-               init_secret [n]
+               init_secret_[n]
 ~~~~~
 
 
@@ -1580,7 +1580,7 @@ Application messages and sign them as follows:
         opaque content<0..2^32-1>;
         opaque signature<0..2^16-1>;
         uint8 zeros[length_of_padding];
-    } MLSPlaintext;
+    } ApplicationPlaintext;
 
     struct {
         uint8  group[32];
@@ -1589,7 +1589,7 @@ Application messages and sign them as follows:
         uint32 sender;
         uint32 length;
         opaque encrypted_content<0..2^32-1>;
-    } MLSCiphertext;
+    } Application;
 ~~~~~
 
 The Group identifier and epoch allow a device to know which Group secrets
@@ -1647,11 +1647,9 @@ analysis, removal of the padding SHOULD be implemented in a "constant-time"
 manner at the MLS layer and above to prevent timing side-channels that
 would provide attackers with information on the size of the plaintext.
 
-[[ TODO: Describe implementation ? ]]
-
 ### Delayed and Reordered Application messages
 
-Since each MLSCiphertext contains the Group identifier, the epoch and a
+Since each Application message contains the Group identifier, the epoch and a
 message counter, a participant can receive messages out of order.
 Participants can decrypt these messages if they are able to retrieve
 or recompute the correct AEAD decryption key from currently stored
