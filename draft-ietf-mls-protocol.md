@@ -1587,7 +1587,6 @@ Application messages and sign them as follows:
         uint32 epoch;
         uint32 generation;
         uint32 sender;
-        uint32 length;
         opaque encrypted_content<0..2^32-1>;
     } Application;
 ~~~~~
