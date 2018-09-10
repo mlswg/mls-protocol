@@ -659,6 +659,46 @@ tree management to behave as for a balanced tree for programming simplicity.
 
 # Group State
 
+Each participant in the group maintains a representation of the
+state of the group:
+
+~~~~~
+struct GroupState {
+  opaque group_id<...>;
+  uint32 size;
+  uint32 epoch;
+  Credential roster<...>;
+  PublicKey tree<...>;
+  opaque transcript_hash<...>;
+}
+~~~~~
+
+The fields in this state have the following semantics:
+
+* The `group_id` field is an application-defined identifier for the
+  group.
+* The `size` field represents the total number of key-exchange slots
+  in the group, whether or not these slots are currently occupied.
+* The `epoch` field represents the current version of the group key.
+* The `roster` field contains credentials for the occupied slots in
+  the tree, including the identity and public key for the holder of
+  the slot.  The length of the `roster` vector MUST be equal to the
+  value of the `size` field; the n-th entry in the vector represents
+  the identity for the n-th slot, if any.
+* The `tree` field contains the public keys corresponding to the
+  nodes of the ratchet tree for this group.  The length of this
+  vector MUST be `2*size + 1`.
+
+When a new member is added to the group, an existing member of the
+group provides the new member with a Welcome message.  The Welcome
+message provides the information the new member needs to initialize
+its GroupState.
+
+Other group operations will have different affects on the group
+state
+
+======
+
 The state of an MLS group at a given time comprises:
 
 * A group identifier (GID)
