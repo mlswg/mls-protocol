@@ -160,8 +160,8 @@ Member:
 
 Initialization Key:
 : A short-lived Diffie-Hellman key pair used to introduce a new
-  member to a group.  Initialization keys can be published for both
-  individual participants (UserInitKey) and groups (GroupInitKey).
+  member to a group.  Initialization keys are published for
+  individual participants (UserInitKey).
 
 Leaf Key:
 : A short-lived Diffie-Hellman key pair that represents a group
@@ -946,12 +946,7 @@ In order to facilitate asynchronous addition of participants to a
 group, it is possible to pre-publish initialization keys that
 provide some public information about a user or group.  UserInitKey
 messages provide information about a potential group member, that a group member can use to
-add this user to a group asynchronously.  GroupInitKey
-messages provide information about a group that a new user can use
-to join the group without any of the existing members of the group
-being online.
-
-## UserInitKey
+add this user to a group asynchronously.
 
 A UserInitKey object specifies what ciphersuites a client supports,
 as well as providing public keys that the client can use for key
@@ -981,39 +976,6 @@ struct {
 ~~~~~
 
 
-## GroupInitKey
-
-A GroupInitKey object specifies the aspects of a group's state that
-a new member needs to initialize its state (together with an
-identity key and a fresh leaf key pair).
-
-* The current epoch number
-* The number of participants currently in the group
-* The group ID
-* The cipher suite used by the group
-* The public key of the current update key pair for the group
-* The frontier of the identity tree, as a sequence of hash values
-* The frontier of the ratchet tree, as a sequence of public keys
-
-GroupInitKey messages are not themselves signed.  A GroupInitKey
-should not be published "bare"; instead, it should be published by
-constructing a handshake message with type "none", which will
-include a signature by a member of the group and a proof of
-membership in the group.
-
-~~~~~
-struct {
-    uint32 epoch;
-    uint32 group_size;
-    opaque group_id<0..2^16-1>;
-    CipherSuite cipher_suite;
-    DHPublicKey add_key;
-    MerkleNode identity_frontier<0..2^16-1>;
-    TreeNode ratchet_frontier<0..2^16-1>;
-} GroupInitKey;
-~~~~~
-
-
 # Handshake Messages
 
 Over the lifetime of a group, its state will change for:
@@ -1032,14 +994,10 @@ a change is made to the group state. This means an unbounded number
 of interleaved application and handshake messages.
 
 An MLS handshake message encapsulates a specific message that
-accomplishes a change to the group state. It also includes two other
-important features:
-
-* A GroupInitKey so that a new participant can observe
-  the latest state of the handshake and initialize itself
-
-* A signature by a member of the group, together with a Merkle inclusion
-  proof that demonstrates that the signer is a legitimate member of the group.
+accomplishes a change to the group state. It also includes a
+signature by a member of the group, together with a Merkle inclusion
+proof that demonstrates that the signer is a legitimate member of
+the group.
 
 Before considering a handshake message valid, the recipient MUST
 verify both that the signature is valid, the Merkle
@@ -1055,11 +1013,10 @@ list of participant identity keys.
 
 ~~~~~
 enum {
-    none(0),
-    init(1),
-    add(2),
-    update(3),
-    delete(4),
+    init(0),
+    add(1),
+    update(2),
+    delete(3),
     (255)
 } HandshakeType;
 
@@ -1067,7 +1024,6 @@ struct {
     HandshakeType msg_type;
     uint24 inner_length;
     select (Handshake.msg_type) {
-        case none:      struct{};
         case init:      Init;
         case add:       Add;
         case update:    Update;
@@ -1075,7 +1031,6 @@ struct {
     };
 
     uint32 prior_epoch;
-    GroupInitKey init_key;
 
     uint32 signer_index;
     MerkleNode identity_proof<1..2^16-1>;
@@ -1126,6 +1081,8 @@ to the group.
 struct {
     PublicKey ephemeral;
     DirectPath add_path<1..2^16-1>;
+    MerkleNode identity_frontier<0..2^16-1>;
+    TreeNode ratchet_frontier<0..2^16-1>;
 } Add;
 ~~~~~
 
@@ -1148,8 +1105,7 @@ to the UserInitKey to initialize his state as follows:
 
 * Compute the participant's leaf secret by combining the init key in
   the UserInitKey with the prior epoch's add key pair
-* Use the frontiers in the GroupInitKey of the Handshake message to
-  add its keys to the trees
+* Use the frontiers to add its keys to the trees
 
 An existing participant receiving a Add message first verifies
 the signature on the message, then verifies its identity proof against
