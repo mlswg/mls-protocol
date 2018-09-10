@@ -1681,7 +1681,7 @@ or by someone who replaced them.]]
 Note that the long-term identity keys used by the protocol MUST be distributed by an "honest"
 authentication service for parties to authenticate their legitimate peers.
 
-## Authentication {#authentication}
+## Authentication
 
 There are two forms of authentication we consider. The first form
 considers authentication with respect to the group. That is, the group
