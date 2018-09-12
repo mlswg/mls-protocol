@@ -1495,31 +1495,41 @@ being added to, or excluded from the Group.
 
 ## Application Key Schedule {#key-schedule-application}
 
+After computing the initial Application Secret shared by the group,
+each Participant creates an initial Participant Application Secret
+to be used for its own sending chain:
+
+~~~
+           application_secret_[0]
+                     |
+                     V
+           Derive-Secret(., "app upd", [sender])
+                     |
+                     V
+           application_secret_[1]
+~~~
+
+Note that [sender] represent the uint32 value encoding the index
+of the participant in the ratchet tree.
+
 Updating the Application secret and deriving the associated AEAD key and nonce can
 be summarized as the following Application key schedule where
 each participant's Application secret chain looks as follows after the initial
 derivation:
 
 ~~~~~
-           application_secret_N-1
+           application_secret_[N-1]
                      |
                      +--> HKDF-Expand-Label(.,"nonce", "", nonce_length)
                      |    = write_nonce_N-1
                      |
                      +--> HKDF-Expand-Label(.,"key", "", key_length)
                      |    = write_key_N-1
-                     |
                      V
            Derive-Secret(., "app upd","")
                      |
                      V
-           application_secret_N
-                     |
-                     +--> HKDF-Expand-Label(.,"nonce", "", nonce_length)
-                     |    = write_nonce_N
-                     |
-                     +--> HKDF-Expand-Label(.,"key", "", key_length)
-                          = write_key_N
+           application_secret_[N]
 
 ~~~~~
 
