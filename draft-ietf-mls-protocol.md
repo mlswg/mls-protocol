@@ -160,8 +160,8 @@ Member:
 
 Initialization Key:
 : A short-lived Diffie-Hellman key pair used to introduce a new
-  member to a group.  Initialization keys can be published for both
-  individual participants (UserInitKey) and groups (GroupInitKey).
+  member to a group.  Initialization keys are published for
+  individual participants (UserInitKey).
 
 Leaf Key:
 : A short-lived Diffie-Hellman key pair that represents a group
@@ -175,7 +175,7 @@ Identity Key:
 Terminology specific to tree computations is described in
 {{binary-trees}}.
 
-We use the TLS presentation language {{RFC8446}} to
+We use the TLS presentation language {{!RFC8446}} to
 describe the structure of protocol messages.
 
 
@@ -245,11 +245,11 @@ A              B              C          Directory       Channel
 
 When a participant A wants to establish a group with B and C, it
 first downloads InitKeys for B and C.  It then initializes a group state
-containing only itself and uses the InitKeys to compute GroupAdd messages
+containing only itself and uses the InitKeys to compute Add messages
 to add B and C, in a sequence chosen by A.
 These messages are broadcasted to the Group, and processed in sequence
 by B and C.  Messages received before a participant has joined the
-group are ignored.  Only after A has received its GroupAdd messages
+group are ignored.  Only after A has received its Add messages
 back from the server does it update its state to reflect their addition.
 
 
@@ -260,18 +260,18 @@ A              B              C          Directory            Channel
 |         UserInitKeyB, UserInitKeyC         |                   |
 |<-------------------------------------------|                   |
 |              |              |              |                   |
-|              |              |              | GroupAdd(A->AB)   |
+|              |              |              | Add(A->AB)        |
 |--------------------------------------------------------------->|
 |              |              |              |                   |
-|              |              |              | GroupAdd(AB->ABC) |
+|              |              |              | Add(AB->ABC)      |
 |--------------------------------------------------------------->|
 |              |              |              |                   |
-|              |              |              | GroupAdd(A->AB)   |
+|              |              |              | Add(A->AB)        |
 |<---------------------------------------------------------------|
 |state.add(B)  |<------------------------------------------------|
 |              |state.init()  |x---------------------------------|
 |              |              |              |                   |
-|              |              |              | GroupAdd(AB->ABC) |
+|              |              |              | Add(AB->ABC)      |
 |<---------------------------------------------------------------|
 |state.add(C)  |<------------------------------------------------|
 |              |state.add(C)  |<---------------------------------|
@@ -281,44 +281,8 @@ A              B              C          Directory            Channel
 
 Subsequent additions of group members proceed in the same way.  Any
 member of the group can download an InitKey for a new participant
-and broadcast a GroupAdd which the current group can use to update
+and broadcast an Add which the current group can use to update
 their state and the new participant can use to initialize its state.
-
-It is sometimes necessary for a new participant to join without
-an explicit invitation from a current member.  For example, if a
-user that is authorized to be in the group logs in on a new device,
-that device will need to join the group as a new participant, but
-will not have been invited.
-
-In these "user-initiated join" cases, the "InitKey + Add message"
-flow is reversed.  We assume that at some previous point, a group
-member has published a GroupInitKey reflecting the current state of
-the group (A, B, C).  The new participant Z downloads that
-GroupInitKey from the directory, generates a UserAdd message, and
-broadcasts it to the group.  Once current members process this
-message, they will have a shared state that also includes Z.
-
-~~~~~
-                                                          Group
-A              B     ...      Z          Directory       Channel
-| GroupInitKey |              |              |              |
-|------------------------------------------->|              |
-|              |              |              |              |
-~              ~              ~              ~              ~
-|              |              |              |              |
-|              |              | GroupInitKey |              |
-|              |              |<-------------|              |
-|              |              |              |              |
-|              |              | UserAdd(.->D)|              |
-|              |              |---------------------------->|
-|              |              |              |              |
-|              |              |              | UserAdd(.->D)|
-|<----------------------------------------------------------|
-|state.add(D)  |<-------------------------------------------|
-|              |state.add(D)  |<----------------------------|
-|              |              |state.init()  |              |
-|              |              |              |              |
-~~~~~
 
 To enforce forward secrecy and post-compromise security of messages,
 each participant periodically updates its leaf secret which represents
@@ -945,7 +909,7 @@ following information to derive new epoch secrets:
 The derivation of the update secret depends on the change being
 made, as described below.
 
-For UserAdd or GroupAdd, the new user does not know the prior epoch init secret.
+For Add, the new user does not know the prior epoch init secret.
 Instead, entropy from the prior epoch is added via the update secret,
 and an all-zero vector with the same length as a hash output is used
 in the place of the init secret.
@@ -980,14 +944,9 @@ Update Secret -> HKDF-Extract = Epoch Secret
 
 In order to facilitate asynchronous addition of participants to a
 group, it is possible to pre-publish initialization keys that
-provide some public information about a user or group.  UserInitKey
+provide some public information about a user.  UserInitKey
 messages provide information about a potential group member, that a group member can use to
-add this user to a group asynchronously.  GroupInitKey
-messages provide information about a group that a new user can use
-to join the group without any of the existing members of the group
-being online.
-
-## UserInitKey
+add this user to a group asynchronously.
 
 A UserInitKey object specifies what ciphersuites a client supports,
 as well as providing public keys that the client can use for key
@@ -1017,39 +976,6 @@ struct {
 ~~~~~
 
 
-## GroupInitKey
-
-A GroupInitKey object specifies the aspects of a group's state that
-a new member needs to initialize its state (together with an
-identity key and a fresh leaf key pair).
-
-* The current epoch number
-* The number of participants currently in the group
-* The group ID
-* The cipher suite used by the group
-* The public key of the current update key pair for the group
-* The frontier of the identity tree, as a sequence of hash values
-* The frontier of the ratchet tree, as a sequence of public keys
-
-GroupInitKey messages are not themselves signed.  A GroupInitKey
-should not be published "bare"; instead, it should be published by
-constructing a handshake message with type "none", which will
-include a signature by a member of the group and a proof of
-membership in the group.
-
-~~~~~
-struct {
-    uint32 epoch;
-    uint32 group_size;
-    opaque group_id<0..2^16-1>;
-    CipherSuite cipher_suite;
-    DHPublicKey add_key;
-    MerkleNode identity_frontier<0..2^16-1>;
-    TreeNode ratchet_frontier<0..2^16-1>;
-} GroupInitKey;
-~~~~~
-
-
 # Handshake Messages
 
 Over the lifetime of a group, its state will change for:
@@ -1068,14 +994,10 @@ a change is made to the group state. This means an unbounded number
 of interleaved application and handshake messages.
 
 An MLS handshake message encapsulates a specific message that
-accomplishes a change to the group state. It also includes two other
-important features:
-
-* A GroupInitKey so that a new participant can observe
-  the latest state of the handshake and initialize itself
-
-* A signature by a member of the group, together with a Merkle inclusion
-  proof that demonstrates that the signer is a legitimate member of the group.
+accomplishes a change to the group state. It also includes a
+signature by a member of the group, together with a Merkle inclusion
+proof that demonstrates that the signer is a legitimate member of
+the group.
 
 Before considering a handshake message valid, the recipient MUST
 verify both that the signature is valid, the Merkle
@@ -1091,12 +1013,10 @@ list of participant identity keys.
 
 ~~~~~
 enum {
-    none(0),
-    init(1),
-    user_add(2),
-    group_add(3),
-    update(4),
-    delete(5),
+    init(0),
+    add(1),
+    update(2),
+    delete(3),
     (255)
 } HandshakeType;
 
@@ -1104,16 +1024,13 @@ struct {
     HandshakeType msg_type;
     uint24 inner_length;
     select (Handshake.msg_type) {
-        case none:      struct{};
         case init:      Init;
-        case user_add:  UserAdd;
-        case group_add: GroupAdd;
+        case add:       Add;
         case update:    Update;
         case delete:    Delete;
     };
 
     uint32 prior_epoch;
-    GroupInitKey init_key;
 
     uint32 signer_index;
     MerkleNode identity_proof<1..2^16-1>;
@@ -1130,7 +1047,7 @@ keys used to sign messages.  This integration will enable meaningful
 authentication (of identities, rather than keys), and will need to
 be done in such a way as to prevent unknown key share attacks. ]]
 
-[[ OPEN ISSUE: The GroupAdd and Delete operations create a "double-join"
+[[ OPEN ISSUE: The Add and Delete operations create a "double-join"
 situation, where a participants leaf key is also known to another
 participant.  When a participant A is double-joined to another B,
 deleting A will not remove them from the conversation, since they
@@ -1155,16 +1072,18 @@ including only itself, then adding the initial participants.  This
 has computation and communication complexity O(N log N) instead of
 the O(N) complexity of direct initialization. ]]
 
-## GroupAdd
+## Add
 
-A GroupAdd message is sent by a group member to add a new participant
+An Add message is sent by a group member to add a new participant
 to the group.
 
 ~~~~~
 struct {
     PublicKey ephemeral;
     DirectPath add_path<1..2^16-1>;
-} GroupAdd;
+    MerkleNode identity_frontier<0..2^16-1>;
+    TreeNode ratchet_frontier<0..2^16-1>;
+} Add;
 ~~~~~
 
 A group member generates this message using the following steps:
@@ -1178,18 +1097,19 @@ A group member generates this message using the following steps:
   direct path between the new leaf and the new root
 
 The public key of the ephemeral key pair is placed in the
-`ephemeral` field of the GroupAdd message.  The computed direct path
-is placed in the `add_path` field.
+`ephemeral` field of the Add message.  The computed direct path
+is placed in the `add_path` field.  The frontiers of the identity
+and ratchet trees before the addition of the new member are placed
+in the `identity_frontier` and `ratchet_frontier`.
 
 The new participant processes the message and the private key corresponding
 to the UserInitKey to initialize his state as follows:
 
 * Compute the participant's leaf secret by combining the init key in
   the UserInitKey with the prior epoch's add key pair
-* Use the frontiers in the GroupInitKey of the Handshake message to
-  add its keys to the trees
+* Use the frontiers to add its keys to the trees
 
-An existing participant receiving a GroupAdd message first verifies
+An existing participant receiving a Add message first verifies
 the signature on the message, then verifies its identity proof against
 the identity tree held by the participant. The participant then updates
 its state as follows:
@@ -1198,41 +1118,6 @@ its state as follows:
   key in the UserInitKey with the prior epoch add key pair
 * Update the group's identity tree and ratchet tree with the new
   participant's information
-
-The update secret resulting from this change is the output of a DH
-computation between the private key for the root of the ratchet tree
-and the add public key from the previous epoch.
-
-## UserAdd
-
-A UserAdd message is sent by a new group participant to add
-themself to the group, based on having already had access to a
-GroupInitKey for the group.
-
-~~~~~
-struct {
-    DirectPath add_path;
-} UserAdd;
-~~~~~
-
-A new participant generates this message using the following steps:
-
-* Fetch a GroupInitKey for the group
-* Use the frontiers in the GroupInitKey to add its keys to the trees
-* Compute the direct path from the new participant's leaf in the new
-  ratchet tree (the add\_path).
-
-An existing participant receiving a UserAdd first verifies the
-signature on the message, then verifies its identity inclusion proof
-against the updated identity tree expressed in the GroupInitKey of
-the Handshake message (since the signer is not included in the prior
-group state held by the existing participant).  The participant then
-updates its state as follows:
-
-* Update trees with the descriptions in the new GroupInitKey
-* Update the local ratchet tree with the information in the UserAdd
-  message, replacing any common nodes with the values in the add
-  path
 
 The update secret resulting from this change is the output of a DH
 computation between the private key for the root of the ratchet tree
