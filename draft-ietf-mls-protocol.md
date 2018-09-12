@@ -1530,7 +1530,6 @@ derivation:
                      |
                      V
            application_secret_[sender]_[N]
-
 ~~~~~
 
 The Application context provided together with the previous Application secret
