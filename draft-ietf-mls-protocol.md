@@ -992,7 +992,7 @@ update_secret -> HKDF-Extract = epoch_secret
                      |    Derive-Key-Pair(.) = add_key_pair
                      |
                      +--> Derive-Secret(., "app", ID, Epoch, Msg)
-                     |    = application_secret_[0]
+                     |    = application_secret
                      |
                      V
                Derive-Secret(., "init", ID, Epoch, Msg)
@@ -1500,13 +1500,13 @@ each Participant creates an initial Participant Application Secret
 to be used for its own sending chain:
 
 ~~~
-           application_secret_[0]
+           application_secret
                      |
                      V
            Derive-Secret(., "app upd", [sender])
                      |
                      V
-           application_secret_[1]
+           application_secret_[sender]_[0]
 ~~~
 
 Note that [sender] represent the uint32 value encoding the index
@@ -1518,18 +1518,18 @@ each participant's Application secret chain looks as follows after the initial
 derivation:
 
 ~~~~~
-           application_secret_[N-1]
+           application_secret_[sender]_[N-1]
                      |
                      +--> HKDF-Expand-Label(.,"nonce", "", nonce_length)
-                     |    = write_nonce_N-1
+                     |    = write_nonce_[sender]_[N-1]
                      |
                      +--> HKDF-Expand-Label(.,"key", "", key_length)
-                     |    = write_key_N-1
+                     |    = write_key_[sender]_[N-1]
                      V
            Derive-Secret(., "app upd","")
                      |
                      V
-           application_secret_[N]
+           application_secret_[sender]_[N]
 
 ~~~~~
 
