@@ -1503,7 +1503,7 @@ to be used for its own sending chain:
            application_secret
                      |
                      V
-           Derive-Secret(., "app upd", [sender])
+           Derive-Secret(., "app sender", [sender])
                      |
                      V
            application_secret_[sender]_[0]
