@@ -944,7 +944,7 @@ Update Secret -> HKDF-Extract = Epoch Secret
 
 In order to facilitate asynchronous addition of participants to a
 group, it is possible to pre-publish initialization keys that
-provide some public information about a user or group.  UserInitKey
+provide some public information about a user.  UserInitKey
 messages provide information about a potential group member, that a group member can use to
 add this user to a group asynchronously.
 
@@ -1098,7 +1098,9 @@ A group member generates this message using the following steps:
 
 The public key of the ephemeral key pair is placed in the
 `ephemeral` field of the Add message.  The computed direct path
-is placed in the `add_path` field.
+is placed in the `add_path` field.  The frontiers of the identity
+and ratchet trees before the addition of the new member are placed
+in the `identity_frontier` and `ratchet_frontier`.
 
 The new participant processes the message and the private key corresponding
 to the UserInitKey to initialize his state as follows:
