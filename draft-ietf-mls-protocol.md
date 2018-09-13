@@ -281,7 +281,7 @@ A              B              C          Directory            Channel
 
 Subsequent additions of group members proceed in the same way.  Any
 member of the group can download an InitKey for a new participant
-and broadcast an Add which the current group can use to update
+and broadcast an Add message that the current group can use to update
 their state and the new participant can use to initialize its state.
 
 To enforce forward secrecy and post-compromise security of messages,
@@ -312,12 +312,12 @@ A              B     ...      Z          Directory        Channel
 |              |              |              |              |
 ~~~~~
 
-Users are deleted from the group in a similar way, as an update
+Users are removed from the group in a similar way, as an update
 is effectively removing the old leaf from the group.
-Any member of the group can generate a Delete message that adds new
+Any member of the group can generate a Remove message that adds new
 entropy to the group state that is known to all members except the
-deleted member.  After other participants have processed this message,
-the group's secrets will be unknown to the deleted participant.
+removed member.  After other participants have processed this message,
+the group's secrets will be unknown to the removed participant.
 Note that this does not necessarily imply that any member
 is actually allowed to evict other members; groups can layer
 authentication-based access control policies on top of these
@@ -327,10 +327,10 @@ basic mechanism.
                                                           Group
 A              B     ...      Z          Directory       Channel
 |              |              |              |              |
-|              |              | Delete(B)    |              |
+|              |              | Remove(B)    |              |
 |              |              |---------------------------->|
 |              |              |              |              |
-|              |              |              | Delete(B)    |
+|              |              |              | Remove(B)    |
 |<----------------------------------------------------------|
 |state.del(B)  |              |<----------------------------|
 |              |              |state.del(B)  |              |
@@ -584,58 +584,6 @@ public-key encryption to the public key K of the secret value S):
 | pk(B)      |             |
 
 
-# Group State
-
-Each participant in the group maintains a representation of the
-state of the group:
-
-~~~~~
-struct GroupState {
-  opaque group_id<0..255>;
-  uint32 size;
-  uint32 epoch;
-  Credential roster<1..2^24-1>;
-  PublicKey tree<1..2^24-1>;
-  opaque transcript_hash<0..255>;
-}
-~~~~~
-
-The fields in this state have the following semantics:
-
-* The `group_id` field is an application-defined identifier for the
-  group.
-* The `size` field represents the total number of key-exchange slots
-  in the group, whether or not these slots are currently occupied.
-* The `epoch` field represents the current version of the group key.
-* The `roster` field contains credentials for the occupied slots in
-  the tree, including the identity and public key for the holder of
-  the slot.  The length of the `roster` vector MUST be equal to the
-  value of the `size` field; the n-th entry in the vector represents
-  the identity for the n-th slot, if any.
-* The `tree` field contains the public keys corresponding to the
-  nodes of the ratchet tree for this group.  The length of this
-  vector MUST be `2*size + 1`.
-
-When a new member is added to the group, an existing member of the
-group provides the new member with a Welcome message.  The Welcome
-message provides the information the new member needs to initialize
-its GroupState.
-
-Different group operations will have different effects on the group
-state.  These effects are described in their respective subsections
-of {{handshake-messages}}.  The following rules apply to all
-operations:
-
-* The `group_id` field is constant
-* The `epoch` field increments by one on each change
-* The `transcript_hash` is updated by a KeyExchange message
-  `key_exchange` in the following way (where H is the hash function
-  for the ciphersuite in use):
-
-~~~~~
-transcript_hash_{n+1} = H(transcript_hash_n || key_exchange)
-~~~~~
-
 ## Cryptographic Objects
 
 Each MLS session uses a single ciphersuite that specifies the
@@ -745,6 +693,91 @@ the corresponding ART ciphersuite.
 Encryption keys are derived from shared secrets by taking the first
 16 bytes of H(Z), where Z is the shared secret and H is SHA-256.
 
+## Credentials
+
+A member of a group authenticates the identities of other
+participants by means of credentials issued by some authentication
+system, e.g., a PKI.  Each type of credential MUST express the
+holder's identity as well as the public key of a signature key pair
+that the holder of the credential will use to sign MLS messages.
+Credentials MAY also include information that allows a relying party
+to verify the identity / signing key binding.
+
+~~~~~
+enum {
+    basic(0),
+    x509(1),
+    (255)
+} CertificateType;
+
+struct {
+    opaque identity<0..2^16-1>;
+    SignaturePublicKey public_key; 
+} BasicCredential;
+
+struct {
+    CredentialType credential_type;
+    select (credential_type) {
+        case basic: 
+            BasicCredential;
+
+        case x509:  
+            opaque cert_data<1..2^24-1>;
+    };
+} Credential;
+~~~~~
+
+## Group State
+
+Each participant in the group maintains a representation of the
+state of the group:
+
+~~~~~
+struct {
+  opaque group_id<0..255>;
+  uint32 epoch;
+  Credential roster<1..2^24-1>;
+  PublicKey tree<1..2^24-1>;
+  opaque transcript_hash<0..255>;
+} GroupState;
+~~~~~
+
+The fields in this state have the following semantics:
+
+* The `group_id` field is an application-defined identifier for the
+  group.
+* The `size` field represents the total number of key-exchange slots
+  in the group, whether or not these slots are currently occupied.
+* The `epoch` field represents the current version of the group key.
+* The `roster` field contains credentials for the occupied slots in
+  the tree, including the identity and public key for the holder of
+  the slot.
+* The `tree` field contains the public keys corresponding to the
+  nodes of the ratchet tree for this group.  The length of this
+  vector MUST be `2*size + 1`, where `size` is the length of the
+  roster, since this is the number of nodes in a tree with `size`
+  leaves, according to the structure described in {{ratchet-trees}}.
+
+When a new member is added to the group, an existing member of the
+group provides the new member with a Welcome message.  The Welcome
+message provides the information the new member needs to initialize
+its GroupState.
+
+Different group operations will have different effects on the group
+state.  These effects are described in their respective subsections
+of {{handshake-messages}}.  The following rules apply to all
+operations:
+
+* The `group_id` field is constant
+* The `epoch` field increments by one for each GroupOperation that
+  is processed
+* The `transcript_hash` is updated by a GroupOperation message
+  `operation` in the following way (where H is the hash function
+  for the ciphersuite in use):
+
+~~~~~
+transcript_hash_{n+1} = H(transcript_hash_{n} || operation)
+~~~~~
 
 ## Direct Paths
 
@@ -864,7 +897,7 @@ Update Secret -> HKDF-Extract = Epoch Secret
 
 In order to facilitate asynchronous addition of participants to a
 group, it is possible to pre-publish initialization keys that
-provide some public information about a user or group.  UserInitKey
+provide some public information about a user.  UserInitKey
 messages provide information about a potential group member, that a group member can use to
 add this user to a group asynchronously.
 
@@ -922,25 +955,24 @@ enum {
     init(0),
     add(1),
     update(2),
-    delete(3),
+    remove(3),
     (255)
-} KeyExchangeType;
+} GroupOperationType;
 
 struct {
     HandshakeType msg_type;
-    uint24 inner_length;
     select (Handshake.msg_type) {
         case init:      Init;
         case add:       Add;
         case update:    Update;
-        case delete:    Delete;
+        case remove:    Remove;
     };
-} KeyExchange;
+} GroupOperation;
 
 
 struct {
     uint32 prior_epoch;
-    KeyExchange key_exchange;
+    GroupOperation operation;
 
     uint32 signer_index;
     SignatureScheme algorithm;
@@ -1007,17 +1039,15 @@ needs to initialize a GroupState object that can be updated to the
 current state using the Add message:
 
 ~~~~~
-struct Welcome {
-  uint32 size;
+struct {
   opaque group_id<0..255>;
-  uint32 size;
   uint32 epoch;
   opaque init_secret<0..255>;
   opaque transcript_hash<0..255>;
   Credential roster<1..2^24-1>;
   PublicKey tree<1..2^24-1>;
   opaque leaf_secret<0..255>;
-}
+} Welcome;
 ~~~~~
 
 Since the new member is expected to process the Add message for
@@ -1029,6 +1059,11 @@ object.
 [[ OPEN ISSUE: The Welcome message needs to be sent encrypted for
 the new member.  This should be done using the public key in the
 UserInitKey, either with ECIES or X3DH. ]]
+
+[[ OPEN ISSUE: The Welcome message needs to be synchronized in the
+same way as the Add.  That is, the Welcome should be sent only if
+the Add succeeds, and is not in conflict with another, simultaneous
+Add. ]]
 
 An Add message provides existing group members with the information
 they need to update their GroupState with information about the new
@@ -1104,7 +1139,7 @@ participants from the group.
 
 ~~~~~
 struct {
-    uint32 deleted;
+    uint32 removed;
     DirectPath path;
 } Remove;
 ~~~~~
@@ -1113,7 +1148,7 @@ The sender of a Remove message generates it as as follows:
 
 * Generate a fresh leaf key pair
 * Compute its direct path in the current ratchet tree, starting from
-  the deleted leaf
+  the removed leaf
 
 An existing participant receiving a Remove message first verifies
 the signature on the message, then verifies its identity proof
@@ -1124,7 +1159,7 @@ then updates its state as follows:
   with the credential from the sender's slot (i.e., the sender of
   the Remove takes over the removed slot)
 * Update the cached ratchet tree by replacing nodes in the direct
-  path from the deleted leaf using the information in the Delete message
+  path from the removed leaf using the information in the Remove message
 
 The update secret resulting from this change is the secret for the
 root node of the ratchet tree after both updates.
@@ -1167,7 +1202,7 @@ more resilient regarding the concurrency of handshake messages.
 The Messaging system can decide to choose the order for applying
 the state changes. Note that there are certain cases (if no total ordering
 is applied by the Delivery Service) where the ordering is important
-for security, ie. all updates must be executed before deletes.
+for security, ie. all updates must be executed before removes.
 
 Regardless of how messages are kept in sequence, implementations
 MUST only update their cryptographic state when valid handshake messages
