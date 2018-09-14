@@ -1633,7 +1633,7 @@ this authentication scheme.]]
 
 [[ OPEN ISSUE: Currently, the group identifier, epoch and generation are
 contained as meta-data of the Signature. A different solution could be to
-include the GroupState instead, if more information is required to acheive
+include the GroupState instead, if more information is required to achieve
 the security goals regarding cross-group attacks. ]]
 
 [[ OPEN ISSUE: Should the padding be required for Handshake messages ?
