@@ -1535,11 +1535,9 @@ derivation:
 The Application context provided together with the previous Application secret
 is used to bind the Application messages with the next key and add some freshness.
 
-[[OPEN ISSUE: Context is left empty for now, it might be that using only
-the message counter is enough, this would be more convenient.
-Hashing all the data is obviously very costly and prevents from encrypt in
-parallel, an other solution could be to add a pseudo-random contribution to
-each message and only hash these. ]]
+[[OPEN ISSUE: The HKDF context field is left empty for now.
+A proper security study is needed to make sure that we do not need
+more information in the context to achieve the security goals.]]
 
 [[ OPEN ISSUE: At the moment there is no contributivity of Application secrets
 chained from the initial one to the next generation of Epoch secret. While this
@@ -1551,7 +1549,11 @@ affect the group init_secret, it remains to be proven correct. ]]
 The following rules apply to an Application Secret:
 
 - Senders MUST only use the Application Secret once and monotonically
-  increment the generation of their secret.
+  increment the generation of their secret. This is important to provide
+  Forward Secrecy at the level of Application messages. An attacker getting
+  hold of a Participant's Application Secret at generation [N+1] will not be
+  able to derive the Participant's Application Secret [N] nor the associated
+  AEAD key and nonce.
 
 - Receivers MUST delete an Application Secret once it has been used to
   derive the corresponding AEAD key and nonce as well as the next Application
@@ -1623,45 +1625,51 @@ The signature field allows strong authentication of messages:
 The signature used in the MLSPlaintext is computed over the MLSSignatureContent
 which covers the metadata information about the current state
 of the group (group identifier, epoch, generation and sender's Leaf index)
-to avoid Group participants to impersonate other participants and in order
-to prevent cross-group attacks.
+to prevent Group participants from impersonating other participants. It is also
+necessary in order to prevent cross-group attacks.
 
 [[ TODO: A preliminary formal security analysis has yet to be performed on
 this authentication scheme.]]
 
+[[ OPEN ISSUE: Currently, the group identifier, epoch and generation are
+contained as meta-data of the Signature. A different solution could be to
+include the GroupState instead, if more information is required to acheive
+the security goals regarding cross-group attacks. ]]
+
 [[ OPEN ISSUE: Should the padding be required for Handshake messages ?
-Can an adversary get more that the position of a participant in the tree
+Can an adversary get more than the position of a participant in the tree
 without padding ? Should the base ciphertext block length be negotiated or
-is is reasonable to allow leaking an interval for the length of the plaintext
+is is reasonable to allow to leak a range for the length of the plaintext
 by allowing to send a variable number of ciphertext blocks ? ]]
 
 Application messages SHOULD be padded to provide some resistance
 against traffic analysis techniques over encrypted traffic.
 {{?CLINIC=DOI.10.1007/978-3-319-08506-7_8}}
 {{?HCJ16=DOI.10.1186/s13635-016-0030-7}}
-While MLS might be less susceptible to serve the same payload multiple time across
+While MLS might deliver the same payload less frequently across
 a lot of ciphertexts than traditional web servers, it might still provide
 the attacker enough information to mount an attack. If Alice asks Bob:
 "When are we going to the movie ?" the answer "Wednesday" might be leaked
-by the ciphertext length to an adversary expecting Alice to provide Bob
-with a day of the week at some point in their discussion.
+to an adversary by the ciphertext length. An attacker expecting Alice to
+answer Bob with a day of the week might find out the plaintext by
+correlation between the question and the length.
 
-Similarly to TLS 1.3, if padding is used, the MLS messages MUST be padded
-before AEAD encryption with zero-valued bytes. Upon AEAD decryption,
+Similarly to TLS 1.3, if padding is used, the MLS messages MUST be
+padded with zero-valued bytes before AEAD encryption. Upon AEAD decryption,
 the length field of the plaintext is used to compute the number of bytes
 to be removed from the plaintext to get the correct data.
 As the padding mechanism is used to improve protection against traffic
 analysis, removal of the padding SHOULD be implemented in a "constant-time"
-manner at the MLS layer and above to prevent timing side-channels that
+manner at the MLS layer and above layers to prevent timing side-channels that
 would provide attackers with information on the size of the plaintext.
 
 ### Delayed and Reordered Application messages
 
 Since each Application message contains the Group identifier, the epoch and a
 message counter, a participant can receive messages out of order.
-Participants can decrypt these messages if they are able to retrieve
-or recompute the correct AEAD decryption key from currently stored
-cryptographic material.
+If they are able to retrieve or recompute the correct AEAD decryption key
+from currently stored cryptographic material participants can decrypt
+these messages.
 
 For usability, MLS Participants might be required to keep the AEAD key
 and nonce for a certain amount of time to retain the ability to decrypt
