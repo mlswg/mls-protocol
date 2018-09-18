@@ -712,16 +712,16 @@ enum {
 
 struct {
     opaque identity<0..2^16-1>;
-    SignaturePublicKey public_key; 
+    SignaturePublicKey public_key;
 } BasicCredential;
 
 struct {
     CredentialType credential_type;
     select (credential_type) {
-        case basic: 
+        case basic:
             BasicCredential;
 
-        case x509:  
+        case x509:
             opaque cert_data<1..2^24-1>;
     };
 } Credential;
@@ -738,7 +738,7 @@ struct {
   uint32 epoch;
   Credential roster<1..2^24-1>;
   PublicKey tree<1..2^24-1>;
-  opaque transcript_hash<0..255>;
+  GroupOperation transcript<0..255>;
 } GroupState;
 ~~~~~
 
@@ -771,13 +771,8 @@ operations:
 * The `group_id` field is constant
 * The `epoch` field increments by one for each GroupOperation that
   is processed
-* The `transcript_hash` is updated by a GroupOperation message
-  `operation` in the following way (where H is the hash function
-  for the ciphersuite in use):
-
-~~~~~
-transcript_hash_{n+1} = H(transcript_hash_{n} || operation)
-~~~~~
+* The `transcript` is updated by a GroupOperation message
+  `operation` by appending `operation` to `transcript`
 
 ## Direct Paths
 
@@ -960,15 +955,14 @@ enum {
 } GroupOperationType;
 
 struct {
-    HandshakeType msg_type;
-    select (Handshake.msg_type) {
+    GroupOperationType msg_type;
+    select (GroupOperation.msg_type) {
         case init:      Init;
         case add:       Add;
         case update:    Update;
         case remove:    Remove;
     };
 } GroupOperation;
-
 
 struct {
     uint32 prior_epoch;
@@ -1042,10 +1036,10 @@ current state using the Add message:
 struct {
   opaque group_id<0..255>;
   uint32 epoch;
-  opaque init_secret<0..255>;
-  opaque transcript_hash<0..255>;
   Credential roster<1..2^24-1>;
   PublicKey tree<1..2^24-1>;
+  GroupOperation transcript<0..255>;
+  opaque init_secret<0..255>;
   opaque leaf_secret<0..255>;
 } Welcome;
 ~~~~~
@@ -1071,7 +1065,7 @@ member:
 
 ~~~~~
 struct {
-    DirectPath add_path<1..2^16-1>;
+    DirectPath path<1..2^16-1>;
     UserInitKey init_key;
 } Add;
 ~~~~~
@@ -1113,7 +1107,7 @@ regard to the participant's prior leaf private key.
 
 ~~~~~
 struct {
-    DirectPath update_path;
+    DirectPath path;
 } Update;
 ~~~~~
 
