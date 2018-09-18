@@ -140,23 +140,29 @@ RFC EDITOR PLEASE DELETE THIS SECTION.
 
 draft-01
 
-- Initial description of the Message Protection mechanism. (*)
+- Initial description of the Message Protection mechanism. (\*)
 
 - Initial specification proposal for the Application Key Schedule
-  using the per-participant chaining of the Application Secret design. (*)
+  using the per-participant chaining of the Application Secret design. (\*)
 
 - Initial specification proposal for an encryption mechanism to protect
-  Application Messages using an AEAD scheme. (*)
+  Application Messages using an AEAD scheme. (\*)
 
 - Initial specification proposal for an authentication mechanism
-  of Application Messages using signatures. (*)
+  of Application Messages using signatures. (\*)
 
 - Initial specification proposal for a padding mechanism to improving
-  protection of Application Messages against traffic analysis. (*)
+  protection of Application Messages against traffic analysis. (\*)
 
 - Inversion of the Group Init Add and Application Secret derivations
   in the Handshake Key Schedule to be ease chaining in case we switch
-  design. (*)
+  design. (\*)
+
+- Removal of the UserAdd construct and split of GroupAdd into Add
+  and Welcome messages (\*)
+
+- Initial proposal for authenticating Handshake messages by signing
+  over group state and including group state in the key schedule (\*)
 
 draft-00
 
