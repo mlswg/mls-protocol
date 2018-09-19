@@ -158,6 +158,8 @@ draft-01
   in the Handshake Key Schedule to be ease chaining in case we switch
   design. (*)
 
+- Added an appendix with example code for tree math
+
 draft-00
 
 - Initial adoption of draft-barnes-mls-protocol-01 as a WG item.
@@ -1657,3 +1659,162 @@ TODO: Registries for protocol parameters, e.g., ciphersuites
 * Thyla van der Merwe \\
   Royal Holloway, University of London \\
   thyla.van.der@merwe.tech
+
+--- back
+
+# Tree Math
+
+One benefit of using left-balanced trees is that they admit a simple
+flat array representation.  In this representation, leaf nodes are
+even-numbered nodes, with the n-th leaf at 2\*n.  Intermediate nodes
+are held in odd-numbered nodes.  For example, a 11-element tree has
+the following structure:
+
+~~~~~
+                                             X
+                     X
+         X                       X                       X
+   X           X           X           X           X
+X     X     X     X     X     X     X     X     X     X     X
+0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20
+~~~~~
+
+This allows us to compute relationships between tree nodes simply by
+manipulating indices, rather than having to maintain complicated
+structures in memory, even for partial trees. The basic
+rule is that the high-order bits of parent and child nodes have the
+following relation (where `x` is an arbitrary bit string):
+
+~~~
+parent=01x => left=00x, right=10x
+~~~
+
+The following python code demonstrates the tree computations
+necessary for MLS.  Test vectors can be derived from the diagram
+above.
+
+~~~~~
+# The largest power of 2 less than n.  Equivalent to:
+#   int(math.floor(math.log(x, 2)))
+def log2(x):
+    if x == 0:
+        return 0
+
+    k = 0
+    while (x >> k) > 0:
+        k += 1
+    return k-1
+
+# The level of a node in the tree.  Leaves are level 0, their
+# parents are level 1, etc.  If a node's children are at different
+# level, then its level is the max level of its children plus one.
+def level(x):
+    if x & 0x01 == 0:
+        return 0
+
+    k = 0
+    while ((x >> k) & 0x01) == 1:
+        k += 1
+    return k
+
+# The number of nodes needed to represent a tree with n leaves
+def node_width(n):
+    return 2*(n - 1) + 1
+
+# The index of the root node of a tree with n leaves
+def root(n):
+    w = node_width(n)
+    return (1 << log2(w)) - 1
+
+# The left child of an intermediate node.  Note that because the
+# tree is left-balanced, there is no dependency on the size of the
+# tree.  The child of a leaf node is itself.
+def left(x):
+    k = level(x)
+    if k == 0:
+        return x
+
+    return x ^ (0x01 << (k - 1))
+
+# The right child of an intermediate node.  Depends on the size of
+# the tree because the straightforward calculation can take you
+# beyond the edge of the tree.  The child of a leaf node is itself.
+def right(x, n):
+    k = level(x)
+    if k == 0:
+        return x
+
+    r = x ^ (0x03 << (k - 1))
+    while r >= node_width(n):
+        r = left(r)
+    return r
+
+# The immediate parent of a node.  May be beyond the right edge of
+# the tree.
+def parent_step(x):
+    k = level(x)
+    b = (x >> (k + 1)) & 0x01
+    return (x | (1 << k)) ^ (b << (k + 1))
+
+# The parent of a node.  As with the right child calculation, have
+# to walk back until the parent is within the range of the tree.
+def parent(x, n):
+    if x == root(n):
+        return x
+
+    p = parent_step(x)
+    while p >= node_width(n):
+        p = parent_step(p)
+    return p
+
+# The other child of the node's parent.  Root's sibling is itself.
+def sibling(x, n):
+    p = parent(x, n)
+    if x < p:
+        return right(p, n)
+    elif x > p:
+        return left(p)
+
+    return p
+
+# The direct path from a node to the root, ordered from the root
+# down, not including the root or the terminal node
+def direct_path(x, n):
+    d = []
+    p = parent(x, n)
+    r = root(n)
+    while p != r:
+        d.append(p)
+        p = parent(p, n)
+    return d
+
+# The copath of the node is the siblings of the nodes on its direct
+# path (including the node itself)
+def copath(x, n):
+    d = dirpath(x, n)
+    if x != sibling(x, n):
+        d.append(x)
+
+    return [sibling(y, n) for y in d]
+
+# Frontier is is the list of full subtrees, from left to right.  A
+# balance binary tree with n leaves has a full subtree for every
+# power of two where n has a bit set, with the largest subtrees
+# furthest to the left.  For example, a tree with 11 leaves has full
+# subtrees of size 8, 2, and 1.
+def frontier(n):
+    st = [1 << k for k in range(log2(n) + 1) if n & (1 << k) != 0]
+    st = reversed(st)
+
+    base = 0
+    f = []
+    for size in st:
+        f.append(root(size) + base)
+        base += 2*size
+    return f
+
+# Leaves are in even-numbered nodes
+def leaves(n):
+    return [2*i for i in range(n)]
+
+~~~~~
