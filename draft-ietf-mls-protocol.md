@@ -831,13 +831,8 @@ struct {
 } ECIESCiphertext;
 
 struct {
-    DHPublicKey public_key;
-    ECIESCiphertext ciphertext;
-} TreeKEMNode;
-
-struct {
-  DHPublicKey leaf;
-  TreeKEMNode intermediates<0..2^16-1>;
+  DHPublicKey nodes<0..2^16-1>;
+  ECIESCiphertext node\_secrets<0..2^16-1>;
 } TreeKEMPath;
 
 struct {
@@ -847,6 +842,12 @@ struct {
     };
 } DirectPath;
 ~~~~~
+
+Note that in TreeKEM, the length of the `node\_secrets` vector MUST
+be exactly one less than the length of the `nodes` vector, since the
+secret value for the leaf node is not encrypted.  For `i > 0`,
+`node_secrets[i-1]` has the encrypted node secret corresponding to
+the public key in `nodes[i]`.
 
 When using TreeKEM, the ECIESCiphertext values encoding the
 encrypted secret values are computed as follows:
