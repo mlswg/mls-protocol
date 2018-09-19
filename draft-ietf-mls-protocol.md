@@ -1704,7 +1704,7 @@ def log2(x):
     return k-1
 
 # The level of a node in the tree.  Leaves are level 0, their
-# parents are level 1, etc.  If a nodes children are at different
+# parents are level 1, etc.  If a node's children are at different
 # level, then its level is the max level of its children plus one.
 def level(x):
     if x & 0x01 == 0:
@@ -1765,7 +1765,7 @@ def parent(x, n):
         p = parent_step(p)
     return p
 
-# The other child of the node's parent.  Root's sibling is itself. 
+# The other child of the node's parent.  Root's sibling is itself.
 def sibling(x, n):
     p = parent(x, n)
     if x < p:
@@ -1803,7 +1803,7 @@ def copath(x, n):
 def frontier(n):
     st = [1 << k for k in range(log2(n) + 1) if n & (1 << k) != 0]
     st = reversed(st)
-    
+
     base = 0
     f = []
     for size in st:
