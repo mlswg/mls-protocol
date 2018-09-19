@@ -741,7 +741,7 @@ enum {
     basic(0),
     x509(1),
     (255)
-} CertificateType;
+} CredentialType;
 
 struct {
     opaque identity<0..2^16-1>;
@@ -769,9 +769,9 @@ state of the group:
 struct {
   opaque group_id<0..255>;
   uint32 epoch;
-  Credential roster<1..2^24-1>;
-  PublicKey tree<1..2^24-1>;
-  GroupOperation transcript<0..255>;
+  Credential roster<1..2^32-1>;
+  PublicKey tree<1..2^32-1>;
+  GroupOperation transcript<0..2^32-1>;
 } GroupState;
 ~~~~~
 
@@ -779,17 +779,17 @@ The fields in this state have the following semantics:
 
 * The `group_id` field is an application-defined identifier for the
   group.
-* The `size` field represents the total number of key-exchange slots
-  in the group, whether or not these slots are currently occupied.
 * The `epoch` field represents the current version of the group key.
 * The `roster` field contains credentials for the occupied slots in
-  the tree, including the identity and public key for the holder of
-  the slot.
+  the tree, including the identity and signature public key for the
+  holder of the slot.
 * The `tree` field contains the public keys corresponding to the
   nodes of the ratchet tree for this group.  The length of this
   vector MUST be `2*size + 1`, where `size` is the length of the
   roster, since this is the number of nodes in a tree with `size`
   leaves, according to the structure described in {{ratchet-trees}}.
+* The `transcript` field contains the list of `GroupOperation`
+  messages that led to this state.
 
 When a new member is added to the group, an existing member of the
 group provides the new member with a Welcome message.  The Welcome
@@ -1012,7 +1012,7 @@ follows:
 1. Verify that the `prior_epoch` field of the Handshake message
    is equal the `epoch` field of the current GroupState object.
 
-2. Use the `key_exchange` message to produce an updated GroupState
+2. Use the `operation` message to produce an updated GroupState
    object incorporating the proposed changes.
 
 3. Look up the public key for slot index `signer_index` from the
@@ -1021,7 +1021,7 @@ follows:
 4. Use that public key to verify the `signature` field in the
    Handshake message, with the updated GroupState object as input.
 
-5. If the signature fails to verify, discared the updated GroupState
+5. If the signature fails to verify, discard the updated GroupState
    object and consider the Handshake message invalid.
 
 6. If the signature verifies successfully, consider the updated
@@ -1068,9 +1068,9 @@ current state using the Add message:
 struct {
   opaque group_id<0..255>;
   uint32 epoch;
-  Credential roster<1..2^24-1>;
-  PublicKey tree<1..2^24-1>;
-  GroupOperation transcript<0..255>;
+  Credential roster<1..2^32-1>;
+  PublicKey tree<1..2^32-1>;
+  GroupOperation transcript<0..2^32-1>;
   opaque init_secret<0..255>;
   opaque leaf_secret<0..255>;
 } Welcome;
@@ -1123,7 +1123,8 @@ An existing participant receiving a Add message first verifies
 the signature on the message,  then updates its state as follows:
 
 * Increment the size of the group
-* Verify the signature on the included UserInitKey
+* Verify the signature on the included UserInitKey; if the signature
+  verification fails, abort
 * Append an entry to the roster containing the credential in the
   included UserInitKey
 * Update the ratchet tree with the included direct path
