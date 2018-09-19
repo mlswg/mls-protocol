@@ -1,7 +1,7 @@
 ---
 title: The Messaging Layer Security (MLS) Protocol
 abbrev: MLS
-docname: draft-barnes-mls-protocol-latest
+docname: draft-ietf-mls-protocol-latest
 category: info
 
 ipr: trust200902
@@ -97,7 +97,7 @@ for building production systems.
 
 RFC EDITOR: PLEASE REMOVE THE FOLLOWING PARAGRAPH The source for
 this draft is maintained in GitHub. Suggested changes should be
-submitted as pull requests at https://github.com/ekr/mls-protocol.
+submitted as pull requests at https://github.com/mlswg/mls-protocol.
 Instructions are on that page as well. Editorial changes can be
 managed in GitHub, but any substantive change should be discussed on
 the MLS mailing list.
@@ -126,12 +126,41 @@ size of the group.
 
 In this document, we describe a protocol based on tree structures
 that enable asynchronous group keying with forward secrecy and
-post-compromise security.  The use of "asynchronous ratcheting
-trees" {{art}} allows the members of the group to derive and update
+post-compromise security.  This document describes two candidate approaches, one
+using "asynchronous ratcheting trees" {{art}}, the other using an
+asynchronous key-encapsulation mechanism for tree structures called TreeKEM.
+Both mechanisms allow the members of the group to derive and update
 shared keys with costs that scale as the log of the group size.  The
 use of Merkle trees to store identity information allows strong
 authentication of group membership, again with logarithmic cost.
 
+##  Change Log
+
+RFC EDITOR PLEASE DELETE THIS SECTION.
+
+draft-01
+
+- Initial description of the Message Protection mechanism. (*)
+
+- Initial specification proposal for the Application Key Schedule
+  using the per-participant chaining of the Application Secret design. (*)
+
+- Initial specification proposal for an encryption mechanism to protect
+  Application Messages using an AEAD scheme. (*)
+
+- Initial specification proposal for an authentication mechanism
+  of Application Messages using signatures. (*)
+
+- Initial specification proposal for a padding mechanism to improving
+  protection of Application Messages against traffic analysis. (*)
+
+- Inversion of the Group Init Add and Application Secret derivations
+  in the Handshake Key Schedule to be ease chaining in case we switch
+  design. (*)
+
+draft-00
+
+- Initial adoption of draft-barnes-mls-protocol-01 as a WG item.
 
 # Terminology
 
@@ -158,8 +187,8 @@ Member:
 
 Initialization Key:
 : A short-lived Diffie-Hellman key pair used to introduce a new
-  member to a group.  Initialization keys can be published for both
-  individual participants (UserInitKey) and groups (GroupInitKey).
+  member to a group.  Initialization keys are published for
+  individual participants (UserInitKey).
 
 Leaf Key:
 : A short-lived Diffie-Hellman key pair that represents a group
@@ -173,14 +202,14 @@ Identity Key:
 Terminology specific to tree computations is described in
 {{binary-trees}}.
 
-We use the TLS presentation language {{!I-D.ietf-tls-tls13}} to
+We use the TLS presentation language {{!RFC8446}} to
 describe the structure of protocol messages.
 
 
 # Basic Assumptions
 
 This protocol is designed to execute in the context of a Messaging Service (MS)
-as described in [I-D.omara-mls-architecture].  In particular, we assume
+as described in [I-D.ietf-mls-architecture].  In particular, we assume
 the MS provides the following services:
 
 * A long-term identity key provider which allows participants to authenticate
@@ -200,7 +229,7 @@ the MS provides the following services:
 # Protocol Overview
 
 The goal of this protocol is to allow a group of participants to exchange confidential and
-authenticated messages. It does so by deriving a sequence of keys known only to group members. Keys
+authenticated messages. It does so by deriving a sequence of secrets and keys known only to group members. Those
 should be secret against an active network adversary and should have both forward and
 post-compromise secrecy with respect to compromise of a participant.
 
@@ -208,7 +237,7 @@ We describe the information stored by each participant as a _state_, which inclu
 private data. An initial state, including an initial set of participants, is set up by a group
 creator using the _Init_ algorithm and based on information pre-published by the initial members. The creator
 sends the _GroupInit_ message to the participants, who can then set up their own group state and derive
-the same shared key. Participants then exchange messages to produce new shared states which are
+the same shared secret. Participants then exchange messages to produce new shared states which are
 causally linked to their predecessors, forming a logical Directed Acyclic Graph (DAG) of states.
 Participants can send _Update_ messages for post-compromise secrecy and new participants can be
 added or existing participants removed from the group.
@@ -218,10 +247,10 @@ performs the operation and (ii) how other participants update their state based 
 
 There are four major operations in the lifecycle of a group:
 
-* Adding a member, initiated by a current member
-* Adding a member, initiated by the new member
-* Key update
-* Removal of a member
+* Adding a member, initiated by a current member;
+* Adding a member, initiated by the new member;
+* Updating the leaf secret of a member;
+* Removing a member.
 
 Before the initialization of a group, participants publish
 UserInitKey objects to a directory provided to the Messaging Service.
@@ -243,11 +272,11 @@ A              B              C          Directory       Channel
 
 When a participant A wants to establish a group with B and C, it
 first downloads InitKeys for B and C.  It then initializes a group state
-containing only itself and uses the InitKeys to compute GroupAdd messages
+containing only itself and uses the InitKeys to compute Add messages
 to add B and C, in a sequence chosen by A.
 These messages are broadcasted to the Group, and processed in sequence
 by B and C.  Messages received before a participant has joined the
-group are ignored.  Only after A has received its GroupAdd messages
+group are ignored.  Only after A has received its Add messages
 back from the server does it update its state to reflect their addition.
 
 
@@ -258,18 +287,18 @@ A              B              C          Directory            Channel
 |         UserInitKeyB, UserInitKeyC         |                   |
 |<-------------------------------------------|                   |
 |              |              |              |                   |
-|              |              |              | GroupAdd(A->AB)   |
+|              |              |              | Add(A->AB)        |
 |--------------------------------------------------------------->|
 |              |              |              |                   |
-|              |              |              | GroupAdd(AB->ABC) |
+|              |              |              | Add(AB->ABC)      |
 |--------------------------------------------------------------->|
 |              |              |              |                   |
-|              |              |              | GroupAdd(A->AB)   |
+|              |              |              | Add(A->AB)        |
 |<---------------------------------------------------------------|
 |state.add(B)  |<------------------------------------------------|
 |              |state.init()  |x---------------------------------|
 |              |              |              |                   |
-|              |              |              | GroupAdd(AB->ABC) |
+|              |              |              | Add(AB->ABC)      |
 |<---------------------------------------------------------------|
 |state.add(C)  |<------------------------------------------------|
 |              |state.add(C)  |<---------------------------------|
@@ -279,53 +308,17 @@ A              B              C          Directory            Channel
 
 Subsequent additions of group members proceed in the same way.  Any
 member of the group can download an InitKey for a new participant
-and broadcast a GroupAdd which the current group can use to update
+and broadcast an Add which the current group can use to update
 their state and the new participant can use to initialize its state.
 
-It is sometimes necessary for a new participant to join without
-an explicit invitation from a current member.  For example, if a
-user that is authorized to be in the group logs in on a new device,
-that device will need to join the group as a new participant, but
-will not have been invited.
-
-In these "user-initiated join" cases, the "InitKey + Add message"
-flow is reversed.  We assume that at some previous point, a group
-member has published a GroupInitKey reflecting the current state of
-the group (A, B, C).  The new participant Z downloads that
-GroupInitKey from the directory, generates a UserAdd message, and
-broadcasts it to the group.  Once current members process this
-message, they will have a shared state that also includes Z.
-
-~~~~~
-                                                          Group
-A              B     ...      Z          Directory       Channel
-| GroupInitKey |              |              |              |
-|------------------------------------------->|              |
-|              |              |              |              |
-~              ~              ~              ~              ~
-|              |              |              |              |
-|              |              | GroupInitKey |              |
-|              |              |<-------------|              |
-|              |              |              |              |
-|              |              | UserAdd(.->D)|              |
-|              |              |---------------------------->|
-|              |              |              |              |
-|              |              |              | UserAdd(.->D)|
-|<----------------------------------------------------------|
-|state.add(D)  |<-------------------------------------------|
-|              |state.add(D)  |<----------------------------|
-|              |              |state.init()  |              |
-|              |              |              |              |
-~~~~~
-
 To enforce forward secrecy and post-compromise security of messages,
-each participant periodically updates its leaf key, the DH key pair that
-represents its contribution to the group key.  Any member of the
-group can send an Update at any time by generating a fresh leaf key
-pair and sending an Update message that describes how to update the
-group key with that new key pair.  Once all participants have
+each participant periodically updates its leaf secret which represents
+its contribution to the group secret.  Any member of the
+group can send an Update at any time by generating fresh leaf secret and keys
+and send an Update message that describes how to update the
+group secret with that new information.  Once all participants have
 processed this message, the group's secrets will be unknown to an
-attacker that had compromised the sender's prior DH leaf private key.
+attacker that had compromised the sender's prior leaf secret.
 
 It is left to the application to determine the interval of time between
 Update messages. This policy could require a change for each message, or
@@ -340,13 +333,13 @@ A              B     ...      Z          Directory        Channel
 |              |              |              |              |
 |              |              |              | Update(A)    |
 |<----------------------------------------------------------|
-|state.upd(D)  |<-------------------------------------------|
-|              |state.upd(D)  |<----------------------------|
+|state.upd(A)  |<-------------------------------------------|
+|              |state.upd(A)  |<----------------------------|
 |              |              |state.upd(A)  |              |
 |              |              |              |              |
 ~~~~~
 
-Users are deleted from the group in a similar way, as a key update
+Users are deleted from the group in a similar way, as an update
 is effectively removing the old leaf from the group.
 Any member of the group can generate a Delete message that adds new
 entropy to the group state that is known to all members except the
@@ -378,7 +371,7 @@ A              B     ...      Z          Directory       Channel
 The protocol uses two types of binary tree structures:
 
   * Merkle trees for efficiently committing to a set of group participants.
-  * Asynchronous ratcheting trees for deriving shared secrets among this group of
+  * Ratchet trees for deriving shared secrets among this group of
     participants.
 
 The two trees in the protocol share a common structure, allowing us to maintain
@@ -391,7 +384,7 @@ We use a common set of terminology to refer to both types of binary tree.
 
 Trees consist of various different types of _nodes_. A node is a
 _leaf_ if it has no children, and a _parent_ otherwise; note that all
-parents in our Merkle or asynchronous ratcheting trees have precisely
+parents in our Merkle or ratchet trees have precisely
 two children, a _left_ child and a _right_ child. A node is the _root_
 of a tree if it has no parents, and _intermediate_ if it has both
 children and parents. The _descendants_ of a node are that node, its
@@ -443,7 +436,7 @@ For example, in the below tree:
    /      \        /     \
   AB      CD      EF      \
  /  \    /  \    /  \      \
-A    B  C    D  E    F     G
+A    B  C    D  E    F      G
 ~~~~~
 
 We extend both types of tree to include a concept of "blank" nodes;
@@ -500,30 +493,42 @@ A   B*    C    D
 
 ## Ratchet Trees
 
-Ratchet trees are used for generating shared group secrets. These are
-constructed as a series of Diffie-Hellman keys in a binary tree arrangement,
-with each user knowing their direct path, and thus being able to compute the
-shared root secret.
+Ratchet trees are used for generating shared group secrets. In this
+section, we describe the structure of a ratchet tree, along with two
+ways to manage a ratchet tree, called ART and TreeKEM.
 
 To construct these trees, we require:
 
-* a Diffie-Hellman finite-field group or elliptic curve;
-* a Derive-Key-Pair function that produces a key pair from an octet
-  string, such as the output of a DH computation
+* A Diffie-Hellman finite-field group or elliptic curve
+* A Derive-Key-Pair function that produces a key pair from
+  an octet string
+* A hash function (TreeKEM only)
 
-Each node in a ratchet tree contains up to three values:
+A ratchet tree is a left-balanced binary tree, in which each node
+contains up to three values:
 
 * A secret octet string (optional)
-* A DH private key (optional)
-* A DH public key
+* An asymmetric private key (optional)
+* An asymmetric public key
 
-To compute the private values (secret and private key) for a given
-node, one must first know the private key from one of its children,
-and the public key from the other child.  Then the value of the
-parent is computed as follows:
+The private key and public key for a node are derived from its
+secret value using the Derive-Key-Pair operation.
 
-* secret = DH(L, R)
-* private, public = Derive-Key-Pair(secret)
+The relationships between nodes are different for ART and TreeKEM.
+In either case, the ratchet tree structure ensures the following
+property: A party can compute the secret value for the root of the
+tree if and only if that party holds the secret value for another
+node lower in the tree (together with public information).  Each
+participant holds one leaf secret; each participant can update the
+root secret by changing their leaf secret.
+
+### Ratchet Trees for ART
+
+In ART the contents of a parent node are computed from its children
+as follows:
+
+* parent_secret = DH(left_child, right_child)
+* parent_private, parent_public = Derive-Key-Pair(parent_secret)
 
 Ratchet trees are constructed as left-balanced trees, defined such that each
 parent node's key pair is derived from the Diffie-Hellman shared secret of its
@@ -541,11 +546,105 @@ DH(DH(AB), DH(CD))
 A    B    C    D
 ~~~~~
 
-Ratchet trees constructed this way provide the property that one must hold at
-least one private key from the tree to compute the secret root key. With all
-participants holding one leaf private key; this allows any individual to update
-their own key and change the shared root key, such that only group members can
-compute the new key.
+### Ratchet Trees for TreeKEM
+
+In TreeKEM, the contents of a parent node are computed from one of
+its children as follows:
+
+* parent_secret = Hash(child_secret)
+* parent_private, parent_public = Derive-Key-Pair(parent_secret)
+
+The contents of the parent are based on the latest-updated child.
+For example, if participants with leaf secrets A, B, C, and D join a
+group in that order, then the resulting tree will have the following
+structure:
+
+~~~~~
+     H(H(D))
+    /       \
+ H(B)       H(D)
+ /  \       /  \
+A    B     C    D
+~~~~~
+
+If the first participant subsequently changes its leaf secret to be
+X, then the tree will have the following structure.
+
+~~~~~
+     H(H(X))
+    /       \
+ H(X)       H(D)
+ /  \       /  \
+X    B     C    D
+~~~~~
+
+### Ratchet Tree Updates
+
+In order to update the state of the group such as adding and
+removing participants, MLS messages are used to make changes to the
+group's ratchet tree.  While the details of update processing differ
+between ART and TreeKEM (as described below), in both cases the
+participant proposing an update to the tree transmits a
+representation of a set of tree nodes along the direct path from a
+leaf to the root. Other participants in the group can use these
+nodes to update their view of the tree, aligning their copy of the
+tree to the sender's.
+
+In ART, the transmitted nodes are represented by their public keys.
+Receivers process an update with the following steps:
+
+1. Replace the public keys in the cached tree with the received
+   values
+2. Whenever a public key is updated for a node whose sibling has a
+   private key populated:
+   * Perform a DH operation and update the node's parent
+   * Repeat the prior step until reaching the root
+
+In TreeKEM, the sender transmits a node by sending the public key
+for the node and an encrypted version of the secret value for the
+node.  The secret value is encrypted in such a way that it can be
+decrypted only by holders of the private key for one of its
+children, namely the child that is not in the direct path being
+transmitted.  (That is, each node in the direct path is encrypted
+for holders of the private key for a node in the corresponding
+copath.) For leaf nodes, no encrypted secret is transmitted.
+
+A TreeKEM update is processed with the following steps:
+
+1. Compute the updated secret values
+  * Identify a node in the direct path for which the local participant
+    has the private key
+  * Decrypt the secret value for that node
+  * Compute secret values for ancestors of that node by hashing the
+    decrypted secret
+2. Merge the updated secrets into the tree
+  * Replace the public keys for nodes on the direct path with the
+    received public keys
+  * For nodes where an updated secret was computed in step 1,
+    replace the secret value for the node with the updated value
+
+For example, suppose we had the following tree:
+
+~~~~~
+      G
+    /   \
+   /     \
+  E       F
+ / \     / \
+A   B   C   D
+~~~~~
+
+If an update is made along the direct path B-E-G, then the following
+values will be transmitted (using pk(X) to represent the public key
+corresponding to the secret value X and E(K, S) to represent
+public-key encryption to the public key K of the secret value S):
+
+| Public Key | Ciphertext  |
+|:-----------|:------------|
+| pk(G)      | E(pk(F), G) |
+| pk(E)      | E(pk(A), E) |
+| pk(B)      |             |
+
 
 ### Blank Ratchet Tree Nodes
 
@@ -555,7 +654,7 @@ leaves when participants are deleted from the group.
 
 If any node in the copath of a leaf is \_, it should be ignored during the
 computation of the path. For example, the tree consisting of the private
-keys (A, _, C, D) is constructed as follows:
+keys (A, \_, C, D) is constructed as follows for ART:
 
 ~~~~~
   DH(A, DH(CD))
@@ -564,6 +663,20 @@ keys (A, _, C, D) is constructed as follows:
  / \      /  \
 A   _    C    D
 ~~~~~
+
+Replacing a node by \_ in TreeKEM, means performing an update on any leaf
+without sending the new key to the the blanked leaf.
+In the following example, participant A update its key to A' and derive the new
+sequence of keys up-to the path. Here A only send H(H(A')) to the parent
+node of C and D but does not send H(A') to B which evicts it from the Group.
+
+~~~
+    H(H(A'))
+    /    \
+ H(A')    H(C)
+  / \    /  \
+ A'  _  C    D
+~~~
 
 If two sibling nodes are both \_, their parent value also becomes \_.
 
@@ -615,10 +728,11 @@ following primitives to be used in group key computations:
 
 * A hash function
 * A Diffie-Hellman finite-field group or elliptic curve
+* An AEAD encryption algorithm (TreeKEM only) {{!RFC5116}}
 
 The ciphersuite must also specify an algorithm `Derive-Key-Pair`
 that maps octet strings with the same length as the output of the
-hash function to key pairs for the Diffie-Hellman group.
+hash function to key pairs for the asymmetric encryption scheme.
 
 Public keys and Merkle tree nodes used in the protocol are opaque values
 in a format defined by the ciphersuite, using the following four types:
@@ -635,12 +749,13 @@ we sign and in others we may want to include an identity or a
 certificate containing the key. This type needs to be extended
 to accommodate that.]]
 
-### Curve25519 with SHA-256
+### ART with Curve25519 and SHA-256
 
 This ciphersuite uses the following primitives:
 
 * Hash function: SHA-256
 * Diffie-Hellman group: Curve25519 {{!RFC7748}}
+* AEAD: N/A
 
 Given an octet string X, the private key produced by the
 Derive-Key-Pair operation is SHA-256(X).  (Recall that any 32-octet
@@ -656,12 +771,13 @@ implementation of these elliptic curves, they SHOULD perform the
 additional checks specified in Section 7 of {{RFC7748}}
 
 
-### P-256 with SHA-256
+### ART with P-256 and SHA-256
 
 This ciphersuite uses the following primitives:
 
 * Hash function: SHA-256
 * Diffie-Hellman group: secp256r1 (NIST P-256)
+* AEAD: N/A
 
 Given an octet string X, the private key produced by the
 Derive-Key-Pair operation is SHA-256(X), interpreted as a big-endian
@@ -691,6 +807,95 @@ This process consists of three steps: (1) verify that the value is not the point
 infinity (O), (2) verify that for Y = (x, y) both integers are in the correct
 interval, (3) ensure that (x, y) is a correct solution to the elliptic curve equation.
 For these curves, implementers do not need to verify membership in the correct subgroup.
+
+### TreeKEM with Curve25519, SHA-256, and AES-128-GCM
+
+This ciphersuite uses the following primities:
+
+* Hash function: SHA-256
+* Diffie-Hellman group: Curve25519 {{!RFC7748}}
+* AEAD: AES-128-GCM
+
+DH and Derive-Key-Pair operations are performed in the same way as
+the corresponding ART ciphersuite.
+
+Encryption keys are derived from shared secrets by taking the first
+16 bytes of H(Z), where Z is the shared secret and H is SHA-256.
+
+### TreeKEM with P-256, SHA-256, and AES-128-GCM
+
+This ciphersuite uses the following primities:
+
+* Hash function: P-256
+* Diffie-Hellman group: secp256r1 (NIST P-256)
+* AEAD: AES-128-GCM
+
+DH and Derive-Key-Pair operations are performed in the same way as
+the corresponding ART ciphersuite.
+
+Encryption keys are derived from shared secrets by taking the first
+16 bytes of H(Z), where Z is the shared secret and H is SHA-256.
+
+
+## Direct Paths
+
+As described in {{ratchet-tree-updates}}, each MLS message needs to
+transmit node values along the direct path from a leaf to the root.
+In ART, this simply entails sending the public key for each node.
+In TreeKEM, the path contains a public key for the leaf node, and a
+public key and encrypted secret value for intermediate nodes in the
+path.  In both cases, the path is ordered from the leaf to the root;
+each node MUST be the parent of its predecessor.
+
+~~~~~
+DHPublicKey ARTPath<0..2^16-1>;
+
+struct {
+    DHPublicKey ephemeral_key;
+    opaque nonce<0..255>;
+    opaque ciphertext<0..255>;
+} ECIESCiphertext;
+
+struct {
+    DHPublicKey public_key;
+    ECIESCiphertext ciphertext;
+} TreeKEMNode;
+
+struct {
+  DHPublicKey leaf;
+  TreeKEMNode intermediates<0..2^16-1>;
+} TreeKEMPath;
+
+struct {
+    select (mode) {
+        case ART: ARTPath;
+        case TreeKEM: TreeKEMPath;
+    };
+} DirectPath;
+~~~~~
+
+When using TreeKEM, the ECIESCiphertext values encoding the
+encrypted secret values are computed as follows:
+
+* Generate an ephemeral DH key pair (x, x\*G) in the DH group
+  specified by the ciphersuite in use
+* Compute the shared secret Z with the node's other child
+* Generate a fresh nonce N
+* Encrypt the node's secret value using the AEAD algorithm specified
+  by the ciphersuite in use, with the following inputs:
+  * Key: A key derived from Z as specified by the ciphersuite
+  * Nonce: A random nonce N of the size required by the algorithm
+  * Additional Authenticated Data: The empty octet string
+  * Plaintext: The secret value, without any further formatting
+* Encode the ECIESCiphertext with the following values:
+  * ephemeral\_key: The ephemeral public key x\*G
+  * nonce: The random nonce N
+  * ciphertext: The AEAD output
+
+Decryption is performed in the corresponding way, using the private
+key of the non-updated child and the ephemeral public key
+transmitted in the message.
+
 
 ## Key Schedule
 
@@ -731,7 +936,7 @@ following information to derive new epoch secrets:
 The derivation of the update secret depends on the change being
 made, as described below.
 
-For UserAdd or GroupAdd, the new user does not know the prior epoch init secret.
+For Add, the new user does not know the prior epoch init secret.
 Instead, entropy from the prior epoch is added via the update secret,
 and an all-zero vector with the same length as a hash output is used
 in the place of the init secret.
@@ -740,25 +945,24 @@ Given these inputs, the derivation of secrets for an epoch
 proceeds as shown in the following diagram:
 
 ~~~~~
-               Init Secret [n-1] (or 0)
+               init_secret_[n-1] (or 0)
                      |
                      V
-Update Secret -> HKDF-Extract = Epoch Secret
-                     |
-                     |
-                     +--> Derive-Secret(., "msg", ID, Epoch, Msg)
-                     |       = message_master_secret
+update_secret -> HKDF-Extract = epoch_secret
                      |
                      +--> Derive-Secret(., "add", ID, Epoch, Msg)
                      |       |
                      |       V
-                     |    Derive-Key-Pair(.) = Add Key Pair
+                     |    Derive-Key-Pair(.) = add_key_pair
+                     |
+                     +--> Derive-Secret(., "app", ID, Epoch, Msg)
+                     |    = application_secret
                      |
                      V
                Derive-Secret(., "init", ID, Epoch, Msg)
                      |
                      V
-               Init Secret [n]
+               init_secret_[n]
 ~~~~~
 
 
@@ -766,14 +970,9 @@ Update Secret -> HKDF-Extract = Epoch Secret
 
 In order to facilitate asynchronous addition of participants to a
 group, it is possible to pre-publish initialization keys that
-provide some public information about a user or group.  UserInitKey
+provide some public information about a user.  UserInitKey
 messages provide information about a potential group member, that a group member can use to
-add this user to a group asynchronously.  GroupInitKey
-messages provide information about a group that a new user can use
-to join the group without any of the existing members of the group
-being online.
-
-## UserInitKey
+add this user to a group asynchronously.
 
 A UserInitKey object specifies what ciphersuites a client supports,
 as well as providing public keys that the client can use for key
@@ -784,7 +983,7 @@ times, potentially once. (see {{init-key-reuse}}).
 
 The init\_keys array MUST have the same length as the cipher\_suites
 array, and each entry in the init\_keys array MUST be a public key
-for the DH group defined by the corresponding entry in the
+for the DH group or KEM defined by the corresponding entry in the
 cipher\_suites array.
 
 The whole structure is signed using the client's identity key.  A
@@ -803,39 +1002,6 @@ struct {
 ~~~~~
 
 
-## GroupInitKey
-
-A GroupInitKey object specifies the aspects of a group's state that
-a new member needs to initialize its state (together with an
-identity key and a fresh leaf key pair).
-
-* The current epoch number
-* The number of participants currently in the group
-* The group ID
-* The cipher suite used by the group
-* The public key of the current update key pair for the group
-* The frontier of the identity tree, as a sequence of hash values
-* The frontier of the ratchet tree, as a sequence of public keys
-
-GroupInitKey messages are not themselves signed.  A GroupInitKey
-should not be published "bare"; instead, it should be published by
-constructing a handshake message with type "none", which will
-include a signature by a member of the group and a proof of
-membership in the group.
-
-~~~~~
-struct {
-    uint32 epoch;
-    uint32 group_size;
-    opaque group_id<0..2^16-1>;
-    CipherSuite cipher_suite;
-    DHPublicKey add_key;
-    MerkleNode identity_frontier<0..2^16-1>;
-    DHPublicKey ratchet_frontier<0..2^16-1>;
-} GroupInitKey;
-~~~~~
-
-
 # Handshake Messages
 
 Over the lifetime of a group, its state will change for:
@@ -850,17 +1016,14 @@ In MLS, these changes are accomplished by broadcasting "handshake"
 messages to the group.  Note that unlike TLS and DTLS, there is not
 a consolidated handshake phase to the protocol.  Rather, handshake
 messages are exchanged throughout the lifetime of a group, whenever
-a change is made to the group state.
+a change is made to the group state. This means an unbounded number
+of interleaved application and handshake messages.
 
 An MLS handshake message encapsulates a specific message that
-accomplishes a change to the group state. It also includes two other
-important features:
-
-* A GroupInitKey so that a new participant can observe
-  the latest state of the handshake and initialize itself
-
-* A signature by a member of the group, together with a Merkle inclusion
-  proof that demonstrates that the signer is a legitimate member of the group.
+accomplishes a change to the group state. It also includes a
+signature by a member of the group, together with a Merkle inclusion
+proof that demonstrates that the signer is a legitimate member of
+the group.
 
 Before considering a handshake message valid, the recipient MUST
 verify both that the signature is valid, the Merkle
@@ -876,12 +1039,10 @@ list of participant identity keys.
 
 ~~~~~
 enum {
-    none(0),
-    init(1),
-    user_add(2),
-    group_add(3),
-    update(4),
-    delete(5),
+    init(0),
+    add(1),
+    update(2),
+    delete(3),
     (255)
 } HandshakeType;
 
@@ -889,16 +1050,13 @@ struct {
     HandshakeType msg_type;
     uint24 inner_length;
     select (Handshake.msg_type) {
-        case none:      struct{};
         case init:      Init;
-        case user_add:  UserAdd;
-        case group_add: GroupAdd;
+        case add:       Add;
         case update:    Update;
         case delete:    Delete;
     };
 
     uint32 prior_epoch;
-    GroupInitKey init_key;
 
     uint32 signer_index;
     MerkleNode identity_proof<1..2^16-1>;
@@ -915,7 +1073,7 @@ keys used to sign messages.  This integration will enable meaningful
 authentication (of identities, rather than keys), and will need to
 be done in such a way as to prevent unknown key share attacks. ]]
 
-[[ OPEN ISSUE: The GroupAdd and Delete operations create a "double-join"
+[[ OPEN ISSUE: The Add and Delete operations create a "double-join"
 situation, where a participants leaf key is also known to another
 participant.  When a participant A is double-joined to another B,
 deleting A will not remove them from the conversation, since they
@@ -940,78 +1098,52 @@ including only itself, then adding the initial participants.  This
 has computation and communication complexity O(N log N) instead of
 the O(N) complexity of direct initialization. ]]
 
-## GroupAdd
+## Add
 
-A GroupAdd message is sent by a group member to add a new
-participant to the group.  The content of the message is only
-the UserInitKey for the user being added.
+An Add message is sent by a group member to add a new participant
+to the group.
 
 ~~~~~
 struct {
-    UserInitKey init_key;
-} GroupAdd;
+    PublicKey ephemeral;
+    DirectPath add_path<1..2^16-1>;
+    MerkleNode identity_frontier<0..2^16-1>;
+    TreeNode ratchet_frontier<0..2^16-1>;
+} Add;
 ~~~~~
 
-A group member generates such a message by requesting from the directory
-a UserInitKey for the user to be added.  The new participant processes the
-message together with the private key corresponding to the
-UserInitKey to initialize his state as follows:
+A group member generates this message using the following steps:
 
-* Compute the participant's leaf key pair by combining the init key in
+* Requesting from the directory a UserInitKey for the user to be added
+* Generate a fresh ephemeral DH key pair
+* Generate the leaf secret for the new node as the output of a DH
+  operation between the ephemeral key pair and the public key in the
+  UserInitKey
+* Use the ratchet frontier and the new leaf secret to compute the
+  direct path between the new leaf and the new root
+
+The public key of the ephemeral key pair is placed in the
+`ephemeral` field of the Add message.  The computed direct path
+is placed in the `add_path` field.  The frontiers of the identity
+and ratchet trees before the addition of the new member are placed
+in the `identity_frontier` and `ratchet_frontier`.
+
+The new participant processes the message and the private key corresponding
+to the UserInitKey to initialize his state as follows:
+
+* Compute the participant's leaf secret by combining the init key in
   the UserInitKey with the prior epoch's add key pair
-* Use the frontiers in the GroupInitKey of the Handshake message to
-  add its keys to the trees
+* Use the frontiers to add its keys to the trees
 
-An existing participant receiving a GroupAdd message first verifies
-the signature on the message, then verifies its identity proof
-against the identity tree held by the participant.  The participant
-then updates its state as follows:
+An existing participant receiving a Add message first verifies
+the signature on the message, then verifies its identity proof against
+the identity tree held by the participant. The participant then updates
+its state as follows:
 
 * Compute the new participant's leaf key pair by combining the leaf
   key in the UserInitKey with the prior epoch add key pair
 * Update the group's identity tree and ratchet tree with the new
   participant's information
-
-The update secret resulting from this change is the output of a DH
-computation between the private key for the root of the ratchet tree
-and the add public key from the previous epoch.
-
-[[ ALTERNATIVE: The sender could also generate the new participant's
-leaf using a fresh key pair, as opposed to a key pair derived from
-the prior epoch's secret.  This would reduce the "double-join"
-problem, at the cost of the GroupAdd having to include a new ratchet
-frontier. ]]
-
-## UserAdd
-
-A UserAdd message is sent by a new group participant to add
-themselves to the group, based on having already had access to a
-GroupInitKey for the group.
-
-~~~~~
-struct {
-    DHPublicKey add_path<1..2^16-1>;
-} UserAdd;
-~~~~~
-
-A new participant generates this message using the following steps:
-
-* Fetch a GroupInitKey for the group
-* Use the frontiers in the GroupInitKey to add its keys to the trees
-* Compute the direct path from the new participant's leaf in the new
-  ratchet tree (the add\_path).
-
-An existing participant receiving a UserAdd first verifies the
-signature on the message, then verifies its identity inclusion proof
-against the updated identity tree expressed in the GroupInitKey of
-the Handshake message (since the signer is not included in the prior
-group state held by the existing participant).  The participant then
-updates its state as follows:
-
-* Update trees with the descriptions in the new GroupInitKey
-* Update the local ratchet tree with the add path in the UserAdd
-  message, replacing any common nodes with the values in the add
-  path
 
 The update secret resulting from this change is the output of a DH
 computation between the private key for the root of the ratchet tree
@@ -1025,7 +1157,7 @@ regard to the participant's prior leaf private key.
 
 ~~~~~
 struct {
-    DHPublicKey ratchetPath<1..2^16-1>;
+    DirectPath update_path;
 } Update;
 ~~~~~
 
@@ -1040,39 +1172,38 @@ against the identity tree held by the participant.  The participant
 then updates its state as follows:
 
 * Update the cached ratchet tree by replacing nodes in the direct
-  path from the updated leaf with the corresponding nodes in the
+  path from the updated leaf using the information contained in the
   Update message
 
 The update secret resulting from this change is the secret for the
 root node of the ratchet tree.
 
-## Delete
+## Remove
 
-A delete message is sent by a group member to remove one or more
+A Remove message is sent by a group member to remove one or more
 participants from the group.
 
 ~~~~~
 struct {
     uint32 deleted;
-    DHPublicKey path<1..2^16-1>;
-} Delete;
+    DirectPath path;
+} Remove;
 ~~~~~
 
-The sender of a Delete message must know the deleted node's copath.
-Based on this knowledge, it computes a Delete message as follows:
+The sender of a Remove message generates it as as follows:
 
 * Generate a fresh leaf key pair
-* Compute the direct path from the deleted node's index with the
-  fresh leaf key pair in the current ratchet tree
+* Compute its direct path in the current ratchet tree, starting from
+  the deleted leaf (Note: In ART, this requires knowing the deleted
+  node's copath)
 
-An existing participant receiving a Update message first verifies
+An existing participant receiving a Delete message first verifies
 the signature on the message, then verifies its identity proof
 against the identity tree held by the participant.  The participant
 then updates its state as follows:
 
 * Update the cached ratchet tree by replacing nodes in the direct
-  path from the deleted leaf with the corresponding nodes in the
-  Update message
+  path from the deleted leaf using the information in the Delete message
 * Update the cached ratchet tree and identity tree by replacing the
   deleted node's leaves with blank nodes
 
@@ -1104,11 +1235,20 @@ general approaches:
 * Have the delivery service enforce a total order
 * Have a signal in the message that clients can use to break ties
 
-In either case, there is a risk of starvation.  In a sufficiently
+In ART, in either case, there is a risk of starvation.  In a sufficiently
 busy group, a given member may never be able to send a handshake
 message, because he always loses to other members.  The degree to
 which this is a practical problem will depend on the dynamics of the
 application.
+
+In TreeKEM, because of the non-contributivity of intermediate nodes
+update messages can be applied one after the other without the Delivery
+Service having to reject any handshake message which makes TreeKEM
+more resilient regarding the concurrency of handshake messages.
+The Messaging system can decide to choose the order for applying
+the state changes. Note that there are certain cases (if no total ordering
+is applied by the Delivery Service) where the ordering is important
+for security, ie. all updates must be executed before deletes.
 
 Regardless of how messages are kept in sequence, implementations
 MUST only update their cryptographic state when valid handshake messages
@@ -1117,7 +1257,7 @@ since the endpoint cannot know at that time whether the change
 implied by the handshake message will succeed or not.
 
 
-## Server-side enforced ordering
+## Server-Enforced Ordering
 
 With this approach, the delivery service ensures that incoming messages are added to an
 ordered queue and outgoing messages are dispatched in the same order. The server
@@ -1127,17 +1267,17 @@ thanks to the confidentiality of the messages.
 
 Messages should have a counter field sent in clear-text that can be checked by
 the server and used for tie-breaking. The counter starts at 0 and is incremented
-for every new incoming message. If two group members send a message with the same
+for every new incoming message. In ART, if two group members send a message with the same
 counter, the first message to arrive will be accepted by the server and the second
 one will be rejected. The rejected message needs to be sent again with the correct
-counter number.
+counter number. In TreeKEM, the message does not necessarily need to be resent.
 
 To prevent counter manipulation by the server, the counter's integrity can be
 ensured by including the counter in a signed message envelope.
 
 This applies to all messages, not only state changing messages.
 
-## Client-side enforced ordering
+## Client-Enforced Ordering
 
 Order enforcement can be implemented on the client as well, one way to achieve it
 is to use a two step update protocol: the first client sends a proposal to update and
@@ -1149,52 +1289,284 @@ While this seems safer as it doesn't rely on the server, it is more complex and
 harder to implement. It also could cause starvation for some clients if they keep
 failing to get their proposal accepted.
 
-[[OPEN ISSUE: Another possibility here is batching + deterministic selection.]]
+
+## Merging Updates
+
+When TreeKEM is in use, it is possible to partly address the problem
+of concurrent changes by having the recipients of the changes merge
+them, rather than having the senders retry.  Because the value of
+intermediate node is determined by its last updated child (as
+opposed to both its children in ART), TreeKEM updates can be merged
+by recipients as long as the recipients agree on an order -- the
+only question is which node was last updated.
+
+Recall that the processing of a TreeKEM update proceeds in two steps:
+
+1. Compute updated secret values by hashing up the tree
+2. Update the tree with the new secret and public values
+
+To merge an ordered list of updates, a recipient simply performs
+these updates in the specified order.
+
+For example, suppose we have a tree in the following configuration:
+
+~~~~~
+      H(H(D))
+     /       \
+  H(B)      H(D)
+  /  \      /  \
+ A    B    C    D
+~~~~~
+
+Now suppose B and C simultaneously decide to update to X and Y,
+respectively.  They will send out updates of the following form:
+
+~~~~~
+  Update from B      Update from C
+  =============      =============
+      H(H(X))            H(H(Y))
+     /                         \
+  H(X)                         H(Y)
+     \                         /
+      X                       Y
+~~~~~
+
+Assuming that the ordering agreed by the group says that B's update
+should be processed before C's, the other participants in the group
+will overwrite the root value for B with the root value from C, and
+all arrive at the following state:
+
+~~~~~
+      H(H(Y))
+     /       \
+  H(X)      H(Y)
+  /  \      /  \
+ A    X    Y    D
+~~~~~
 
 # Message Protection
 
-[[ OPEN ISSUE: This section has initial considerations about message
-protection.  This issue clearly needs more specific recommendations,
-possibly a protocol specification in this document or a separate
-one. ]]
+The primary purpose of the handshake protocol is to provide an authenticated
+group key exchange to participants. In order to protect Application messages
+sent among those participants, the Application secret provided by the Handshake
+key schedule is used to derive encryption keys for the Message Protection Layer.
 
-The primary purpose of this protocol is to enable an authenticated
-group key exchange among participants.  In order to protect messages sent among
-those participants, an application will need to specify how messages are protected.
+Application messages MUST be protected with the Authenticated-Encryption
+with Associated-Data (AEAD) encryption scheme associated with the MLS ciphersuite.
+Note that "Authenticated" in this context does not mean messages are known to
+be sent by a specific participant but only from a legitimate member of the group.
+To authenticate a message from a particular member, signatures are required.
+Handshake messages MUST use asymmetric signatures to strongly authenticate
+the sender of a message.
 
-For every epoch, the root key of the ratcheting tree can be used to
-derive key material for symmetric operations such as encryption/AEAD and MAC;
-AEAD or MAC MUST be used to ensure that the message originated from a member
-of the group.
+Each participant maintains their own chain of Application secrets, where the first
+one is derived based on a secret chained from the Epoch secret.
+As shown in {{key-schedule}}, the initial Application secret is bound to the
+identity of each participant to avoid collisions and allow support for decryption
+of reordered messages.
 
-In addition, asymmetric signatures SHOULD be used to authenticate the sender
-of a message.
+Subsequent Application secrets MUST be rotated for each message sent in
+order to provide stronger cryptographic security guarantees. The Application
+Key Schedule use this rotation to generate fresh AEAD encryption keys and nonces
+used to encrypt and decrypt future Application messages.
+In all cases, a participant MUST NOT encrypt more than expected by the security
+bounds of the AEAD scheme used.
 
-In combination with server-side enforced ordering, data from previous messages
-is used (as a salt when hashing) to:
+Note that each change to the Group through a Handshake message will cause
+a change of the Group Secret. Hence this change MUST be applied before encrypting
+any new Application message. This is required for confidentiality reasons
+in order for Members to avoid receiving messages from the group after leaving,
+being added to, or excluded from the Group.
 
- * add freshness to derived symmetric keys
- * cryptographically bind the transcript of all previous messages with the current
-   group shared secret
+## Application Key Schedule {#key-schedule-application}
 
-Possible candidates for that are:
+After computing the initial Application Secret shared by the group,
+each Participant creates an initial Participant Application Secret
+to be used for its own sending chain:
 
- * the key used for the previous message (hash ratcheting)
- * the counter of the previous message (needs to be known to new members of the group)
- * the hash of the previous message (proof that other participants saw the same history)
+~~~
+           application_secret
+                     |
+                     V
+           Derive-Secret(., "app sender", [sender])
+                     |
+                     V
+           application_secret_[sender]_[0]
+~~~
 
-The requirement for this is that all participants know these values.
-If additional clear-text fields are attached to messages (like the counter), those
-fields MUST be protected by a signed message envelope.
+Note that [sender] represent the uint32 value encoding the index
+of the participant in the ratchet tree.
 
-Alternatively, the hash of the previous message can also be included as an additional
-field rather than change the encryption key. This allows for a more flexible approach,
-because the receiving party can choose to ignore it (if the value is not known, or if
-transcript security is not required).
+Updating the Application secret and deriving the associated AEAD key and nonce can
+be summarized as the following Application key schedule where
+each participant's Application secret chain looks as follows after the initial
+derivation:
+
+~~~~~
+           application_secret_[sender]_[N-1]
+                     |
+                     +--> HKDF-Expand-Label(.,"nonce", "", nonce_length)
+                     |    = write_nonce_[sender]_[N-1]
+                     |
+                     +--> HKDF-Expand-Label(.,"key", "", key_length)
+                     |    = write_key_[sender]_[N-1]
+                     V
+           Derive-Secret(., "app upd","")
+                     |
+                     V
+           application_secret_[sender]_[N]
+~~~~~
+
+The Application context provided together with the previous Application secret
+is used to bind the Application messages with the next key and add some freshness.
+
+[[OPEN ISSUE: The HKDF context field is left empty for now.
+A proper security study is needed to make sure that we do not need
+more information in the context to achieve the security goals.]]
+
+[[ OPEN ISSUE: At the moment there is no contributivity of Application secrets
+chained from the initial one to the next generation of Epoch secret. While this
+seems safe because cryptographic operations using the application secrets can't
+affect the group init_secret, it remains to be proven correct. ]]
+
+### Updating the Application Secret
+
+The following rules apply to an Application Secret:
+
+- Senders MUST only use the Application Secret once and monotonically
+  increment the generation of their secret. This is important to provide
+  Forward Secrecy at the level of Application messages. An attacker getting
+  hold of a Participant's Application Secret at generation [N+1] will not be
+  able to derive the Participant's Application Secret [N] nor the associated
+  AEAD key and nonce.
+
+- Receivers MUST delete an Application Secret once it has been used to
+  derive the corresponding AEAD key and nonce as well as the next Application
+  Secret. Receivers MAY keep the AEAD key and nonce around for some
+  reasonable period.
+
+- Receivers MUST delete AEAD keys and nonces once they have been used to
+  successfully decrypt a message.
+
+### Application AEAD Key Calculation
+
+The Application AEAD keying material is generated from the following
+input values:
+
+- The Application Secret value;
+- A purpose value indicating the specific value being generated;
+- The length of the key being generated.
+
+Note, that because the identity of the participant using the keys to send data
+is included in the initial Application Secret, all successive updates to the
+Application secret will implicitly inherit this ownership.
+
+All the traffic keying material is recomputed whenever the underlying
+Application Secret changes.
+
+
+## Message Encryption and Decryption
+
+The Group participants MUST use the AEAD algorithm associated with
+the negotiated MLS ciphersuite to AEAD encrypt and decrypt their
+Application messages and sign them as follows:
+
+~~~~~
+    struct {
+        opaque content<0..2^32-1>;
+        opaque signature<0..2^16-1>;
+        uint8 zeros[length_of_padding];
+    } ApplicationPlaintext;
+
+    struct {
+        uint8  group[32];
+        uint32 epoch;
+        uint32 generation;
+        uint32 sender;
+        opaque encrypted_content<0..2^32-1>;
+    } Application;
+~~~~~
+
+The Group identifier and epoch allow a device to know which Group secrets
+should be used and from which Epoch secret to start computing other secrets
+and keys. The participant identifier is used to derive the participant
+Application secret chain from the initial shared Application secret.
+The application generation field is used to determine which Application
+secret should be used from the chain to compute the correct AEAD keys
+before performing decryption.
+
+The signature field allows strong authentication of messages:
+
+~~~
+    struct {
+        uint8  group[32];
+        uint32 epoch;
+        uint32 generation;
+        uint32 sender;
+        opaque content<0..2^32-1>;
+    } MLSSignatureContent;
+~~~
+
+The signature used in the MLSPlaintext is computed over the MLSSignatureContent
+which covers the metadata information about the current state
+of the group (group identifier, epoch, generation and sender's Leaf index)
+to prevent Group participants from impersonating other participants. It is also
+necessary in order to prevent cross-group attacks.
+
+[[ TODO: A preliminary formal security analysis has yet to be performed on
+this authentication scheme.]]
+
+[[ OPEN ISSUE: Currently, the group identifier, epoch and generation are
+contained as meta-data of the Signature. A different solution could be to
+include the GroupState instead, if more information is required to achieve
+the security goals regarding cross-group attacks. ]]
+
+[[ OPEN ISSUE: Should the padding be required for Handshake messages ?
+Can an adversary get more than the position of a participant in the tree
+without padding ? Should the base ciphertext block length be negotiated or
+is is reasonable to allow to leak a range for the length of the plaintext
+by allowing to send a variable number of ciphertext blocks ? ]]
+
+Application messages SHOULD be padded to provide some resistance
+against traffic analysis techniques over encrypted traffic.
+{{?CLINIC=DOI.10.1007/978-3-319-08506-7_8}}
+{{?HCJ16=DOI.10.1186/s13635-016-0030-7}}
+While MLS might deliver the same payload less frequently across
+a lot of ciphertexts than traditional web servers, it might still provide
+the attacker enough information to mount an attack. If Alice asks Bob:
+"When are we going to the movie ?" the answer "Wednesday" might be leaked
+to an adversary by the ciphertext length. An attacker expecting Alice to
+answer Bob with a day of the week might find out the plaintext by
+correlation between the question and the length.
+
+Similarly to TLS 1.3, if padding is used, the MLS messages MUST be
+padded with zero-valued bytes before AEAD encryption. Upon AEAD decryption,
+the length field of the plaintext is used to compute the number of bytes
+to be removed from the plaintext to get the correct data.
+As the padding mechanism is used to improve protection against traffic
+analysis, removal of the padding SHOULD be implemented in a "constant-time"
+manner at the MLS layer and above layers to prevent timing side-channels that
+would provide attackers with information on the size of the plaintext.
+
+### Delayed and Reordered Application messages
+
+Since each Application message contains the Group identifier, the epoch and a
+message counter, a participant can receive messages out of order.
+If they are able to retrieve or recompute the correct AEAD decryption key
+from currently stored cryptographic material participants can decrypt
+these messages.
+
+For usability, MLS Participants might be required to keep the AEAD key
+and nonce for a certain amount of time to retain the ability to decrypt
+delayed or out of order messages, possibly still in transit while a
+decryption is being done.
+
+[[TODO: Describe here or in the Architecture spec the details. Depending
+on which Secret or key is kept alive, the security guarantees will vary.]]
 
 # Security Considerations
 
-The security goals of MLS are described in [[the architecture doc]]. We describe here how the
+The security goals of MLS are described in [I-D.ietf-mls-architecture]. We describe here how the
 protocol achieves its goals at a high level, though a complete security analysis is outside of the
 scope of this document.
 
