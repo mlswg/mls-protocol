@@ -166,6 +166,9 @@ draft-01
 
 - Added an appendix with example code for tree math
 
+- Changed the ECIES mechanism used by TreeKEM so that it uses nonces
+  generated from the shared secret
+
 draft-00
 
 - Initial adoption of draft-barnes-mls-protocol-01 as a WG item.
@@ -824,7 +827,6 @@ DHPublicKey ARTPath<0..2^16-1>;
 
 struct {
     DHPublicKey ephemeral_key;
-    opaque nonce<0..255>;
     opaque ciphertext<0..255>;
 } ECIESCiphertext;
 
