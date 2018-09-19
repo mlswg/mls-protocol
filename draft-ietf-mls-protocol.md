@@ -158,6 +158,8 @@ draft-01
   in the Handshake Key Schedule to be ease chaining in case we switch
   design. (*)
 
+- Added an appendix with example code for tree math
+
 draft-00
 
 - Initial adoption of draft-barnes-mls-protocol-01 as a WG item.
