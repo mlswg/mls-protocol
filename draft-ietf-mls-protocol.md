@@ -808,13 +808,13 @@ infinity (O), (2) verify that for Y = (x, y) both integers are in the correct
 interval, (3) ensure that (x, y) is a correct solution to the elliptic curve equation.
 For these curves, implementers do not need to verify membership in the correct subgroup.
 
-### TreeKEM with Curve25519, SHA-256, and AES-128-GCM
+### TreeKEM with Curve25519, SHA-256, and AES-256-GCM
 
 This ciphersuite uses the following primities:
 
 * Hash function: SHA-256
 * Diffie-Hellman group: Curve25519 {{!RFC7748}}
-* AEAD: AES-128-GCM
+* AEAD: AES-256-GCM
 
 DH and Derive-Key-Pair operations are performed in the same way as
 the corresponding ART ciphersuite.
@@ -822,13 +822,13 @@ the corresponding ART ciphersuite.
 Encryption keys are derived from shared secrets by taking the first
 16 bytes of H(Z), where Z is the shared secret and H is SHA-256.
 
-### TreeKEM with P-256, SHA-256, and AES-128-GCM
+### TreeKEM with P-256, SHA-256, and AES-256-GCM
 
 This ciphersuite uses the following primities:
 
 * Hash function: P-256
 * Diffie-Hellman group: secp256r1 (NIST P-256)
-* AEAD: AES-128-GCM
+* AEAD: AES-256-GCM
 
 DH and Derive-Key-Pair operations are performed in the same way as
 the corresponding ART ciphersuite.
