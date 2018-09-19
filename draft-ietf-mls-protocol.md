@@ -166,6 +166,9 @@ draft-01
 
 - Added an appendix with example code for tree math
 
+- Changed the ECIES mechanism used by TreeKEM so that it uses nonces
+  generated from the shared secret
+
 draft-00
 
 - Initial adoption of draft-barnes-mls-protocol-01 as a WG item.
@@ -824,18 +827,12 @@ DHPublicKey ARTPath<0..2^16-1>;
 
 struct {
     DHPublicKey ephemeral_key;
-    opaque nonce<0..255>;
     opaque ciphertext<0..255>;
 } ECIESCiphertext;
 
 struct {
-    DHPublicKey public_key;
-    ECIESCiphertext ciphertext;
-} TreeKEMNode;
-
-struct {
-  DHPublicKey leaf;
-  TreeKEMNode intermediates<0..2^16-1>;
+  DHPublicKey nodes<0..2^16-1>;
+  ECIESCiphertext node\_secrets<0..2^16-1>;
 } TreeKEMPath;
 
 struct {
@@ -846,23 +843,40 @@ struct {
 } DirectPath;
 ~~~~~
 
+Note that in TreeKEM, the length of the `node\_secrets` vector MUST
+be exactly one less than the length of the `nodes` vector, since the
+secret value for the leaf node is not encrypted.  For `i > 0`,
+`node_secrets[i-1]` has the encrypted node secret corresponding to
+the public key in `nodes[i]`.
+
 When using TreeKEM, the ECIESCiphertext values encoding the
 encrypted secret values are computed as follows:
 
 * Generate an ephemeral DH key pair (x, x\*G) in the DH group
   specified by the ciphersuite in use
 * Compute the shared secret Z with the node's other child
-* Generate a fresh nonce N
+* Derive a key and nonce as described below
 * Encrypt the node's secret value using the AEAD algorithm specified
   by the ciphersuite in use, with the following inputs:
-  * Key: A key derived from Z as specified by the ciphersuite
-  * Nonce: A random nonce N of the size required by the algorithm
+  * Key: The key derived from Z
+  * Nonce: The nonce derived from Z
   * Additional Authenticated Data: The empty octet string
   * Plaintext: The secret value, without any further formatting
 * Encode the ECIESCiphertext with the following values:
   * ephemeral\_key: The ephemeral public key x\*G
-  * nonce: The random nonce N
   * ciphertext: The AEAD output
+
+~~~~~
+key = HKDF-Expand(Secret, ECIESLabel("key"), Length)
+nonce = HKDF-Expand(Secret, ECIESLabel("nonce"), Length)
+
+Where ECIESLabel is specified as:
+
+struct {
+  uint16 length = Length;
+  opaque label<12..255> = "mls10 ecies " + Label;
+} ECIESLabel;
+~~~~~
 
 Decryption is performed in the corresponding way, using the private
 key of the non-updated child and the ephemeral public key
