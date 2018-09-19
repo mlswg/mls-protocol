@@ -850,17 +850,28 @@ encrypted secret values are computed as follows:
 * Generate an ephemeral DH key pair (x, x\*G) in the DH group
   specified by the ciphersuite in use
 * Compute the shared secret Z with the node's other child
-* Generate a fresh nonce N
+* Derive a key and nonce as described below
 * Encrypt the node's secret value using the AEAD algorithm specified
   by the ciphersuite in use, with the following inputs:
-  * Key: A key derived from Z as specified by the ciphersuite
-  * Nonce: A random nonce N of the size required by the algorithm
+  * Key: The key derived from Z
+  * Nonce: The nonce derived from Z
   * Additional Authenticated Data: The empty octet string
   * Plaintext: The secret value, without any further formatting
 * Encode the ECIESCiphertext with the following values:
   * ephemeral\_key: The ephemeral public key x\*G
-  * nonce: The random nonce N
   * ciphertext: The AEAD output
+
+~~~~~
+key = HKDF-Expand(Secret, ECIESLabel("key"), Length)
+nonce = HKDF-Expand(Secret, ECIESLabel("nonce"), Length)
+
+Where ECIESLabel is specified as:
+
+struct {
+  uint16 length = Length;
+  opaque label<12..255> = "mls10 ecies " + Label;
+} ECIESLabel;
+~~~~~
 
 Decryption is performed in the corresponding way, using the private
 key of the non-updated child and the ephemeral public key
