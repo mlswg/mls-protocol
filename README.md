@@ -2,9 +2,9 @@
 
 This is the working area for the IETF MLS Working Group Internet-Draft, "The Messaging Layer Security (MLS) Protocol".
 
-* [Editor's Copy](https://mlswg.github.io/mls-protocol/#go.draft-ietf-mls-protocol.html)
+* [Editor's Copy](https://github.com/mlswg/mls-protocol/blob/master/draft-ietf-mls-protocol.md)
 * [Working Group Draft](https://tools.ietf.org/html/draft-ietf-mls-protocol)
-* [Compare Editor's Copy to Working Group Draft](https://mlswg.github.io/mls-protocol/#go.draft-ietf-mls-protocol.diff)
+* [Compare Editor's Copy to Working Group Draft](https://github.com/mlswg/mls-protocol/compare/draft-ietf-mls-protocol-00...master)
 
 ## Building the Draft
 
