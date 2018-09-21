@@ -749,7 +749,7 @@ enum {
 } CredentialType;
 
 struct {
-    opaque identity<0..2^16-1>;
+    opaque identity<0..2^32-1>;
     SignaturePublicKey public_key;
 } BasicCredential;
 
@@ -760,7 +760,7 @@ struct {
             BasicCredential;
 
         case x509:
-            opaque cert_data<1..2^24-1>;
+            opaque cert_data<1..2^32-1>;
     };
 } Credential;
 ~~~~~
@@ -823,7 +823,7 @@ path.  In both cases, the path is ordered from the leaf to the root;
 each node MUST be the parent of its predecessor.
 
 ~~~~~
-DHPublicKey ARTPath<0..2^16-1>;
+DHPublicKey ARTPath<0..2^32-1>;
 
 struct {
     DHPublicKey ephemeral_key;
@@ -831,8 +831,8 @@ struct {
 } ECIESCiphertext;
 
 struct {
-  DHPublicKey nodes<0..2^16-1>;
-  ECIESCiphertext node\_secrets<0..2^16-1>;
+  DHPublicKey nodes<0..2^32-1>;
+  ECIESCiphertext node\_secrets<0..2^32-1>;
 } TreeKEMPath;
 
 struct {
@@ -964,10 +964,10 @@ comprises all of the fields except for the signature field.
 ~~~~~
 struct {
     CipherSuite cipher_suites<0..255>;
-    DHPublicKey init_keys<1..2^16-1>;
+    DHPublicKey init_keys<1..2^32-1>;
     SignaturePublicKey identity_key;
     SignatureScheme algorithm;
-    opaque signature<0..2^16-1>;
+    opaque signature<0..2^32-1>;
 } UserInitKey;
 ~~~~~
 
