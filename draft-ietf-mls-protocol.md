@@ -325,8 +325,8 @@ their state and the new participant can use to initialize its state.
 To enforce forward secrecy and post-compromise security of messages,
 each participant periodically updates its leaf secret which represents
 its contribution to the group secret.  Any member of the
-group can send an Update at any time by generating fresh leaf secret and keys
-and send an Update message that describes how to update the
+group can send an Update at any time by generating a fresh leaf secret
+and sending an Update message that describes how to update the
 group secret with that new information.  Once all participants have
 processed this message, the group's secrets will be unknown to an
 attacker that had compromised the sender's prior leaf secret.
@@ -395,7 +395,7 @@ _contains_ a node if that node is a descendant of the root of the
 tree. Nodes are _siblings_ if they share the same parent.
 
 A _subtree_ of a tree is the tree given by the descendants of any
-node, the _head_ of the subtree The _size_ of a tree or subtree is the
+node, the _head_ of the subtree. The _size_ of a tree or subtree is the
 number of leaf nodes it contains.  For a given parent node, its _left
 subtree_ is the subtree with its left child as head (respectively
 _right subtree_).
@@ -418,9 +418,8 @@ node in the tree when counting from the left, starting from 0.
 The _direct path_ of a root is the empty list, and of any other node
 is the concatenation of that node with the direct path of its
 parent. The _copath_ of a node is the list of siblings of nodes in its
-direct path, excluding the root, which has no sibling. The _frontier_
-of a tree is the list of heads of the maximal full subtrees of the
-tree, ordered from left to right.
+direct path. The _frontier_ of a tree is the list of heads of the maximal
+full subtrees of the tree, ordered from left to right.
 
 For example, in the below tree:
 
