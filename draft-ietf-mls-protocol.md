@@ -918,7 +918,7 @@ times, potentially once. (see {{init-key-reuse}}).
 
 The init\_keys array MUST have the same length as the cipher\_suites
 array, and each entry in the init\_keys array MUST be a public key
-for the DH group or KEM defined by the corresponding entry in the
+for the DH group defined by the corresponding entry in the
 cipher\_suites array.
 
 The whole structure is signed using the client's identity key.  A
@@ -935,7 +935,6 @@ struct {
     opaque signature<0..2^16-1>;
 } UserInitKey;
 ~~~~~
-
 
 # Handshake Messages
 
@@ -1109,6 +1108,11 @@ the signature on the message,  then updates its state as follows:
 * Append an entry to the roster containing the credential in the
   included UserInitKey
 * Update the ratchet tree with the included direct path
+* Update the ratchet tree by setting to blank all nodes in the
+  direct path of the new node
+* Update the ratchet tree by setting the leaf node for the new
+  member to be the public key in the UserInitKey corresponding to
+  the ciphersuite in use
 
 The update secret resulting from this change is the secret for the
 root node of the ratchet tree.
@@ -1166,8 +1170,10 @@ then updates its state as follows:
 * Update the roster by replacing the credential in the removed slot
   with the credential from the sender's slot (i.e., the sender of
   the Remove takes over the removed slot)
-* Update the cached ratchet tree by replacing nodes in the direct
+* Update the ratchet tree by replacing nodes in the direct
   path from the removed leaf using the information in the Remove message
+* Update the ratchet tree by setting to blank all nodes in the
+  direct path from the removed leaf to the root
 
 The update secret resulting from this change is the secret for the
 root node of the ratchet tree after both updates.
