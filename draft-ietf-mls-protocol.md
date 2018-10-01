@@ -639,7 +639,7 @@ opaque SignaturePublicKey<1..2^16-1>;
 
 ### Curve25519, SHA-256, and AES-128-GCM
 
-This ciphersuite uses the following primities:
+This ciphersuite uses the following primitives:
 
 * Hash function: SHA-256
 * Diffie-Hellman group: Curve25519 {{!RFC7748}}
@@ -663,7 +663,7 @@ Encryption keys are derived from shared secrets by taking the first
 
 ### P-256, SHA-256, and AES-128-GCM
 
-This ciphersuite uses the following primities:
+This ciphersuite uses the following primitives:
 
 * Hash function: P-256
 * Diffie-Hellman group: secp256r1 (NIST P-256)
