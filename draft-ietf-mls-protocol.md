@@ -523,7 +523,42 @@ X, then the tree will have the following structure.
 X    B     C    D
 ~~~~~
 
-### Ratchet Tree Updates
+## Blank Nodes and Resolution
+
+A node in the tree may be _blank_, indicating that no value is
+present at that node.  The _resolution_ of a node is an ordered list
+of non-blank nodes that collectively cover all non-blank descendants
+of the node.  The nodes in a resolution are ordered according to
+their indices.
+
+* The resolution of a non-blank node is a one element list
+  containing the node itself
+* The resolution of a blank leaf node is the empty list
+* The resolution of a blank intermediate node is the result of
+  concatinating the resolution of its left child with the resolution
+  of its right child, in that order
+
+For example, consider the following tree, where the "\_" character
+represents a blank node:
+
+~~~~~
+      _
+    /    \
+   /      \
+  _       CD
+ / \     / \
+A   _   C   D
+
+0 1 2 3 4 5 6
+~~~~~
+
+In this tree, we can see all three of the above rules in play:
+
+* The resolution of node 5 is the list [CD]
+* The resolution of node 2 is []
+* The resolution of node 3 is [A, CD]
+
+## Ratchet Tree Updates
 
 In order to update the state of the group such as adding and
 removing participants, MLS messages are used to make changes to the
@@ -533,21 +568,22 @@ direct path from a leaf to the root. Other participants in the group
 can use these nodes to update their view of the tree, aligning their
 copy of the tree to the sender's.
 
-To perform an update, the sender transmits a node by sending the public key
-for the node and an encrypted version of the secret value for the
-node.  The secret value is encrypted in such a way that it can be
-decrypted only by holders of the private key for one of its
-children, namely the child that is not in the direct path being
-transmitted.  That is, each node in the direct path is encrypted
-for holders of the private key for a node in the corresponding
-copath.  For leaf nodes, no encrypted secret is transmitted.
+To perform an update, the sender transmits a node by sending the
+public key for the node and one or more encrypted copies of the
+secret value for the node.  The secret value in a node is encrypted
+for the subtree corresponding to the node's non-updated child, by
+encrypting it using the public key of each node in the resolution
+of the non-updated child.
 
 The recipient of an update processes it with the following steps:
 
 1. Compute the updated secret values
   * Identify a node in the direct path for which the local participant
-    has the private key
-  * Decrypt the secret value for that node
+    is in the subtree of the non-updated child
+  * Identify a node in the resolution of the non-updated child for
+    which this node has a private key
+  * Decrypt the secret value for the direct path node using the
+    private key from the resolution node
   * Compute secret values for ancestors of that node by hashing the
     decrypted secret
 2. Merge the updated secrets into the tree
@@ -562,7 +598,7 @@ For example, suppose we had the following tree:
       G
     /   \
    /     \
-  E       F
+  E       _
  / \     / \
 A   B   C   D
 ~~~~~
@@ -572,11 +608,11 @@ values will be transmitted (using pk(X) to represent the public key
 corresponding to the secret value X and E(K, S) to represent
 public-key encryption to the public key K of the secret value S):
 
-| Public Key | Ciphertext  |
-|:-----------|:------------|
-| pk(G)      | E(pk(F), G) |
-| pk(E)      | E(pk(A), E) |
-| pk(B)      |             |
+| Public Key | Ciphertext               |
+|:-----------|:-------------------------|
+| pk(G)      | E(pk(C), G), E(pk(D), G) |
+| pk(E)      | E(pk(A), E)              |
+| pk(B)      |                          |
 
 
 ## Cryptographic Objects
@@ -772,7 +808,11 @@ struct {
 ~~~~~
 
 The length of the `node\_secrets` vector MUST be zero for the first
-node in the path and one for all other nodes in the path.
+node in the path.  For the remaining elements in the vector, the
+number of ciphertexts in the `node\_secrets` vector MUST be equal to
+the length of the resolution of the corresponding copath node.  Each
+ciphertext in the list is the encryption to the corresponding node
+in the resolution.
 
 The ECIESCiphertext values encoding the
 encrypted secret values are computed as follows:
@@ -804,7 +844,7 @@ struct {
 ~~~~~
 
 Decryption is performed in the corresponding way, using the private
-key of the non-updated child and the ephemeral public key
+key of the resolution node and the ephemeral public key
 transmitted in the message.
 
 
@@ -1737,4 +1777,17 @@ def frontier(n):
 def leaves(n):
     return [2*i for i in range(n)]
 
+# The resolution of a node is the collection of non-blank
+# descendants of this node.  Here the tree is represented by a list
+# of nodes, where blank nodes are represented by None
+def resolve(tree, x, n):
+    if tree[x] != None:
+        return [x]
+
+    if level(x) == 0:
+        return []
+
+    L = resolve(tree, left(x), n)
+    R = resolve(tree, right(x, n), n)
+    return L + R
 ~~~~~
