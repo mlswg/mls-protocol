@@ -762,16 +762,17 @@ struct {
 } ECIESCiphertext;
 
 struct {
-  DHPublicKey nodes<0..2^16-1>;
-  ECIESCiphertext node\_secrets<0..2^16-1>;
+    DHPublicKey public_key;
+    ECIESCiphertext node_secrets<0..2^16-1>;
+} RatchetNode
+
+struct {
+    RatchetNode nodes<0..2^16-1>;
 } DirectPath;
 ~~~~~
 
-The length of the `node\_secrets` vector MUST
-be exactly one less than the length of the `nodes` vector, since the
-secret value for the leaf node is not encrypted.  For `i > 0`,
-`node_secrets[i-1]` has the encrypted node secret corresponding to
-the public key in `nodes[i]`.
+The length of the `node\_secrets` vector MUST be zero for the first
+node in the path and one for all other nodes in the path.
 
 The ECIESCiphertext values encoding the
 encrypted secret values are computed as follows:
