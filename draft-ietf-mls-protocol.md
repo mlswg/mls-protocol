@@ -420,7 +420,7 @@ node in the tree when counting from the left, starting from 0.
 The _direct path_ of a root is the empty list, and of any other node
 is the concatenation of that node with the direct path of its
 parent. The _copath_ of a node is the list of siblings of nodes in its
-direct path. The _frontier_ of a tree is the list of heads of the maximal
+direct path, excluding the root. The _frontier_ of a tree is the list of heads of the maximal
 full subtrees of the tree, ordered from left to right.
 
 For example, in the below tree:
