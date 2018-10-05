@@ -555,8 +555,8 @@ A   _   C   D
 In this tree, we can see all three of the above rules in play:
 
 * The resolution of node 5 is the list [CD]
-* The resolution of node 2 is []
-* The resolution of node 3 is [A, CD]
+* The resolution of node 2 is the empty list []
+* The resolution of node 3 is the list [A, CD]
 
 ## Ratchet Tree Updates
 
