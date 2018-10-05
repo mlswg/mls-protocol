@@ -1052,7 +1052,6 @@ struct {
   PublicKey tree<1..2^32-1>;
   GroupOperation transcript<0..2^32-1>;
   opaque init_secret<0..255>;
-  opaque leaf_secret<0..255>;
 } Welcome;
 ~~~~~
 
@@ -1077,21 +1076,13 @@ member:
 
 ~~~~~
 struct {
-    DirectPath path<1..2^16-1>;
     UserInitKey init_key;
 } Add;
 ~~~~~
 
-A group member generates this message using the following steps:
-
-* Requesting from the directory a UserInitKey for the user to be added
-* Generate a fresh leaf secret and derive a leaf key pair
-* Use the ratchet tree and the new leaf secret to compute the
-  direct path between the new leaf and the new root
-
-The generated leaf secret is placed in the `leaf_secret` field of
-the Welcome message.  The direct path and the UserInitKey are placed
-their respective fields in the Add message.
+A group member generates this message by requesting a UserInitKey
+from the directory for the user to be added, and encoding it into an
+Add message.
 
 The new participant processes Welcome and Add messages together as
 follows:
@@ -1107,15 +1098,15 @@ the signature on the message,  then updates its state as follows:
   verification fails, abort
 * Append an entry to the roster containing the credential in the
   included UserInitKey
-* Update the ratchet tree with the included direct path
+* Update the ratchet tree by adding a new leaf node for the new
+  member, containing the public key from the UserInitKey in the Add
+  corresponding to the ciphersuite in use
 * Update the ratchet tree by setting to blank all nodes in the
-  direct path of the new node
-* Update the ratchet tree by setting the leaf node for the new
-  member to be the public key in the UserInitKey corresponding to
-  the ciphersuite in use
+  direct path of the new node, except for the leaf (which remains
+  set to the new member's public key)
 
-The update secret resulting from this change is the secret for the
-root node of the ratchet tree.
+The update secret resulting from this change is an all-zero octet
+string of length Hash.length.
 
 ## Update
 
