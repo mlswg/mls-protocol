@@ -382,7 +382,7 @@ A              B     ...      Z          Directory       Channel
 The protocol uses "ratchet trees" for deriving shared secrets among
 a group of participants.
 
-## Terminology
+## Tree Compuptation Terminology
 
 Trees consist of _nodes_. A node is a
 _leaf_ if it has no children, and a _parent_ otherwise; note that all
