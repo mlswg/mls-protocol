@@ -183,9 +183,6 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
 BCP 14 {{!RFC2119}} {{!RFC8174}} when, and only when, they appear in all
 capitals, as shown here.
 
-[TODO: The architecture document uses "Client" instead of "Participant".
-Harmonize terminology.]
-
 Participant:
 : An agent that uses this protocol to establish shared cryptographic
   state with other participants.  A participant is defined by the
