@@ -856,7 +856,7 @@ update_secret -> HKDF-Extract = epoch_secret
                      |    = application_secret
                      |
                      +--> Derive-Secret(., "confirm", GroupState_[n])
-                     |    = confirmation_key
+                     |    = key_confirmation
                      |
                      V
                Derive-Secret(., "init", GroupState_[n])
@@ -948,7 +948,7 @@ struct {
     uint32 signer_index;
     SignatureScheme algorithm;
     opaque signature<1..2^16-1>;
-    opaque confirmation[Hash.length];
+    opaque key_confirmation[Hash.length];
 } Handshake;
 ~~~~~
 
@@ -970,28 +970,12 @@ follows:
 5. If the signature fails to verify, discard the updated GroupState
    object and consider the Handshake message invalid.
 
-6. Use the `confirmation_key` for the new group state to
-   compute the finished MAC for this message, as described below,
-   and verify that it is the same as the `finished_mac` field.
+6. Verify that the `key_confirmation` value in the Handshake message
+   is the same as the value computed via the key schedule for the
+   provisional state (see {{key-schedule}}).
 
 7. If the the above checks are successful, consider the updated
    GroupState object as the current state of the group.
-
-The `finished_mac` value is computed over the provisional group
-state and the current handshake message (with the confirmation value
-set to zero):
-
-~~~~~
-struct {
-  GroupState state;     // Provisional group state
-  Handshake handshake;  // Handshake message, confirmation = 0
-} ConfirmationData;
-
-confirmation = HMAC(confirmation_key, ConfirmationData)
-~~~~~
-
-HMAC {{!RFC2104}} uses the Hash algorithm for the ciphersuite in
-use.
 
 [[ OPEN ISSUE: The Add and Remove operations create a "double-join"
 situation, where a participants leaf key is also known to another
