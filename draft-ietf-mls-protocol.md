@@ -708,7 +708,7 @@ struct {
   uint32 epoch;
   Credential roster<1..2^32-1>;
   PublicKey tree<1..2^32-1>;
-  GroupOperation transcript<0..2^32-1>;
+  opaque transcript_hash<0..255>;
 } GroupState;
 ~~~~~
 
@@ -741,8 +741,16 @@ operations:
 * The `group_id` field is constant
 * The `epoch` field increments by one for each GroupOperation that
   is processed
-* The `transcript` is updated by a GroupOperation message
-  `operation` by appending `operation` to `transcript`
+* The `transcript_hash` is updated by a GroupOperation message
+  `operation` in the following way:
+
+~~~~~
+transcript\_hash\_[n] = Hash(transcript\_hash\_[n-1] || operation)
+~~~~~
+
+When a new one-member group is created (which requires no
+GroupOperation), the `transcript_hash` field is set to an all-zero
+vector of length Hash.length.
 
 ## Direct Paths
 
