@@ -568,12 +568,18 @@ direct path from a leaf to the root. Other participants in the group
 can use these nodes to update their view of the tree, aligning their
 copy of the tree to the sender's.
 
-To perform an update, the sender transmits a node by sending the
-public key for the node and one or more encrypted copies of the
-secret value for the node.  The secret value in a node is encrypted
-for the subtree corresponding to the node's non-updated child, by
-encrypting it using the public key of each node in the resolution
-of the non-updated child.
+To perform an update for a leaf, the sender transmits the following
+information for each node in the direct path from leaf leaf to the
+root:
+
+* The public key for the node
+* Zero or more encrypted copies of the node's secret value
+
+The secret value is encrypted for the subtree corresponding to the
+node's non-updated child, i.e., the child not on the direct path.
+There is one encrypted secret for each public key in the resolution
+of the non-updated child.  In particular, for the leaf node, there
+are no encrypted secrets, since a leaf node has no children.
 
 The recipient of an update processes it with the following steps:
 
@@ -900,7 +906,6 @@ update_secret -> HKDF-Extract = epoch_secret
                init_secret_[n]
 ~~~~~
 
-
 # Initialization Keys
 
 In order to facilitate asynchronous addition of participants to a
@@ -1054,6 +1059,14 @@ struct {
   opaque init_secret<0..255>;
 } Welcome;
 ~~~~~
+
+Note that the `init_secret` in the Welcome message is the
+`init_secret` at the output of the key schedule diagram in
+{{key-schedule}}.  That is, if the `epoch` value in the Welcome
+message is `n`, then the `init_secret` value is `init_secret_[n]`.
+This allows the new member to compute the epoch secret for the next
+epoch (in which it is added), without revealing the secrets for the
+previous epoch.
 
 Since the new member is expected to process the Add message for
 itself, the Welcome message should reflect the state of the group
