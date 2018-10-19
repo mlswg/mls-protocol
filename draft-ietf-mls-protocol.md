@@ -178,11 +178,10 @@ draft-00
 # Terminology
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
-"SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
-document are to be interpreted as described in {{!RFC2119}}.
-
-[TODO: The architecture document uses "Client" instead of "Participant".
-Harmonize terminology.]
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in
+BCP 14 {{!RFC2119}} {{!RFC8174}} when, and only when, they appear in all
+capitals, as shown here.
 
 Participant:
 : An agent that uses this protocol to establish shared cryptographic
@@ -327,8 +326,8 @@ their state and the new participant can use to initialize its state.
 To enforce forward secrecy and post-compromise security of messages,
 each participant periodically updates its leaf secret which represents
 its contribution to the group secret.  Any member of the
-group can send an Update at any time by generating fresh leaf secret and keys
-and send an Update message that describes how to update the
+group can send an Update at any time by generating a fresh leaf secret
+and sending an Update message that describes how to update the
 group secret with that new information.  Once all participants have
 processed this message, the group's secrets will be unknown to an
 attacker that had compromised the sender's prior leaf secret.
@@ -384,7 +383,7 @@ A              B     ...      Z          Directory       Channel
 The protocol uses "ratchet trees" for deriving shared secrets among
 a group of participants.
 
-## Terminology
+## Tree Computation Terminology
 
 Trees consist of _nodes_. A node is a
 _leaf_ if it has no children, and a _parent_ otherwise; note that all
@@ -397,7 +396,7 @@ _contains_ a node if that node is a descendant of the root of the
 tree. Nodes are _siblings_ if they share the same parent.
 
 A _subtree_ of a tree is the tree given by the descendants of any
-node, the _head_ of the subtree The _size_ of a tree or subtree is the
+node, the _head_ of the subtree. The _size_ of a tree or subtree is the
 number of leaf nodes it contains.  For a given parent node, its _left
 subtree_ is the subtree with its left child as head (respectively
 _right subtree_).
@@ -420,9 +419,8 @@ node in the tree when counting from the left, starting from 0.
 The _direct path_ of a root is the empty list, and of any other node
 is the concatenation of that node with the direct path of its
 parent. The _copath_ of a node is the list of siblings of nodes in its
-direct path, excluding the root, which has no sibling. The _frontier_
-of a tree is the list of heads of the maximal full subtrees of the
-tree, ordered from left to right.
+direct path, excluding the root. The _frontier_ of a tree is the list of heads of the maximal
+full subtrees of the tree, ordered from left to right.
 
 For example, in the below tree:
 
@@ -752,7 +750,7 @@ struct {
   uint32 epoch;
   Credential roster<1..2^32-1>;
   PublicKey tree<1..2^32-1>;
-  GroupOperation transcript<0..2^32-1>;
+  opaque transcript_hash<0..255>;
 } GroupState;
 ~~~~~
 
@@ -785,8 +783,16 @@ operations:
 * The `group_id` field is constant
 * The `epoch` field increments by one for each GroupOperation that
   is processed
-* The `transcript` is updated by a GroupOperation message
-  `operation` by appending `operation` to `transcript`
+* The `transcript_hash` is updated by a GroupOperation message
+  `operation` in the following way:
+
+~~~~~
+transcript\_hash\_[n] = Hash(transcript\_hash\_[n-1] || operation)
+~~~~~
+
+When a new one-member group is created (which requires no
+GroupOperation), the `transcript_hash` field is set to an all-zero
+vector of length Hash.length.
 
 ## Direct Paths
 

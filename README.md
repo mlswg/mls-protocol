@@ -6,6 +6,8 @@ This is the working area for the IETF MLS Working Group Internet-Draft, "The Mes
 * [Working Group Draft](https://tools.ietf.org/html/draft-ietf-mls-protocol)
 * [Compare Editor's Copy to Working Group Draft](https://github.com/mlswg/mls-protocol/compare/draft-ietf-mls-protocol-00...master)
 
+[![Build Status](https://travis-ci.org/mlswg/mls-protocol.svg?branch=master)](https://travis-ci.org/mlswg/mls-protocol)
+
 ## Building the Draft
 
 Formatted text and HTML versions of the draft can be built using `make`.
