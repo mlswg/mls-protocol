@@ -855,7 +855,7 @@ update_secret -> HKDF-Extract = epoch_secret
                      +--> Derive-Secret(., "app", GroupState_[n])
                      |    = application_secret
                      |
-                     +--> Derive-Secret(., "fin", GroupState_[n])
+                     +--> Derive-Secret(., "confirm", GroupState_[n])
                      |    = confirmation_key
                      |
                      V
