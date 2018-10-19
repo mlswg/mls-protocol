@@ -140,6 +140,8 @@ draft-02
 
 - Removed ART (\*)
 
+- Added explicit key confirmation (\*)
+
 draft-01
 
 - Initial description of the Message Protection mechanism. (\*)
