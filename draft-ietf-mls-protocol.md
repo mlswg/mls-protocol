@@ -746,10 +746,18 @@ state of the group:
 
 ~~~~~
 struct {
+  uint8 present;
+  switch (present) {
+    case 0: struct{};
+    case 1: T value;
+  }
+} optional<T>;
+
+struct {
   opaque group_id<0..255>;
   uint32 epoch;
-  Credential roster<1..2^32-1>;
-  PublicKey tree<1..2^32-1>;
+  optional<Credential> roster<1..2^32-1>;
+  optional<PublicKey> tree<1..2^32-1>;
   opaque transcript_hash<0..255>;
 } GroupState;
 ~~~~~
@@ -1177,17 +1185,16 @@ the signature on the message, then verifies its identity proof
 against the identity tree held by the participant.  The participant
 then updates its state as follows:
 
-* Update the roster by replacing the credential in the removed slot
-  with the credential from the sender's slot (i.e., the sender of
-  the Remove takes over the removed slot)
+* Update the roster by setting the credential in the removed slot to
+  the null optional value
 * Update the ratchet tree by replacing nodes in the direct
   path from the removed leaf using the information in the Remove message
 * Update the ratchet tree by setting to blank all nodes in the
   direct path from the removed leaf to the root
 
 The update secret resulting from this change is the secret for the
-root node of the ratchet tree after both updates.
-
+root node of the ratchet tree after the second step (after the third
+step, the root is blank).
 
 # Sequencing of State Changes {#sequencing}
 
