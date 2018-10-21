@@ -1078,9 +1078,10 @@ Note that the `init_secret` in the Welcome message is the
 `init_secret` at the output of the key schedule diagram in
 {{key-schedule}}.  That is, if the `epoch` value in the Welcome
 message is `n`, then the `init_secret` value is `init_secret_[n]`.
-This allows the new member to compute the epoch secret for the next
-epoch (in which it is added), without revealing the secrets for the
-previous epoch.
+The new member can combine this init secret with the update secret
+transmitted in the corresponding Add message to get the epoch secret
+for the epoch in which it is added.  No secrets from prior epochs
+are revealed to the new member.
 
 Since the new member is expected to process the Add message for
 itself, the Welcome message should reflect the state of the group
