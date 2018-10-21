@@ -1079,6 +1079,10 @@ the signature on the message,  then updates its state as follows:
 The update secret resulting from this change is the secret for the
 root node of the ratchet tree.
 
+On receipt of an Add message, new participants SHOULD send an update
+immediately to their key. This will help to limit the tree structure
+degrading into subtrees, and thus maintain the protocol's efficiency.
+
 ## Update
 
 An Update message is sent by a group participant to update its leaf
