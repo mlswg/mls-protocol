@@ -140,6 +140,8 @@ draft-02
 
 - Removed ART (\*)
 
+- Allowed partial trees to avoid double-joins (\*)
+
 - Added explicit key confirmation (\*)
 
 draft-01
@@ -614,7 +616,7 @@ values will be transmitted (using pk(X) to represent the public key
 corresponding to the secret value X and E(K, S) to represent
 public-key encryption to the public key K of the secret value S):
 
-| Public Key | Ciphertext               |
+| Public Key | Ciphertext(s)            |
 |:-----------|:-------------------------|
 | pk(G)      | E(pk(C), G), E(pk(D), G) |
 | pk(E)      | E(pk(A), E)              |
