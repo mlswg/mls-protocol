@@ -140,6 +140,8 @@ draft-02
 
 - Removed ART (\*)
 
+- Added explicit key confirmation (\*)
+
 draft-01
 
 - Initial description of the Message Protection mechanism. (\*)
@@ -875,8 +877,8 @@ functions as defined in {{!RFC5869}}, as well as the functions
 defined below:
 
 ~~~~~
-Derive-Secret(Secret, Label, State, Length) =
-     HKDF-Expand(Secret, HkdfLabel, Length)
+Derive-Secret(Secret, Label, State) =
+     HKDF-Expand(Secret, HkdfLabel, Hash.length)
 
 Where HkdfLabel is specified as:
 
@@ -912,6 +914,9 @@ update_secret -> HKDF-Extract = epoch_secret
                      |
                      +--> Derive-Secret(., "app", GroupState_[n])
                      |    = application_secret
+                     |
+                     +--> Derive-Secret(., "confirm", GroupState_[n])
+                     |    = confirmation_key
                      |
                      V
                Derive-Secret(., "init", GroupState_[n])
@@ -1002,6 +1007,7 @@ struct {
     uint32 signer_index;
     SignatureScheme algorithm;
     opaque signature<1..2^16-1>;
+    opaque confirmation[Hash.length];
 } Handshake;
 ~~~~~
 
@@ -1011,8 +1017,8 @@ follows:
 1. Verify that the `prior_epoch` field of the Handshake message
    is equal the `epoch` field of the current GroupState object.
 
-2. Use the `operation` message to produce an updated GroupState
-   object incorporating the proposed changes.
+2. Use the `operation` message to produce an updated, provisional
+   GroupState object incorporating the proposed changes.
 
 3. Look up the public key for slot index `signer_index` from the
    roster in the current GroupState object (before the update).
@@ -1023,8 +1029,28 @@ follows:
 5. If the signature fails to verify, discard the updated GroupState
    object and consider the Handshake message invalid.
 
-6. If the signature verifies successfully, consider the updated
+6. Use the `confirmation_key` for the new group state to
+   compute the finished MAC for this message, as described below,
+   and verify that it is the same as the `finished_mac` field.
+
+7. If the the above checks are successful, consider the updated
    GroupState object as the current state of the group.
+
+The `finished_mac` value is computed over the provisional group
+state and the current handshake message (with the confirmation value
+set to zero):
+
+~~~~~
+struct {
+  GroupState state;     // Provisional group state
+  Handshake handshake;  // Handshake message, confirmation = 0
+} ConfirmationData;
+
+confirmation = HMAC(confirmation_key, ConfirmationData)
+~~~~~
+
+HMAC {{!RFC2104}} uses the Hash algorithm for the ciphersuite in
+use.
 
 [[ OPEN ISSUE: The Add and Remove operations create a "double-join"
 situation, where a participants leaf key is also known to another
