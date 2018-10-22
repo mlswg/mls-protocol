@@ -521,7 +521,42 @@ X, then the tree will have the following structure.
 X    B     C    D
 ~~~~~
 
-### Ratchet Tree Updates
+## Blank Nodes and Resolution
+
+A node in the tree may be _blank_, indicating that no value is
+present at that node.  The _resolution_ of a node is an ordered list
+of non-blank nodes that collectively cover all non-blank descendants
+of the node.  The nodes in a resolution are ordered according to
+their indices.
+
+* The resolution of a non-blank node is a one element list
+  containing the node itself
+* The resolution of a blank leaf node is the empty list
+* The resolution of a blank intermediate node is the result of
+  concatinating the resolution of its left child with the resolution
+  of its right child, in that order
+
+For example, consider the following tree, where the "\_" character
+represents a blank node:
+
+~~~~~
+      _
+    /    \
+   /      \
+  _       CD
+ / \     / \
+A   _   C   D
+
+0 1 2 3 4 5 6
+~~~~~
+
+In this tree, we can see all three of the above rules in play:
+
+* The resolution of node 5 is the list [CD]
+* The resolution of node 2 is the empty list []
+* The resolution of node 3 is the list [A, CD]
+
+## Ratchet Tree Updates
 
 In order to update the state of the group such as adding and
 removing participants, MLS messages are used to make changes to the
@@ -531,21 +566,28 @@ direct path from a leaf to the root. Other participants in the group
 can use these nodes to update their view of the tree, aligning their
 copy of the tree to the sender's.
 
-To perform an update, the sender transmits a node by sending the public key
-for the node and an encrypted version of the secret value for the
-node.  The secret value is encrypted in such a way that it can be
-decrypted only by holders of the private key for one of its
-children, namely the child that is not in the direct path being
-transmitted.  That is, each node in the direct path is encrypted
-for holders of the private key for a node in the corresponding
-copath.  For leaf nodes, no encrypted secret is transmitted.
+To perform an update for a leaf, the sender transmits the following
+information for each node in the direct path from leaf leaf to the
+root:
+
+* The public key for the node
+* Zero or more encrypted copies of the node's secret value
+
+The secret value is encrypted for the subtree corresponding to the
+node's non-updated child, i.e., the child not on the direct path.
+There is one encrypted secret for each public key in the resolution
+of the non-updated child.  In particular, for the leaf node, there
+are no encrypted secrets, since a leaf node has no children.
 
 The recipient of an update processes it with the following steps:
 
 1. Compute the updated secret values
   * Identify a node in the direct path for which the local participant
-    has the private key
-  * Decrypt the secret value for that node
+    is in the subtree of the non-updated child
+  * Identify a node in the resolution of the non-updated child for
+    which this node has a private key
+  * Decrypt the secret value for the direct path node using the
+    private key from the resolution node
   * Compute secret values for ancestors of that node by hashing the
     decrypted secret
 2. Merge the updated secrets into the tree
@@ -560,7 +602,7 @@ For example, suppose we had the following tree:
       G
     /   \
    /     \
-  E       F
+  E       _
  / \     / \
 A   B   C   D
 ~~~~~
@@ -570,11 +612,11 @@ values will be transmitted (using pk(X) to represent the public key
 corresponding to the secret value X and E(K, S) to represent
 public-key encryption to the public key K of the secret value S):
 
-| Public Key | Ciphertext  |
-|:-----------|:------------|
-| pk(G)      | E(pk(F), G) |
-| pk(E)      | E(pk(A), E) |
-| pk(B)      |             |
+| Public Key | Ciphertext               |
+|:-----------|:-------------------------|
+| pk(G)      | E(pk(C), G), E(pk(D), G) |
+| pk(E)      | E(pk(A), E)              |
+| pk(B)      |                          |
 
 
 ## Cryptographic Objects
@@ -704,10 +746,18 @@ state of the group:
 
 ~~~~~
 struct {
+  uint8 present;
+  switch (present) {
+    case 0: struct{};
+    case 1: T value;
+  }
+} optional<T>;
+
+struct {
   opaque group_id<0..255>;
   uint32 epoch;
-  Credential roster<1..2^32-1>;
-  PublicKey tree<1..2^32-1>;
+  optional<Credential> roster<1..2^32-1>;
+  optional<PublicKey> tree<1..2^32-1>;
   opaque transcript_hash<0..255>;
 } GroupState;
 ~~~~~
@@ -778,7 +828,11 @@ struct {
 ~~~~~
 
 The length of the `node\_secrets` vector MUST be zero for the first
-node in the path and one for all other nodes in the path.
+node in the path.  For the remaining elements in the vector, the
+number of ciphertexts in the `node\_secrets` vector MUST be equal to
+the length of the resolution of the corresponding copath node.  Each
+ciphertext in the list is the encryption to the corresponding node
+in the resolution.
 
 The ECIESCiphertext values encoding the
 encrypted secret values are computed as follows:
@@ -810,7 +864,7 @@ struct {
 ~~~~~
 
 Decryption is performed in the corresponding way, using the private
-key of the non-updated child and the ephemeral public key
+key of the resolution node and the ephemeral public key
 transmitted in the message.
 
 
@@ -866,7 +920,6 @@ update_secret -> HKDF-Extract = epoch_secret
                init_secret_[n]
 ~~~~~
 
-
 # Initialization Keys
 
 In order to facilitate asynchronous addition of participants to a
@@ -884,7 +937,7 @@ times, potentially once. (see {{init-key-reuse}}).
 
 The init\_keys array MUST have the same length as the cipher\_suites
 array, and each entry in the init\_keys array MUST be a public key
-for the DH group or KEM defined by the corresponding entry in the
+for the DH group defined by the corresponding entry in the
 cipher\_suites array.
 
 The whole structure is signed using the client's identity key.  A
@@ -901,7 +954,6 @@ struct {
     opaque signature<0..2^16-1>;
 } UserInitKey;
 ~~~~~
-
 
 # Handshake Messages
 
@@ -1019,9 +1071,17 @@ struct {
   PublicKey tree<1..2^32-1>;
   GroupOperation transcript<0..2^32-1>;
   opaque init_secret<0..255>;
-  opaque leaf_secret<0..255>;
 } Welcome;
 ~~~~~
+
+Note that the `init_secret` in the Welcome message is the
+`init_secret` at the output of the key schedule diagram in
+{{key-schedule}}.  That is, if the `epoch` value in the Welcome
+message is `n`, then the `init_secret` value is `init_secret_[n]`.
+The new member can combine this init secret with the update secret
+transmitted in the corresponding Add message to get the epoch secret
+for the epoch in which it is added.  No secrets from prior epochs
+are revealed to the new member.
 
 Since the new member is expected to process the Add message for
 itself, the Welcome message should reflect the state of the group
@@ -1044,21 +1104,13 @@ member:
 
 ~~~~~
 struct {
-    DirectPath path<1..2^16-1>;
     UserInitKey init_key;
 } Add;
 ~~~~~
 
-A group member generates this message using the following steps:
-
-* Requesting from the directory a UserInitKey for the user to be added
-* Generate a fresh leaf secret and derive a leaf key pair
-* Use the ratchet tree and the new leaf secret to compute the
-  direct path between the new leaf and the new root
-
-The generated leaf secret is placed in the `leaf_secret` field of
-the Welcome message.  The direct path and the UserInitKey are placed
-their respective fields in the Add message.
+A group member generates this message by requesting a UserInitKey
+from the directory for the user to be added, and encoding it into an
+Add message.
 
 The new participant processes Welcome and Add messages together as
 follows:
@@ -1074,10 +1126,15 @@ the signature on the message,  then updates its state as follows:
   verification fails, abort
 * Append an entry to the roster containing the credential in the
   included UserInitKey
-* Update the ratchet tree with the included direct path
+* Update the ratchet tree by adding a new leaf node for the new
+  member, containing the public key from the UserInitKey in the Add
+  corresponding to the ciphersuite in use
+* Update the ratchet tree by setting to blank all nodes in the
+  direct path of the new node, except for the leaf (which remains
+  set to the new member's public key)
 
-The update secret resulting from this change is the secret for the
-root node of the ratchet tree.
+The update secret resulting from this change is an all-zero octet
+string of length Hash.length.
 
 On receipt of an Add message, new participants SHOULD send an update
 immediately to their key. This will help to limit the tree structure
@@ -1133,15 +1190,16 @@ the signature on the message, then verifies its identity proof
 against the identity tree held by the participant.  The participant
 then updates its state as follows:
 
-* Update the roster by replacing the credential in the removed slot
-  with the credential from the sender's slot (i.e., the sender of
-  the Remove takes over the removed slot)
-* Update the cached ratchet tree by replacing nodes in the direct
+* Update the roster by setting the credential in the removed slot to
+  the null optional value
+* Update the ratchet tree by replacing nodes in the direct
   path from the removed leaf using the information in the Remove message
+* Update the ratchet tree by setting to blank all nodes in the
+  direct path from the removed leaf to the root
 
 The update secret resulting from this change is the secret for the
-root node of the ratchet tree after both updates.
-
+root node of the ratchet tree after the second step (after the third
+step, the root is blank).
 
 # Sequencing of State Changes {#sequencing}
 
@@ -1747,4 +1805,17 @@ def frontier(n):
 def leaves(n):
     return [2*i for i in range(n)]
 
+# The resolution of a node is the collection of non-blank
+# descendants of this node.  Here the tree is represented by a list
+# of nodes, where blank nodes are represented by None
+def resolve(tree, x, n):
+    if tree[x] != None:
+        return [x]
+
+    if level(x) == 0:
+        return []
+
+    L = resolve(tree, left(x), n)
+    R = resolve(tree, right(x, n), n)
+    return L + R
 ~~~~~
