@@ -571,7 +571,7 @@ can use these nodes to update their view of the tree, aligning their
 copy of the tree to the sender's.
 
 To perform an update for a leaf, the sender transmits the following
-information for each node in the direct path from leaf leaf to the
+information for each node in the direct path from the leaf to the
 root:
 
 * The public key for the node
