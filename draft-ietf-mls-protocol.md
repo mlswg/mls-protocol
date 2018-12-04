@@ -648,13 +648,8 @@ Cryptographic algorithms are indicated using the following types:
 
 ~~~~~
 enum {
-    /* ECDSA algorithms */
     ecdsa_secp256r1_sha256(0x0403),
-    ecdsa_secp521r1_sha512(0x0603),
-
-    /* EdDSA algorithms */
     ed25519(0x0807),
-    ed448(0x0808),
     (0xFFFF)
 } SignatureScheme;
 
