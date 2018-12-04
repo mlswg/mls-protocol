@@ -956,8 +956,8 @@ comprises all of the fields except for the signature field.
 struct {
     CipherSuite cipher_suites<0..255>;
     DHPublicKey init_keys<1..2^16-1>;
-    SignaturePublicKey identity_key;
     SignatureScheme algorithm;
+    SignaturePublicKey identity_key;
     opaque signature<0..2^16-1>;
 } UserInitKey;
 ~~~~~
