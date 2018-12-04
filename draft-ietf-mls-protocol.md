@@ -640,9 +640,24 @@ Public keys used in the protocol are opaque values
 in a format defined by the ciphersuite, using the following types:
 
 ~~~~~
-uint16 CipherSuite;
 opaque DHPublicKey<1..2^16-1>;
 opaque SignaturePublicKey<1..2^16-1>;
+~~~~~
+
+Cryptographic algorithms are indicated using the following types:
+
+~~~~~
+enum {
+    ecdsa_secp256r1_sha256(0x0403),
+    ed25519(0x0807),
+    (0xFFFF)
+} SignatureScheme;
+
+enum {
+    P256_SHA256_AES128GCM(0x0000),
+    X25519_SHA256_AES128GCM(0x0001),
+    (0xFFFF)
+} CipherSuite;
 ~~~~~
 
 ### Curve25519, SHA-256, and AES-128-GCM
