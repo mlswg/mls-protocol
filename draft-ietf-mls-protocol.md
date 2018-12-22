@@ -288,9 +288,11 @@ A              B              C          Directory       Channel
 
 When a participant A wants to establish a group with B and C, it
 first downloads InitKeys for B and C.  It then initializes a group state
-containing only itself and uses the InitKeys to compute Add messages
-to add B and C, in a sequence chosen by A.
-These messages are broadcasted to the Group, and processed in sequence
+containing only itself and uses the InitKeys to compute Welcome and Add messages
+to add B and C, in a sequence chosen by A.  The Welcome messages are
+sent directly to the new members (there is no need to send them to
+the group).
+The Add messages are broadcasted to the Group, and processed in sequence
 by B and C.  Messages received before a participant has joined the
 group are ignored.  Only after A has received its Add messages
 back from the server does it update its state to reflect their addition.
@@ -302,23 +304,26 @@ A              B              C          Directory            Channel
 |              |              |              |                   |
 |         UserInitKeyB, UserInitKeyC         |                   |
 |<-------------------------------------------|                   |
+|state.init()  |              |              |                   |
 |              |              |              |                   |
-|              |              |              | Add(A->AB)        |
-|--------------------------------------------------------------->|
+| Add(A->AB)   |              |              |                   |
+|------------+ |              |              |                   |
+|            | |              |              |                   |
+|<-----------+ |              |              |                   |
+|state.add(B)  |              |              |                   |
 |              |              |              |                   |
+|  Welcome(B)  |              |              |                   |
+|------------->|state.init()  |              |                   |
 |              |              |              | Add(AB->ABC)      |
 |--------------------------------------------------------------->|
-|              |              |              |                   |
-|              |              |              | Add(A->AB)        |
-|<---------------------------------------------------------------|
-|state.add(B)  |<------------------------------------------------|
-|              |state.init()  |x---------------------------------|
 |              |              |              |                   |
 |              |              |              | Add(AB->ABC)      |
 |<---------------------------------------------------------------|
 |state.add(C)  |<------------------------------------------------|
 |              |state.add(C)  |<---------------------------------|
-|              |              |state.init()  |                   |
+|              |              |              |                   |
+|              |  Welcome(C)  |              |                   |
+|---------------------------->|state.init()  |                   |
 |              |              |              |                   |
 ~~~~~
 
