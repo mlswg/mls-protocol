@@ -955,7 +955,10 @@ as well as providing public keys that the client can use for key
 derivation and signing.  The client's identity key is intended to be
 stable throughout the lifetime of the group; there is no mechanism to
 change it.  Init keys are intended to be used a very limited number of
-times, potentially once. (see {{init-key-reuse}}).
+times, potentially once. (see {{init-key-reuse}}).  UserInitKeys
+also contain an identifier chosen by the client, which the client
+MUST assure uniquely identifies a given UserInitKey object among the
+set of UserInitKeys created by this client.
 
 The init\_keys array MUST have the same length as the cipher\_suites
 array, and each entry in the init\_keys array MUST be a public key
@@ -969,6 +972,7 @@ comprises all of the fields except for the signature field.
 
 ~~~~~
 struct {
+    opaque user_init_key_id<0..255>;
     CipherSuite cipher_suites<0..255>;
     DHPublicKey init_keys<1..2^16-1>;
     SignatureScheme algorithm;
@@ -1085,7 +1089,6 @@ key for nodes in its direct path.  This creates the possibility
 that a malicious participant could cause a denial of service by sending a handshake
 message with invalid values for public keys in the ratchet tree. ]]
 
-
 ## Init
 
 [[ OPEN ISSUE: Direct initialization is currently undefined.  A participant can
@@ -1104,7 +1107,10 @@ group must take two actions:
 
 The Welcome message contains the information that the new member
 needs to initialize a GroupState object that can be updated to the
-current state using the Add message:
+current state using the Add message.  This information is encrypted
+for the new member using ECIES.  The recipient key pair for the
+ECIES encryption is the one included in the indicated UserInitKey,
+corresponding to the indicated ciphersuite.
 
 ~~~~~
 struct {
@@ -1114,6 +1120,12 @@ struct {
   PublicKey tree<1..2^32-1>;
   GroupOperation transcript<0..2^32-1>;
   opaque init_secret<0..255>;
+} WelcomeInfo;
+
+struct {
+  opaque user_init_key_id<0..255>;
+  CipherSuite cipher_suite;
+  ECIESCiphertext encrypted_welcome_info;
 } Welcome;
 ~~~~~
 
