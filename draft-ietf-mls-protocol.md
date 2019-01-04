@@ -1027,7 +1027,7 @@ struct {
 
     uint32 signer_index;
     opaque signature<1..2^16-1>;
-    opaque confirmation[Hash.length];
+    opaque confirmation<1..2^8-1>;
 } Handshake;
 ~~~~~
 
