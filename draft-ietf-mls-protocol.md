@@ -729,8 +729,12 @@ Encryption keys are derived from shared secrets by taking the first
 A member of a group authenticates the identities of other
 participants by means of credentials issued by some authentication
 system, e.g., a PKI.  Each type of credential MUST express the
-holder's identity as well as the public key of a signature key pair
-that the holder of the credential will use to sign MLS messages.
+following data:
+
+* The public key of a signature key pair
+* The identity of the holder of the private key
+* The signature scheme that the holder will use to sign MLS messages
+
 Credentials MAY also include information that allows a relying party
 to verify the identity / signing key binding.
 
@@ -743,6 +747,7 @@ enum {
 
 struct {
     opaque identity<0..2^16-1>;
+    SignatureScheme algorithm;
     SignaturePublicKey public_key;
 } BasicCredential;
 
@@ -971,8 +976,7 @@ comprises all of the fields except for the signature field.
 struct {
     CipherSuite cipher_suites<0..255>;
     DHPublicKey init_keys<1..2^16-1>;
-    SignatureScheme algorithm;
-    SignaturePublicKey identity_key;
+    Credential credential;
     opaque signature<0..2^16-1>;
 } UserInitKey;
 ~~~~~
@@ -1022,7 +1026,6 @@ struct {
     GroupOperation operation;
 
     uint32 signer_index;
-    SignatureScheme algorithm;
     opaque signature<1..2^16-1>;
     opaque confirmation[Hash.length];
 } Handshake;
