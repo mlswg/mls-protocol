@@ -288,9 +288,11 @@ A              B              C          Directory       Channel
 
 When a participant A wants to establish a group with B and C, it
 first downloads InitKeys for B and C.  It then initializes a group state
-containing only itself and uses the InitKeys to compute Add messages
-to add B and C, in a sequence chosen by A.
-These messages are broadcasted to the Group, and processed in sequence
+containing only itself and uses the InitKeys to compute Welcome and Add messages
+to add B and C, in a sequence chosen by A.  The Welcome messages are
+sent directly to the new members (there is no need to send them to
+the group).
+The Add messages are broadcasted to the Group, and processed in sequence
 by B and C.  Messages received before a participant has joined the
 group are ignored.  Only after A has received its Add messages
 back from the server does it update its state to reflect their addition.
@@ -302,23 +304,26 @@ A              B              C          Directory            Channel
 |              |              |              |                   |
 |         UserInitKeyB, UserInitKeyC         |                   |
 |<-------------------------------------------|                   |
+|state.init()  |              |              |                   |
 |              |              |              |                   |
-|              |              |              | Add(A->AB)        |
-|--------------------------------------------------------------->|
+| Add(A->AB)   |              |              |                   |
+|------------+ |              |              |                   |
+|            | |              |              |                   |
+|<-----------+ |              |              |                   |
+|state.add(B)  |              |              |                   |
 |              |              |              |                   |
+|  Welcome(B)  |              |              |                   |
+|------------->|state.init()  |              |                   |
 |              |              |              | Add(AB->ABC)      |
 |--------------------------------------------------------------->|
-|              |              |              |                   |
-|              |              |              | Add(A->AB)        |
-|<---------------------------------------------------------------|
-|state.add(B)  |<------------------------------------------------|
-|              |state.init()  |x---------------------------------|
 |              |              |              |                   |
 |              |              |              | Add(AB->ABC)      |
 |<---------------------------------------------------------------|
 |state.add(C)  |<------------------------------------------------|
 |              |state.add(C)  |<---------------------------------|
-|              |              |state.init()  |                   |
+|              |              |              |                   |
+|              |  Welcome(C)  |              |                   |
+|---------------------------->|state.init()  |                   |
 |              |              |              |                   |
 ~~~~~
 
@@ -960,7 +965,10 @@ as well as providing public keys that the client can use for key
 derivation and signing.  The client's identity key is intended to be
 stable throughout the lifetime of the group; there is no mechanism to
 change it.  Init keys are intended to be used a very limited number of
-times, potentially once. (see {{init-key-reuse}}).
+times, potentially once. (see {{init-key-reuse}}).  UserInitKeys
+also contain an identifier chosen by the client, which the client
+MUST assure uniquely identifies a given UserInitKey object among the
+set of UserInitKeys created by this client.
 
 The init\_keys array MUST have the same length as the cipher\_suites
 array, and each entry in the init\_keys array MUST be a public key
@@ -974,6 +982,7 @@ comprises all of the fields except for the signature field.
 
 ~~~~~
 struct {
+    opaque user_init_key_id<0..255>;
     CipherSuite cipher_suites<0..255>;
     DHPublicKey init_keys<1..2^16-1>;
     Credential credential;
@@ -1088,7 +1097,6 @@ key for nodes in its direct path.  This creates the possibility
 that a malicious participant could cause a denial of service by sending a handshake
 message with invalid values for public keys in the ratchet tree. ]]
 
-
 ## Init
 
 [[ OPEN ISSUE: Direct initialization is currently undefined.  A participant can
@@ -1107,7 +1115,10 @@ group must take two actions:
 
 The Welcome message contains the information that the new member
 needs to initialize a GroupState object that can be updated to the
-current state using the Add message:
+current state using the Add message.  This information is encrypted
+for the new member using ECIES.  The recipient key pair for the
+ECIES encryption is the one included in the indicated UserInitKey,
+corresponding to the indicated ciphersuite.
 
 ~~~~~
 struct {
@@ -1117,6 +1128,12 @@ struct {
   optional<PublicKey> tree<1..2^32-1>;
   opaque transcript_hash<0..255>;
   opaque init_secret<0..255>;
+} WelcomeInfo;
+
+struct {
+  opaque user_init_key_id<0..255>;
+  CipherSuite cipher_suite;
+  ECIESCiphertext encrypted_welcome_info;
 } Welcome;
 ~~~~~
 
