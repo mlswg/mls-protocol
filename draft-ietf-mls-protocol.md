@@ -1062,17 +1062,17 @@ follows:
 7. If the the above checks are successful, consider the updated
    GroupState object as the current state of the group.
 
-The `finished_mac` value is computed over the provisional group
-state and the current handshake message (with the confirmation value
-set to zero):
+The `signature` and `confirmation` values are computed over the
+transcript of group operations, using the transcript hash from the
+provisional GroupState object:
 
 ~~~~~
-struct {
-  GroupState state;     // Provisional group state
-  Handshake handshake;  // Handshake message, confirmation = 0
-} ConfirmationData;
+signature_data = GroupState.transcript_hash
 
-confirmation = HMAC(confirmation_key, ConfirmationData)
+confirmation_data = GroupState.transcript_hash ||
+                    Handshake.signature
+
+confirmation = HMAC(confirmation_key, confirmation_data)
 ~~~~~
 
 HMAC {{!RFC2104}} uses the Hash algorithm for the ciphersuite in
