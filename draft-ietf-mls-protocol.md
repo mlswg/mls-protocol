@@ -1071,15 +1071,18 @@ provisional GroupState object:
 
 ~~~~~
 signature_data = GroupState.transcript_hash
+Handshake.signature = Sign(identity_key,
+                           signature_data)
 
 confirmation_data = GroupState.transcript_hash ||
                     Handshake.signature
-
-confirmation = HMAC(confirmation_key, confirmation_data)
+Handshake.confirmation = HMAC(confirmation_key,
+                              confirmation_data)
 ~~~~~
 
 HMAC {{!RFC2104}} uses the Hash algorithm for the ciphersuite in
-use.
+use.  Sign uses the signature algorithm indicated by the signer's
+credential in the roster.
 
 [[ OPEN ISSUE: The Add and Remove operations create a "double-join"
 situation, where a participants leaf key is also known to another
