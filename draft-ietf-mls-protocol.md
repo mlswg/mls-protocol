@@ -1269,6 +1269,8 @@ then updates its state as follows:
   the null optional value
 * Update the ratchet tree by replacing nodes in the direct
   path from the removed leaf using the information in the Remove message
+* Reduce the size of the roster and the tree until the rightmost
+  element roster element and leaf node are non-null
 * Update the ratchet tree by setting to blank all nodes in the
   direct path from the removed leaf to the root
 
