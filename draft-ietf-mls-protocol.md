@@ -79,7 +79,7 @@ security mechanisms to ensure that messages are only accessible to
 the communicating endpoints, and not to any servers involved in delivering
 messages.  Establishing keys to provide such protections is
 challenging for group chat settings, in which more than two
-participants need to agree on a key but may not be online at the same
+clients need to agree on a key but may not be online at the same
 time.  In this document, we specify a key establishment
 protocol that provides efficient asynchronous group key establishment
 with forward secrecy and post-compromise security for groups
@@ -102,27 +102,27 @@ Instructions are on that page as well. Editorial changes can be
 managed in GitHub, but any substantive change should be discussed on
 the MLS mailing list.
 
-A group of agents who want to send each other encrypted messages needs
+Users who want to send each other encrypted messages needs
 a way to derive shared symmetric encryption keys. For two parties,
 this problem has been studied thoroughly, with the Double Ratchet
 emerging as a common solution {{doubleratchet}} {{signal}}.
-Channels implementing the Double Ratchet enjoy fine-grained forward secrecy as well as post-compromise
-security, but are nonetheless efficient enough for heavy use over
-low-bandwidth networks.
+Channels implementing the Double Ratchet enjoy fine-grained forward secrecy
+as well as post-compromise security, but are nonetheless efficient
+enough for heavy use over low-bandwidth networks.
 
 For a group of size greater than two, a common strategy is to
 unilaterally broadcast symmetric "sender" keys over existing shared
-symmetric channels, and then for each agent to send messages to the
+symmetric channels, and then for each Member to send messages to the
 group encrypted with their own sender key. Unfortunately, while this
-improves efficiency over pairwise broadcast of individual messages  and
-(with the addition of a hash ratchet) provides
-forward secrecy, it is difficult to achieve post-compromise security with
+improves efficiency over pairwise broadcast of individual messages and
+provides forward secrecy (with the addition of a hash ratchet),
+it is difficult to achieve post-compromise security with
 sender keys. An adversary who learns a sender key can often indefinitely and
-passively eavesdrop on that sender's messages.  Generating and
+passively eavesdrop on that Member's messages.  Generating and
 distributing a new sender key provides a form of post-compromise
 security with regard to that sender.  However, it requires
-computation and communications resources that scale linearly as the
-size of the group.
+computation and communications resources that scale linearly with
+the size of the group.
 
 In this document, we describe a protocol based on tree structures
 that enable asynchronous group keying with forward secrecy and
@@ -135,6 +135,10 @@ shared keys with costs that scale as the log of the group size.
 ##  Change Log
 
 RFC EDITOR PLEASE DELETE THIS SECTION.
+
+draft-04
+
+- Updating the language to be similar to the Architecture document. (\*)
 
 draft-02
 
@@ -187,29 +191,29 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
 BCP 14 {{!RFC2119}} {{!RFC8174}} when, and only when, they appear in all
 capitals, as shown here.
 
-Participant:
+Client:
 : An agent that uses this protocol to establish shared cryptographic
-  state with other participants.  A participant is defined by the
-  cryptographic keys it holds.  An application may use one participant
+  state with other clients.  A client is defined by the
+  cryptographic keys it holds.  An application or user may use one client
   per device (keeping keys local to each device) or sync keys among
-  a user's devices so that each user appears as a single participant.
+  a user's devices so that each user appears as a single client.
 
 Group:
-: A collection of participants with shared cryptographic state.
+: A collection of Clients with shared cryptographic state.
 
 Member:
-: A participant that is included in the shared state of a group, and
+: A Client that is included in the shared state of a Group, hence
   has access to the group's secrets.
 
 Initialization Key:
 : A short-lived Diffie-Hellman key pair used to introduce a new
-  member to a group.  Initialization keys are published for
-  individual participants (UserInitKey).
+  Client to a group.  Initialization keys are published for
+  each Client (UserInitKey).
 
 Leaf Key:
-: A short-lived Diffie-Hellman key pair that represents a group
-  member's contribution to the group secret, so called because the
-  participants leaf keys are the leaves in the group's ratchet tree.
+: A secret that represent a Member's contribution to the Group secret
+  (so called because the Members' leaf keys are the leaves in the
+  group's ratchet tree).
 
 Identity Key:
 : A long-lived signing key pair used to authenticate the sender of a
