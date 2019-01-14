@@ -11,6 +11,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  certified
   kramdown-rfc2629
 
 BUNDLED WITH
