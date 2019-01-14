@@ -1,3 +1,4 @@
 source 'http://rubygems.org'
 
 gem "kramdown-rfc2629"
+gem "certified"
