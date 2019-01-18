@@ -167,7 +167,7 @@ draft-01
 - Removal of the UserAdd construct and split of GroupAdd into Add
   and Welcome messages (\*)
 
-- Initial proposal for authenticating Handshake messages by signing
+- Initial proposal for authenticating `Handshake` messages by signing
   over group state and including group state in the key schedule (\*)
 
 - Added an appendix with example code for tree math
@@ -204,7 +204,7 @@ Member:
 Initialization Key:
 : A short-lived Diffie-Hellman key pair used to introduce a new
   member to a group.  Initialization keys are published for
-  individual participants (UserInitKey).
+  individual participants (`UserInitKey`).
 
 Leaf Key:
 : A short-lived Diffie-Hellman key pair that represents a group
@@ -269,7 +269,7 @@ There are four major operations in the lifecycle of a group:
 * Removing a member.
 
 Before the initialization of a group, participants publish
-UserInitKey objects to a directory provided to the Messaging Service.
+`UserInitKey` objects to a directory provided to the Messaging Service.
 
 ~~~~~
                                                           Group
@@ -287,14 +287,14 @@ A              B              C          Directory       Channel
 ~~~~~
 
 When a participant A wants to establish a group with B and C, it
-first downloads InitKeys for B and C.  It then initializes a group state
-containing only itself and uses the InitKeys to compute Welcome and Add messages
-to add B and C, in a sequence chosen by A.  The Welcome messages are
+first downloads `UserInitKeys` for B and C.  It then initializes a group state
+containing only itself and uses the `UserInitKeys` to compute `Welcome` and `Add` messages
+to add B and C, in a sequence chosen by A.  The `Welcome` messages are
 sent directly to the new members (there is no need to send them to
 the group).
-The Add messages are broadcasted to the Group, and processed in sequence
+The `Add` messages are broadcasted to the Group, and processed in sequence
 by B and C.  Messages received before a participant has joined the
-group are ignored.  Only after A has received its Add messages
+group are ignored.  Only after A has received its `Add` messages
 back from the server does it update its state to reflect their addition.
 
 
@@ -328,21 +328,21 @@ A              B              C          Directory            Channel
 ~~~~~
 
 Subsequent additions of group members proceed in the same way.  Any
-member of the group can download an InitKey for a new participant
-and broadcast an Add message that the current group can use to update
+member of the group can download a `UserInitKey` for a new participant
+and broadcast an `Add` message that the current group can use to update
 their state and the new participant can use to initialize its state.
 
 To enforce forward secrecy and post-compromise security of messages,
 each participant periodically updates its leaf secret which represents
 its contribution to the group secret.  Any member of the
-group can send an Update at any time by generating a fresh leaf secret
-and sending an Update message that describes how to update the
+group can send an `Update` at any time by generating a fresh leaf secret
+and sending an `Update` message that describes how to update the
 group secret with that new information.  Once all participants have
 processed this message, the group's secrets will be unknown to an
 attacker that had compromised the sender's prior leaf secret.
 
 It is left to the application to determine the interval of time between
-Update messages. This policy could require a change for each message, or
+`Update` messages. This policy could require a change for each message, or
 it could require sending an update every week or more.
 
 ~~~~~
@@ -362,7 +362,7 @@ A              B     ...      Z          Directory        Channel
 
 Users are removed from the group in a similar way, as an update
 is effectively removing the old leaf from the group.
-Any member of the group can generate a Remove message that adds new
+Any member of the group can generate a `Remove` message that adds new
 entropy to the group state that is known to all members except the
 removed member.  After other participants have processed this message,
 the group's secrets will be unknown to the removed participant.
@@ -617,15 +617,15 @@ A   B   C   D
 ~~~~~
 
 If an update is made along the direct path B-E-G, then the following
-values will be transmitted (using pk(X) to represent the public key
-corresponding to the secret value X and E(K, S) to represent
-public-key encryption to the public key K of the secret value S):
+values will be transmitted (using `pk(X)` to represent the public key
+corresponding to the secret value `X` and `E(K, S)` to represent
+public-key encryption to the public key `K` of the secret value `S`):
 
-| Public Key | Ciphertext(s)            |
-|:-----------|:-------------------------|
-| pk(G)      | E(pk(C), G), E(pk(D), G) |
-| pk(E)      | E(pk(A), E)              |
-| pk(B)      |                          |
+| Public Key   | Ciphertext(s)                |
+|:-------------|:-----------------------------|
+| `pk(G)`      | `E(pk(C), G)`, `E(pk(D), G)` |
+| `pk(E)`      | `E(pk(A), E)`                |
+| `pk(B)`      |                              |
 
 
 ## Cryptographic Objects
@@ -673,10 +673,10 @@ This ciphersuite uses the following primitives:
 * Diffie-Hellman group: Curve25519 {{!RFC7748}}
 * AEAD: AES-128-GCM
 
-Given an octet string X, the private key produced by the
-Derive-Key-Pair operation is SHA-256(X).  (Recall that any 32-octet
+Given an octet string `X`, the private key produced by the
+Derive-Key-Pair operation is `SHA-256(X)`.  (Recall that any 32-octet
 string is a valid Curve25519 private key.)  The corresponding public
-key is X25519(SHA-256(X), 9).
+key is `X25519(SHA-256(X), 9)`.
 
 Implementations SHOULD use the approach
 specified in {{RFC7748}} to calculate the Diffie-Hellman shared secret.
@@ -687,7 +687,7 @@ implementation of these elliptic curves, they SHOULD perform the
 additional checks specified in Section 7 of {{RFC7748}}
 
 Encryption keys are derived from shared secrets by taking the first
-16 bytes of H(Z), where Z is the shared secret and H is SHA-256.
+16 bytes of `H(Z)`, where `Z` is the shared secret and `H` is SHA-256.
 
 ### P-256, SHA-256, and AES-128-GCM
 
@@ -697,8 +697,8 @@ This ciphersuite uses the following primitives:
 * Diffie-Hellman group: secp256r1 (NIST P-256)
 * AEAD: AES-128-GCM
 
-Given an octet string X, the private key produced by the
-Derive-Key-Pair operation is SHA-256(X), interpreted as a big-endian
+Given an octet string `X`, the private key produced by the
+Derive-Key-Pair operation is `SHA-256(X)`, interpreted as a big-endian
 integer.  The corresponding public key is the result of multiplying
 the standard P-256 base point by this integer.
 
@@ -722,12 +722,12 @@ that the point is a valid point on the elliptic curve.
 The appropriate validation procedures are defined in Section 4.3.7 of {{X962}}
 and alternatively in Section 5.6.2.3 of {{keyagreement}}.
 This process consists of three steps: (1) verify that the value is not the point at
-infinity (O), (2) verify that for Y = (x, y) both integers are in the correct
-interval, (3) ensure that (x, y) is a correct solution to the elliptic curve equation.
+infinity (O), (2) verify that for `Y = (x, y)` both integers are in the correct
+interval, (3) ensure that `(x, y)` is a correct solution to the elliptic curve equation.
 For these curves, implementers do not need to verify membership in the correct subgroup.
 
 Encryption keys are derived from shared secrets by taking the first
-16 bytes of H(Z), where Z is the shared secret and H is SHA-256.
+16 bytes of `H(Z)`, where `Z` is the shared secret and `H` is SHA-256.
 
 ## Credentials
 
@@ -808,9 +808,9 @@ The fields in this state have the following semantics:
   messages that led to this state.
 
 When a new member is added to the group, an existing member of the
-group provides the new member with a Welcome message.  The Welcome
+group provides the new member with a `Welcome` message.  The `Welcome`
 message provides the information the new member needs to initialize
-its GroupState.
+its `GroupState`.
 
 Different group operations will have different effects on the group
 state.  These effects are described in their respective subsections
@@ -818,17 +818,17 @@ of {{handshake-messages}}.  The following rules apply to all
 operations:
 
 * The `group_id` field is constant
-* The `epoch` field increments by one for each GroupOperation that
+* The `epoch` field increments by one for each `GroupOperation` that
   is processed
-* The `transcript_hash` is updated by a GroupOperation message
+* The `transcript_hash` is updated by a `GroupOperation` message
   `operation` in the following way:
 
 ~~~~~
-transcript\_hash\_[n] = Hash(transcript\_hash\_[n-1] || operation)
+transcript_hash_[n] = Hash(transcript_hash_[n-1] || operation)
 ~~~~~
 
 When a new one-member group is created (which requires no
-GroupOperation), the `transcript_hash` field is set to an all-zero
+`GroupOperation`), the `transcript_hash` field is set to an all-zero
 vector of length Hash.length.
 
 ## Direct Paths
@@ -856,29 +856,29 @@ struct {
 } DirectPath;
 ~~~~~
 
-The length of the `node\_secrets` vector MUST be zero for the first
+The length of the `node_secrets` vector MUST be zero for the first
 node in the path.  For the remaining elements in the vector, the
-number of ciphertexts in the `node\_secrets` vector MUST be equal to
+number of ciphertexts in the `node_secrets` vector MUST be equal to
 the length of the resolution of the corresponding copath node.  Each
 ciphertext in the list is the encryption to the corresponding node
 in the resolution.
 
-The ECIESCiphertext values encoding the
+The `ECIESCiphertext` values encoding the
 encrypted secret values are computed as follows:
 
-* Generate an ephemeral DH key pair (x, x\*G) in the DH group
+* Generate an ephemeral DH key pair `(x, x*G)` in the DH group
   specified by the ciphersuite in use
-* Compute the shared secret Z with the node's other child
+* Compute the shared secret `Z` with the node's other child
 * Derive a key and nonce as described below
 * Encrypt the node's secret value using the AEAD algorithm specified
   by the ciphersuite in use, with the following inputs:
-  * Key: The key derived from Z
-  * Nonce: The nonce derived from Z
+  * Key: The key derived from `Z`
+  * Nonce: The nonce derived from `Z`
   * Additional Authenticated Data: The empty octet string
   * Plaintext: The secret value, without any further formatting
-* Encode the ECIESCiphertext with the following values:
-  * ephemeral\_key: The ephemeral public key x\*G
-  * ciphertext: The AEAD output
+* Encode the `ECIESCiphertext` with the following values:
+  * `ephemeral_key`: The ephemeral public key `x*G`
+  * `ciphertext`: The AEAD output
 
 ~~~~~
 key = HKDF-Expand(Secret, ECIESLabel("key"), Length)
@@ -928,7 +928,7 @@ following information to derive new epoch secrets:
 
 * The init secret from the previous epoch
 * The update secret for the current epoch
-* The GroupState object for current epoch
+* The `GroupState` object for current epoch
 
 Given these inputs, the derivation of secrets for an epoch
 proceeds as shown in the following diagram:
@@ -956,27 +956,27 @@ update_secret -> HKDF-Extract = epoch_secret
 
 In order to facilitate asynchronous addition of participants to a
 group, it is possible to pre-publish initialization keys that
-provide some public information about a user.  UserInitKey
+provide some public information about a user.  `UserInitKey`
 messages provide information about a potential group member, that a group member can use to
 add this user to a group asynchronously.
 
-A UserInitKey object specifies what ciphersuites a client supports,
+A `UserInitKey` object specifies what ciphersuites a client supports,
 as well as providing public keys that the client can use for key
 derivation and signing.  The client's identity key is intended to be
 stable throughout the lifetime of the group; there is no mechanism to
 change it.  Init keys are intended to be used a very limited number of
-times, potentially once. (see {{init-key-reuse}}).  UserInitKeys
+times, potentially once. (see {{init-key-reuse}}).  `UserInitKeys`
 also contain an identifier chosen by the client, which the client
-MUST assure uniquely identifies a given UserInitKey object among the
-set of UserInitKeys created by this client.
+MUST assure uniquely identifies a given `UserInitKey` object among the
+set of `UserInitKeys` created by this client.
 
-The init\_keys array MUST have the same length as the cipher\_suites
-array, and each entry in the init\_keys array MUST be a public key
+The `init_keys` array MUST have the same length as the `cipher_suites`
+array, and each entry in the `init_keys` array MUST be a public key
 for the DH group defined by the corresponding entry in the
-cipher\_suites array.
+`cipher_suites` array.
 
 The whole structure is signed using the client's identity key.  A
-UserInitKey object with an invalid signature field MUST be
+`UserInitKey` object with an invalid signature field MUST be
 considered malformed.  The input to the signature computation
 comprises all of the fields except for the signature field.
 
@@ -1008,7 +1008,7 @@ of interleaved application and handshake messages.
 
 An MLS handshake message encapsulates a specific "key exchange" message that
 accomplishes a change to the group state. It also includes a
-signature by the sender of the message over the GroupState object
+signature by the sender of the message over the `GroupState` object
 representing the state of the group after the change has been made.
 
 ~~~~~
@@ -1040,34 +1040,34 @@ struct {
 } Handshake;
 ~~~~~
 
-The high-level flow for processing a Handshake message is as
+The high-level flow for processing a `Handshake` message is as
 follows:
 
-1. Verify that the `prior_epoch` field of the Handshake message
-   is equal the `epoch` field of the current GroupState object.
+1. Verify that the `prior_epoch` field of the `Handshake` message
+   is equal the `epoch` field of the current `GroupState` object.
 
 2. Use the `operation` message to produce an updated, provisional
-   GroupState object incorporating the proposed changes.
+   `GroupState` object incorporating the proposed changes.
 
 3. Look up the public key for slot index `signer_index` from the
-   roster in the current GroupState object (before the update).
+   roster in the current `GroupState` object (before the update).
 
 4. Use that public key to verify the `signature` field in the
-   Handshake message, with the updated GroupState object as input.
+   `Handshake` message, with the updated `GroupState` object as input.
 
-5. If the signature fails to verify, discard the updated GroupState
-   object and consider the Handshake message invalid.
+5. If the signature fails to verify, discard the updated `GroupState`
+   object and consider the `Handshake` message invalid.
 
 6. Use the `confirmation_key` for the new group state to
    compute the finished MAC for this message, as described below,
    and verify that it is the same as the `finished_mac` field.
 
 7. If the the above checks are successful, consider the updated
-   GroupState object as the current state of the group.
+   `GroupState` object as the current state of the group.
 
 The `signature` and `confirmation` values are computed over the
 transcript of group operations, using the transcript hash from the
-provisional GroupState object:
+provisional `GroupState` object:
 
 ~~~~~
 signature_data = GroupState.transcript_hash
@@ -1084,8 +1084,8 @@ HMAC {{!RFC2104}} uses the Hash algorithm for the ciphersuite in
 use.  Sign uses the signature algorithm indicated by the signer's
 credential in the roster.
 
-[[ OPEN ISSUE: The Add and Remove operations create a "double-join"
-situation, where a participants leaf key is also known to another
+[[ OPEN ISSUE: The `Add` and `Remove` operations create a "double-join"
+situation, where a participant's leaf key is also known to another
 participant.  When a participant A is double-joined to another B,
 deleting A will not remove them from the conversation, since they
 will still hold the leaf key for B.  These situations are resolved
@@ -1113,14 +1113,14 @@ the O(N) complexity of direct initialization. ]]
 In order to add a new member to the group, an existing member of the
 group must take two actions:
 
-1. Send a Welcome message to the new member
-2. Send an Add message to the group (including the new member)
+1. Send a `Welcome` message to the new member
+2. Send an `Add` message to the group (including the new member)
 
-The Welcome message contains the information that the new member
-needs to initialize a GroupState object that can be updated to the
-current state using the Add message.  This information is encrypted
+The `Welcome` message contains the information that the new member
+needs to initialize a `GroupState` object that can be updated to the
+current state using the `Add` message.  This information is encrypted
 for the new member using ECIES.  The recipient key pair for the
-ECIES encryption is the one included in the indicated UserInitKey,
+ECIES encryption is the one included in the indicated `UserInitKey`,
 corresponding to the indicated ciphersuite.
 
 ~~~~~
@@ -1140,32 +1140,32 @@ struct {
 } Welcome;
 ~~~~~
 
-Note that the `init_secret` in the Welcome message is the
+Note that the `init_secret` in the `Welcome` message is the
 `init_secret` at the output of the key schedule diagram in
-{{key-schedule}}.  That is, if the `epoch` value in the Welcome
+{{key-schedule}}.  That is, if the `epoch` value in the `Welcome`
 message is `n`, then the `init_secret` value is `init_secret_[n]`.
 The new member can combine this init secret with the update secret
-transmitted in the corresponding Add message to get the epoch secret
+transmitted in the corresponding `Add` message to get the epoch secret
 for the epoch in which it is added.  No secrets from prior epochs
 are revealed to the new member.
 
-Since the new member is expected to process the Add message for
-itself, the Welcome message should reflect the state of the group
-before the new user is added.  The sender of the Welcome message can
-simply copy all fields except the `leaf_secret` from its GroupState
+Since the new member is expected to process the `Add` message for
+itself, the `Welcome` message should reflect the state of the group
+before the new user is added.  The sender of the `Welcome` message can
+simply copy all fields except the `leaf_secret` from its `GroupState`
 object.
 
-[[ OPEN ISSUE: The Welcome message needs to be sent encrypted for
+[[ OPEN ISSUE: The `Welcome` message needs to be sent encrypted for
 the new member.  This should be done using the public key in the
-UserInitKey, either with ECIES or X3DH. ]]
+`UserInitKey`, either with ECIES or X3DH. ]]
 
-[[ OPEN ISSUE: The Welcome message needs to be synchronized in the
-same way as the Add.  That is, the Welcome should be sent only if
-the Add succeeds, and is not in conflict with another, simultaneous
-Add. ]]
+[[ OPEN ISSUE: The `Welcome` message needs to be synchronized in the
+same way as the `Add`.  That is, the `Welcome` should be sent only if
+the `Add` succeeds, and is not in conflict with another, simultaneous
+`Add`. ]]
 
-An Add message provides existing group members with the information
-they need to update their GroupState with information about the new
+An `Add` message provides existing group members with the information
+they need to update their `GroupState` with information about the new
 member:
 
 ~~~~~
@@ -1174,41 +1174,41 @@ struct {
 } Add;
 ~~~~~
 
-A group member generates this message by requesting a UserInitKey
+A group member generates this message by requesting a `UserInitKey`
 from the directory for the user to be added, and encoding it into an
-Add message.
+`Add` message.
 
-The new participant processes Welcome and Add messages together as
+The new participant processes `Welcome` and `Add` messages together as
 follows:
 
-* Prepare a new GroupState object based on the Welcome message
-* Process the Add message as an existing participant would
+* Prepare a new `GroupState` object based on the `Welcome` message
+* Process the `Add` message as an existing participant would
 
-An existing participant receiving a Add message first verifies
+An existing participant receiving a `Add` message first verifies
 the signature on the message,  then updates its state as follows:
 
 * Increment the size of the group
-* Verify the signature on the included UserInitKey; if the signature
+* Verify the signature on the included `UserInitKey`; if the signature
   verification fails, abort
 * Append an entry to the roster containing the credential in the
-  included UserInitKey
-* Update the ratchet tree by adding a new leaf node for the new
-  member, containing the public key from the UserInitKey in the Add
-  corresponding to the ciphersuite in use
-* Update the ratchet tree by setting to blank all nodes in the
+  included `UserInitKey`
+* `Update` the ratchet tree by adding a new leaf node for the new
+  member, containing the public key from the `UserInitKey` in the
+  `Add` corresponding to the ciphersuite in use
+* `Update` the ratchet tree by setting to blank all nodes in the
   direct path of the new node, except for the leaf (which remains
   set to the new member's public key)
 
 The update secret resulting from this change is an all-zero octet
 string of length Hash.length.
 
-On receipt of an Add message, new participants SHOULD send an update
+On receipt of an `Add` message, new participants SHOULD send an update
 immediately to their key. This will help to limit the tree structure
 degrading into subtrees, and thus maintain the protocol's efficiency.
 
 ## Update
 
-An Update message is sent by a group participant to update its leaf
+An `Update` message is sent by a group participant to update its leaf
 key pair.  This operation provides post-compromise security with
 regard to the participant's prior leaf private key.
 
@@ -1218,24 +1218,24 @@ struct {
 } Update;
 ~~~~~
 
-The sender of an Update message creates it in the following way:
+The sender of an `Update` message creates it in the following way:
 
 * Generate a fresh leaf key pair
 * Compute its direct path in the current ratchet tree
 
-An existing participant receiving a Update message first verifies
+An existing participant receiving a `Update` message first verifies
 the signature on the message, then updates its state as follows:
 
-* Update the cached ratchet tree by replacing nodes in the direct
+* `Update` the cached ratchet tree by replacing nodes in the direct
   path from the updated leaf using the information contained in the
-  Update message
+  `Update` message
 
 The update secret resulting from this change is the secret for the
 root node of the ratchet tree.
 
 ## Remove
 
-A Remove message is sent by a group member to remove one or more
+A `Remove` message is sent by a group member to remove one or more
 participants from the group.
 
 ~~~~~
@@ -1245,13 +1245,13 @@ struct {
 } Remove;
 ~~~~~
 
-The sender of a Remove message generates it as as follows:
+The sender of a `Remove` message generates it as as follows:
 
 * Generate a fresh leaf key pair
 * Compute its direct path in the current ratchet tree, starting from
   the removed leaf
 
-An existing participant receiving a Remove message first verifies
+An existing participant receiving a `Remove` message first verifies
 the signature on the message, then verifies its identity proof
 against the identity tree held by the participant.  The participant
 then updates its state as follows:
@@ -1259,7 +1259,7 @@ then updates its state as follows:
 * Update the roster by setting the credential in the removed slot to
   the null optional value
 * Update the ratchet tree by replacing nodes in the direct
-  path from the removed leaf using the information in the Remove message
+  path from the removed leaf using the information in the `Remove` message
 * Update the ratchet tree by setting to blank all nodes in the
   direct path from the removed leaf to the root
 
@@ -1404,7 +1404,7 @@ all arrive at the following state:
 
 The primary purpose of the handshake protocol is to provide an authenticated
 group key exchange to participants. In order to protect Application messages
-sent among those participants, the Application secret provided by the Handshake
+sent among those participants, the Application secret provided by the `Handshake`
 key schedule is used to derive encryption keys for the Message Protection Layer.
 
 Application messages MUST be protected with the Authenticated-Encryption
@@ -1412,7 +1412,7 @@ with Associated-Data (AEAD) encryption scheme associated with the MLS ciphersuit
 Note that "Authenticated" in this context does not mean messages are known to
 be sent by a specific participant but only from a legitimate member of the group.
 To authenticate a message from a particular member, signatures are required.
-Handshake messages MUST use asymmetric signatures to strongly authenticate
+`Handshake` messages MUST use asymmetric signatures to strongly authenticate
 the sender of a message.
 
 Each participant maintains their own chain of Application secrets, where the first
@@ -1428,7 +1428,7 @@ used to encrypt and decrypt future Application messages.
 In all cases, a participant MUST NOT encrypt more than expected by the security
 bounds of the AEAD scheme used.
 
-Note that each change to the Group through a Handshake message will cause
+Note that each change to the Group through a `Handshake` message will cause
 a change of the Group Secret. Hence this change MUST be applied before encrypting
 any new Application message. This is required for confidentiality reasons
 in order for Members to avoid receiving messages from the group after leaving,
@@ -1574,10 +1574,10 @@ this authentication scheme.]]
 
 [[ OPEN ISSUE: Currently, the group identifier, epoch and generation are
 contained as meta-data of the Signature. A different solution could be to
-include the GroupState instead, if more information is required to achieve
+include the `GroupState` instead, if more information is required to achieve
 the security goals regarding cross-group attacks. ]]
 
-[[ OPEN ISSUE: Should the padding be required for Handshake messages ?
+[[ OPEN ISSUE: Should the padding be required for `Handshake` messages ?
 Can an adversary get more than the position of a participant in the tree
 without padding ? Should the base ciphertext block length be negotiated or
 is is reasonable to allow to leak a range for the length of the plaintext
