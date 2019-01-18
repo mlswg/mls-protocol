@@ -411,7 +411,7 @@ subtree_ is the subtree with its left child as head (respectively
 _right subtree_).
 
 All trees used in this protocol are left-balanced binary trees. A
-binary tree is _full_ (and _balanced_) if it its size is a power of
+binary tree is _full_ (and _balanced_) if its size is a power of
 two and for any parent node in the tree, its left and right subtrees
 have the same size. If a subtree is full and it is not a subset of
 any other full subtree, then it is _maximal_.
@@ -693,7 +693,7 @@ Encryption keys are derived from shared secrets by taking the first
 
 This ciphersuite uses the following primitives:
 
-* Hash function: P-256
+* Hash function: SHA-256
 * Diffie-Hellman group: secp256r1 (NIST P-256)
 * AEAD: AES-128-GCM
 
