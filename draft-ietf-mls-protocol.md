@@ -411,7 +411,7 @@ subtree_ is the subtree with its left child as head (respectively
 _right subtree_).
 
 All trees used in this protocol are left-balanced binary trees. A
-binary tree is _full_ (and _balanced_) if it its size is a power of
+binary tree is _full_ (and _balanced_) if its size is a power of
 two and for any parent node in the tree, its left and right subtrees
 have the same size. If a subtree is full and it is not a subset of
 any other full subtree, then it is _maximal_.
@@ -570,20 +570,19 @@ In this tree, we can see all three of the above rules in play:
 In order to update the state of the group such as adding and
 removing participants, MLS messages are used to make changes to the
 group's ratchet tree.  The participant proposing an update to the
-tree transmits a representation of a set of tree nodes along the
-direct path from a leaf to the root. Other participants in the group
+tree transmits a set of values for intermediate nodes in the
+direct path of a leaf. Other participants in the group
 can use these nodes to update their view of the tree, aligning their
 copy of the tree to the sender's.
 
 To perform an update for a leaf, the sender transmits the following
-information for each node in the direct path from the leaf to the
-root:
+information for each node in the direct path of the leaf:
 
 * The public key for the node
-* Zero or more encrypted copies of the node's secret value
+* Zero or more encrypted copies of the node's parent secret value
 
 The secret value is encrypted for the subtree corresponding to the
-node's non-updated child, i.e., the child not on the direct path.
+parent's non-updated child, i.e., the child on the copath of the leaf node.
 There is one encrypted secret for each public key in the resolution
 of the non-updated child.  In particular, for the leaf node, there
 are no encrypted secrets, since a leaf node has no children.
@@ -593,10 +592,10 @@ The recipient of an update processes it with the following steps:
 1. Compute the updated secret values
   * Identify a node in the direct path for which the local participant
     is in the subtree of the non-updated child
-  * Identify a node in the resolution of the non-updated child for
+  * Identify a node in the resolution of the copath node for
     which this node has a private key
-  * Decrypt the secret value for the direct path node using the
-    private key from the resolution node
+  * Decrypt the secret value for the parent of the copath node using
+    the private key from the resolution node
   * Compute secret values for ancestors of that node by hashing the
     decrypted secret
 2. Merge the updated secrets into the tree
@@ -693,7 +692,7 @@ Encryption keys are derived from shared secrets by taking the first
 
 This ciphersuite uses the following primitives:
 
-* Hash function: P-256
+* Hash function: SHA-256
 * Diffie-Hellman group: secp256r1 (NIST P-256)
 * AEAD: AES-128-GCM
 
@@ -834,7 +833,7 @@ vector of length Hash.length.
 ## Direct Paths
 
 As described in {{ratchet-tree-updates}}, each MLS message needs to
-transmit node values along the direct path from a leaf to the root.
+transmit node values along the direct path of a leaf.
 The path contains a public key for the leaf node, and a
 public key and encrypted secret value for intermediate nodes in the
 path.  In both cases, the path is ordered from the leaf to the root;
@@ -849,7 +848,7 @@ struct {
 struct {
     DHPublicKey public_key;
     ECIESCiphertext node_secrets<0..2^16-1>;
-} RatchetNode
+} RatchetNode;
 
 struct {
     RatchetNode nodes<0..2^16-1>;
@@ -1261,7 +1260,7 @@ then updates its state as follows:
 * Update the ratchet tree by replacing nodes in the direct
   path from the removed leaf using the information in the Remove message
 * Update the ratchet tree by setting to blank all nodes in the
-  direct path from the removed leaf to the root
+  direct path of the removed leaf
 
 The update secret resulting from this change is the secret for the
 root node of the ratchet tree after the second step (after the third
@@ -1528,19 +1527,19 @@ the negotiated MLS ciphersuite to AEAD encrypt and decrypt their
 Application messages and sign them as follows:
 
 ~~~~~
-    struct {
-        opaque content<0..2^32-1>;
-        opaque signature<0..2^16-1>;
-        uint8 zeros[length_of_padding];
-    } ApplicationPlaintext;
+struct {
+    opaque content<0..2^32-1>;
+    opaque signature<0..2^16-1>;
+    uint8 zeros[length_of_padding];
+} ApplicationPlaintext;
 
-    struct {
-        uint8  group[32];
-        uint32 epoch;
-        uint32 generation;
-        uint32 sender;
-        opaque encrypted_content<0..2^32-1>;
-    } Application;
+struct {
+    uint8  group[32];
+    uint32 epoch;
+    uint32 generation;
+    uint32 sender;
+    opaque encrypted_content<0..2^32-1>;
+} Application;
 ~~~~~
 
 The Group identifier and epoch allow a device to know which Group secrets
@@ -1554,13 +1553,13 @@ before performing decryption.
 The signature field allows strong authentication of messages:
 
 ~~~
-    struct {
-        uint8  group[32];
-        uint32 epoch;
-        uint32 generation;
-        uint32 sender;
-        opaque content<0..2^32-1>;
-    } MLSSignatureContent;
+struct {
+    uint8  group[32];
+    uint32 epoch;
+    uint32 generation;
+    uint32 sender;
+    opaque content<0..2^32-1>;
+} MLSSignatureContent;
 ~~~
 
 The signature used in the MLSPlaintext is computed over the MLSSignatureContent
@@ -1831,7 +1830,7 @@ def sibling(x, n):
 
     return p
 
-# The direct path from a node to the root, ordered from the root
+# The direct path of a node, ordered from the root
 # down, not including the root or the terminal node
 def direct_path(x, n):
     d = []
