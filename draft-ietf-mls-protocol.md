@@ -287,8 +287,8 @@ A              B              C          Directory       Channel
 ~~~~~
 
 When a participant A wants to establish a group with B and C, it
-first downloads InitKeys for B and C.  It then initializes a group state
-containing only itself and uses the InitKeys to compute Welcome and Add messages
+first downloads UserInitKeys for B and C.  It then initializes a group state
+containing only itself and uses the UserInitKeys to compute Welcome and Add messages
 to add B and C, in a sequence chosen by A.  The Welcome messages are
 sent directly to the new members (there is no need to send them to
 the group).
@@ -328,7 +328,7 @@ A              B              C          Directory            Channel
 ~~~~~
 
 Subsequent additions of group members proceed in the same way.  Any
-member of the group can download an InitKey for a new participant
+member of the group can download an UserInitKey for a new participant
 and broadcast an Add message that the current group can use to update
 their state and the new participant can use to initialize its state.
 
@@ -1085,7 +1085,7 @@ use.  Sign uses the signature algorithm indicated by the signer's
 credential in the roster.
 
 [[ OPEN ISSUE: The Add and Remove operations create a "double-join"
-situation, where a participants leaf key is also known to another
+situation, where a participant's leaf key is also known to another
 participant.  When a participant A is double-joined to another B,
 deleting A will not remove them from the conversation, since they
 will still hold the leaf key for B.  These situations are resolved
