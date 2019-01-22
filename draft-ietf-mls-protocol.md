@@ -848,7 +848,7 @@ struct {
 struct {
     DHPublicKey public_key;
     ECIESCiphertext node_secrets<0..2^16-1>;
-} RatchetNode
+} RatchetNode;
 
 struct {
     RatchetNode nodes<0..2^16-1>;
@@ -1527,19 +1527,19 @@ the negotiated MLS ciphersuite to AEAD encrypt and decrypt their
 Application messages and sign them as follows:
 
 ~~~~~
-    struct {
-        opaque content<0..2^32-1>;
-        opaque signature<0..2^16-1>;
-        uint8 zeros[length_of_padding];
-    } ApplicationPlaintext;
+struct {
+    opaque content<0..2^32-1>;
+    opaque signature<0..2^16-1>;
+    uint8 zeros[length_of_padding];
+} ApplicationPlaintext;
 
-    struct {
-        uint8  group[32];
-        uint32 epoch;
-        uint32 generation;
-        uint32 sender;
-        opaque encrypted_content<0..2^32-1>;
-    } Application;
+struct {
+    uint8  group[32];
+    uint32 epoch;
+    uint32 generation;
+    uint32 sender;
+    opaque encrypted_content<0..2^32-1>;
+} Application;
 ~~~~~
 
 The Group identifier and epoch allow a device to know which Group secrets
@@ -1553,13 +1553,13 @@ before performing decryption.
 The signature field allows strong authentication of messages:
 
 ~~~
-    struct {
-        uint8  group[32];
-        uint32 epoch;
-        uint32 generation;
-        uint32 sender;
-        opaque content<0..2^32-1>;
-    } MLSSignatureContent;
+struct {
+    uint8  group[32];
+    uint32 epoch;
+    uint32 generation;
+    uint32 sender;
+    opaque content<0..2^32-1>;
+} MLSSignatureContent;
 ~~~
 
 The signature used in the MLSPlaintext is computed over the MLSSignatureContent
