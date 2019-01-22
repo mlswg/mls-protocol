@@ -570,7 +570,7 @@ In this tree, we can see all three of the above rules in play:
 In order to update the state of the group such as adding and
 removing participants, MLS messages are used to make changes to the
 group's ratchet tree.  The participant proposing an update to the
-tree transmits a representation of a set of the
+tree transmits a set of values for intermediate nodes in the
 direct path of a leaf. Other participants in the group
 can use these nodes to update their view of the tree, aligning their
 copy of the tree to the sender's.
@@ -579,10 +579,10 @@ To perform an update for a leaf, the sender transmits the following
 information for each node in the direct path of the leaf:
 
 * The public key for the node
-* Zero or more encrypted copies of the node's secret value
+* Zero or more encrypted copies of the node's parent secret value
 
 The secret value is encrypted for the subtree corresponding to the
-node's non-updated child, i.e., the child on the copath of the leaf node.
+parent's non-updated child, i.e., the child on the copath of the leaf node.
 There is one encrypted secret for each public key in the resolution
 of the non-updated child.  In particular, for the leaf node, there
 are no encrypted secrets, since a leaf node has no children.
@@ -590,8 +590,8 @@ are no encrypted secrets, since a leaf node has no children.
 The recipient of an update processes it with the following steps:
 
 1. Compute the updated secret values
-  * Identify a node in the copath which is an ancestor of the local
-    participant
+  * Identify a node in the direct path for which the local participant
+    is in the subtree of the non-updated child
   * Identify a node in the resolution of the copath node for
     which this node has a private key
   * Decrypt the secret value for the parent of the copath node using
