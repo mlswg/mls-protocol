@@ -136,6 +136,16 @@ shared keys with costs that scale as the log of the group size.
 
 RFC EDITOR PLEASE DELETE THIS SECTION.
 
+draft-03
+
+- Added ciphersuites and signature schemes (\*)
+
+- Re-ordered fields in UserInitKey to make parsing easier (\*)
+
+- Fixed inconsistencies between Welcome and GroupState (\*)
+
+- Added encryption of the Welcome message (\*)
+
 draft-02
 
 - Removed ART (\*)
