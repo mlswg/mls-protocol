@@ -504,9 +504,9 @@ contains up to three values:
 * An asymmetric private key (optional)
 * An asymmetric public key
 
-The private key for a node are derived from its secret value using the KDF. The
-public key is then derived from the private key using a Derive-Public-Key
-operation.
+The private key for a node is derived from its secret value using the KDF. The
+public key is then derived from the private key using the Derive-Public-Key
+function.
 
 The contents of a parent node are computed from one of
 its children as follows:
@@ -537,8 +537,8 @@ X, then the tree will have the following structure.
      KDF(KDF(X))
     /           \
  KDF(X)         KDF(D)
- /  \           /  \
-X    B         C    D
+ /  \            /  \
+X    B          C    D
 ~~~~~
 
 ## Blank Nodes and Resolution
