@@ -1472,8 +1472,8 @@ to be used for its own sending chain:
            application_secret_[sender]_[0]
 ~~~
 
-Note that [sender] represent the uint32 bytes for the big-endian encoding
-the index of the participant in the ratchet tree.
+Note that [sender] represent the big-endian encoding of the uint32 word
+used to store the index of the participant in the ratchet tree.
 
 Updating the Application secret and deriving the associated AEAD key and nonce can
 be summarized as the following Application key schedule where
