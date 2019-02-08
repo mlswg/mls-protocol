@@ -494,9 +494,8 @@ instance of a ratchet tree is based on the following cryptographic
 primitives, defined by the ciphersuite in use:
 
 * A Diffie-Hellman finite-field group or elliptic curve
-* A Derive-Key-Pair function that produces a key pair from
-  an octet string
-* A hash function
+* A Key Derivation Function (KDF)
+* A Derive-Public-Key function that produces a public key from a private key
 
 A ratchet tree is a left-balanced binary tree, in which each node
 contains up to three values:
@@ -505,15 +504,17 @@ contains up to three values:
 * An asymmetric private key (optional)
 * An asymmetric public key
 
-The private key and public key for a node are derived from its
-secret value using the Derive-Key-Pair operation.
+The private key for a node are derived from its secret value using the KDF. The
+public key is then derived from the private key using a Derive-Public-Key
+operation.
 
 The contents of a parent node are computed from one of
 its children as follows:
 
 ~~~~~
-parent_secret = Hash(child_secret)
-parent_private, parent_public = Derive-Key-Pair(parent_secret)
+parent_secret = KDF(child_secret)
+parent_private = KDF(parent_secret)
+parent_public = Derive-Public-Key(parent_private)
 ~~~~~
 
 The contents of the parent are based on the latest-updated child.
@@ -522,22 +523,22 @@ group in that order, then the resulting tree will have the following
 structure:
 
 ~~~~~
-     H(H(D))
-    /       \
- H(B)       H(D)
- /  \       /  \
-A    B     C    D
+     KDF(KDF(D))
+    /           \
+ KDF(B)        KDF(D)
+ /  \           /  \
+A    B         C    D
 ~~~~~
 
 If the first participant subsequently changes its leaf secret to be
 X, then the tree will have the following structure.
 
 ~~~~~
-     H(H(X))
-    /       \
- H(X)       H(D)
- /  \       /  \
-X    B     C    D
+     KDF(KDF(X))
+    /           \
+ KDF(X)         KDF(D)
+ /  \           /  \
+X    B         C    D
 ~~~~~
 
 ## Blank Nodes and Resolution
@@ -606,7 +607,7 @@ The recipient of an update processes it with the following steps:
     which this node has a private key
   * Decrypt the secret value for the parent of the copath node using
     the private key from the resolution node
-  * Compute secret values for ancestors of that node by hashing the
+  * Derive secret values for ancestors of that node using the KDF keyed with the
     decrypted secret
 2. Merge the updated secrets into the tree
   * Replace the public keys for nodes on the direct path with the
