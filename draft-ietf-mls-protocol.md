@@ -136,6 +136,10 @@ shared keys with costs that scale as the log of the group size.
 
 RFC EDITOR PLEASE DELETE THIS SECTION.
 
+draft-04
+
+- ECIES is now renamed in favor of HPKE (\*)
+
 draft-03
 
 - Added ciphersuites and signature schemes (\*)
@@ -852,13 +856,13 @@ each node MUST be the parent of its predecessor.
 
 ~~~~~
 struct {
-    DHPublicKey ephemeral_key;
+    PublicKey ephemeral_key;
     opaque ciphertext<0..255>;
-} ECIESCiphertext;
+} HPKECiphertext;
 
 struct {
-    DHPublicKey public_key;
-    ECIESCiphertext node_secrets<0..2^16-1>;
+    PublicKey public_key;
+    HPKECiphertext node_secrets<0..2^16-1>;
 } RatchetNode;
 
 struct {
@@ -873,7 +877,7 @@ the length of the resolution of the corresponding copath node.  Each
 ciphertext in the list is the encryption to the corresponding node
 in the resolution.
 
-The ECIESCiphertext values encoding the
+The HPKECiphertext values encoding the
 encrypted secret values are computed as follows:
 
 * Generate an ephemeral DH key pair (x, x\*G) in the DH group
@@ -886,20 +890,20 @@ encrypted secret values are computed as follows:
   * Nonce: The nonce derived from Z
   * Additional Authenticated Data: The empty octet string
   * Plaintext: The secret value, without any further formatting
-* Encode the ECIESCiphertext with the following values:
+* Encode the HPKECiphertext with the following values:
   * ephemeral\_key: The ephemeral public key x\*G
   * ciphertext: The AEAD output
 
 ~~~~~
-key = HKDF-Expand(Secret, ECIESLabel("key"), Length)
-nonce = HKDF-Expand(Secret, ECIESLabel("nonce"), Length)
+key = HKDF-Expand(Secret, HPKELabel("key"), Length)
+nonce = HKDF-Expand(Secret, HPKELabel("nonce"), Length)
 
-Where ECIESLabel is specified as:
+Where HPKELabel is specified as:
 
 struct {
   uint16 length = Length;
   opaque label<12..255> = "mls10 ecies " + Label;
-} ECIESLabel;
+} HPKELabel;
 ~~~~~
 
 Decryption is performed in the corresponding way, using the private
@@ -1129,8 +1133,8 @@ group must take two actions:
 The Welcome message contains the information that the new member
 needs to initialize a GroupState object that can be updated to the
 current state using the Add message.  This information is encrypted
-for the new member using ECIES.  The recipient key pair for the
-ECIES encryption is the one included in the indicated UserInitKey,
+for the new member using HPKE.  The recipient key pair for the
+HPKE encryption is the one included in the indicated UserInitKey,
 corresponding to the indicated ciphersuite.
 
 ~~~~~
@@ -1146,7 +1150,7 @@ struct {
 struct {
   opaque user_init_key_id<0..255>;
   CipherSuite cipher_suite;
-  ECIESCiphertext encrypted_welcome_info;
+  HPKECiphertext encrypted_welcome_info;
 } Welcome;
 ~~~~~
 
@@ -1167,7 +1171,7 @@ object.
 
 [[ OPEN ISSUE: The Welcome message needs to be sent encrypted for
 the new member.  This should be done using the public key in the
-UserInitKey, either with ECIES or X3DH. ]]
+UserInitKey, either with HPKE or X3DH. ]]
 
 [[ OPEN ISSUE: The Welcome message needs to be synchronized in the
 same way as the Add.  That is, the Welcome should be sent only if
