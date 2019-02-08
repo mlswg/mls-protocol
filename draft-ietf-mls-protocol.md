@@ -814,8 +814,8 @@ The fields in this state have the following semantics:
   vector MUST be `2*size + 1`, where `size` is the length of the
   roster, since this is the number of nodes in a tree with `size`
   leaves, according to the structure described in {{ratchet-trees}}.
-* The `transcript` field contains the list of `GroupOperation`
-  messages that led to this state.
+* The `transcript_hash` field contains the runnning hash of all
+  `GroupOperation` messages that led to this state.
 
 When a new member is added to the group, an existing member of the
 group provides the new member with a Welcome message.  The Welcome
@@ -914,16 +914,19 @@ functions as defined in {{!RFC5869}}, as well as the functions
 defined below:
 
 ~~~~~
-Derive-Secret(Secret, Label, State) =
-     HKDF-Expand(Secret, HkdfLabel, Hash.length)
+HKDF-Expand-Label(Secret, Label, Context, Length) =
+    HKDF-Expand(Secret, HkdfLabel, Length)
 
 Where HkdfLabel is specified as:
 
 struct {
     uint16 length = Length;
-    opaque label<6..255> = "mls10 " + Label;
-    GroupState state = State;
+    opaque label<7..255> = "mls10 " + Label;
+    opaque context<0..255> = Context;
 } HkdfLabel;
+
+Derive-Secret(Secret, Label, ContextHash) =
+    HKDF-Expand-Label(Secret, Label, ContextHash, Hash.length)
 ~~~~~
 
 The Hash function used by HKDF is the ciphersuite hash algorithm.
@@ -944,23 +947,32 @@ Given these inputs, the derivation of secrets for an epoch
 proceeds as shown in the following diagram:
 
 ~~~~~
-               init_secret_[n-1] (or 0)
-                     |
-                     V
-update_secret -> HKDF-Extract = epoch_secret
-                     |
-                     +--> Derive-Secret(., "app", GroupState_[n])
-                     |    = application_secret
-                     |
-                     +--> Derive-Secret(., "confirm", GroupState_[n])
-                     |    = confirmation_key
-                     |
-                     V
-               Derive-Secret(., "init", GroupState_[n])
-                     |
-                     V
-               init_secret_[n]
+                  init_secret_[N-1] (or 0)
+                        |
+                        V
+update_secret_[N-1] --> HKDF-Extract = epoch_secret_[N]
+                        |
+                        +--> Derive-Secret(., "app",
+                        |                  GroupState_[N].transcript_hash)
+                        |    = application_secret
+                        |
+                        +--> Derive-Secret(., "confirm",
+                        |                  GroupState_[N].transcript_hash))
+                        |    = confirmation_key
+                        |
+                        V
+                  Derive-Secret(., "init", GroupState_[N].transcript_hash))
+                        |
+                        V
+                  init_secret_[N]
 ~~~~~
+
+[[ OPEN ISSUE: The key derivation context MUST include all values
+which Participants agree upon, including identities and all public
+group values.
+The transcript hash contains all messages and is believed to include
+the necessary information but this requires further security analysis.]]
+
 
 # Initialization Keys
 
@@ -1454,14 +1466,14 @@ to be used for its own sending chain:
            application_secret
                      |
                      V
-           Derive-Secret(., "app sender", [sender])
+           HKDF-Expand-Label(., "app sender", [sender], Hash.length)
                      |
                      V
            application_secret_[sender]_[0]
 ~~~
 
-Note that [sender] represent the uint32 value encoding the index
-of the participant in the ratchet tree.
+Note that [sender] represent the uint32 bytes for the big-endian encoding
+the index of the participant in the ratchet tree.
 
 Updating the Application secret and deriving the associated AEAD key and nonce can
 be summarized as the following Application key schedule where
@@ -1494,6 +1506,7 @@ more information in the context to achieve the security goals.]]
 chained from the initial one to the next generation of Epoch secret. While this
 seems safe because cryptographic operations using the application secrets can't
 affect the group init_secret, it remains to be proven correct. ]]
+
 
 ### Updating the Application Secret
 
