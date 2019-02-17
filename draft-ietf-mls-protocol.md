@@ -1000,6 +1000,70 @@ struct {
 } UserInitKey;
 ~~~~~
 
+# Message Framing
+
+[[ TODO prose ]]
+
+~~~~~
+enum {
+    invalid(0),
+    handshake(1),
+    application(2),
+    (255)
+} ContentType;
+
+struct {
+    opaque content[MLSPlaintext.length];
+    uint8 signature[MLSInnerPlaintext.sig_len];
+    uint16 sig_len;
+    ContentType type;
+    uint8 zero\_padding[length\_of\_padding];
+} MLSInnerPlaintext;
+
+struct {
+    opaque group_id<0..255>;
+    uint32 epoch;
+    uint32 sender;
+    ContentType type;
+
+    select (MLSPlaintext.type) {
+        case handshake:   Handshake;
+        case application: Application;
+    }
+
+    opaque signature<1..2^16-1>;
+} MLSPlaintext;
+
+struct {
+    opaque group_id<0..255>;
+    uint32 epoch;
+    uint32 sender;
+    uint32 generation;
+    opaque cipertext<0..2^32-1>;
+} MLSCiphertext;
+~~~~~
+
+[[
+
+* Signature on MLSPlaintext is over all of the above
+* Encryption: MLSPlaintext -> MLSCiphertext
+  * Marshal MLSInnerPlaintext
+  * Encrypt -> ciphertext
+  * Form MLSCiphertext
+* Decryption: MLSCiphertext -> MLSPlaintext
+  * Unmarshal MLSCiphertext
+  * Copy header fields to MLSPlaintext
+  * Decrypt -> MLSInnerPlaintext
+    * Decryption failure => abort
+  * Trim padding
+  * Parse off type -> MLSPlaintext.type
+  * Parse off signature -> MLSPlaintext.signature
+  * Remainder -> MLSPlaintext.content
+  * Verify signature using public key from roster
+    * Verification failure => abort
+
+]]
+
 # Handshake Messages
 
 Over the lifetime of a group, its state will change for:
@@ -1041,11 +1105,7 @@ struct {
 } GroupOperation;
 
 struct {
-    uint32 prior_epoch;
     GroupOperation operation;
-
-    uint32 signer_index;
-    opaque signature<1..2^16-1>;
     opaque confirmation<1..2^8-1>;
 } Handshake;
 ~~~~~
@@ -1053,55 +1113,30 @@ struct {
 The high-level flow for processing a Handshake message is as
 follows:
 
-1. Verify that the `prior_epoch` field of the Handshake message
+1. Verify that the `epoch` field of enclosing MLSPlaintext message
    is equal the `epoch` field of the current GroupState object.
 
 2. Use the `operation` message to produce an updated, provisional
    GroupState object incorporating the proposed changes.
 
-3. Look up the public key for slot index `signer_index` from the
-   roster in the current GroupState object (before the update).
-
-4. Use that public key to verify the `signature` field in the
-   Handshake message, with the updated GroupState object as input.
-
-5. If the signature fails to verify, discard the updated GroupState
-   object and consider the Handshake message invalid.
-
-6. Use the `confirmation_key` for the new group state to
+3. Use the `confirmation_key` for the new group state to
    compute the finished MAC for this message, as described below,
    and verify that it is the same as the `finished_mac` field.
 
-7. If the the above checks are successful, consider the updated
+4. If the the above checks are successful, consider the updated
    GroupState object as the current state of the group.
 
-The `signature` and `confirmation` values are computed over the
-transcript of group operations, using the transcript hash from the
-provisional GroupState object:
+The confirmation value confirms that the members of the group have
+arrived at the same state of the group:
 
 ~~~~~
-signature_data = GroupState.transcript_hash
-Handshake.signature = Sign(identity_key,
-                           signature_data)
-
-confirmation_data = GroupState.transcript_hash ||
-                    Handshake.signature
-Handshake.confirmation = HMAC(confirmation_key,
+Handshake.confirmation = HMAC(GroupState.transcript\_hash,
                               confirmation_data)
 ~~~~~
 
 HMAC {{!RFC2104}} uses the Hash algorithm for the ciphersuite in
 use.  Sign uses the signature algorithm indicated by the signer's
 credential in the roster.
-
-[[ OPEN ISSUE: The Add and Remove operations create a "double-join"
-situation, where a participant's leaf key is also known to another
-participant.  When a participant A is double-joined to another B,
-deleting A will not remove them from the conversation, since they
-will still hold the leaf key for B.  These situations are resolved
-by updates, but since operations are asynchronous and participants
-may be offline for a long time, the group will need to be able to
-maintain security in the presence of double-joins. ]]
 
 [[ OPEN ISSUE: It is not possible for the recipient of a handshake
 message to verify that ratchet tree information in the message is
@@ -1410,7 +1445,10 @@ all arrive at the following state:
  A    X    Y    D
 ~~~~~
 
-# Message Protection
+# Application Messages
+
+[[ XXX(RLB): It should be possible to simplify this section in light
+of the refactoring above. ]]
 
 The primary purpose of the handshake protocol is to provide an authenticated
 group key exchange to participants. In order to protect Application messages
