@@ -38,6 +38,7 @@ author:
     email: raphael@wire.com
 
 
+
 normative:
   X962:
        title: "Public Key Cryptography For The Financial Services Industry: The Elliptic Curve Digital Signature Algorithm (ECDSA)"
@@ -47,6 +48,7 @@ normative:
        seriesinfo:
          ANSI: X9.62
   IEEE1363: DOI.10.1109/IEEESTD.2009.4773330
+
 
 
 informative:
@@ -70,6 +72,20 @@ informative:
     author:
        - name: Trevor Perrin(ed)
        - name: Moxie Marlinspike
+
+  HPKE:
+       title: "Hybrid Public Key Encryption"
+       date: 2019
+       author:
+         -  ins: R. Barnes
+            name: Richard Barnes
+            organization: Cisco
+            email: rlb@ipv.sx
+         -
+            ins: K. Bhargavan
+            name: Karthik Bhargavan
+            organization: Inria
+            email: karthikeyan.bhargavan@inria.fr
 
 
 --- abstract
@@ -856,11 +872,6 @@ each node MUST be the parent of its predecessor.
 
 ~~~~~
 struct {
-    PublicKey ephemeral_key;
-    opaque ciphertext<0..255>;
-} HPKECiphertext;
-
-struct {
     PublicKey public_key;
     HPKECiphertext node_secrets<0..2^16-1>;
 } RatchetNode;
@@ -877,34 +888,9 @@ the length of the resolution of the corresponding copath node.  Each
 ciphertext in the list is the encryption to the corresponding node
 in the resolution.
 
-The HPKECiphertext values encoding the
-encrypted secret values are computed as follows:
-
-* Generate an ephemeral DH key pair (x, x\*G) in the DH group
-  specified by the ciphersuite in use
-* Compute the shared secret Z with the node's other child
-* Derive a key and nonce as described below
-* Encrypt the node's secret value using the AEAD algorithm specified
-  by the ciphersuite in use, with the following inputs:
-  * Key: The key derived from Z
-  * Nonce: The nonce derived from Z
-  * Additional Authenticated Data: The empty octet string
-  * Plaintext: The secret value, without any further formatting
-* Encode the HPKECiphertext with the following values:
-  * ephemeral\_key: The ephemeral public key x\*G
-  * ciphertext: The AEAD output
-
-~~~~~
-key = HKDF-Expand(Secret, HPKELabel("key"), Length)
-nonce = HKDF-Expand(Secret, HPKELabel("nonce"), Length)
-
-Where HPKELabel is specified as:
-
-struct {
-  uint16 length = Length;
-  opaque label<12..255> = "mls10 ecies " + Label;
-} HPKELabel;
-~~~~~
+The HPKECiphertext values which are encoding of the encrypted
+secret values are computed according to the Encrypt function
+defined in {{HPKE}}.
 
 Decryption is performed in the corresponding way, using the private
 key of the resolution node and the ephemeral public key
