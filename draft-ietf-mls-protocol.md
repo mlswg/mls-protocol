@@ -1169,10 +1169,6 @@ before the new user is added.  The sender of the Welcome message can
 simply copy all fields except the `leaf_secret` from its GroupState
 object.
 
-[[ OPEN ISSUE: The Welcome message needs to be sent encrypted for
-the new member.  This should be done using the public key in the
-UserInitKey, either with HPKE or X3DH. ]]
-
 [[ OPEN ISSUE: The Welcome message needs to be synchronized in the
 same way as the Add.  That is, the Welcome should be sent only if
 the Add succeeds, and is not in conflict with another, simultaneous
