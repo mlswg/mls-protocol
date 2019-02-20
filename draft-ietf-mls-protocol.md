@@ -796,7 +796,7 @@ struct {
   opaque group_id<0..255>;
   uint32 epoch;
   optional<Credential> roster<1..2^32-1>;
-  optional<PublicKey> tree<1..2^32-1>;
+  optional<DHPublicKey> tree<1..2^32-1>;
   opaque transcript_hash<0..255>;
 } GroupState;
 ~~~~~
@@ -1138,7 +1138,7 @@ struct {
   opaque group_id<0..255>;
   uint32 epoch;
   optional<Credential> roster<1..2^32-1>;
-  optional<PublicKey> tree<1..2^32-1>;
+  optional<DHPublicKey> tree<1..2^32-1>;
   opaque transcript_hash<0..255>;
   opaque init_secret<0..255>;
 } WelcomeInfo;
