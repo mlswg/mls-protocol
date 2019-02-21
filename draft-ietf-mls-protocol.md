@@ -1536,7 +1536,7 @@ struct {
     opaque content<0..2^32-1>;
     opaque signature<0..2^16-1>;
     uint8 zeros[length_of_padding];
-} ApplicationPlaintext;
+} ApplicationMessageContent;
 
 struct {
     uint8  group[32];
@@ -1544,7 +1544,7 @@ struct {
     uint32 generation;
     uint32 sender;
     opaque encrypted_content<0..2^32-1>;
-} Application;
+} ApplicationMessage;
 ~~~~~
 
 The Group identifier and epoch allow a device to know which Group secrets
@@ -1564,28 +1564,14 @@ struct {
     uint32 generation;
     uint32 sender;
     opaque content<0..2^32-1>;
-} MLSSignatureContent;
+} SignatureContent;
 ~~~
 
-The signature used in the MLSPlaintext is computed over the MLSSignatureContent
+The signature used in the ApplicationMessageContent is computed over the SignatureContent
 which covers the metadata information about the current state
 of the group (group identifier, epoch, generation and sender's Leaf index)
 to prevent Group participants from impersonating other participants. It is also
 necessary in order to prevent cross-group attacks.
-
-[[ TODO: A preliminary formal security analysis has yet to be performed on
-this authentication scheme.]]
-
-[[ OPEN ISSUE: Currently, the group identifier, epoch and generation are
-contained as meta-data of the Signature. A different solution could be to
-include the GroupState instead, if more information is required to achieve
-the security goals regarding cross-group attacks. ]]
-
-[[ OPEN ISSUE: Should the padding be required for Handshake messages ?
-Can an adversary get more than the position of a participant in the tree
-without padding ? Should the base ciphertext block length be negotiated or
-is is reasonable to allow to leak a range for the length of the plaintext
-by allowing to send a variable number of ciphertext blocks ? ]]
 
 Application messages SHOULD be padded to provide some resistance
 against traffic analysis techniques over encrypted traffic.
@@ -1607,6 +1593,23 @@ As the padding mechanism is used to improve protection against traffic
 analysis, removal of the padding SHOULD be implemented in a "constant-time"
 manner at the MLS layer and above layers to prevent timing side-channels that
 would provide attackers with information on the size of the plaintext.
+The padding length length_of_padding can be chosen at the time of the message 
+encryption by the sender. Recipients can calculate the padding size from knowing 
+the total size of the ApplicationPlaintext and the length of the content.
+
+[[ TODO: A preliminary formal security analysis has yet to be performed on
+this authentication scheme.]]
+
+[[ OPEN ISSUE: Currently, the group identifier, epoch and generation are
+contained as meta-data of the Signature. A different solution could be to
+include the GroupState instead, if more information is required to achieve
+the security goals regarding cross-group attacks. ]]
+
+[[ OPEN ISSUE: Should the padding be required for Handshake messages ?
+Can an adversary get more than the position of a participant in the tree
+without padding ? Should the base ciphertext block length be negotiated or
+is is reasonable to allow to leak a range for the length of the plaintext
+by allowing to send a variable number of ciphertext blocks ? ]]
 
 ### Delayed and Reordered Application messages
 
