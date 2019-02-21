@@ -675,7 +675,7 @@ Public keys used in the protocol are opaque values
 in a format defined by the ciphersuite, using the following types:
 
 ~~~~~
-opaque DHPublicKey<1..2^16-1>;
+opaque HPKEPublicKey<1..2^16-1>;
 opaque SignaturePublicKey<1..2^16-1>;
 ~~~~~
 
@@ -872,7 +872,12 @@ each node MUST be the parent of its predecessor.
 
 ~~~~~
 struct {
-    PublicKey public_key;
+    HPKEPublicKey ephemeral_key;
+    opaque ciphertext<0..2^16-1>;
+} HPKECiphertext;
+
+struct {
+    HPKEPublicKey public_key;
     HPKECiphertext node_secrets<0..2^16-1>;
 } RatchetNode;
 
@@ -888,9 +893,8 @@ the length of the resolution of the corresponding copath node.  Each
 ciphertext in the list is the encryption to the corresponding node
 in the resolution.
 
-The HPKECiphertext values which are encoding of the encrypted
-secret values are computed according to the Encrypt function
-defined in {{HPKE}}.
+The HPKECiphertext values are computed according to the Encrypt
+function defined in {{HPKE}}.
 
 Decryption is performed in the corresponding way, using the private
 key of the resolution node and the ephemeral public key
