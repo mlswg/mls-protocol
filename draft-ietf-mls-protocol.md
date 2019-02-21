@@ -156,6 +156,8 @@ draft-04
 
 - ECIES is now renamed in favor of HPKE (\*)
 
+- Using a KDF instead of a Hash in TreeKEM (\*)
+
 draft-03
 
 - Added ciphersuites and signature schemes (\*)
