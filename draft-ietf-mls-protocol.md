@@ -1445,7 +1445,7 @@ After computing the initial Application Secret shared by the group,
 each Participant creates an initial Participant Application Secret
 to be used for its own sending chain:
 
-~~~
+~~~~~
            application_secret
                      |
                      V
@@ -1453,7 +1453,7 @@ to be used for its own sending chain:
                      |
                      V
            application_secret_[sender]_[0]
-~~~
+~~~~~
 
 Note that [sender] represents the index of the member in the roster.
 
@@ -1535,7 +1535,7 @@ Application messages and sign them as follows:
 struct {
     opaque content<0..2^32-1>;
     opaque signature<0..2^16-1>;
-    uint8 zeros[length_of_padding];
+    uint8  zeros[length_of_padding];
 } ApplicationMessageContent;
 
 struct {
@@ -1557,7 +1557,7 @@ before performing decryption.
 
 The signature field allows strong authentication of messages:
 
-~~~
+~~~~~
 struct {
     uint8  group[32];
     uint32 epoch;
@@ -1565,7 +1565,7 @@ struct {
     uint32 sender;
     opaque content<0..2^32-1>;
 } SignatureContent;
-~~~
+~~~~~
 
 The signature used in the ApplicationMessageContent is computed over the SignatureContent
 which covers the metadata information about the current state
