@@ -1453,7 +1453,7 @@ to be used for its own sending chain:
            application_secret_[sender]_[0]
 ~~~
 
-Note that [sender] represent the index of the participant in the roster.
+Note that [sender] represents the index of the member in the roster.
 
 Updating the Application secret and deriving the associated AEAD key and nonce can
 be summarized as the following Application key schedule where
