@@ -1544,7 +1544,7 @@ struct {
     uint32 generation;
     uint32 sender;
     opaque encrypted_content<0..2^32-1>;
-} Application;
+} ApplicationMessage;
 ~~~~~
 
 The Group identifier and epoch allow a device to know which Group secrets
@@ -1573,6 +1573,30 @@ of the group (group identifier, epoch, generation and sender's Leaf index)
 to prevent Group participants from impersonating other participants. It is also
 necessary in order to prevent cross-group attacks.
 
+Application messages SHOULD be padded to provide some resistance
+against traffic analysis techniques over encrypted traffic.
+{{?CLINIC=DOI.10.1007/978-3-319-08506-7_8}}
+{{?HCJ16=DOI.10.1186/s13635-016-0030-7}}
+While MLS might deliver the same payload less frequently across
+a lot of ciphertexts than traditional web servers, it might still provide
+the attacker enough information to mount an attack. If Alice asks Bob:
+"When are we going to the movie ?" the answer "Wednesday" might be leaked
+to an adversary by the ciphertext length. An attacker expecting Alice to
+answer Bob with a day of the week might find out the plaintext by
+correlation between the question and the length.
+The padding length length_of_padding can be chosen at the time of the message 
+encryption by the sender. Recipients can calculate the padding size from knowing 
+the total size of the ApplicationPlaintext and the length of the content.
+
+Similarly to TLS 1.3, if padding is used, the MLS messages MUST be
+padded with zero-valued bytes before AEAD encryption. Upon AEAD decryption,
+the length field of the plaintext is used to compute the number of bytes
+to be removed from the plaintext to get the correct data.
+As the padding mechanism is used to improve protection against traffic
+analysis, removal of the padding SHOULD be implemented in a "constant-time"
+manner at the MLS layer and above layers to prevent timing side-channels that
+would provide attackers with information on the size of the plaintext.
+
 [[ TODO: A preliminary formal security analysis has yet to be performed on
 this authentication scheme.]]
 
@@ -1586,27 +1610,6 @@ Can an adversary get more than the position of a participant in the tree
 without padding ? Should the base ciphertext block length be negotiated or
 is is reasonable to allow to leak a range for the length of the plaintext
 by allowing to send a variable number of ciphertext blocks ? ]]
-
-Application messages SHOULD be padded to provide some resistance
-against traffic analysis techniques over encrypted traffic.
-{{?CLINIC=DOI.10.1007/978-3-319-08506-7_8}}
-{{?HCJ16=DOI.10.1186/s13635-016-0030-7}}
-While MLS might deliver the same payload less frequently across
-a lot of ciphertexts than traditional web servers, it might still provide
-the attacker enough information to mount an attack. If Alice asks Bob:
-"When are we going to the movie ?" the answer "Wednesday" might be leaked
-to an adversary by the ciphertext length. An attacker expecting Alice to
-answer Bob with a day of the week might find out the plaintext by
-correlation between the question and the length.
-
-Similarly to TLS 1.3, if padding is used, the MLS messages MUST be
-padded with zero-valued bytes before AEAD encryption. Upon AEAD decryption,
-the length field of the plaintext is used to compute the number of bytes
-to be removed from the plaintext to get the correct data.
-As the padding mechanism is used to improve protection against traffic
-analysis, removal of the padding SHOULD be implemented in a "constant-time"
-manner at the MLS layer and above layers to prevent timing side-channels that
-would provide attackers with information on the size of the plaintext.
 
 ### Delayed and Reordered Application messages
 
