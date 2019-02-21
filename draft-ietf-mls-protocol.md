@@ -907,18 +907,21 @@ Group keys are derived using the HKDF-Extract and HKDF-Expand
 functions as defined in {{!RFC5869}}, as well as the functions
 defined below:
 
-~~~~~
-Derive-Secret(Secret, Label, State) =
-     HKDF-Expand(Secret, HkdfLabel, Hash.length)
+~~~~
+HKDF-Expand-Label(Secret, Label, Context, Length) =
+    HKDF-Expand(Secret, HkdfLabel, Length)
 
 Where HkdfLabel is specified as:
 
 struct {
     uint16 length = Length;
-    opaque label<6..255> = "mls10 " + Label;
-    GroupState state = State;
+    opaque label<7..255> = "mls10 " + Label;
+    opaque context<0..2^32-1> = Context;
 } HkdfLabel;
-~~~~~
+
+Derive-Secret(Secret, Label, Context) =
+    HKDF-Expand-Label(Secret, Label, Hash(Context), Hash.length)
+~~~~
 
 The Hash function used by HKDF is the ciphersuite hash algorithm.
 Hash.length is its output length in bytes.  In the below diagram:
@@ -1444,14 +1447,13 @@ to be used for its own sending chain:
            application_secret
                      |
                      V
-           Derive-Secret(., "app sender", [sender])
+           HKDF-Expand-Label(., "app sender", [sender], Hash.length)
                      |
                      V
            application_secret_[sender]_[0]
 ~~~
 
-Note that [sender] represent the uint32 value encoding the index
-of the participant in the ratchet tree.
+Note that [sender] represent the index of the participant in the roster.
 
 Updating the Application secret and deriving the associated AEAD key and nonce can
 be summarized as the following Application key schedule where
@@ -1467,7 +1469,7 @@ derivation:
                      +--> HKDF-Expand-Label(.,"key", "", key_length)
                      |    = write_key_[sender]_[N-1]
                      V
-           Derive-Secret(., "app upd","")
+           HKDF-Expand-Label(., "app sender", [sender], Hash.length)
                      |
                      V
            application_secret_[sender]_[N]
