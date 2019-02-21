@@ -38,6 +38,7 @@ author:
     email: raphael@wire.com
 
 
+
 normative:
   X962:
        title: "Public Key Cryptography For The Financial Services Industry: The Elliptic Curve Digital Signature Algorithm (ECDSA)"
@@ -47,6 +48,7 @@ normative:
        seriesinfo:
          ANSI: X9.62
   IEEE1363: DOI.10.1109/IEEESTD.2009.4773330
+
 
 
 informative:
@@ -70,6 +72,20 @@ informative:
     author:
        - name: Trevor Perrin(ed)
        - name: Moxie Marlinspike
+
+  HPKE:
+       title: "Hybrid Public Key Encryption"
+       date: 2019
+       author:
+         -  ins: R. Barnes
+            name: Richard Barnes
+            organization: Cisco
+            email: rlb@ipv.sx
+         -
+            ins: K. Bhargavan
+            name: Karthik Bhargavan
+            organization: Inria
+            email: karthikeyan.bhargavan@inria.fr
 
 
 --- abstract
@@ -135,6 +151,10 @@ shared keys with costs that scale as the log of the group size.
 ##  Change Log
 
 RFC EDITOR PLEASE DELETE THIS SECTION.
+
+draft-04
+
+- ECIES is now renamed in favor of HPKE (\*)
 
 draft-03
 
@@ -655,7 +675,7 @@ Public keys used in the protocol are opaque values
 in a format defined by the ciphersuite, using the following types:
 
 ~~~~~
-opaque DHPublicKey<1..2^16-1>;
+opaque HPKEPublicKey<1..2^16-1>;
 opaque SignaturePublicKey<1..2^16-1>;
 ~~~~~
 
@@ -852,13 +872,13 @@ each node MUST be the parent of its predecessor.
 
 ~~~~~
 struct {
-    DHPublicKey ephemeral_key;
-    opaque ciphertext<0..255>;
-} ECIESCiphertext;
+    HPKEPublicKey ephemeral_key;
+    opaque ciphertext<0..2^16-1>;
+} HPKECiphertext;
 
 struct {
-    DHPublicKey public_key;
-    ECIESCiphertext node_secrets<0..2^16-1>;
+    HPKEPublicKey public_key;
+    HPKECiphertext node_secrets<0..2^16-1>;
 } RatchetNode;
 
 struct {
@@ -873,34 +893,8 @@ the length of the resolution of the corresponding copath node.  Each
 ciphertext in the list is the encryption to the corresponding node
 in the resolution.
 
-The ECIESCiphertext values encoding the
-encrypted secret values are computed as follows:
-
-* Generate an ephemeral DH key pair (x, x\*G) in the DH group
-  specified by the ciphersuite in use
-* Compute the shared secret Z with the node's other child
-* Derive a key and nonce as described below
-* Encrypt the node's secret value using the AEAD algorithm specified
-  by the ciphersuite in use, with the following inputs:
-  * Key: The key derived from Z
-  * Nonce: The nonce derived from Z
-  * Additional Authenticated Data: The empty octet string
-  * Plaintext: The secret value, without any further formatting
-* Encode the ECIESCiphertext with the following values:
-  * ephemeral\_key: The ephemeral public key x\*G
-  * ciphertext: The AEAD output
-
-~~~~~
-key = HKDF-Expand(Secret, ECIESLabel("key"), Length)
-nonce = HKDF-Expand(Secret, ECIESLabel("nonce"), Length)
-
-Where ECIESLabel is specified as:
-
-struct {
-  uint16 length = Length;
-  opaque label<12..255> = "mls10 ecies " + Label;
-} ECIESLabel;
-~~~~~
+The HPKECiphertext values are computed according to the Encrypt
+function defined in {{HPKE}}.
 
 Decryption is performed in the corresponding way, using the private
 key of the resolution node and the ephemeral public key
@@ -1129,8 +1123,8 @@ group must take two actions:
 The Welcome message contains the information that the new member
 needs to initialize a GroupState object that can be updated to the
 current state using the Add message.  This information is encrypted
-for the new member using ECIES.  The recipient key pair for the
-ECIES encryption is the one included in the indicated UserInitKey,
+for the new member using HPKE.  The recipient key pair for the
+HPKE encryption is the one included in the indicated UserInitKey,
 corresponding to the indicated ciphersuite.
 
 ~~~~~
@@ -1146,7 +1140,7 @@ struct {
 struct {
   opaque user_init_key_id<0..255>;
   CipherSuite cipher_suite;
-  ECIESCiphertext encrypted_welcome_info;
+  HPKECiphertext encrypted_welcome_info;
 } Welcome;
 ~~~~~
 
@@ -1164,10 +1158,6 @@ itself, the Welcome message should reflect the state of the group
 before the new user is added.  The sender of the Welcome message can
 simply copy all fields except the `leaf_secret` from its GroupState
 object.
-
-[[ OPEN ISSUE: The Welcome message needs to be sent encrypted for
-the new member.  This should be done using the public key in the
-UserInitKey, either with ECIES or X3DH. ]]
 
 [[ OPEN ISSUE: The Welcome message needs to be synchronized in the
 same way as the Add.  That is, the Welcome should be sent only if
