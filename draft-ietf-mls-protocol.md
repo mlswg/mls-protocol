@@ -1536,7 +1536,7 @@ struct {
     opaque content<0..2^32-1>;
     opaque signature<0..2^16-1>;
     uint8 zeros[length_of_padding];
-} ApplicationPlaintext;
+} ApplicationMessageContent;
 
 struct {
     uint8  group[32];
@@ -1564,10 +1564,10 @@ struct {
     uint32 generation;
     uint32 sender;
     opaque content<0..2^32-1>;
-} MLSSignatureContent;
+} SignatureContent;
 ~~~
 
-The signature used in the MLSPlaintext is computed over the MLSSignatureContent
+The signature used in the ApplicationMessageContent is computed over the SignatureContent
 which covers the metadata information about the current state
 of the group (group identifier, epoch, generation and sender's Leaf index)
 to prevent Group participants from impersonating other participants. It is also
@@ -1584,9 +1584,6 @@ the attacker enough information to mount an attack. If Alice asks Bob:
 to an adversary by the ciphertext length. An attacker expecting Alice to
 answer Bob with a day of the week might find out the plaintext by
 correlation between the question and the length.
-The padding length length_of_padding can be chosen at the time of the message 
-encryption by the sender. Recipients can calculate the padding size from knowing 
-the total size of the ApplicationPlaintext and the length of the content.
 
 Similarly to TLS 1.3, if padding is used, the MLS messages MUST be
 padded with zero-valued bytes before AEAD encryption. Upon AEAD decryption,
@@ -1596,6 +1593,9 @@ As the padding mechanism is used to improve protection against traffic
 analysis, removal of the padding SHOULD be implemented in a "constant-time"
 manner at the MLS layer and above layers to prevent timing side-channels that
 would provide attackers with information on the size of the plaintext.
+The padding length length_of_padding can be chosen at the time of the message 
+encryption by the sender. Recipients can calculate the padding size from knowing 
+the total size of the ApplicationPlaintext and the length of the content.
 
 [[ TODO: A preliminary formal security analysis has yet to be performed on
 this authentication scheme.]]
