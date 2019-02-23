@@ -262,9 +262,9 @@ This protocol is designed to execute in the context of a Messaging Service (MS)
 as described in [I-D.ietf-mls-architecture].  In particular, we assume
 the MS provides the following services:
 
-* A long-term identity key provider which allows participants to authenticate
+* A long-term identity key provider which allows clients to authenticate
   protocol messages in a group. These keys MUST be kept for the lifetime of the
-  group as there is no mechanism in the protocol for changing a participant's
+  group as there is no mechanism in the protocol for changing a client's
   identity key.
 
 * A broadcast channel, for each group, which will relay a message to all members
@@ -272,38 +272,38 @@ the MS provides the following services:
   in the same order to all participants.  (See {{sequencing}} for further
   considerations.)
 
-* A directory to which participants can publish initialization keys, and from which
-  participant can download initialization keys for other participants.
+* A directory to which clients can publish initialization keys and download
+  initialization keys for other participants.
 
 
 # Protocol Overview
 
-The goal of this protocol is to allow a group of participants to exchange confidential and
-authenticated messages. It does so by deriving a sequence of secrets and keys known only to group members. Those
+The goal of this protocol is to allow a group of clients, members of a group, to exchange confidential and
+authenticated messages. It does so by deriving a sequence of secrets and keys known only to members. Those
 should be secret against an active network adversary and should have both forward and
 post-compromise secrecy with respect to compromise of a participant.
 
-We describe the information stored by each participant as a _state_, which includes both public and
-private data. An initial state, including an initial set of participants, is set up by a group
-creator using the _Init_ algorithm and based on information pre-published by the initial members. The creator
-sends the _GroupInit_ message to the participants, who can then set up their own group state and derive
-the same shared secret. Participants then exchange messages to produce new shared states which are
+We describe the information stored by each client as a _state_, which includes both public and
+private data. An initial state, including an initial set of clients, is set up by a group
+creator using the _Init_ algorithm and based on information pre-published by clients. The creator
+sends the _GroupInit_ message to the clients, who can then set up their own group state and derive
+the same shared secret. Clients then exchange messages to produce new shared states which are
 causally linked to their predecessors, forming a logical Directed Acyclic Graph (DAG) of states.
-Participants can send _Update_ messages for post-compromise secrecy and new participants can be
-added or existing participants removed from the group.
+Members can send _Update_ messages for post-compromise secrecy and new clients can be
+added or existing members removed from the group.
 
-The protocol algorithms we specify here follow. Each algorithm specifies both (i) how a participant
-performs the operation and (ii) how other participants update their state based on it.
+The protocol algorithms we specify here follow. Each algorithm specifies both (i) how a client
+performs the operation and (ii) how other clients update their state based on it.
 
 There are four major operations in the lifecycle of a group:
 
 * Adding a member, initiated by a current member;
-* Adding a member, initiated by the new member;
+* Adding a member, initiated by the future member;
 * Updating the leaf secret of a member;
 * Removing a member.
 
-Before the initialization of a group, participants publish
-UserInitKey objects to a directory provided to the Messaging Service.
+Before the initialization of a group, clients publish UserInitKey
+objects to a directory provided to the Messaging Service.
 
 ~~~~~
                                                           Group
@@ -320,14 +320,14 @@ A              B              C          Directory       Channel
 |              |              |              |              |
 ~~~~~
 
-When a participant A wants to establish a group with B and C, it
+When a client A wants to establish a group with B and C, it
 first downloads UserInitKeys for B and C.  It then initializes a group state
 containing only itself and uses the UserInitKeys to compute Welcome and Add messages
 to add B and C, in a sequence chosen by A.  The Welcome messages are
 sent directly to the new members (there is no need to send them to
 the group).
 The Add messages are broadcasted to the Group, and processed in sequence
-by B and C.  Messages received before a participant has joined the
+by B and C.  Messages received before a client has joined the
 group are ignored.  Only after A has received its Add messages
 back from the server does it update its state to reflect their addition.
 
@@ -362,16 +362,16 @@ A              B              C          Directory            Channel
 ~~~~~
 
 Subsequent additions of group members proceed in the same way.  Any
-member of the group can download an UserInitKey for a new participant
+member of the group can download an UserInitKey for a new client
 and broadcast an Add message that the current group can use to update
-their state and the new participant can use to initialize its state.
+their state and the new client can use to initialize its state.
 
 To enforce forward secrecy and post-compromise security of messages,
-each participant periodically updates its leaf secret which represents
+each member periodically updates its leaf secret which represents
 its contribution to the group secret.  Any member of the
 group can send an Update at any time by generating a fresh leaf secret
 and sending an Update message that describes how to update the
-group secret with that new information.  Once all participants have
+group secret with that new information.  Once all members have
 processed this message, the group's secrets will be unknown to an
 attacker that had compromised the sender's prior leaf secret.
 
@@ -394,7 +394,7 @@ A              B     ...      Z          Directory        Channel
 |              |              |              |              |
 ~~~~~
 
-Users are removed from the group in a similar way, as an update
+Members are removed from the group in a similar way, as an update
 is effectively removing the old leaf from the group.
 Any member of the group can generate a Remove message that adds new
 entropy to the group state that is known to all members except the
@@ -424,7 +424,7 @@ A              B     ...      Z          Directory       Channel
 # Ratchet Trees
 
 The protocol uses "ratchet trees" for deriving shared secrets among
-a group of participants.
+a group of clients.
 
 ## Tree Computation Terminology
 
