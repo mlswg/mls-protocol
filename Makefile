@@ -9,3 +9,9 @@ else
 	git clone -q --depth 10 $(CLONE_ARGS) \
 	    -b master https://github.com/martinthomson/i-d-template $(LIBDIR)
 endif
+
+cleanup-netlify-cache:
+	rm -rf ~/.bundle
+
+fix-insecure-links:
+	sed -i'.bak' -e 's/http:/https:/g' draft-ietf-mls-protocol.html
