@@ -1593,8 +1593,8 @@ As the padding mechanism is used to improve protection against traffic
 analysis, removal of the padding SHOULD be implemented in a "constant-time"
 manner at the MLS layer and above layers to prevent timing side-channels that
 would provide attackers with information on the size of the plaintext.
-The padding length length_of_padding can be chosen at the time of the message 
-encryption by the sender. Recipients can calculate the padding size from knowing 
+The padding length length_of_padding can be chosen at the time of the message
+encryption by the sender. Recipients can calculate the padding size from knowing
 the total size of the ApplicationPlaintext and the length of the content.
 
 [[ TODO: A preliminary formal security analysis has yet to be performed on
