@@ -234,12 +234,12 @@ Member:
   has access to the group's secrets.
 
 Initialization Key:
-: A short-lived Diffie-Hellman key pair used to introduce a new
+: A short-lived HPKE key pair used to introduce a new
   member to a group.  Initialization keys are published for
   individual participants (UserInitKey).
 
 Leaf Key:
-: A short-lived Diffie-Hellman key pair that represents a group
+: A short-lived HPKE key pair that represents a group
   member's contribution to the group secret, so called because the
   participants leaf keys are the leaves in the group's ratchet tree.
 
@@ -818,7 +818,7 @@ struct {
   opaque group_id<0..255>;
   uint32 epoch;
   optional<Credential> roster<1..2^32-1>;
-  optional<DHPublicKey> tree<1..2^32-1>;
+  optional<HPKEPublicKey> tree<1..2^32-1>;
   opaque transcript_hash<0..255>;
 } GroupState;
 ~~~~~
@@ -833,7 +833,7 @@ The fields in this state have the following semantics:
   holder of the slot.
 * The `tree` field contains the public keys corresponding to the
   nodes of the ratchet tree for this group.  The length of this
-  vector MUST be `2*size + 1`, where `size` is the length of the
+  vector MUST be `2*size - 1`, where `size` is the length of the
   roster, since this is the number of nodes in a tree with `size`
   leaves, according to the structure described in {{ratchet-trees}}.
 * The `transcript` field contains the list of `GroupOperation`
@@ -856,7 +856,7 @@ operations:
   `operation` in the following way:
 
 ~~~~~
-transcript\_hash\_[n] = Hash(transcript\_hash\_[n-1] || operation)
+transcript_hash_[n] = Hash(transcript_hash_[n-1] || operation)
 ~~~~~
 
 When a new one-member group is created (which requires no
@@ -928,7 +928,7 @@ Derive-Secret(Secret, Label, Context) =
 The Hash function used by HKDF is the ciphersuite hash algorithm.
 Hash.length is its output length in bytes.  In the below diagram:
 
-* HKDF-Extract takes its Salt argument from the top and its IKM
+* HKDF-Extract takes its salt argument from the top and its IKM
   argument from the left
 * Derive-Secret takes its Secret argument from the incoming arrow
 
@@ -981,8 +981,8 @@ set of UserInitKeys created by this client.
 
 The init\_keys array MUST have the same length as the cipher\_suites
 array, and each entry in the init\_keys array MUST be a public key
-for the DH group defined by the corresponding entry in the
-cipher\_suites array.
+for the asymmetric encryption scheme defined in the cipher\_suites array
+and used in the HPKE construction for TreeKEM.
 
 The whole structure is signed using the client's identity key.  A
 UserInitKey object with an invalid signature field MUST be
@@ -993,7 +993,7 @@ comprises all of the fields except for the signature field.
 struct {
     opaque user_init_key_id<0..255>;
     CipherSuite cipher_suites<0..255>;
-    DHPublicKey init_keys<1..2^16-1>;
+    HPKEPublicKey init_keys<1..2^16-1>;
     Credential credential;
     opaque signature<0..2^16-1>;
 } UserInitKey;
@@ -1137,7 +1137,7 @@ struct {
   opaque group_id<0..255>;
   uint32 epoch;
   optional<Credential> roster<1..2^32-1>;
-  optional<DHPublicKey> tree<1..2^32-1>;
+  optional<HPKEPublicKey> tree<1..2^32-1>;
   opaque transcript_hash<0..255>;
   opaque init_secret<0..255>;
 } WelcomeInfo;
@@ -1372,9 +1372,9 @@ these updates in the specified order.
 For example, suppose we have a tree in the following configuration:
 
 ~~~~~
-      H(H(D))
+     KDF(KDF(D))
      /       \
-  H(B)      H(D)
+  KDF(B)    KDF(D)
   /  \      /  \
  A    B    C    D
 ~~~~~
@@ -1385,9 +1385,9 @@ respectively.  They will send out updates of the following form:
 ~~~~~
   Update from B      Update from C
   =============      =============
-      H(H(X))            H(H(Y))
+      KDF(KDF(X))             KDF(KDF(Y))
      /                         \
-  H(X)                         H(Y)
+  KDF(X)                        KDF(Y)
      \                         /
       X                       Y
 ~~~~~
@@ -1398,9 +1398,9 @@ will overwrite the root value for B with the root value from C, and
 all arrive at the following state:
 
 ~~~~~
-      H(H(Y))
+      KDF(KDF(Y))
      /       \
-  H(X)      H(Y)
+  KDF(X)    KDF(Y)
   /  \      /  \
  A    X    Y    D
 ~~~~~
