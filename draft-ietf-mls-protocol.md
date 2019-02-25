@@ -284,7 +284,7 @@ post-compromise secrecy with respect to compromise of a participant.
 We describe the information stored by each participant as a _state_, which includes both public and
 private data. An initial state, including an initial set of participants, is set up by a group
 creator using the _Init_ algorithm and based on information pre-published by the initial members. The creator
-sends the _GroupInit_ message to the participants, who can then set up their own group state and derive
+sends the _Init_ message to the participants, who can then set up their own group state and derive
 the same shared secret. Participants then exchange messages to produce new shared states which are
 causally linked to their predecessors, forming a logical Directed Acyclic Graph (DAG) of states.
 Participants can send _Update_ messages for post-compromise secrecy and new participants can be
@@ -836,7 +836,7 @@ The fields in this state have the following semantics:
   vector MUST be `2*size + 1`, where `size` is the length of the
   roster, since this is the number of nodes in a tree with `size`
   leaves, according to the structure described in {{ratchet-trees}}.
-* The `transcript` field contains the list of `GroupOperation`
+* The `transcript_hash` field contains the list of `GroupOperation`
   messages that led to this state.
 
 When a new member is added to the group, an existing member of the
@@ -861,7 +861,8 @@ transcript\_hash\_[n] = Hash(transcript\_hash\_[n-1] || operation)
 
 When a new one-member group is created (which requires no
 GroupOperation), the `transcript_hash` field is set to an all-zero
-vector of length Hash.length.
+vector of length Hash.length, where the Hash algorithm is defined
+by the ciphersuite.
 
 ## Direct Paths
 
@@ -1068,8 +1069,8 @@ follows:
    object and consider the Handshake message invalid.
 
 6. Use the `confirmation_key` for the new group state to
-   compute the finished MAC for this message, as described below,
-   and verify that it is the same as the `finished_mac` field.
+   compute the `confirmation` MAC for this message, as described below,
+   and verify that it is the same as the `confirmation` field.
 
 7. If the the above checks are successful, consider the updated
    GroupState object as the current state of the group.
@@ -1088,6 +1089,9 @@ confirmation_data = GroupState.transcript_hash ||
 Handshake.confirmation = HMAC(confirmation_key,
                               confirmation_data)
 ~~~~~
+
+[[ OPEN ISSUE: The confirmation data and signature data should probably
+cover the same data as the one we cover with the GroupState. ]]
 
 HMAC {{!RFC2104}} uses the Hash algorithm for the ciphersuite in
 use.  Sign uses the signature algorithm indicated by the signer's
@@ -1257,9 +1261,8 @@ The sender of a Remove message generates it as as follows:
   the removed leaf
 
 An existing participant receiving a Remove message first verifies
-the signature on the message, then verifies its identity proof
-against the identity tree held by the participant.  The participant
-then updates its state as follows:
+the signature on the message. The participant then updates its state
+as follows:
 
 * Update the roster by setting the credential in the removed slot to
   the null optional value
