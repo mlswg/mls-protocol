@@ -1161,9 +1161,7 @@ are revealed to the new member.
 
 Since the new member is expected to process the Add message for
 itself, the Welcome message should reflect the state of the group
-before the new user is added.  The sender of the Welcome message can
-simply copy all fields except the `leaf_secret` from its GroupState
-object.
+before the new user is added.
 
 [[ OPEN ISSUE: The Welcome message needs to be sent encrypted for
 the new member.  This should be done using the public key in the
