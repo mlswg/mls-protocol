@@ -38,6 +38,7 @@ author:
     email: raphael@wire.com
 
 
+
 normative:
   X962:
        title: "Public Key Cryptography For The Financial Services Industry: The Elliptic Curve Digital Signature Algorithm (ECDSA)"
@@ -47,6 +48,7 @@ normative:
        seriesinfo:
          ANSI: X9.62
   IEEE1363: DOI.10.1109/IEEESTD.2009.4773330
+
 
 
 informative:
@@ -70,6 +72,20 @@ informative:
     author:
        - name: Trevor Perrin(ed)
        - name: Moxie Marlinspike
+
+  HPKE:
+       title: "Hybrid Public Key Encryption"
+       date: 2019
+       author:
+         -  ins: R. Barnes
+            name: Richard Barnes
+            organization: Cisco
+            email: rlb@ipv.sx
+         -
+            ins: K. Bhargavan
+            name: Karthik Bhargavan
+            organization: Inria
+            email: karthikeyan.bhargavan@inria.fr
 
 
 --- abstract
@@ -135,6 +151,12 @@ shared keys with costs that scale as the log of the group size.
 ##  Change Log
 
 RFC EDITOR PLEASE DELETE THIS SECTION.
+
+draft-04
+
+- ECIES is now renamed in favor of HPKE (\*)
+
+- Using a KDF instead of a Hash in TreeKEM (\*)
 
 draft-03
 
@@ -494,9 +516,8 @@ instance of a ratchet tree is based on the following cryptographic
 primitives, defined by the ciphersuite in use:
 
 * A Diffie-Hellman finite-field group or elliptic curve
-* A Derive-Key-Pair function that produces a key pair from
-  an octet string
-* A hash function
+* A Key Derivation Function (KDF)
+* A Derive-Public-Key function that produces a public key from a private key
 
 A ratchet tree is a left-balanced binary tree, in which each node
 contains up to three values:
@@ -505,15 +526,17 @@ contains up to three values:
 * An asymmetric private key (optional)
 * An asymmetric public key
 
-The private key and public key for a node are derived from its
-secret value using the Derive-Key-Pair operation.
+The private key for a node is derived from its secret value using the KDF. The
+public key is then derived from the private key using the Derive-Public-Key
+function.
 
 The contents of a parent node are computed from one of
 its children as follows:
 
 ~~~~~
-parent_secret = Hash(child_secret)
-parent_private, parent_public = Derive-Key-Pair(parent_secret)
+parent_secret = KDF(child_secret)
+parent_private = KDF(parent_secret)
+parent_public = Derive-Public-Key(parent_private)
 ~~~~~
 
 The contents of the parent are based on the latest-updated child.
@@ -522,22 +545,22 @@ group in that order, then the resulting tree will have the following
 structure:
 
 ~~~~~
-     H(H(D))
-    /       \
- H(B)       H(D)
- /  \       /  \
-A    B     C    D
+     KDF(KDF(D))
+    /           \
+ KDF(B)        KDF(D)
+ /  \           /  \
+A    B         C    D
 ~~~~~
 
 If the first participant subsequently changes its leaf secret to be
 X, then the tree will have the following structure.
 
 ~~~~~
-     H(H(X))
-    /       \
- H(X)       H(D)
- /  \       /  \
-X    B     C    D
+     KDF(KDF(X))
+    /           \
+ KDF(X)         KDF(D)
+ /  \            /  \
+X    B          C    D
 ~~~~~
 
 ## Blank Nodes and Resolution
@@ -606,7 +629,7 @@ The recipient of an update processes it with the following steps:
     which this node has a private key
   * Decrypt the secret value for the parent of the copath node using
     the private key from the resolution node
-  * Compute secret values for ancestors of that node by hashing the
+  * Derive secret values for ancestors of that node using the KDF keyed with the
     decrypted secret
 2. Merge the updated secrets into the tree
   * Replace the public keys for nodes on the direct path with the
@@ -654,7 +677,7 @@ Public keys used in the protocol are opaque values
 in a format defined by the ciphersuite, using the following types:
 
 ~~~~~
-opaque DHPublicKey<1..2^16-1>;
+opaque HPKEPublicKey<1..2^16-1>;
 opaque SignaturePublicKey<1..2^16-1>;
 ~~~~~
 
@@ -891,7 +914,7 @@ struct {
   opaque group_id<0..255>;
   uint32 epoch;
   optional<Credential> roster<1..2^32-1>;
-  optional<PublicKey> tree<1..2^32-1>;
+  optional<DHPublicKey> tree<1..2^32-1>;
   opaque transcript_hash<0..255>;
 } GroupState;
 ~~~~~
@@ -947,13 +970,13 @@ each node MUST be the parent of its predecessor.
 
 ~~~~~
 struct {
-    DHPublicKey ephemeral_key;
-    opaque ciphertext<0..255>;
-} ECIESCiphertext;
+    HPKEPublicKey ephemeral_key;
+    opaque ciphertext<0..2^16-1>;
+} HPKECiphertext;
 
 struct {
-    DHPublicKey public_key;
-    ECIESCiphertext node_secrets<0..2^16-1>;
+    HPKEPublicKey public_key;
+    HPKECiphertext node_secrets<0..2^16-1>;
 } RatchetNode;
 
 struct {
@@ -968,34 +991,8 @@ the length of the resolution of the corresponding copath node.  Each
 ciphertext in the list is the encryption to the corresponding node
 in the resolution.
 
-The ECIESCiphertext values encoding the
-encrypted secret values are computed as follows:
-
-* Generate an ephemeral DH key pair (x, x\*G) in the DH group
-  specified by the ciphersuite in use
-* Compute the shared secret Z with the node's other child
-* Derive a key and nonce as described below
-* Encrypt the node's secret value using the AEAD algorithm specified
-  by the ciphersuite in use, with the following inputs:
-  * Key: The key derived from Z
-  * Nonce: The nonce derived from Z
-  * Additional Authenticated Data: The empty octet string
-  * Plaintext: The secret value, without any further formatting
-* Encode the ECIESCiphertext with the following values:
-  * ephemeral\_key: The ephemeral public key x\*G
-  * ciphertext: The AEAD output
-
-~~~~~
-key = HKDF-Expand(Secret, ECIESLabel("key"), Length)
-nonce = HKDF-Expand(Secret, ECIESLabel("nonce"), Length)
-
-Where ECIESLabel is specified as:
-
-struct {
-  uint16 length = Length;
-  opaque label<12..255> = "mls10 ecies " + Label;
-} ECIESLabel;
-~~~~~
+The HPKECiphertext values are computed according to the Encrypt
+function defined in {{HPKE}}.
 
 Decryption is performed in the corresponding way, using the private
 key of the resolution node and the ephemeral public key
@@ -1008,18 +1005,21 @@ Group keys are derived using the HKDF-Extract and HKDF-Expand
 functions as defined in {{!RFC5869}}, as well as the functions
 defined below:
 
-~~~~~
-Derive-Secret(Secret, Label, State) =
-     HKDF-Expand(Secret, HkdfLabel, Hash.length)
+~~~~
+HKDF-Expand-Label(Secret, Label, Context, Length) =
+    HKDF-Expand(Secret, HkdfLabel, Length)
 
 Where HkdfLabel is specified as:
 
 struct {
     uint16 length = Length;
-    opaque label<6..255> = "mls10 " + Label;
-    GroupState state = State;
+    opaque label<7..255> = "mls10 " + Label;
+    opaque context<0..2^32-1> = Context;
 } HkdfLabel;
-~~~~~
+
+Derive-Secret(Secret, Label, Context) =
+    HKDF-Expand-Label(Secret, Label, Hash(Context), Hash.length)
+~~~~
 
 The Hash function used by HKDF is the ciphersuite hash algorithm.
 Hash.length is its output length in bytes.  In the below diagram:
@@ -1224,8 +1224,8 @@ group must take two actions:
 The Welcome message contains the information that the new member
 needs to initialize a GroupState object that can be updated to the
 current state using the Add message.  This information is encrypted
-for the new member using ECIES.  The recipient key pair for the
-ECIES encryption is the one included in the indicated UserInitKey,
+for the new member using HPKE.  The recipient key pair for the
+HPKE encryption is the one included in the indicated UserInitKey,
 corresponding to the indicated ciphersuite.
 
 ~~~~~
@@ -1233,7 +1233,7 @@ struct {
   opaque group_id<0..255>;
   uint32 epoch;
   optional<Credential> roster<1..2^32-1>;
-  optional<PublicKey> tree<1..2^32-1>;
+  optional<DHPublicKey> tree<1..2^32-1>;
   opaque transcript_hash<0..255>;
   opaque init_secret<0..255>;
 } WelcomeInfo;
@@ -1241,7 +1241,7 @@ struct {
 struct {
   opaque user_init_key_id<0..255>;
   CipherSuite cipher_suite;
-  ECIESCiphertext encrypted_welcome_info;
+  HPKECiphertext encrypted_welcome_info;
 } Welcome;
 ~~~~~
 
@@ -1259,10 +1259,6 @@ itself, the Welcome message should reflect the state of the group
 before the new user is added.  The sender of the Welcome message can
 simply copy all fields except the `leaf_secret` from its GroupState
 object.
-
-[[ OPEN ISSUE: The Welcome message needs to be sent encrypted for
-the new member.  This should be done using the public key in the
-UserInitKey, either with ECIES or X3DH. ]]
 
 [[ OPEN ISSUE: The Welcome message needs to be synchronized in the
 same way as the Add.  That is, the Welcome should be sent only if
@@ -1545,18 +1541,17 @@ After computing the initial Application Secret shared by the group,
 each Participant creates an initial Participant Application Secret
 to be used for its own sending chain:
 
-~~~
+~~~~~
            application_secret
                      |
                      V
-           Derive-Secret(., "app sender", [sender])
+           HKDF-Expand-Label(., "app sender", [sender], Hash.length)
                      |
                      V
            application_secret_[sender]_[0]
-~~~
+~~~~~
 
-Note that [sender] represent the uint32 value encoding the index
-of the participant in the ratchet tree.
+Note that [sender] represents the index of the member in the roster.
 
 Updating the Application secret and deriving the associated AEAD key and nonce can
 be summarized as the following Application key schedule where
@@ -1572,7 +1567,7 @@ derivation:
                      +--> HKDF-Expand-Label(.,"key", "", key_length)
                      |    = write_key_[sender]_[N-1]
                      V
-           Derive-Secret(., "app upd","")
+           HKDF-Expand-Label(., "app sender", [sender], Hash.length)
                      |
                      V
            application_secret_[sender]_[N]
@@ -1636,8 +1631,8 @@ Application messages and sign them as follows:
 struct {
     opaque content<0..2^32-1>;
     opaque signature<0..2^16-1>;
-    uint8 zeros[length_of_padding];
-} ApplicationPlaintext;
+    uint8  zeros[length_of_padding];
+} ApplicationMessageContent;
 
 struct {
     uint8  group[32];
@@ -1645,7 +1640,7 @@ struct {
     uint32 generation;
     uint32 sender;
     opaque encrypted_content<0..2^32-1>;
-} Application;
+} ApplicationMessage;
 ~~~~~
 
 The Group identifier and epoch allow a device to know which Group secrets
@@ -1658,35 +1653,21 @@ before performing decryption.
 
 The signature field allows strong authentication of messages:
 
-~~~
+~~~~~
 struct {
     uint8  group[32];
     uint32 epoch;
     uint32 generation;
     uint32 sender;
     opaque content<0..2^32-1>;
-} MLSSignatureContent;
-~~~
+} SignatureContent;
+~~~~~
 
-The signature used in the MLSPlaintext is computed over the MLSSignatureContent
+The signature used in the ApplicationMessageContent is computed over the SignatureContent
 which covers the metadata information about the current state
 of the group (group identifier, epoch, generation and sender's Leaf index)
 to prevent Group participants from impersonating other participants. It is also
 necessary in order to prevent cross-group attacks.
-
-[[ TODO: A preliminary formal security analysis has yet to be performed on
-this authentication scheme.]]
-
-[[ OPEN ISSUE: Currently, the group identifier, epoch and generation are
-contained as meta-data of the Signature. A different solution could be to
-include the GroupState instead, if more information is required to achieve
-the security goals regarding cross-group attacks. ]]
-
-[[ OPEN ISSUE: Should the padding be required for Handshake messages ?
-Can an adversary get more than the position of a participant in the tree
-without padding ? Should the base ciphertext block length be negotiated or
-is is reasonable to allow to leak a range for the length of the plaintext
-by allowing to send a variable number of ciphertext blocks ? ]]
 
 Application messages SHOULD be padded to provide some resistance
 against traffic analysis techniques over encrypted traffic.
@@ -1708,6 +1689,23 @@ As the padding mechanism is used to improve protection against traffic
 analysis, removal of the padding SHOULD be implemented in a "constant-time"
 manner at the MLS layer and above layers to prevent timing side-channels that
 would provide attackers with information on the size of the plaintext.
+The padding length length_of_padding can be chosen at the time of the message
+encryption by the sender. Recipients can calculate the padding size from knowing
+the total size of the ApplicationPlaintext and the length of the content.
+
+[[ TODO: A preliminary formal security analysis has yet to be performed on
+this authentication scheme.]]
+
+[[ OPEN ISSUE: Currently, the group identifier, epoch and generation are
+contained as meta-data of the Signature. A different solution could be to
+include the GroupState instead, if more information is required to achieve
+the security goals regarding cross-group attacks. ]]
+
+[[ OPEN ISSUE: Should the padding be required for Handshake messages ?
+Can an adversary get more than the position of a participant in the tree
+without padding ? Should the base ciphertext block length be negotiated or
+is is reasonable to allow to leak a range for the length of the plaintext
+by allowing to send a variable number of ciphertext blocks ? ]]
 
 ### Delayed and Reordered Application messages
 
