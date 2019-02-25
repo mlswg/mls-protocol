@@ -515,7 +515,7 @@ section, we describe the structure of a ratchet tree.  A particular
 instance of a ratchet tree is based on the following cryptographic
 primitives, defined by the ciphersuite in use:
 
-* A Diffie-Hellman finite-field group or elliptic curve
+* An Hybrid Public Key Encryption scheme (HPKE)
 * A Key Derivation Function (KDF)
 * A Derive-Public-Key function that produces a public key from a private key
 
@@ -665,9 +665,10 @@ public-key encryption to the public key K of the secret value S):
 Each MLS session uses a single ciphersuite that specifies the
 following primitives to be used in group key computations:
 
-* A hash function
-* A Diffie-Hellman finite-field group or elliptic curve
+* An Hybrid Public Key Encryption scheme (HPKE)
 * An AEAD encryption algorithm {{!RFC5116}}
+* A Signature scheme
+* A Hash function for the KDF and signature schemes
 
 The ciphersuite must also specify an algorithm `Derive-Key-Pair`
 that maps octet strings with the same length as the output of the
@@ -681,88 +682,47 @@ opaque HPKEPublicKey<1..2^16-1>;
 opaque SignaturePublicKey<1..2^16-1>;
 ~~~~~
 
-Cryptographic algorithms are indicated using the following types:
-
-~~~~~
-enum {
-    /* Elliptic Curve Groups (ECDHE) */
-    secp256r1(0x0017), secp384r1(0x0018), secp521r1(0x0019),
-    x25519(0x001D), x448(0x001E),
-
-    /* Reserved */
-    (0xFFFF)
-} NamedGroup;
-
-struct {
-    NamedGroup named_group_list<2..2^16-1>;
-} NamedGroupList;
-~~~~~
-
-Elliptic Curve Groups (ECDHE)
-: Indicates support for the corresponding named curve, defined
-  either in FIPS 186-4 {{DSS}} or in {{RFC7748}}.
-
-~~~~~
-enum {
-    /* ECDSA algorithms */
-    ecdsa_secp256r1_sha256(0x0403),
-    ecdsa_secp384r1_sha384(0x0503),
-    ecdsa_secp521r1_sha512(0x0603),
-
-    /* EdDSA algorithms */
-    ed25519(0x0807),
-    ed448(0x0808),
-
-    /* Reserved */
-    (0xFFFF)
-} SignatureScheme;
-
-struct {
-    SignatureScheme supported_signature_algorithms<2..2^16-2>;
-} SignatureSchemeList;
-~~~~~
-
-ECDSA algorithms
-: Indicates a signature algorithm using ECDSA {{ECDSA}}, the corresponding
-  curve as defined in ANSI X9.62 {{X962}} and FIPS 186-4 {{DSS}}, and the
-  corresponding hash algorithm as defined in {{!SHS}}. The signature is
-  represented as a DER-encoded {{X690}} ECDSA-Sig-Value structure.
-
-EdDSA algorithms
-: Indicates a signature algorithm using EdDSA as defined in
-  {{RFC8032}} or its successors. Note that these correspond to the
-  "PureEdDSA" algorithms and not the "prehash" variants.
 
 ## Cipher Suites
 
-A symmetric cipher suite defines the pair of the AEAD algorithm and hash
-algorithm to be used with HKDF.
+A cipher suite value defines a combinaison of a protocol version
+and of the set of cryptographic algorithms used for this version MLS.
 Cipher suite names follow the naming convention:
 
 ~~~
-   CipherSuite MLS_AEAD_HASH = VALUE;
+   CipherSuite MLS_LVL_KEM_AEAD_HASH_SIG = VALUE;
 ~~~
 
 | Component | Contents |
 |:----------|:---------|
 | MLS       | The string "MLS" |
-| KEM       | The KEM algorithm used for KEM group operations |
-| AEAD      | The AEAD algorithm used for record protection |
-| HASH      | The hash algorithm used with HKDF |
+| LVL       | The security parameter |
+| KEM       | The KEM algorithm used for HPKE in TreeKEM group operations |
+| AEAD      | The AEAD algorithm used for HPKE and message protection |
+| HASH      | The hash algorithm used for HPKE and the MLS KDF |
 | SIG       | The Signature algorithm used for message authentication |
-| VALUE     | The two byte ID assigned for this cipher suite |
 
 This specification defines the following cipher suites for use with MLS 1.0.
 
-|          Description            |    Value    |
-|:--------------------------------|:------------|
-| MLS_AES_128_GCM_SHA256          | {0x00,0x01} |
-| MLS_AES_256_GCM_SHA384          | {0x00,0x02} |
-| MLS_CHACHA20_POLY1305_SHA256    | {0x00,0x03} |
+|          Description                                |    Value    |
+|:----------------------------------------------------|:------------|
+| MLS10_128_KEMX25519_AES128GCM_SHA256_Ed25519        | {0x00,0x01} |
+| MLS10_128_KEMP256_AES128GCM_SHA256_P256             | {0x00,0x02} |
+| MLS10_128_KEMX25519_CHACHA20POLY1305_SHA256_Ed25519 | {0x00,0x03} |
+| MLS10_256_KEMX448_AES256GCM_SHA384_Ed448            | {0x00,0x04} |
+| MLS10_256_KEMP521_AES256GCM_SHA384_P521             | {0x00,0x05} |
+| MLS10_256_KEMX448_CHACHA20POLY1305_SHA256_Ed448     | {0x00,0x06} |
 
+The KEM/DEM constructions used for HPKE are defined by {{HPKE}}.
 The corresponding AEAD algorithms AEAD_AES_128_GCM and AEAD_AES_256_GCM, are
 defined in {{RFC5116}}. AEAD_CHACHA20_POLY1305 is defined
 in {{RFC7539}}. The corresponding hash algorithms are defined in {{!SHS}}.
+
+The mandatory to implement ciphersuite for MLS 1.0 is
+`MLS10\_128\_KEM25519\_AES128GCM\_SHA256\_Ed25519` which is using
+Curve25519, HKDF over SHA2-256 and AES-128-GCM for HPKE,
+and AES-128-GCM with Ed25519 for symmetric encryption and
+signatures.
 
 New cipher suite values are assigned by IANA as described in
 {{iana-considerations}}.
