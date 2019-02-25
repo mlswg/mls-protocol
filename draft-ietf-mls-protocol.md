@@ -1395,7 +1395,7 @@ respectively.  They will send out updates of the following form:
 ~~~~~
 
 Assuming that the ordering agreed by the group says that B's update
-should be processed before C's, the other participants in the group
+should be processed before C's, the other members in the group
 will overwrite the root value for B with the root value from C, and
 all arrive at the following state:
 
@@ -1410,22 +1410,22 @@ all arrive at the following state:
 # Message Protection
 
 The primary purpose of the handshake protocol is to provide an authenticated
-group key exchange to participants. In order to protect Application messages
-sent among those participants, the Application secret provided by the Handshake
+group key exchange to clients. In order to protect Application messages
+sent among those members of a group, the Application secret provided by the Handshake
 key schedule is used to derive encryption keys for the Message Protection Layer.
 
 Application messages MUST be protected with the Authenticated-Encryption
 with Associated-Data (AEAD) encryption scheme associated with the MLS ciphersuite.
 Note that "Authenticated" in this context does not mean messages are known to
-be sent by a specific participant but only from a legitimate member of the group.
+be sent by a specific client but only from a legitimate member of the group.
 To authenticate a message from a particular member, signatures are required.
 Handshake messages MUST use asymmetric signatures to strongly authenticate
 the sender of a message.
 
-Each participant maintains their own chain of Application secrets, where the first
+Each member maintains their own chain of Application secrets, where the first
 one is derived based on a secret chained from the Epoch secret.
 As shown in {{key-schedule}}, the initial Application secret is bound to the
-identity of each participant to avoid collisions and allow support for decryption
+identity of each client to avoid collisions and allow support for decryption
 of reordered messages.
 
 Subsequent Application secrets MUST be rotated for each message sent in
@@ -1438,13 +1438,13 @@ bounds of the AEAD scheme used.
 Note that each change to the Group through a Handshake message will cause
 a change of the Group Secret. Hence this change MUST be applied before encrypting
 any new Application message. This is required for confidentiality reasons
-in order for Members to avoid receiving messages from the group after leaving,
+in order for members to avoid receiving messages from the group after leaving,
 being added to, or excluded from the Group.
 
 ## Application Key Schedule {#key-schedule-application}
 
-After computing the initial Application Secret shared by the group,
-each Participant creates an initial Participant Application Secret
+After computing the initial group Application Secret, which is derived from the
+main key schedule, each member creates an initial sender Application Secret
 to be used for its own sending chain:
 
 ~~~~~
@@ -1461,7 +1461,7 @@ Note that [sender] represents the index of the member in the roster.
 
 Updating the Application secret and deriving the associated AEAD key and nonce can
 be summarized as the following Application key schedule where
-each participant's Application secret chain looks as follows after the initial
+each member's Application secret chain looks as follows after the initial
 derivation:
 
 ~~~~~
@@ -1498,8 +1498,8 @@ The following rules apply to an Application Secret:
 - Senders MUST only use the Application Secret once and monotonically
   increment the generation of their secret. This is important to provide
   Forward Secrecy at the level of Application messages. An attacker getting
-  hold of a Participant's Application Secret at generation [N+1] will not be
-  able to derive the Participant's Application Secret [N] nor the associated
+  hold of a member specific Application Secret at generation [N+1] will not be
+  able to derive the member's Application Secret [N] nor the associated
   AEAD key and nonce.
 
 - Receivers MUST delete an Application Secret once it has been used to
@@ -1529,7 +1529,7 @@ Application Secret changes.
 
 ## Message Encryption and Decryption
 
-The Group participants MUST use the AEAD algorithm associated with
+The Group members MUST use the AEAD algorithm associated with
 the negotiated MLS ciphersuite to AEAD encrypt and decrypt their
 Application messages and sign them as follows:
 
@@ -1551,8 +1551,8 @@ struct {
 
 The Group identifier and epoch allow a device to know which Group secrets
 should be used and from which Epoch secret to start computing other secrets
-and keys. The participant identifier is used to derive the participant
-Application secret chain from the initial shared Application secret.
+and keys. The sender identifier is used to derive the member's
+Application secret chain from the initial group Application secret.
 The application generation field is used to determine which Application
 secret should be used from the chain to compute the correct AEAD keys
 before performing decryption.
@@ -1572,7 +1572,7 @@ struct {
 The signature used in the ApplicationMessageContent is computed over the SignatureContent
 which covers the metadata information about the current state
 of the group (group identifier, epoch, generation and sender's Leaf index)
-to prevent Group participants from impersonating other participants. It is also
+to prevent Group members from impersonating other clients. It is also
 necessary in order to prevent cross-group attacks.
 
 Application messages SHOULD be padded to provide some resistance
@@ -1616,12 +1616,12 @@ by allowing to send a variable number of ciphertext blocks ? ]]
 ### Delayed and Reordered Application messages
 
 Since each Application message contains the Group identifier, the epoch and a
-message counter, a participant can receive messages out of order.
+message counter, a client can receive messages out of order.
 If they are able to retrieve or recompute the correct AEAD decryption key
-from currently stored cryptographic material participants can decrypt
+from currently stored cryptographic material clients can decrypt
 these messages.
 
-For usability, MLS Participants might be required to keep the AEAD key
+For usability, MLS clients might be required to keep the AEAD key
 and nonce for a certain amount of time to retain the ability to decrypt
 delayed or out of order messages, possibly still in transit while a
 decryption is being done.
@@ -1646,7 +1646,7 @@ an authenticated key exchange protocol. Subsequent leaf keys are known only by t
 or by someone who replaced them.]]
 
 Note that the long-term identity keys used by the protocol MUST be distributed by an "honest"
-authentication service for parties to authenticate their legitimate peers.
+authentication service for clients to authenticate their legitimate peers.
 
 ## Authentication
 
@@ -1657,7 +1657,7 @@ of the group. This is implicitly guaranteed by the secrecy of the
 shared key derived from the ratcheting trees: if all members of the
 group are honest, then the shared group key is only known to the group
 members. By using AEAD or appropriate MAC with this shared key, we can
-guarantee that a participant in the group (who knows the shared secret
+guarantee that a member in the group (who knows the shared secret
 key) has sent a message.
 
 The second form considers authentication with respect to the sender,
