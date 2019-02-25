@@ -430,7 +430,7 @@ a group of clients.
 
 Trees consist of _nodes_. A node is a
 _leaf_ if it has no children, and a _parent_ otherwise; note that all
-parents in our ratchet trees have precisely
+parents in our trees have precisely
 two children, a _left_ child and a _right_ child. A node is the _root_
 of a tree if it has no parents, and _intermediate_ if it has both
 children and parents. The _descendants_ of a node are that node, its
@@ -585,8 +585,8 @@ represents a blank node:
 
 ~~~~~
       _
-    /    \
-   /      \
+    /   \
+   /     \
   _       CD
  / \     / \
 A   _   C   D
@@ -603,10 +603,10 @@ In this tree, we can see all three of the above rules in play:
 ## Ratchet Tree Updates
 
 In order to update the state of the group such as adding and
-removing participants, MLS messages are used to make changes to the
-group's ratchet tree.  The participant proposing an update to the
+removing clients, MLS messages are used to make changes to the
+group's ratchet tree.  The member proposing an update to the
 tree transmits a set of values for intermediate nodes in the
-direct path of a leaf. Other participants in the group
+direct path of a leaf. Other members in the group
 can use these nodes to update their view of the tree, aligning their
 copy of the tree to the sender's.
 
@@ -625,7 +625,7 @@ are no encrypted secrets, since a leaf node has no children.
 The recipient of an update processes it with the following steps:
 
 1. Compute the updated secret values
-  * Identify a node in the direct path for which the local participant
+  * Identify a node in the direct path for which the local member
     is in the subtree of the non-updated child
   * Identify a node in the resolution of the copath node for
     which this node has a private key
@@ -804,7 +804,7 @@ struct {
 
 ## Group State
 
-Each participant in the group maintains a representation of the
+Each member of the group maintains a representation of the
 state of the group:
 
 ~~~~~
@@ -934,7 +934,7 @@ Hash.length is its output length in bytes.  In the below diagram:
   argument from the left
 * Derive-Secret takes its Secret argument from the incoming arrow
 
-When processing a handshake message, a participant combines the
+When processing a handshake message, a client combines the
 following information to derive new epoch secrets:
 
 * The init secret from the previous epoch
@@ -965,11 +965,11 @@ update_secret -> HKDF-Extract = epoch_secret
 
 # Initialization Keys
 
-In order to facilitate asynchronous addition of participants to a
+In order to facilitate asynchronous addition of clients to a
 group, it is possible to pre-publish initialization keys that
 provide some public information about a user.  UserInitKey
-messages provide information about a potential group member, that a group member can use to
-add this user to a group asynchronously.
+messages provide information about a client that any existing
+member can use to add this client to the group asynchronously.
 
 A UserInitKey object specifies what ciphersuites a client supports,
 as well as providing public keys that the client can use for key
@@ -1006,8 +1006,8 @@ struct {
 Over the lifetime of a group, its state will change for:
 
 * Group initialization
-* A current member adding a new participant
-* A current participant updating its leaf key
+* A current member adding a new client
+* A current member updating its leaf key
 * A current member deleting another current member
 
 In MLS, these changes are accomplished by broadcasting "handshake"
@@ -1096,26 +1096,26 @@ use.  Sign uses the signature algorithm indicated by the signer's
 credential in the roster.
 
 [[ OPEN ISSUE: The Add and Remove operations create a "double-join"
-situation, where a participant's leaf key is also known to another
-participant.  When a participant A is double-joined to another B,
+situation, where a member's leaf key is also known to another
+client.  When a member A is double-joined to another B,
 deleting A will not remove them from the conversation, since they
 will still hold the leaf key for B.  These situations are resolved
-by updates, but since operations are asynchronous and participants
+by updates, but since operations are asynchronous and members
 may be offline for a long time, the group will need to be able to
 maintain security in the presence of double-joins. ]]
 
-[[ OPEN ISSUE: It is not possible for the recipient of a handshake
+[[ OPEN ISSUE: It is not possible for the recipient of an handshake
 message to verify that ratchet tree information in the message is
 accurate, because each node can only compute the secret and private
 key for nodes in its direct path.  This creates the possibility
-that a malicious participant could cause a denial of service by sending a handshake
-message with invalid values for public keys in the ratchet tree. ]]
+that a malicious participant could cause a denial of service by sending
+a handshake message with invalid values in the ratchet tree. ]]
 
 ## Init
 
-[[ OPEN ISSUE: Direct initialization is currently undefined.  A participant can
+[[ OPEN ISSUE: Direct initialization is currently undefined.  A client can
 create a group by initializing its own state to reflect a group
-including only itself, then adding the initial participants.  This
+including only itself, then adding the initial members.  This
 has computation and communication complexity O(N log N) instead of
 the O(N) complexity of direct initialization. ]]
 
@@ -1185,13 +1185,13 @@ A group member generates this message by requesting a UserInitKey
 from the directory for the user to be added, and encoding it into an
 Add message.
 
-The new participant processes Welcome and Add messages together as
-follows:
+The client about to join the group processes Welcome and Add
+messages together as follows:
 
 * Prepare a new GroupState object based on the Welcome message
-* Process the Add message as an existing participant would
+* Process the Add message as an existing member would
 
-An existing participant receiving a Add message first verifies
+An existing member receiving a Add message first verifies
 the signature on the message,  then updates its state as follows:
 
 * Increment the size of the group
@@ -1209,15 +1209,15 @@ the signature on the message,  then updates its state as follows:
 The update secret resulting from this change is an all-zero octet
 string of length Hash.length.
 
-On receipt of an Add message, new participants SHOULD send an update
-immediately to their key. This will help to limit the tree structure
+After processing an Add message, new members SHOULD send an Update
+immediately to update their key. This will help to limit the tree structure
 degrading into subtrees, and thus maintain the protocol's efficiency.
 
 ## Update
 
-An Update message is sent by a group participant to update its leaf
-key pair.  This operation provides post-compromise security with
-regard to the participant's prior leaf private key.
+An Update message is sent by a group member to update its leaf
+secret and key pair.  This operation provides post-compromise security with
+regard to the member's prior leaf private key.
 
 ~~~~~
 struct {
@@ -1230,7 +1230,7 @@ The sender of an Update message creates it in the following way:
 * Generate a fresh leaf key pair
 * Compute its direct path in the current ratchet tree
 
-An existing participant receiving a Update message first verifies
+A member receiving a Update message first verifies
 the signature on the message, then updates its state as follows:
 
 * Update the cached ratchet tree by replacing nodes in the direct
@@ -1243,7 +1243,7 @@ root node of the ratchet tree.
 ## Remove
 
 A Remove message is sent by a group member to remove one or more
-participants from the group.
+members from the group.
 
 ~~~~~
 struct {
@@ -1258,10 +1258,10 @@ The sender of a Remove message generates it as as follows:
 * Compute its direct path in the current ratchet tree, starting from
   the removed leaf
 
-An existing participant receiving a Remove message first verifies
+A member receiving a Remove message first verifies
 the signature on the message, then verifies its identity proof
-against the identity tree held by the participant.  The participant
-then updates its state as follows:
+against the identity tree it helds.  The member then updates its
+state as follows:
 
 * Update the roster by setting the credential in the removed slot to
   the null optional value
