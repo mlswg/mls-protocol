@@ -689,10 +689,6 @@ enum {
     secp256r1(0x0017), secp384r1(0x0018), secp521r1(0x0019),
     x25519(0x001D), x448(0x001E),
 
-    /* Finite Field Groups (DHE) */
-    ffdhe2048(0x0100), ffdhe3072(0x0101), ffdhe4096(0x0102),
-    ffdhe6144(0x0103), ffdhe8192(0x0104),
-
     /* Reserved */
     (0xFFFF)
 } NamedGroup;
@@ -706,10 +702,6 @@ Elliptic Curve Groups (ECDHE)
 : Indicates support for the corresponding named curve, defined
   either in FIPS 186-4 {{DSS}} or in {{RFC7748}}.
 
-Finite Field Groups (FFDHE)
-: Indicates support of the corresponding finite field
-  group, defined in {{RFC7919}}.
-
 ~~~~~
 enum {
     /* ECDSA algorithms */
@@ -720,11 +712,6 @@ enum {
     /* EdDSA algorithms */
     ed25519(0x0807),
     ed448(0x0808),
-
-    /* RSASSA-PSS algorithms with public key OID RSASSA-PSS */
-    rsa_pss_pss_sha256(0x0809),
-    rsa_pss_pss_sha384(0x080a),
-    rsa_pss_pss_sha512(0x080b),
 
     /* Reserved */
     (0xFFFF)
@@ -745,18 +732,6 @@ EdDSA algorithms
 : Indicates a signature algorithm using EdDSA as defined in
   {{RFC8032}} or its successors. Note that these correspond to the
   "PureEdDSA" algorithms and not the "prehash" variants.
-
-RSASSA-PSS PSS algorithms
-: Indicates a signature algorithm using RSASSA-PSS {{RFC8017}} with mask
-  generation function 1. The
-  digest used in the mask generation function and the digest being signed are
-  both the corresponding hash algorithm as defined in {{!SHS}}.
-  The length of the salt MUST be equal to the length of the digest
-  algorithm. If the public key is carried in an X.509 certificate,
-  it MUST use the RSASSA-PSS OID  {{!RFC5756}}. When used in certificate signatures,
-  the algorithm parameters MUST be DER encoded. If the corresponding
-  public key's parameters are present, then the parameters in the signature
-  MUST be identical to those in the public key.
 
 ## Cipher Suites
 
