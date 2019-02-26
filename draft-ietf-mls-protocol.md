@@ -283,7 +283,6 @@ performs the operation and (ii) how other clients update their state based on it
 There are four major operations in the lifecycle of a group:
 
 * Adding a member, initiated by a current member;
-* Adding a member, initiated by the future member;
 * Updating the leaf secret of a member;
 * Removing a member.
 
