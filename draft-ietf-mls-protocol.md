@@ -103,7 +103,7 @@ Instructions are on that page as well. Editorial changes can be
 managed in GitHub, but any substantive change should be discussed on
 the MLS mailing list.
 
-Users who want to send each other encrypted messages needs
+A group of users who want to send each other encrypted messages needs
 a way to derive shared symmetric encryption keys. For two parties,
 this problem has been studied thoroughly, with the Double Ratchet
 emerging as a common solution {{doubleratchet}} {{signal}}.
@@ -139,7 +139,7 @@ RFC EDITOR PLEASE DELETE THIS SECTION.
 
 draft-04
 
-- Updating the language to be similar to the Architecture document. (\*)
+- Updating the language to be similar to the Architecture document
 
 - ECIES is now renamed in favor of HPKE (\*)
 
@@ -263,7 +263,7 @@ the MS provides the following services:
 
 # Protocol Overview
 
-The goal of this protocol is to allow a group of clients, members of a group, to exchange confidential and
+The goal of this protocol is to allow a group of clients to exchange confidential and
 authenticated messages. It does so by deriving a sequence of secrets and keys known only to members. Those
 should be secret against an active network adversary and should have both forward and
 post-compromise secrecy with respect to compromise of a participant.
@@ -1173,7 +1173,7 @@ A group member generates this message by requesting a UserInitKey
 from the directory for the user to be added, and encoding it into an
 Add message.
 
-The client about to join the group processes Welcome and Add
+The client joining the group processes Welcome and Add
 messages together as follows:
 
 * Prepare a new GroupState object based on the Welcome message
@@ -1197,8 +1197,8 @@ the signature on the message,  then updates its state as follows:
 The update secret resulting from this change is an all-zero octet
 string of length Hash.length.
 
-After processing an Add message, new members SHOULD send an Update
-immediately to update their key. This will help to limit the tree structure
+After processing an Add message, the new member SHOULD send an Update
+immediately to update its key. This will help to limit the tree structure
 degrading into subtrees, and thus maintain the protocol's efficiency.
 
 ## Update
