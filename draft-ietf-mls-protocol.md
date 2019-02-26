@@ -73,21 +73,6 @@ informative:
        - name: Trevor Perrin(ed)
        - name: Moxie Marlinspike
 
-  HPKE:
-       title: "Hybrid Public Key Encryption"
-       date: 2019
-       author:
-         -  ins: R. Barnes
-            name: Richard Barnes
-            organization: Cisco
-            email: rlb@ipv.sx
-         -
-            ins: K. Bhargavan
-            name: Karthik Bhargavan
-            organization: Inria
-            email: karthikeyan.bhargavan@inria.fr
-
-
 --- abstract
 
 Messaging applications are increasingly making use of end-to-end
@@ -236,7 +221,7 @@ Member:
   has access to the group's secrets.
 
 Initialization Key:
-: A short-lived Diffie-Hellman key pair used to introduce a new
+: A short-lived HPKE key pair used to introduce a new
   Client to a group.  Initialization keys are published for
   each Client (UserInitKey).
 
@@ -286,7 +271,7 @@ post-compromise secrecy with respect to compromise of a participant.
 We describe the information stored by each client as a _state_, which includes both public and
 private data. An initial state, including an initial set of clients, is set up by a group
 creator using the _Init_ algorithm and based on information pre-published by clients. The creator
-sends the _GroupInit_ message to the clients, who can then set up their own group state and derive
+sends the _Init_ message to the clients, who can then set up their own group state and derive
 the same shared secret. Clients then exchange messages to produce new shared states which are
 causally linked to their predecessors, forming a logical Directed Acyclic Graph (DAG) of states.
 Members can send _Update_ messages for post-compromise secrecy and new clients can be
@@ -820,7 +805,7 @@ struct {
   opaque group_id<0..255>;
   uint32 epoch;
   optional<Credential> roster<1..2^32-1>;
-  optional<DHPublicKey> tree<1..2^32-1>;
+  optional<HPKEPublicKey> tree<1..2^32-1>;
   opaque transcript_hash<0..255>;
 } GroupState;
 ~~~~~
@@ -835,10 +820,10 @@ The fields in this state have the following semantics:
   holder of the slot.
 * The `tree` field contains the public keys corresponding to the
   nodes of the ratchet tree for this group.  The length of this
-  vector MUST be `2*size + 1`, where `size` is the length of the
+  vector MUST be `2*size - 1`, where `size` is the length of the
   roster, since this is the number of nodes in a tree with `size`
   leaves, according to the structure described in {{ratchet-trees}}.
-* The `transcript` field contains the list of `GroupOperation`
+* The `transcript_hash` field contains the list of `GroupOperation`
   messages that led to this state.
 
 When a new member is added to the group, an existing member of the
@@ -858,12 +843,13 @@ operations:
   `operation` in the following way:
 
 ~~~~~
-transcript\_hash\_[n] = Hash(transcript\_hash\_[n-1] || operation)
+transcript_hash_[n] = Hash(transcript_hash_[n-1] || operation)
 ~~~~~
 
 When a new one-member group is created (which requires no
 GroupOperation), the `transcript_hash` field is set to an all-zero
-vector of length Hash.length.
+vector of length Hash.length, where the Hash algorithm is defined
+by the ciphersuite.
 
 ## Direct Paths
 
@@ -898,7 +884,7 @@ ciphertext in the list is the encryption to the corresponding node
 in the resolution.
 
 The HPKECiphertext values are computed according to the Encrypt
-function defined in {{HPKE}}.
+function defined in {{!I-D.barnes-cfrg-hpke}}.
 
 Decryption is performed in the corresponding way, using the private
 key of the resolution node and the ephemeral public key
@@ -930,7 +916,7 @@ Derive-Secret(Secret, Label, Context) =
 The Hash function used by HKDF is the ciphersuite hash algorithm.
 Hash.length is its output length in bytes.  In the below diagram:
 
-* HKDF-Extract takes its Salt argument from the top and its IKM
+* HKDF-Extract takes its salt argument from the top and its IKM
   argument from the left
 * Derive-Secret takes its Secret argument from the incoming arrow
 
@@ -983,8 +969,8 @@ set of UserInitKeys created by this client.
 
 The init\_keys array MUST have the same length as the cipher\_suites
 array, and each entry in the init\_keys array MUST be a public key
-for the DH group defined by the corresponding entry in the
-cipher\_suites array.
+for the asymmetric encryption scheme defined in the cipher\_suites array
+and used in the HPKE construction for TreeKEM.
 
 The whole structure is signed using the client's identity key.  A
 UserInitKey object with an invalid signature field MUST be
@@ -995,7 +981,7 @@ comprises all of the fields except for the signature field.
 struct {
     opaque user_init_key_id<0..255>;
     CipherSuite cipher_suites<0..255>;
-    DHPublicKey init_keys<1..2^16-1>;
+    HPKEPublicKey init_keys<1..2^16-1>;
     Credential credential;
     opaque signature<0..2^16-1>;
 } UserInitKey;
@@ -1070,8 +1056,8 @@ follows:
    object and consider the Handshake message invalid.
 
 6. Use the `confirmation_key` for the new group state to
-   compute the finished MAC for this message, as described below,
-   and verify that it is the same as the `finished_mac` field.
+   compute the `confirmation` MAC for this message, as described below,
+   and verify that it is the same as the `confirmation` field.
 
 7. If the the above checks are successful, consider the updated
    GroupState object as the current state of the group.
@@ -1090,6 +1076,9 @@ confirmation_data = GroupState.transcript_hash ||
 Handshake.confirmation = HMAC(confirmation_key,
                               confirmation_data)
 ~~~~~
+
+[[ OPEN ISSUE: The confirmation data and signature data should probably
+cover the same data as the one we cover with the GroupState. ]]
 
 HMAC {{!RFC2104}} uses the Hash algorithm for the ciphersuite in
 use.  Sign uses the signature algorithm indicated by the signer's
@@ -1139,7 +1128,7 @@ struct {
   opaque group_id<0..255>;
   uint32 epoch;
   optional<Credential> roster<1..2^32-1>;
-  optional<DHPublicKey> tree<1..2^32-1>;
+  optional<HPKEPublicKey> tree<1..2^32-1>;
   opaque transcript_hash<0..255>;
   opaque init_secret<0..255>;
 } WelcomeInfo;
@@ -1162,9 +1151,8 @@ are revealed to the new member.
 
 Since the new member is expected to process the Add message for
 itself, the Welcome message should reflect the state of the group
-before the new user is added.  The sender of the Welcome message can
-simply copy all fields except the `leaf_secret` from its GroupState
-object.
+before the new user is added. The sender of the Welcome message can
+simply copy all fields from their GroupState object.
 
 [[ OPEN ISSUE: The Welcome message needs to be synchronized in the
 same way as the Add.  That is, the Welcome should be sent only if
@@ -1259,8 +1247,7 @@ The sender of a Remove message generates it as as follows:
   the removed leaf
 
 A member receiving a Remove message first verifies
-the signature on the message, then verifies its identity proof
-against the identity tree it helds.  The member then updates its
+the signature on the message.  The member then updates its
 state as follows:
 
 * Update the roster by setting the credential in the removed slot to
@@ -1374,9 +1361,9 @@ these updates in the specified order.
 For example, suppose we have a tree in the following configuration:
 
 ~~~~~
-      H(H(D))
+     KDF(KDF(D))
      /       \
-  H(B)      H(D)
+  KDF(B)    KDF(D)
   /  \      /  \
  A    B    C    D
 ~~~~~
@@ -1387,9 +1374,9 @@ respectively.  They will send out updates of the following form:
 ~~~~~
   Update from B      Update from C
   =============      =============
-      H(H(X))            H(H(Y))
+      KDF(KDF(X))             KDF(KDF(Y))
      /                         \
-  H(X)                         H(Y)
+  KDF(X)                        KDF(Y)
      \                         /
       X                       Y
 ~~~~~
@@ -1400,9 +1387,9 @@ will overwrite the root value for B with the root value from C, and
 all arrive at the following state:
 
 ~~~~~
-      H(H(Y))
+      KDF(KDF(Y))
      /       \
-  H(X)      H(Y)
+  KDF(X)    KDF(Y)
   /  \      /  \
  A    X    Y    D
 ~~~~~
