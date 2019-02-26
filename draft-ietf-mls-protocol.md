@@ -113,13 +113,13 @@ enough for heavy use over low-bandwidth networks.
 
 For a group of size greater than two, a common strategy is to
 unilaterally broadcast symmetric "sender" keys over existing shared
-symmetric channels, and then for each Member to send messages to the
+symmetric channels, and then for each member to send messages to the
 group encrypted with their own sender key. Unfortunately, while this
 improves efficiency over pairwise broadcast of individual messages and
 provides forward secrecy (with the addition of a hash ratchet),
 it is difficult to achieve post-compromise security with
 sender keys. An adversary who learns a sender key can often indefinitely and
-passively eavesdrop on that Member's messages.  Generating and
+passively eavesdrop on that member's messages.  Generating and
 distributing a new sender key provides a form of post-compromise
 security with regard to that sender.  However, it requires
 computation and communications resources that scale linearly with
@@ -214,20 +214,20 @@ Client:
   a user's devices so that each user appears as a single client.
 
 Group:
-: A collection of Clients with shared cryptographic state.
+: A collection of clients with shared cryptographic state.
 
 Member:
-: A Client that is included in the shared state of a Group, hence
+: A client that is included in the shared state of a group, hence
   has access to the group's secrets.
 
 Initialization Key:
 : A short-lived HPKE key pair used to introduce a new
-  Client to a group.  Initialization keys are published for
-  each Client (UserInitKey).
+  client to a group.  Initialization keys are published for
+  each client (UserInitKey).
 
 Leaf Key:
-: A secret that represent a Member's contribution to the Group secret
-  (so called because the Members' leaf keys are the leaves in the
+: A secret that represent a member's contribution to the group secret
+  (so called because the members' leaf keys are the leaves in the
   group's ratchet tree).
 
 Identity Key:
@@ -311,7 +311,7 @@ containing only itself and uses the UserInitKeys to compute Welcome and Add mess
 to add B and C, in a sequence chosen by A.  The Welcome messages are
 sent directly to the new members (there is no need to send them to
 the group).
-The Add messages are broadcasted to the Group, and processed in sequence
+The Add messages are broadcasted to the group, and processed in sequence
 by B and C.  Messages received before a client has joined the
 group are ignored.  Only after A has received its Add messages
 back from the server does it update its state to reflect their addition.
@@ -1423,10 +1423,10 @@ In all cases, a participant MUST NOT encrypt more than expected by the security
 bounds of the AEAD scheme used.
 
 Note that each change to the Group through a Handshake message will cause
-a change of the Group Secret. Hence this change MUST be applied before encrypting
+a change of the group Secret. Hence this change MUST be applied before encrypting
 any new Application message. This is required for confidentiality reasons
 in order for members to avoid receiving messages from the group after leaving,
-being added to, or excluded from the Group.
+being added to, or excluded from the group.
 
 ## Application Key Schedule {#key-schedule-application}
 
@@ -1516,7 +1516,7 @@ Application Secret changes.
 
 ## Message Encryption and Decryption
 
-The Group members MUST use the AEAD algorithm associated with
+The group members MUST use the AEAD algorithm associated with
 the negotiated MLS ciphersuite to AEAD encrypt and decrypt their
 Application messages and sign them as follows:
 
@@ -1536,7 +1536,7 @@ struct {
 } ApplicationMessage;
 ~~~~~
 
-The Group identifier and epoch allow a device to know which Group secrets
+The group identifier and epoch allow a device to know which group secrets
 should be used and from which Epoch secret to start computing other secrets
 and keys. The sender identifier is used to derive the member's
 Application secret chain from the initial group Application secret.
@@ -1559,7 +1559,7 @@ struct {
 The signature used in the ApplicationMessageContent is computed over the SignatureContent
 which covers the metadata information about the current state
 of the group (group identifier, epoch, generation and sender's Leaf index)
-to prevent Group members from impersonating other clients. It is also
+to prevent group members from impersonating other clients. It is also
 necessary in order to prevent cross-group attacks.
 
 Application messages SHOULD be padded to provide some resistance
@@ -1602,7 +1602,7 @@ by allowing to send a variable number of ciphertext blocks ? ]]
 
 ### Delayed and Reordered Application messages
 
-Since each Application message contains the Group identifier, the epoch and a
+Since each Application message contains the group identifier, the epoch and a
 message counter, a client can receive messages out of order.
 If they are able to retrieve or recompute the correct AEAD decryption key
 from currently stored cryptographic material clients can decrypt
