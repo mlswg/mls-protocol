@@ -73,21 +73,6 @@ informative:
        - name: Trevor Perrin(ed)
        - name: Moxie Marlinspike
 
-  HPKE:
-       title: "Hybrid Public Key Encryption"
-       date: 2019
-       author:
-         -  ins: R. Barnes
-            name: Richard Barnes
-            organization: Cisco
-            email: rlb@ipv.sx
-         -
-            ins: K. Bhargavan
-            name: Karthik Bhargavan
-            organization: Inria
-            email: karthikeyan.bhargavan@inria.fr
-
-
 --- abstract
 
 Messaging applications are increasingly making use of end-to-end
@@ -896,7 +881,7 @@ ciphertext in the list is the encryption to the corresponding node
 in the resolution.
 
 The HPKECiphertext values are computed according to the Encrypt
-function defined in {{HPKE}}.
+function defined in {{!I-D.barnes-cfrg-hpke}}.
 
 Decryption is performed in the corresponding way, using the private
 key of the resolution node and the ephemeral public key
