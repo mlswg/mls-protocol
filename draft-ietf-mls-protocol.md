@@ -963,7 +963,60 @@ update_secret -> HKDF-Extract = epoch_secret
 
 ## Application Key Schedule
 
-[[ TODO - Move most of the application section up here ]]
+The keys used to encrypt MLS messages during an epoch are derived
+from the epoch's application secret.  Each sender derives a chain of
+per-sender application secrets.  Each per-sender application secret
+is in turn used to generate a (key, nonce) pair that is used to
+encrypt a single message.
+
+Each step in the sequence of application secrets used by a sender is
+called a "generation".  The application secret for the first
+generation is derived from the epoch's application secret.
+
+~~~~~
+           application_secret
+                     |
+                     V
+           Derive-Secret(., "app sender", [sender])
+                     |
+                     V
+           application_secret_[sender]_[0]
+~~~~~
+
+Here the value [sender] represents the index of the sender in the
+ratchet tree, encoded as a uint32.  Each generation of the
+application secret is used to derive three values: A key and nonce
+to be used for encrypting a message, and the next generation of the
+sender's application secret.
+
+~~~~~
+           application_secret_[sender]_[N-1]
+                     |
+                     +--> HKDF-Expand-Label(.,"nonce", "", nonce_length)
+                     |    = write_nonce_[sender]_[N-1]
+                     |
+                     +--> HKDF-Expand-Label(.,"key", "", key_length)
+                     |    = write_key_[sender]_[N-1]
+                     V
+           Derive-Secret(., "app upd","")
+                     |
+                     V
+           application_secret_[sender]_[N]
+
+~~~~~
+
+Thus, the key and nonce used to encrypt a message are uniquely
+identified by a four-tuple of values (group_id, epoch, sender,
+generation).
+
+[[OPEN ISSUE: The HKDF context field is left empty for now.
+A proper security study is needed to make sure that we do not need
+more information in the context to achieve the security goals.]]
+
+[[ OPEN ISSUE: At the moment there is no contributivity of Application secrets
+chained from the initial one to the next generation of Epoch secret. While this
+seems safe because cryptographic operations using the application secrets can't
+affect the group init_secret, it remains to be proven correct. ]]
 
 ## Message Framing and Encryption
 
@@ -972,7 +1025,8 @@ structure.  (UserInitKey and Welcome messages are sent outside of
 the group, and have their own structure.)  The two main structures
 involved in this framing system are MLSPlaintext, representing a
 plaintext message, and MLSCiphertext, representing a message
-encrypted using an application key (see [[ TODO ]]).
+encrypted using an application key (see
+{{application-key-schedule}}).
 
 Applications may decide to transmit handshake messages either in
 plaintext or ciphertext (encrypted with an appropriate sender key).
