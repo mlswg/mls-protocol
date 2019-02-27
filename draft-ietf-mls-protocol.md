@@ -143,6 +143,9 @@ draft-04
 
 - Using a KDF instead of a Hash in TreeKEM (\*)
 
+- Use a common framing / signing / encryption for both Handshake and
+  Application messages (\*)
+
 draft-03
 
 - Added ciphersuites and signature schemes (\*)
