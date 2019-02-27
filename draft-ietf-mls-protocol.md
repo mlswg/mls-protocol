@@ -964,7 +964,7 @@ generation is derived from the epoch's application secret.
            application_secret
                      |
                      V
-           Derive-Secret(., "app sender", [sender])
+           HKDF-Expand-Label(., "app sender", [sender], Hash.length)
                      |
                      V
            application_secret_[sender]_[0]
@@ -985,7 +985,7 @@ sender's application secret.
                      +--> HKDF-Expand-Label(.,"key", "", key_length)
                      |    = write_key_[sender]_[N-1]
                      V
-           Derive-Secret(., "app upd","")
+           HKDF-Expand-Label(., "app sender", [sender], Hash.length)
                      |
                      V
            application_secret_[sender]_[N]
