@@ -906,7 +906,6 @@ Decryption is performed in the corresponding way, using the private
 key of the resolution node and the ephemeral public key
 transmitted in the message.
 
-
 ## Key Schedule
 
 Group keys are derived using the HKDF-Extract and HKDF-Expand
@@ -962,45 +961,11 @@ update_secret -> HKDF-Extract = epoch_secret
                init_secret_[n]
 ~~~~~
 
-# Initialization Keys
+## Application Key Schedule
 
-In order to facilitate asynchronous addition of participants to a
-group, it is possible to pre-publish initialization keys that
-provide some public information about a user.  UserInitKey
-messages provide information about a potential group member, that a group member can use to
-add this user to a group asynchronously.
+[[ TODO - Move most of the application section up here ]]
 
-A UserInitKey object specifies what ciphersuites a client supports,
-as well as providing public keys that the client can use for key
-derivation and signing.  The client's identity key is intended to be
-stable throughout the lifetime of the group; there is no mechanism to
-change it.  Init keys are intended to be used a very limited number of
-times, potentially once. (see {{init-key-reuse}}).  UserInitKeys
-also contain an identifier chosen by the client, which the client
-MUST assure uniquely identifies a given UserInitKey object among the
-set of UserInitKeys created by this client.
-
-The init\_keys array MUST have the same length as the cipher\_suites
-array, and each entry in the init\_keys array MUST be a public key
-for the DH group defined by the corresponding entry in the
-cipher\_suites array.
-
-The whole structure is signed using the client's identity key.  A
-UserInitKey object with an invalid signature field MUST be
-considered malformed.  The input to the signature computation
-comprises all of the fields except for the signature field.
-
-~~~~~
-struct {
-    opaque user_init_key_id<0..255>;
-    CipherSuite cipher_suites<0..255>;
-    DHPublicKey init_keys<1..2^16-1>;
-    Credential credential;
-    opaque signature<0..2^16-1>;
-} UserInitKey;
-~~~~~
-
-# Message Framing
+## Message Framing and Encryption
 
 All MLS messages sent within a group share a common framing
 structure.  (UserInitKey and Welcome messages are sent outside of
@@ -1148,6 +1113,43 @@ MLSPlaintext                            MLSCiphertext
                   * zero_padding  |
 ~~~~~
 
+# Initialization Keys
+
+In order to facilitate asynchronous addition of participants to a
+group, it is possible to pre-publish initialization keys that
+provide some public information about a user.  UserInitKey
+messages provide information about a potential group member, that a group member can use to
+add this user to a group asynchronously.
+
+A UserInitKey object specifies what ciphersuites a client supports,
+as well as providing public keys that the client can use for key
+derivation and signing.  The client's identity key is intended to be
+stable throughout the lifetime of the group; there is no mechanism to
+change it.  Init keys are intended to be used a very limited number of
+times, potentially once. (see {{init-key-reuse}}).  UserInitKeys
+also contain an identifier chosen by the client, which the client
+MUST assure uniquely identifies a given UserInitKey object among the
+set of UserInitKeys created by this client.
+
+The init\_keys array MUST have the same length as the cipher\_suites
+array, and each entry in the init\_keys array MUST be a public key
+for the DH group defined by the corresponding entry in the
+cipher\_suites array.
+
+The whole structure is signed using the client's identity key.  A
+UserInitKey object with an invalid signature field MUST be
+considered malformed.  The input to the signature computation
+comprises all of the fields except for the signature field.
+
+~~~~~
+struct {
+    opaque user_init_key_id<0..255>;
+    CipherSuite cipher_suites<0..255>;
+    DHPublicKey init_keys<1..2^16-1>;
+    Credential credential;
+    opaque signature<0..2^16-1>;
+} UserInitKey;
+~~~~~
 
 # Handshake Messages
 
