@@ -1002,7 +1002,16 @@ struct {
 
 # Message Framing
 
-[[ TODO prose ]]
+All MLS messages sent within a group share a common framing
+structure.  (UserInitKey and Welcome messages are sent outside of
+the group, and have their own structure.)  The two main structures
+involved in this framing system are MLSPlaintext, representing a
+plaintext message, and MLSCiphertext, representing a message
+encrypted using an application key (see [[ TODO ]]).
+
+Applications may decide to transmit handshake messages either in
+plaintext or ciphertext (encrypted with an appropriate sender key).
+Application messages are always transmitted in ciphertext form.
 
 ~~~~~
 enum {
@@ -1012,6 +1021,37 @@ enum {
     (255)
 } ContentType;
 
+struct {
+    opaque group_id<0..255>;
+    uint32 epoch;
+    uint32 sender;
+    ContentType type;
+
+    select (MLSPlaintext.type) {
+        case handshake:
+            Handshake handshake;
+        case application:
+            opaque application_data<0..2^32-1>;
+    }
+
+    opaque signature<1..2^16-1>;
+} MLSPlaintext;
+~~~~~
+
+An MLSPlaintext structure describes a message sent as plaintext, or
+a message sent in ciphertext before encryption or after decryption.
+The fields in the MLSPlaintext are populated as follows:
+
+* group_id: The group_id for the group to which this message belongs
+* epoch: The epoch of the group on which this message is based
+* sender: The sender's index in the group's ratchet tree
+* type: The type of content carried in this message
+* handshake, application_data: The content of the message
+* signature: A signature over all of the other fields in the
+  MLSPlaintext struct, using the private key corresponding to the
+  sender's entry in the group's roster.
+
+~~~~~
 struct {
     opaque content[MLSPlaintext.length];
     uint8 signature[MLSInnerPlaintext.sig_len];
@@ -1024,45 +1064,90 @@ struct {
     opaque group_id<0..255>;
     uint32 epoch;
     uint32 sender;
-    ContentType type;
-
-    select (MLSPlaintext.type) {
-        case handshake:   Handshake;
-        case application: Application;
-    }
-
-    opaque signature<1..2^16-1>;
-} MLSPlaintext;
-
-struct {
-    opaque group_id<0..255>;
-    uint32 epoch;
-    uint32 sender;
     uint32 generation;
     opaque cipertext<0..2^32-1>;
 } MLSCiphertext;
 ~~~~~
 
-[[
+Encrypted messages are encoded as MLSCiphertext objects, using an
+MLSInnerPlaintext object as an intermediate representation of the
+underlying MLSPlaintext.  This intermediate encoding allows the
+sender to add padding to the message (e.g., to resist traffic
+analysis) without additional overhead.
 
-* Signature on MLSPlaintext is over all of the above
-* Encryption: MLSPlaintext -> MLSCiphertext
-  * Marshal MLSInnerPlaintext
-  * Encrypt -> ciphertext
-  * Form MLSCiphertext
-* Decryption: MLSCiphertext -> MLSPlaintext
-  * Unmarshal MLSCiphertext
-  * Copy header fields to MLSPlaintext
-  * Decrypt -> MLSInnerPlaintext
-    * Decryption failure => abort
-  * Trim padding
-  * Parse off type -> MLSPlaintext.type
-  * Parse off signature -> MLSPlaintext.signature
-  * Remainder -> MLSPlaintext.content
-  * Verify signature using public key from roster
-    * Verification failure => abort
+To encrypt an MLSPlaintext object, the sender takes the following
+steps:
 
-]]
+1. Encode the message as an MLSPlaintext object and sign it
+2. Construct a new MLSInnerPlaintext object with the following
+  contents:
+  * content: The serialization of the MLSPlaintext.handsake or the
+    raw bytes of MLSPlaintext.application_data
+  * signature: The raw bytes of MLSPlaintext.signature
+  * sig_len: The length of MLSPlaintext.signature
+  * type: The value of MLSPlaintext.type
+  * zero_padding: An all-zero octet string of any length dictated by
+    the application (including zero length)
+3. Construct a new MLSCiphertext object with the following contents:
+  * group_id, epoch, sender: The corresponding values from the
+    MLSPlaintext
+  * generation: The current generation in the application key
+    schedule
+  * ciphertext: The encryption of the MLSInnerPlaintext using the
+    AEAD cipher for the group's ciphersuite, and the key and nonce
+    specified by the group_id, epoch, sender, and generation
+
+To decrypt an MLSCiphertext object, the sender takes the following
+steps:
+
+1. Use the group_id, epoch, sender, and generation to look up the
+   appropritate key and nonce.
+2. Attempt to decrypt MLSCiphertext.ciphertext using the AEAD cipher
+   for the group's ciphersuite.  If decryption fails, abort this
+   process and return an error.
+3. Parse the decrypted value as an MLSInnerPlaintext value, starting
+   from the end of the decrypted value:
+   * zero_padding: The continuous string of zero octets at the end
+     of the decrypted value
+   * type: The value of the octet immediately preceding the
+     zero_padding field
+   * sig_len: The two octets preceding the type
+   * signature: The sig_len octets preceding the sig_len field
+   * content: The remaining octets preciding the signature
+4. If an invalid content type or signature length was found in the
+   previous step, abort this process and return an error
+5. Construct a new MLSPlaintext value with the following contents:
+   * group_id, epoch, sender: The corresponding values from the
+     MLSCiphertext
+   * type: The value of MLSInnerPlaintext.type
+   * handshake or application: Populated from
+     MLSInnerPlaintext.content according to the type
+   * signature: The value of MLSInnerPlaintext.signature
+6. Use the sender field to look up the appropriate Credential in the
+   roster, and use it to verify the signature on the MLSPlaintext.
+   If verifiation fails, abort this process and return an error.
+
+The following figure illustrates the flow of inforormation between
+MLSCiphertext, MLSInnerPlaintext, and MLSPlaintext values:
+
+~~~~~
+MLSPlaintext                            MLSCiphertext
+  group_id  |                           | group_id
+  epoch     |---------------------------| epoch
+  sender    |                           | sender
+
+                                        * generation
+  type      |
+  content   |--+                     +--> ciphertext
+  signature |  |  MLSInnerPlaintext  |
+               |  | content       |  |
+               +--| signature     |--+
+                  | sig_len       |
+                  | type          |
+                                  |
+                  * zero_padding  |
+~~~~~
+
 
 # Handshake Messages
 
