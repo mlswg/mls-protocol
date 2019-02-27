@@ -986,14 +986,85 @@ struct {
 } UserInitKey;
 ~~~~~
 
+# Message Framing
+
+Handshake and Application messages outputs in MLS are generated
+using the following layout:
+
+~~~~~
+enum {
+    invalid(0),
+    handshake(1),
+    application(2),
+    (255)
+} ContentType;
+
+struct {
+    opaque content<0..2^32-1>;
+    opaque signature<0..2^16-1>;
+    uint8  zero\_padding[length\_of\_padding];
+} Message;
+
+struct {
+    ContentType type;
+    select (Plaintext.type) {
+        case handshake:   Handshake;
+        case application: Application;
+    }
+} Plaintext;
+
+struct {
+    opaque group_id<0..255>;
+    uint32 epoch;
+    uint32 sender;
+    uint32 generation;
+    opaque cipertext<0..2^32-1>;
+} Ciphertext;
+~~~~~
+
+The `content` of an Handshake or Application message is signed then
+optionally padded before AEAD encryption..
+
+The AEAD encryption of the `Plaintext` ensures that it is protected
+in confidentiality and integrity against an active network adversary
+that is not a member of the group. The AEAD uses the `group_id` and
+the `epoch` as additionnal data to ensure that these visible fields
+of the `Ciphertext` are authentic.
+
+The `Plaintext` contains the index of the `sender` in the roster and
+the `generation` of the sender's Application secret, which is used
+to find the correct AEAD key and nonce used in Application message
+decrytion. In the case of a Handshake message, this field is purely
+informational. The `type` allows to distinguish the type of content
+present in the message after decryption.
+
+Inside the `Message`, the signature is computed over the `SignatureContent`
+over all the metadata being sent over the network. This is done to
+provide strong authentication of this information from the sender
+and prevent an adversarial member of the group to encrypt a message
+and aggregate a signature and the content it covers with arbitrary
+metadata (ie. changing the `type`, `sender` or `generation` field).
+
+~~~~~
+struct {
+    opaque group_id<0..255>;
+    uint32 epoch;
+    uint32 sender;
+    uint32 generation;
+    ContentType type;
+    opaque content<0..2^32-1>;
+} SignatureContent;
+~~~~~
+
+
 # Handshake Messages
 
 Over the lifetime of a group, its state will change for:
 
 * Group initialization
-* A current member adding a new client
-* A current member updating its leaf key
-* A current member deleting another current member
+* A member adding a new participant
+* A member updating its leaf key
+* A member deleting another member
 
 In MLS, these changes are accomplished by broadcasting "handshake"
 messages to the group.  Note that unlike TLS and DTLS, there is not
@@ -1002,10 +1073,8 @@ messages are exchanged throughout the lifetime of a group, whenever
 a change is made to the group state. This means an unbounded number
 of interleaved application and handshake messages.
 
-An MLS handshake message encapsulates a specific "key exchange" message that
-accomplishes a change to the group state. It also includes a
-signature by the sender of the message over the GroupState object
-representing the state of the group after the change has been made.
+An MLS handshake message encapsulates a specific GroupOperation
+message that accomplishes a change to the group state.
 
 ~~~~~
 enum {
@@ -1027,11 +1096,7 @@ struct {
 } GroupOperation;
 
 struct {
-    uint32 prior_epoch;
     GroupOperation operation;
-
-    uint32 signer_index;
-    opaque signature<1..2^16-1>;
     opaque confirmation<1..2^8-1>;
 } Handshake;
 ~~~~~
@@ -1039,65 +1104,37 @@ struct {
 The high-level flow for processing a Handshake message is as
 follows:
 
-1. Verify that the `prior_epoch` field of the Handshake message
+1. Verify that the `epoch` field of enclosing Plaintext message
    is equal the `epoch` field of the current GroupState object.
 
 2. Use the `operation` message to produce an updated, provisional
    GroupState object incorporating the proposed changes.
 
-3. Look up the public key for slot index `signer_index` from the
-   roster in the current GroupState object (before the update).
-
-4. Use that public key to verify the `signature` field in the
-   Handshake message, with the updated GroupState object as input.
-
-5. If the signature fails to verify, discard the updated GroupState
-   object and consider the Handshake message invalid.
-
-6. Use the `confirmation_key` for the new group state to
-   compute the `confirmation` MAC for this message, as described below,
+3. Use the `confirmation_key` for the new group state to
+   compute the confirmation MAC for this message, as described below,
    and verify that it is the same as the `confirmation` field.
 
-7. If the the above checks are successful, consider the updated
+4. If the the above checks are successful, consider the updated
    GroupState object as the current state of the group.
 
-The `signature` and `confirmation` values are computed over the
-transcript of group operations, using the transcript hash from the
-provisional GroupState object:
+The confirmation value confirms that the members of the group have
+arrived at the same state of the group:
 
 ~~~~~
-signature_data = GroupState.transcript_hash
-Handshake.signature = Sign(identity_key,
-                           signature_data)
-
-confirmation_data = GroupState.transcript_hash ||
-                    Handshake.signature
-Handshake.confirmation = HMAC(confirmation_key,
+Handshake.confirmation = HMAC(GroupState.transcript\_hash,
                               confirmation_data)
 ~~~~~
-
-[[ OPEN ISSUE: The confirmation data and signature data should probably
-cover the same data as the one we cover with the GroupState. ]]
 
 HMAC {{!RFC2104}} uses the Hash algorithm for the ciphersuite in
 use.  Sign uses the signature algorithm indicated by the signer's
 credential in the roster.
 
-[[ OPEN ISSUE: The Add and Remove operations create a "double-join"
-situation, where a member's leaf key is also known to another
-client.  When a member A is double-joined to another B,
-deleting A will not remove them from the conversation, since they
-will still hold the leaf key for B.  These situations are resolved
-by updates, but since operations are asynchronous and members
-may be offline for a long time, the group will need to be able to
-maintain security in the presence of double-joins. ]]
-
-[[ OPEN ISSUE: It is not possible for the recipient of an handshake
+[[ OPEN ISSUE: It is not possible for the recipient of a handshake
 message to verify that ratchet tree information in the message is
 accurate, because each node can only compute the secret and private
 key for nodes in its direct path.  This creates the possibility
-that a malicious participant could cause a denial of service by sending
-a handshake message with invalid values in the ratchet tree. ]]
+that a malicious participant could cause a denial of service by sending a handshake
+message with invalid values for public keys in the ratchet tree. ]]
 
 ## Init
 
@@ -1393,7 +1430,7 @@ all arrive at the following state:
  A    X    Y    D
 ~~~~~
 
-# Message Protection
+# Application Messages
 
 The primary purpose of the handshake protocol is to provide an authenticated
 group key exchange to clients. In order to protect Application messages
@@ -1517,49 +1554,15 @@ Application Secret changes.
 
 The group members MUST use the AEAD algorithm associated with
 the negotiated MLS ciphersuite to AEAD encrypt and decrypt their
-Application messages and sign them as follows:
-
-~~~~~
-struct {
-    opaque content<0..2^32-1>;
-    opaque signature<0..2^16-1>;
-    uint8  zeros[length_of_padding];
-} ApplicationMessageContent;
-
-struct {
-    uint8  group[32];
-    uint32 epoch;
-    uint32 generation;
-    uint32 sender;
-    opaque encrypted_content<0..2^32-1>;
-} ApplicationMessage;
-~~~~~
+Application messages according to the Message Framing section.
 
 The group identifier and epoch allow a device to know which group secrets
 should be used and from which Epoch secret to start computing other secrets
-and keys. The sender identifier is used to derive the member's
+and keys. The `sender` identifier is used to derive the member's
 Application secret chain from the initial group Application secret.
 The application generation field is used to determine which Application
 secret should be used from the chain to compute the correct AEAD keys
 before performing decryption.
-
-The signature field allows strong authentication of messages:
-
-~~~~~
-struct {
-    uint8  group[32];
-    uint32 epoch;
-    uint32 generation;
-    uint32 sender;
-    opaque content<0..2^32-1>;
-} SignatureContent;
-~~~~~
-
-The signature used in the ApplicationMessageContent is computed over the SignatureContent
-which covers the metadata information about the current state
-of the group (group identifier, epoch, generation and sender's Leaf index)
-to prevent group members from impersonating other clients. It is also
-necessary in order to prevent cross-group attacks.
 
 Application messages SHOULD be padded to provide some resistance
 against traffic analysis techniques over encrypted traffic.
