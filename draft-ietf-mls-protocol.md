@@ -1057,7 +1057,8 @@ follows:
    is equal the `epoch` field of the current GroupState object.
 
 2. Use the `operation` message to produce an updated, provisional
-   GroupState object incorporating the proposed changes.
+   GroupState object incorporating the proposed changes as described in the
+   following sections.
 
 3. Look up the public key for slot index `signer_index` from the
    roster in the current GroupState object (before the update).
@@ -1119,6 +1120,8 @@ has computation and communication complexity O(N log N) instead of
 the O(N) complexity of direct initialization. ]]
 
 ## Add
+
+### Initiating an Add Operation
 
 In order to add a new member to the group, an existing member of the
 group must take two actions:
@@ -1193,8 +1196,10 @@ follows:
 * Prepare a new GroupState object based on the Welcome message
 * Process the Add message as an existing participant would
 
-An existing participant receiving a Add message first verifies
-the signature on the message,  then updates its state as follows:
+### Processing an Add Message
+
+An existing participant receiving a Add message creates a provisional group
+state by modifying a copy of the current group state as follows:
 
 * Increment the size of the group
 * Verify the signature on the included UserInitKey; if the signature
@@ -1217,6 +1222,8 @@ degrading into subtrees, and thus maintain the protocol's efficiency.
 
 ## Update
 
+### Initiating an Update Operation
+
 An Update message is sent by a group participant to update its leaf
 key pair.  This operation provides post-compromise security with
 regard to the participant's prior leaf private key.
@@ -1232,8 +1239,10 @@ The sender of an Update message creates it in the following way:
 * Generate a fresh leaf key pair
 * Compute its direct path in the current ratchet tree
 
-An existing participant receiving a Update message first verifies
-the signature on the message, then updates its state as follows:
+### Processing an Update Message
+
+An existing participant receiving an Update message creates a provisional group
+state by modifying a copy of the current group state as follows:
 
 * Update the cached ratchet tree by replacing nodes in the direct
   path from the updated leaf using the information contained in the
@@ -1243,6 +1252,8 @@ The update secret resulting from this change is the secret for the
 root node of the ratchet tree.
 
 ## Remove
+
+### Initiating a Remove Operation
 
 A Remove message is sent by a group member to remove one or more
 participants from the group.
@@ -1257,13 +1268,11 @@ struct {
 The sender of a Remove message generates it as as follows:
 
 * Generate a fresh leaf key pair
-* Compute its direct path in the current ratchet tree, starting from
-  the removed leaf
+* Compute its direct path in the current ratchet tree, as if performing an
+  update operation, replacing the removed leaf with the freshly generated one.
 
-An existing participant receiving a Remove message first verifies
-the signature on the message, then verifies its identity proof
-against the identity tree held by the participant.  The participant
-then updates its state as follows:
+An existing participant receiving a Remove message creates a provisional group
+state by modifying a copy of the current group state as follows:
 
 * Update the roster by setting the credential in the removed slot to
   the null optional value
