@@ -1206,11 +1206,13 @@ state by modifying a copy of the current group state as follows:
 * Increment the size of the group
 * Verify the signature on the included UserInitKey; if the signature
   verification fails, abort
-* Append an entry to the roster containing the credential in the
-  included UserInitKey
 * Update the ratchet tree by adding a new leaf node for the new
   member, containing the public key from the UserInitKey in the Add
   corresponding to the ciphersuite in use
+* Add an entry to the roster containing the credential in the
+  included UserInitKey such that its index matches is the index 
+  corresponds to the index of the leaf node added to the ratchet tree 
+  in the previous step
 * Update the ratchet tree by setting to blank all nodes in the
   direct path of the new node, except for the leaf (which remains
   set to the new member's public key)
