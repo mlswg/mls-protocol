@@ -1121,6 +1121,8 @@ the O(N) complexity of direct initialization. ]]
 
 ## Add
 
+The Add operation allows group members to add new members to the group.
+
 ### Initiating an Add Operation
 
 In order to add a new member to the group, an existing member of the
@@ -1222,6 +1224,8 @@ degrading into subtrees, and thus maintain the protocol's efficiency.
 
 ## Update
 
+The Update operation allows group members to update their own leaf secrets.
+
 ### Initiating an Update Operation
 
 An Update message is sent by a group participant to update its leaf
@@ -1252,6 +1256,8 @@ The update secret resulting from this change is the secret for the
 root node of the ratchet tree.
 
 ## Remove
+
+The Remove operation allows group Members to remove members from the group.
 
 ### Initiating a Remove Operation
 
