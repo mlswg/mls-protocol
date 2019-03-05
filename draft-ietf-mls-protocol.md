@@ -1060,20 +1060,23 @@ follows:
    GroupState object incorporating the proposed changes as described in the
    following sections.
 
-3. Look up the public key for slot index `signer_index` from the
+3. Update the `transcript_hash` field of the provisional GroupState object as
+   described in the Group State section.
+
+4. Look up the public key for slot index `signer_index` from the
    roster in the current GroupState object (before the update).
 
-4. Use that public key to verify the `signature` field in the
+5. Use that public key to verify the `signature` field in the
    Handshake message, with the updated GroupState object as input.
 
-5. If the signature fails to verify, discard the updated GroupState
+6. If the signature fails to verify, discard the updated GroupState
    object and consider the Handshake message invalid.
 
-6. Use the `confirmation_key` for the new group state to
+7. Use the `confirmation_key` for the new group state to
    compute the finished MAC for this message, as described below,
    and verify that it is the same as the `finished_mac` field.
 
-7. If the the above checks are successful, consider the updated
+8. If the the above checks are successful, consider the updated
    GroupState object as the current state of the group.
 
 The `signature` and `confirmation` values are computed over the
@@ -1210,8 +1213,8 @@ state by modifying a copy of the current group state as follows:
   member, containing the public key from the UserInitKey in the Add
   corresponding to the ciphersuite in use
 * Add an entry to the roster containing the credential in the
-  included UserInitKey such that its index matches is the index 
-  corresponds to the index of the leaf node added to the ratchet tree 
+  included UserInitKey such that its index matches is the index
+  corresponds to the index of the leaf node added to the ratchet tree
   in the previous step
 * Update the ratchet tree by setting to blank all nodes in the
   direct path of the new node, except for the leaf (which remains
