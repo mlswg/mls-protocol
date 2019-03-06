@@ -410,20 +410,6 @@ A              B     ...      Z          Directory       Channel
 The protocol uses "ratchet trees" for deriving shared secrets among
 a group of clients.
 
-[[ ============ ]]
-
-~~~~~
-struct {
-  DHPublicKey public_key;
-  Credential credential;
-} LeafNode;
-
-leafHash = H(publicKey || credential)
-intermedHash = H(publicKey || LHash || RHash)
-
-~~~~~
-
-
 ## Tree Computation Terminology
 
 Trees consist of _nodes_. A node is a
@@ -800,10 +786,16 @@ struct {
 } Credential;
 ~~~~~
 
-## Group State
+## Commitment to the Group's Cryptographic State {#tree-hash}
 
-Each member of the group maintains a representation of the
-state of the group:
+To allow group members to verify that they agree on the
+cryptographic state of the group, this section define a scheme for
+generating a hash value that represents the contents of the group's
+ratchet tree and the members' credentials.
+
+The hash of a tree is the hash of its root node, which we define
+recursively, starting with the leaves.  The hash of a leaf node is
+the hash of a `LeafNodeHashInput` object:
 
 ~~~~~
 struct {
@@ -815,10 +807,49 @@ struct {
 } optional<T>;
 
 struct {
+  HPKEPublicKey public_key;
+  Credential credential;
+} LeafNodeInfo;
+
+struct {
+  uint8 hash_type = 0;
+  optional<LeafNodeInfo> info;
+} LeafNodeHashInput;
+~~~~~
+
+The `public_key` and `credential` fields represent the leaf public
+key and the credential for the member holding that leaf,
+respectively.  The `info` field is equal to the null optional value
+when the leaf is blank (i.e., no member occupies that leaf).
+
+Likewise, the hash of a parent node (including the root) is the hash
+of a `ParentNodeHashInput` struct:
+
+~~~~~
+struct {
+  uint8 hash_type = 1;
+  opaque public_key_hash[Hash.length];
+  opaque left_hash[Hash.length];
+  opaque right_hash[Hash.length];
+} ParentNodeHashInput
+~~~~~
+
+The `left_hash` and `right_hash` fields hold the hashes of the
+node's left and right children, respectively.  The `public_key_hash`
+field holds the hash of the public key stored at this node,
+represented as an `optional<HPKEPublicKey>` object, which is null if
+and only if the node is blank.
+
+## Group State
+
+Each member of the group maintains a representation of the
+state of the group:
+
+~~~~~
+struct {
   opaque group_id<0..255>;
   uint32 epoch;
-  optional<Credential> roster<1..2^32-1>;
-  optional<HPKEPublicKey> tree<1..2^32-1>;
+  opaque tree_hash<0..255>;
   opaque transcript_hash<0..255>;
 } GroupState;
 ~~~~~
@@ -828,14 +859,9 @@ The fields in this state have the following semantics:
 * The `group_id` field is an application-defined identifier for the
   group.
 * The `epoch` field represents the current version of the group key.
-* The `roster` field contains credentials for the occupied slots in
-  the tree, including the identity and signature public key for the
-  holder of the slot.
-* The `tree` field contains the public keys corresponding to the
-  nodes of the ratchet tree for this group.  The length of this
-  vector MUST be `2*size - 1`, where `size` is the length of the
-  roster, since this is the number of nodes in a tree with `size`
-  leaves, according to the structure described in {{ratchet-trees}}.
+* The `tree_hash` field contains a commitment to the contents of the
+  group's rachet tree and the credentials for the members of the
+  group, as described in {{tree-hash}}.
 * The `transcript_hash` field contains the list of `GroupOperation`
   messages that led to this state.
 
@@ -852,6 +878,8 @@ operations:
 * The `group_id` field is constant
 * The `epoch` field increments by one for each GroupOperation that
   is processed
+* The `tree_hash` is updated to represent the current tree and
+  credentials
 * The `transcript_hash` is updated by a GroupOperation message
   `operation` in the following way:
 
