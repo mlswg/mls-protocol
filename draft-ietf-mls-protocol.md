@@ -410,6 +410,20 @@ A              B     ...      Z          Directory       Channel
 The protocol uses "ratchet trees" for deriving shared secrets among
 a group of clients.
 
+[[ ============ ]]
+
+~~~~~
+struct {
+  DHPublicKey public_key;
+  Credential credential;
+} LeafNode;
+
+leafHash = H(publicKey || credential)
+intermedHash = H(publicKey || LHash || RHash)
+
+~~~~~
+
+
 ## Tree Computation Terminology
 
 Trees consist of _nodes_. A node is a
