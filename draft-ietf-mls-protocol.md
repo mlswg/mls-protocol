@@ -629,7 +629,7 @@ For example, suppose we had the following tree:
       G
     /   \
    /     \
-  E       _
+  E       F
  / \     / \
 A   B   C   D
 ~~~~~
@@ -641,7 +641,7 @@ public-key encryption to the public key K of the secret value S):
 
 | Public Key | Ciphertext(s)            |
 |:-----------|:-------------------------|
-| pk(G)      | E(pk(C), G), E(pk(D), G) |
+| pk(F)      | E(pk(C), G), E(pk(D), G) |
 | pk(E)      | E(pk(A), E)              |
 | pk(B)      |                          |
 
