@@ -1193,8 +1193,8 @@ the signature on the message,  then updates its state as follows:
 * If the `index` value is equal to the size of the group, increment
   the size of the group, and extend the tree and roster accordingly
 * Verify the signature on the included UserInitKey; if the signature
-  verification fails, abort
-* Set the roster entry at position `index` to the credential in the
+  verification fails, abortmixups
+* Set the roster entry at position `index`/2 to the credential in the
   included UserInitKey
 * Update the ratchet tree by setting to blank all nodes in the
   direct path of the new node
@@ -1258,7 +1258,7 @@ A member receiving a Remove message first verifies
 the signature on the message.  The member then updates its
 state as follows:
 
-* Update the roster by setting the credential in the removed slot to
+* Update the roster by setting the credential at `removed`/2 to
   the null optional value
 * Update the ratchet tree by replacing nodes in the direct
   path from the removed leaf using the information in the Remove message
