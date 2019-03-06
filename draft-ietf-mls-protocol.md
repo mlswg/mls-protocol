@@ -1164,9 +1164,18 @@ member:
 
 ~~~~~
 struct {
+    uint32 index;
     UserInitKey init_key;
 } Add;
 ~~~~~
+
+The `index` field indicates where in the tree the new member should
+be added.  The new member can be added at an existing, blank leaf
+node, or at the right edge of the tree.  In any case, the `index`
+value MUST satisfy `0 <= index <= n`, where `n` is the size of the
+group. The case `index = n` indicates an add at the right edge of
+the tree).  If `index < n` and the leaf node at position `index` is
+not blank, then the recipient MUST reject the Add as malformed.
 
 A group member generates this message by requesting a UserInitKey
 from the directory for the user to be added, and encoding it into an
@@ -1181,17 +1190,17 @@ messages together as follows:
 An existing member receiving a Add message first verifies
 the signature on the message,  then updates its state as follows:
 
-* Increment the size of the group
+* If the `index` value is equal to the size of the group, increment
+  the size of the group, and extend the tree and roster accordingly
 * Verify the signature on the included UserInitKey; if the signature
   verification fails, abort
-* Append an entry to the roster containing the credential in the
+* Set the roster entry at position `index` to the credential in the
   included UserInitKey
-* Update the ratchet tree by adding a new leaf node for the new
-  member, containing the public key from the UserInitKey in the Add
-  corresponding to the ciphersuite in use
 * Update the ratchet tree by setting to blank all nodes in the
-  direct path of the new node, except for the leaf (which remains
-  set to the new member's public key)
+  direct path of the new node
+* Set the leaf node in the tree at position `index` to a new node
+  containing the public key from the UserInitKey in the Add
+  corresponding to the ciphersuite in use
 
 The update secret resulting from this change is an all-zero octet
 string of length Hash.length.
@@ -1253,6 +1262,8 @@ state as follows:
   the null optional value
 * Update the ratchet tree by replacing nodes in the direct
   path from the removed leaf using the information in the Remove message
+* Reduce the size of the roster and the tree until the rightmost
+  element roster element and leaf node are non-null
 * Update the ratchet tree by setting to blank all nodes in the
   direct path of the removed leaf
 
