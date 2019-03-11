@@ -896,7 +896,7 @@ Group keys are derived using the HKDF-Extract and HKDF-Expand
 functions as defined in {{!RFC5869}}, as well as the functions
 defined below:
 
-~~~~
+~~~~~
 HKDF-Expand-Label(Secret, Label, Context, Length) =
     HKDF-Expand(Secret, HkdfLabel, Length)
 
@@ -910,7 +910,7 @@ struct {
 
 Derive-Secret(Secret, Label, Context) =
     HKDF-Expand-Label(Secret, Label, Hash(Context), Hash.length)
-~~~~
+~~~~~
 
 The Hash function used by HKDF is the ciphersuite hash algorithm.
 Hash.length is its output length in bytes.  In the below diagram:
@@ -1756,9 +1756,9 @@ structures in memory, even for partial trees. The basic
 rule is that the high-order bits of parent and child nodes have the
 following relation (where `x` is an arbitrary bit string):
 
-~~~
+~~~~~
 parent=01x => left=00x, right=10x
-~~~
+~~~~~
 
 The following python code demonstrates the tree computations
 necessary for MLS.  Test vectors can be derived from the diagram
