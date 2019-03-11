@@ -977,8 +977,11 @@ considered malformed.  The input to the signature computation
 comprises all of the fields except for the signature field.
 
 ~~~~~
+uint8 ProtocolVersion;
+
 struct {
     opaque user_init_key_id<0..255>;
+    ProtocolVersion supported_versions<0..255>;
     CipherSuite cipher_suites<0..255>;
     HPKEPublicKey init_keys<1..2^16-1>;
     Credential credential;
@@ -1124,6 +1127,7 @@ corresponding to the indicated ciphersuite.
 
 ~~~~~
 struct {
+  ProtocolVersion version;
   opaque group_id<0..255>;
   uint32 epoch;
   optional<Credential> roster<1..2^32-1>;
