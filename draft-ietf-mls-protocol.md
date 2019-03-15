@@ -525,7 +525,7 @@ pair is derived.
 
 ~~~~~
 path_secret[n] = HKDF-Expand-Label(path_secret[n-1],
-                                   "node", "", Hash.Length)
+                                   "path", "", Hash.Length)
 node_secret[n] = HKDF-Expand-Label(path_secret[n],
                                    "node", "", Hash.Length)
 node_priv[n], node_pub[n] = Derive-Key-Pair(node_secret[n])
