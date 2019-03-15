@@ -494,7 +494,7 @@ as follows:
 used for the Merkle trees in the Certificate Transparency protocol
 {{?I-D.ietf-trans-rfc6962-bis}}.)
 
-## Ratchet Tree Nodes
+## Ratchet Tree Nodes and Tree Updates
 
 Ratchet trees are used for generating shared group secrets. In this
 section, we describe the structure of a ratchet tree.  A particular
@@ -509,89 +509,65 @@ primitives, defined by the ciphersuite in use:
 A ratchet tree is a left-balanced binary tree, in which each node
 contains up to three values:
 
-* A path secret octet string (optional)
+* A secret octet string (optional)
 * An asymmetric private key (optional)
 * An asymmetric public key
 
 The contents of the parent are based on the latest-updated child.
-For example, if participants with leaf secrets A, B, C, and D join a
-group in that order, then the resulting tree will have the following
-structure:
+Nodes in a tree are always updated along the "direct path" from a
+leaf to the root.  The generator of the update chooses a random
+secret value "path_secret[0]", and generates a sequence of "path
+secrets", one for each node from the leaf to the root.  That is,
+path_secret[0] is used for the leaf, path_secret[1] for its parent,
+and so on.  At each step, the path secret is used to derive a new
+secret value for the corresponding node, from which the node's key
+pair is derived.
 
 ~~~~~
-     KDF(KDF(D))
-    /           \
- KDF(B)        KDF(D)
- /  \           /  \
-A    B         C    D
+path_secret[n] = HKDF-Expand-Label(path_secret[n-1],
+                                   "node", "", Hash.Length)
+node_secret[n] = HKDF-Expand-Label(path_secret[n],
+                                   "node", "", Hash.Length)
+node_priv[n], node_pub[n] = Derive-Key-Pair(node_secret[n])
 ~~~~~
 
-If the first participant subsequently changes its leaf secret to be
-X, then the tree will have the following structure.
+For example, suppose there is a group with four participants:
 
 ~~~~~
-     KDF(KDF(X))
-    /           \
- KDF(X)         KDF(D)
- /  \            /  \
-X    B          C    D
+      G
+     / \
+    /   \
+   /     \
+  E       F
+ / \     / \
+A   B   C   D
 ~~~~~
 
-A node secret is derived from its path secret. The path secret
-for the parent is derived from the same path secret (from the children)
-both using the KDF defined below, but with different labels.
-The private and public encryption keys for a node are derived from the
-node secret using the Derive-Key-Pair. These computations are as follows:
+If the first participant subsequently generates an update based on a
+secret X, then the sender would generate the following sequence of
+path secrets and node secrets:
 
 ~~~~~
-path_secret[n+1]
-     ^
-     |
-path_secret[n] --> node_secret --> node_key_pair
+    path_secret[2] ---> node_secret[2]
+         ^
+         |
+    path_secret[1] ---> node_secret[1]
+         ^
+         |
+X = path_secret[0] ---> node_secret[0]
 ~~~~~
 
+After the update, the tree will have the following structure, where
+"ns[i]" represents the node_secret values generated as described
+above:
+
 ~~~~~
-node_secret = HKDF-Expand-Label(path_secret[n], "node", "", Hash.Length)
-node_private, node_public = Derive-Key-Pair(node_secret)
-path_secret[n+1] = HKDF-Expand-Label(path_secret[n], "path", "", Hash.Length)
+          ns[2]
+         /     \
+     ns[1]      F
+     /  \      / \
+ns[0]    B    C   D
 ~~~~~
-
-where Derive-Key-Pair can be defined as a function where given
-a node secret X, the private key produced by the Derive-Key-Pair
-operation is SHA-256(X), interpreted as a big-endian integer.
-The corresponding public key is the result of multiplying the
-standard basepoint of the curve by this integer.
-
-Note that for specific asymmetric primitives, such as Curve25519 {{!RFC7748}},
-hashing the node secret is not strictly necessary. When using
-Curve25519, implementations SHOULD use the approach specified
-in {{RFC7748}} to calculate the Diffie-Hellman shared secret.
-
-NIST P-256 (secp256r1) based ECDH calculations (including parameter
-and key generation as well as the shared secret calculation) are
-performed according to {{IEEE1363}} using the ECKAS-DH1 scheme with the identity
-map as key derivation function (KDF), so that the shared secret is the
-x-coordinate of the ECDH shared secret elliptic curve point represented
-as an octet string.  Note that this octet string (Z in IEEE 1363 terminology)
-as output by FE2OSP, the Field Element to Octet String Conversion
-Primitive, has constant length for any given field; leading zeros
-found in this octet string MUST NOT be truncated.
-(Note that this use of the identity KDF is a technicality.  The
-complete picture is that ECDH is employed with a non-trivial KDF
-because MLS does not directly use this secret for anything
-other than for computing other secrets.)
-
-In the case of Curve25519 implementations MUST check whether the
-computed multiplication output is the all-zero value and
-abort if so, as described in Section 6 of {{RFC7748}}.
-If implementers use an alternative implementation of these elliptic curves,
-they SHOULD perform the additional checks specified in Section 7 of {{RFC7748}}
-In the case of P-256, the appropriate validation procedures are defined
-in Section 4.3.7 of {{X962}} and alternatively in Section 5.6.2.3 of {{keyagreement}}.
-This process consists of three steps: (1) verify that the value is not the point at
-infinity (O), (2) verify that for Y = (x, y) both integers are in the correct
-interval, (3) ensure that (x, y) is a correct solution to the elliptic curve equation.
-For these curves, implementers do not need to verify membership in the correct subgroup.
 
 ## Blank Nodes and Resolution
 
@@ -726,6 +702,64 @@ enum {
     (0xFFFF)
 } CipherSuite;
 ~~~~~
+
+### Curve25519, SHA-256, and AES-128-GCM
+
+This ciphersuite uses the following primitives:
+
+* Hash function: SHA-256
+* Diffie-Hellman group: Curve25519 {{!RFC7748}}
+* AEAD: AES-128-GCM
+
+Given an octet string X, the private key produced by the
+Derive-Key-Pair operation is SHA-256(X).  (Recall that any 32-octet
+string is a valid Curve25519 private key.)  The corresponding public
+key is X25519(SHA-256(X), 9).
+
+Implementations SHOULD use the approach
+specified in {{RFC7748}} to calculate the Diffie-Hellman shared secret.
+Implementations MUST check whether the computed Diffie-Hellman shared
+secret is the all-zero value and abort if so, as described in
+Section 6 of {{RFC7748}}.  If implementers use an alternative
+implementation of these elliptic curves, they SHOULD perform the
+additional checks specified in Section 7 of {{RFC7748}}
+
+### P-256, SHA-256, and AES-128-GCM
+
+This ciphersuite uses the following primitives:
+
+* Hash function: SHA-256
+* Diffie-Hellman group: secp256r1 (NIST P-256)
+* AEAD: AES-128-GCM
+
+Given an octet string X, the private key produced by the
+Derive-Key-Pair operation is SHA-256(X), interpreted as a big-endian
+integer.  The corresponding public key is the result of multiplying
+the standard P-256 base point by this integer.
+
+P-256 ECDH calculations (including parameter
+and key generation as well as the shared secret calculation) are
+performed according to {{IEEE1363}} using the ECKAS-DH1 scheme with the identity
+map as key derivation function (KDF), so that the shared secret is the
+x-coordinate of the ECDH shared secret elliptic curve point represented
+as an octet string.  Note that this octet string (Z in IEEE 1363 terminology)
+as output by FE2OSP, the Field Element to Octet String Conversion
+Primitive, has constant length for any given field; leading zeros
+found in this octet string MUST NOT be truncated.
+
+(Note that this use of the identity KDF is a technicality.  The
+complete picture is that ECDH is employed with a non-trivial KDF
+because MLS does not directly use this secret for anything
+other than for computing other secrets.)
+
+Clients MUST validate remote public values by ensuring
+that the point is a valid point on the elliptic curve.
+The appropriate validation procedures are defined in Section 4.3.7 of {{X962}}
+and alternatively in Section 5.6.2.3 of {{keyagreement}}.
+This process consists of three steps: (1) verify that the value is not the point at
+infinity (O), (2) verify that for Y = (x, y) both integers are in the correct
+interval, (3) ensure that (x, y) is a correct solution to the elliptic curve equation.
+For these curves, implementers do not need to verify membership in the correct subgroup.
 
 ## Credentials
 
