@@ -494,7 +494,7 @@ as follows:
 used for the Merkle trees in the Certificate Transparency protocol
 {{?I-D.ietf-trans-rfc6962-bis}}.)
 
-## Ratchet Tree Nodes
+## Ratchet Tree Nodes and Tree Updates
 
 Ratchet trees are used for generating shared group secrets. In this
 section, we describe the structure of a ratchet tree.  A particular
@@ -503,7 +503,8 @@ primitives, defined by the ciphersuite in use:
 
 * A Diffie-Hellman finite-field group or elliptic curve
 * A Key Derivation Function (KDF)
-* A Derive-Public-Key function that produces a public key from a private key
+* A Derive-Key-Pair function that produces an asymmetric keypair
+  from a node secret
 
 A ratchet tree is a left-balanced binary tree, in which each node
 contains up to three values:
@@ -512,41 +513,60 @@ contains up to three values:
 * An asymmetric private key (optional)
 * An asymmetric public key
 
-The private key for a node is derived from its secret value using the KDF. The
-public key is then derived from the private key using the Derive-Public-Key
-function.
-
-The contents of a parent node are computed from one of
-its children as follows:
-
-~~~~~
-parent_secret = KDF(child_secret)
-parent_private = KDF(parent_secret)
-parent_public = Derive-Public-Key(parent_private)
-~~~~~
-
 The contents of the parent are based on the latest-updated child.
-For example, if participants with leaf secrets A, B, C, and D join a
-group in that order, then the resulting tree will have the following
-structure:
+Nodes in a tree are always updated along the "direct path" from a
+leaf to the root.  The generator of the update chooses a random
+secret value "path_secret[0]", and generates a sequence of "path
+secrets", one for each node from the leaf to the root.  That is,
+path_secret[0] is used for the leaf, path_secret[1] for its parent,
+and so on.  At each step, the path secret is used to derive a new
+secret value for the corresponding node, from which the node's key
+pair is derived.
 
 ~~~~~
-     KDF(KDF(D))
-    /           \
- KDF(B)        KDF(D)
- /  \           /  \
-A    B         C    D
+path_secret[n] = HKDF-Expand-Label(path_secret[n-1],
+                                   "path", "", Hash.Length)
+node_secret[n] = HKDF-Expand-Label(path_secret[n],
+                                   "node", "", Hash.Length)
+node_priv[n], node_pub[n] = Derive-Key-Pair(node_secret[n])
 ~~~~~
 
-If the first participant subsequently changes its leaf secret to be
-X, then the tree will have the following structure.
+For example, suppose there is a group with four participants:
 
 ~~~~~
-     KDF(KDF(X))
-    /           \
- KDF(X)         KDF(D)
- /  \            /  \
-X    B          C    D
+      G
+     / \
+    /   \
+   /     \
+  E       F
+ / \     / \
+A   B   C   D
+~~~~~
+
+If the first participant subsequently generates an update based on a
+secret X, then the sender would generate the following sequence of
+path secrets and node secrets:
+
+~~~~~
+    path_secret[2] ---> node_secret[2]
+         ^
+         |
+    path_secret[1] ---> node_secret[1]
+         ^
+         |
+X = path_secret[0] ---> node_secret[0]
+~~~~~
+
+After the update, the tree will have the following structure, where
+"ns[i]" represents the node_secret values generated as described
+above:
+
+~~~~~
+          ns[2]
+         /     \
+     ns[1]      F
+     /  \      / \
+ns[0]    B    C   D
 ~~~~~
 
 ## Blank Nodes and Resolution
@@ -704,9 +724,6 @@ Section 6 of {{RFC7748}}.  If implementers use an alternative
 implementation of these elliptic curves, they SHOULD perform the
 additional checks specified in Section 7 of {{RFC7748}}
 
-Encryption keys are derived from shared secrets by taking the first
-16 bytes of H(Z), where Z is the shared secret and H is SHA-256.
-
 ### P-256, SHA-256, and AES-128-GCM
 
 This ciphersuite uses the following primitives:
@@ -743,9 +760,6 @@ This process consists of three steps: (1) verify that the value is not the point
 infinity (O), (2) verify that for Y = (x, y) both integers are in the correct
 interval, (3) ensure that (x, y) is a correct solution to the elliptic curve equation.
 For these curves, implementers do not need to verify membership in the correct subgroup.
-
-Encryption keys are derived from shared secrets by taking the first
-16 bytes of H(Z), where Z is the shared secret and H is SHA-256.
 
 ## Credentials
 
