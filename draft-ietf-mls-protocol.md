@@ -1000,26 +1000,49 @@ enum {
 } ContentType;
 
 struct {
-    opaque content<0..2^32-1>;
-    opaque signature<0..2^16-1>;
+    opaque content[MLSPlaintext.length];
+    uint8 signature[MLSInnerPlaintext.sig_len];
+    uint16 sig_len;
+    uint8  marker;
     uint8  zero\_padding[length\_of\_padding];
-} Message;
+} MLSInnerPlaintext;
 
 struct {
-    ContentType type;
-    select (Plaintext.type) {
+    select (MLSPlaintext.type) {
         case handshake:   Handshake;
         case application: Application;
     }
-} Plaintext;
+} MLSPlaintext;
+
+
+struct {
+    uint32 sender;
+    uint32 generation;
+} SenderData;
 
 struct {
     opaque group_id<0..255>;
     uint32 epoch;
+    ContentType type;
+} SenderDataAAD;
+
+struct {
+    opaque group_id<0..255>;
+    uint32 epoch;
+    ContentType type;
     uint32 sender;
     uint32 generation;
+} CiphertextAAD;
+
+
+struct {
+    opaque group_id<0..255>;
+    uint32 epoch;
+    ContentType type;
+    opaque nonce_sender_data<0..255>;
+    opaque encrypted_sender_data<0..255>;
     opaque cipertext<0..2^32-1>;
-} Ciphertext;
+} MLSCiphertext;
 ~~~~~
 
 The `content` of an Handshake or Application message is signed then
