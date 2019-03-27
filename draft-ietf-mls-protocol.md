@@ -1182,19 +1182,28 @@ member:
 
 ~~~~~
 struct {
-    uint32 index;
+    uint32 tree_index;
     UserInitKey init_key;
+    uint16 public_key_index;
     opaque welcome_info_hash<0..255>;
 } Add;
 ~~~~~
 
-The `index` field indicates where in the tree the new member should
+The `tree_index` field indicates where in the tree the new member should
 be added.  The new member can be added at an existing, blank leaf
-node, or at the right edge of the tree.  In any case, the `index`
-value MUST satisfy `0 <= index <= n`, where `n` is the size of the
-group. The case `index = n` indicates an add at the right edge of
-the tree).  If `index < n` and the leaf node at position `index` is
+node, or at the right edge of the tree.  In any case, the `tree_index`
+value MUST satisfy `0 <= tree_index <= n`, where `n` is the size of the
+group. The case `tree_index = n` indicates an add at the right edge of
+the tree).  If `tree_index < n` and the leaf node at position `tree_index` is
 not blank, then the recipient MUST reject the Add as malformed.
+
+The `public_key_index` field indicates which public key from the
+UserInitKey in the Add will be added to the tree. The
+`public_key_index` value MUST satisfy `0 <= public_key_index < n`
+where `n` is the length of the `init_keys` array in the
+UserInitKey. Furthermore, the ciphersuite at
+`cipher_suites_[public_key_index]` in the UserInitKey MUST
+agree with the ciphersuite in use.
 
 The `welcome_info_hash` field contains a hash of the WelcomeInfo
 object sent in a Welcome message to the new member.
@@ -1212,20 +1221,20 @@ messages together as follows:
 An existing member receiving a Add message first verifies
 the signature on the message,  then updates its state as follows:
 
-* If the `index` value is equal to the size of the group, increment
+* If the `tree_index` value is equal to the size of the group, increment
   the size of the group, and extend the tree and roster accordingly
 * Verify the signature on the included UserInitKey; if the signature
   verification fails, abort
 * Generate a WelcomeInfo object describing the state prior to the
   add, and verify that its hash is the same as the value of the
   `welcome_info_hash` field
-* Set the roster entry at position `index` to the credential in the
+* Set the roster entry at position `tree_index` to the credential in the
   included UserInitKey
 * Update the ratchet tree by setting to blank all nodes in the
   direct path of the new node
-* Set the leaf node in the tree at position `index` to a new node
-  containing the public key from the UserInitKey in the Add
-  corresponding to the ciphersuite in use
+* Set the leaf node in the tree at position `tree_index` to a new node
+  containing the public key `init_keys_[public_key_index]` from
+  the UserInitKey
 
 The update secret resulting from this change is an all-zero octet
 string of length Hash.length.
