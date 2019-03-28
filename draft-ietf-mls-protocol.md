@@ -1014,27 +1014,6 @@ struct {
     }
 } MLSPlaintext;
 
-
-struct {
-    uint32 sender;
-    uint32 generation;
-} SenderData;
-
-struct {
-    opaque group_id<0..255>;
-    uint32 epoch;
-    ContentType type;
-} SenderDataAAD;
-
-struct {
-    opaque group_id<0..255>;
-    uint32 epoch;
-    ContentType type;
-    uint32 sender;
-    uint32 generation;
-} CiphertextAAD;
-
-
 struct {
     opaque group_id<0..255>;
     uint32 epoch;
@@ -1045,38 +1024,86 @@ struct {
 } MLSCiphertext;
 ~~~~~
 
-The `content` of an Handshake or Application message is signed then
-optionally padded before AEAD encryption..
+The group identifier `group_id`, the `epoch` and the content type of the
+message cannot be encrypted so that a recipient can determine which
+key needs to be used for decryption of the message, either an
+handshake encryption key or an application encryption key.
 
-The AEAD encryption of the `Plaintext` ensures that it is protected
-in confidentiality and integrity against an active network adversary
-that is not a member of the group. The AEAD uses the `group_id` and
-the `epoch` as additionnal data to ensure that these visible fields
-of the `Ciphertext` are authentic.
+The AEAD encryption of the `MLSPlaintext` ensures that the
+`MLSInnerPlaintext.content` is protected in confidentiality and
+integrity against an active network adversary that is not a member
+of the group.
+The `content` of an handshake or application message is signed then
+optionally padded before AEAD encryption to further protect against
+traffic analysis.
 
-The `Plaintext` contains the index of the `sender` in the roster and
-the `generation` of the sender's Application secret, which is used
-to find the correct AEAD key and nonce used in Application message
-decrytion. In the case of a Handshake message, this field is purely
-informational. The `type` allows to distinguish the type of content
-present in the message after decryption.
-
-Inside the `Message`, the signature is computed over the `SignatureContent`
-over all the metadata being sent over the network. This is done to
-provide strong authentication of this information from the sender
-and prevent an adversarial member of the group to encrypt a message
-and aggregate a signature and the content it covers with arbitrary
-metadata (ie. changing the `type`, `sender` or `generation` field).
+Inside the `MLSInnerPlaintext`, the signature is computed over
+the `SignatureContent` which contains all the data and metadata
+being sent over the network. This is done to provide strong
+authentication of this information from the sender and prevent
+an adversarial member of the group to encrypt a message and aggregate
+a signature and the content it covers with arbitrary metadata
+(ie. changing the `type`, `sender` or `generation` field).
 
 ~~~~~
 struct {
     opaque group_id<0..255>;
     uint32 epoch;
+    ContentType type;
     uint32 sender;
     uint32 generation;
-    ContentType type;
     opaque content<0..2^32-1>;
 } SignatureContent;
+~~~~~
+
+In the case of an application message the `index` of the sender in
+the roster and the `generation` of the key is also needed
+in order to select the decryption key from the application key schedule.
+To protect this public metadata in confidentiality, the `SenderData`
+is AEAD encrypted under the handshake encryption key provided by the
+key schedule for the current epoch; a random nonce is used to
+avoid key and nonce reuse over a different content and the
+additionnal data is computed as follows:
+
+~~~~~
+struct {
+    uint32 sender;
+    uint32 generation;
+} SenderData;
+
+struct {
+    opaque group_id<0..255>;
+    uint32 epoch;
+    ContentType type;
+} SenderDataAAD;
+~~~~~
+
+Successful decryption of the `SenderData` ensures that
+the `group_id`, the `epoch` and the content type are authentic
+and have been sent by a member of the group. In the case where
+the content of the message is an handshake message, the values
+contained in the `SenderData` can be random values.
+
+~~~~~
+struct {
+    opaque group_id<0..255>;
+    uint32 epoch;
+    ContentType type;
+} SenderDataAAD;
+~~~~~
+
+To perform decryption of the `MLSCiphertext` the correct key
+and nonce must be fetched according to the content type and
+`SenderData` and used with the following additionnal data:
+
+~~~~~
+struct {
+    opaque group_id<0..255>;
+    uint32 epoch;
+    ContentType type;
+    uint32 sender;
+    uint32 generation;
+} CiphertextAAD;
 ~~~~~
 
 
@@ -1085,7 +1112,7 @@ struct {
 Over the lifetime of a group, its state will change for:
 
 * Group initialization
-* A member adding a new participant
+* A member adding a new client
 * A member updating its leaf key
 * A member deleting another member
 
