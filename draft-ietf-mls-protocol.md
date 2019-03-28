@@ -137,6 +137,12 @@ shared keys with costs that scale as the log of the group size.
 
 RFC EDITOR PLEASE DELETE THIS SECTION.
 
+draft-05
+
+- Common framing for handshake and application messages (\*)
+
+- Handshake message encryption (\*)
+
 draft-04
 
 - Updating the language to be similar to the Architecture document
