@@ -896,7 +896,7 @@ Group keys are derived using the HKDF-Extract and HKDF-Expand
 functions as defined in {{!RFC5869}}, as well as the functions
 defined below:
 
-~~~~
+~~~~~
 HKDF-Expand-Label(Secret, Label, Context, Length) =
     HKDF-Expand(Secret, HkdfLabel, Length)
 
@@ -910,7 +910,7 @@ struct {
 
 Derive-Secret(Secret, Label, Context) =
     HKDF-Expand-Label(Secret, Label, Hash(Context), Hash.length)
-~~~~
+~~~~~
 
 The Hash function used by HKDF is the ciphersuite hash algorithm.
 Hash.length is its output length in bytes.  In the below diagram:
@@ -977,8 +977,11 @@ considered malformed.  The input to the signature computation
 comprises all of the fields except for the signature field.
 
 ~~~~~
+uint8 ProtocolVersion;
+
 struct {
     opaque user_init_key_id<0..255>;
+    ProtocolVersion supported_versions<0..255>;
     CipherSuite cipher_suites<0..255>;
     HPKEPublicKey init_keys<1..2^16-1>;
     Credential credential;
@@ -1211,6 +1214,7 @@ corresponding to the indicated ciphersuite.
 
 ~~~~~
 struct {
+  ProtocolVersion version;
   opaque group_id<0..255>;
   uint32 epoch;
   optional<Credential> roster<1..2^32-1>;
@@ -1251,9 +1255,22 @@ member:
 
 ~~~~~
 struct {
+    uint32 index;
     UserInitKey init_key;
+    opaque welcome_info_hash<0..255>;
 } Add;
 ~~~~~
+
+The `index` field indicates where in the tree the new member should
+be added.  The new member can be added at an existing, blank leaf
+node, or at the right edge of the tree.  In any case, the `index`
+value MUST satisfy `0 <= index <= n`, where `n` is the size of the
+group. The case `index = n` indicates an add at the right edge of
+the tree).  If `index < n` and the leaf node at position `index` is
+not blank, then the recipient MUST reject the Add as malformed.
+
+The `welcome_info_hash` field contains a hash of the WelcomeInfo
+object sent in a Welcome message to the new member.
 
 A group member generates this message by requesting a UserInitKey
 from the directory for the user to be added, and encoding it into an
@@ -1268,17 +1285,20 @@ messages together as follows:
 An existing member receiving a Add message first verifies
 the signature on the message,  then updates its state as follows:
 
-* Increment the size of the group
+* If the `index` value is equal to the size of the group, increment
+  the size of the group, and extend the tree and roster accordingly
 * Verify the signature on the included UserInitKey; if the signature
   verification fails, abort
-* Append an entry to the roster containing the credential in the
+* Generate a WelcomeInfo object describing the state prior to the
+  add, and verify that its hash is the same as the value of the
+  `welcome_info_hash` field
+* Set the roster entry at position `index` to the credential in the
   included UserInitKey
-* Update the ratchet tree by adding a new leaf node for the new
-  member, containing the public key from the UserInitKey in the Add
-  corresponding to the ciphersuite in use
 * Update the ratchet tree by setting to blank all nodes in the
-  direct path of the new node, except for the leaf (which remains
-  set to the new member's public key)
+  direct path of the new node
+* Set the leaf node in the tree at position `index` to a new node
+  containing the public key from the UserInitKey in the Add
+  corresponding to the ciphersuite in use
 
 The update secret resulting from this change is an all-zero octet
 string of length Hash.length.
@@ -1340,6 +1360,8 @@ state as follows:
   the null optional value
 * Update the ratchet tree by replacing nodes in the direct
   path from the removed leaf using the information in the Remove message
+* Reduce the size of the roster and the tree until the rightmost
+  element roster element and leaf node are non-null
 * Update the ratchet tree by setting to blank all nodes in the
   direct path of the removed leaf
 
@@ -1787,9 +1809,9 @@ structures in memory, even for partial trees. The basic
 rule is that the high-order bits of parent and child nodes have the
 following relation (where `x` is an arbitrary bit string):
 
-~~~
+~~~~~
 parent=01x => left=00x, right=10x
-~~~
+~~~~~
 
 The following python code demonstrates the tree computations
 necessary for MLS.  Test vectors can be derived from the diagram
