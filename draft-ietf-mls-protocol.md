@@ -935,6 +935,9 @@ proceeds as shown in the following diagram:
                      V
 update_secret -> HKDF-Extract = epoch_secret
                      |
+                     +--> Derive-Secret(., "handshake", GroupState_[n])
+                     |    = handshake_encryption_key
+                     |
                      +--> Derive-Secret(., "app", GroupState_[n])
                      |    = application_secret
                      |
