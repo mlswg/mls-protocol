@@ -1287,10 +1287,12 @@ state as follows:
   the null optional value
 * Update the ratchet tree by replacing nodes in the direct
   path from the removed leaf using the information in the Remove message
-* Reduce the size of the roster and the tree until the rightmost
-  element roster element and leaf node are non-null
 * Update the ratchet tree by setting to blank all nodes in the
   direct path of the removed leaf
+* Truncate the roster such that the last roster element is
+  non-null (clearing the roster if no such element exists)
+* Truncate the tree such that the rightmost non-blank leaf is the
+  last node of the tree (clearing the tree if no such leaf exists)
 
 The update secret resulting from this change is the secret for the
 root node of the ratchet tree after the second step (after the third
