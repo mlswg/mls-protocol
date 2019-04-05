@@ -942,7 +942,7 @@ proceeds as shown in the following diagram:
 update_secret -> HKDF-Extract = epoch_secret
                      |
                      +--> Derive-Secret(., "handshake", GroupState_[n])
-                     |    = handshake_encryption_key
+                     |    = handshake_secret
                      |
                      +--> Derive-Secret(., "app", GroupState_[n])
                      |    = application_secret
@@ -1015,7 +1015,7 @@ struct {
     opaque content[MLSPlaintext.length];
     uint8 signature[MLSInnerPlaintext.sig_len];
     uint16 sig_len;
-    uint8  marker;
+    uint8  marker = 1;
     uint8  zero\_padding[length\_of\_padding];
 } MLSInnerPlaintext;
 
@@ -1030,7 +1030,7 @@ struct {
     opaque group_id<0..255>;
     uint32 epoch;
     ContentType type;
-    opaque nonce_sender_data<0..255>;
+    opaque sender_data_nonce<0..255>;
     opaque encrypted_sender_data<0..255>;
     opaque cipertext<0..2^32-1>;
 } MLSCiphertext;
