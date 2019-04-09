@@ -1432,25 +1432,48 @@ all arrive at the following state:
 # Message Protection {#message-protection}
 
 The primary purpose of the Handshake protocol is to provide an authenticated
-group key exchange to clients. In order to protect Application messages
-sent among the members of a group, the Application secret provided by the Handshake key schedule is used to derive nonces and encryption keys for the Message Protection Layer according to the Application Key Schedule. That is, each epoch is equipped with a fresh Application Key Schedule which consist of a tree of "Application Secrets" as well as one symmetric ratchet per group member.
+group key exchange to clients. In order to protect Application messages sent
+among the members of a group, the Application secret provided by the Handshake
+key schedule is used to derive nonces and encryption keys for the Message
+Protection Layer according to the Application Key Schedule. That is, each epoch
+is equipped with a fresh Application Key Schedule which consist of a tree of
+"Application Secrets" as well as one symmetric ratchet per group member.
 
-Each user maintains their a local copy of (parts of) the Application Key Schedule of each epoch for which they are a group member. They derive new keys, nonces and secrets as needed while deleting old ones once they have been used.
+Each user maintains their a local copy of (parts of) the Application Key
+Schedule of each epoch for which they are a group member. They derive new keys,
+nonces and secrets as needed while deleting old ones once they have been used.
 
-Application messages MUST be protected with the Authenticated-Encryption
-with Associated-Data (AEAD) encryption scheme associated with the MLS ciphersuite. Note that "Authenticated" in this context does not mean messages are known to be sent by a specific client but only from a legitimate member of the group. To authenticate a message from a particular member, signatures are required. Handshake messages MUST use digital signatures to strongly authenticate the sender of a message.
+Application messages MUST be protected with the Authenticated-Encryption with
+Associated-Data (AEAD) encryption scheme associated with the MLS ciphersuite.
+Note that "Authenticated" in this context does not mean messages are known to be
+sent by a specific client but only from a legitimate member of the group. To
+authenticate a message from a particular member, signatures are required.
+Handshake messages MUST use digital signatures to strongly authenticate the
+sender of a message.
 
 ## Tree Of Application Secrets {#tree-of-application-secrets}
 
-The Application schedule begins with the Application secrets which are arranged in an "AS Tree"; a left balanced binary tree with the set of nodes and edges as the epoch's ratchet tree. Each leaf in the AS Tree is associated with the same group member as the corresponding leaf in the ratchet tree. Nodes are also assigned an index according to their position in the array representation of the tree (described in {{tree-math}}). If `v` is a node in the AS Tree then `IndexOf(v)` denotes it's index while `v.leftChild` and `v.rightChild` denote the children of `v` (if they exist).
+The Application schedule begins with the Application secrets which are arranged
+in an "AS Tree"; a left balanced binary tree with the set of nodes and edges as
+the epoch's ratchet tree. Each leaf in the AS Tree is associated with the same
+group member as the corresponding leaf in the ratchet tree. Nodes are also
+assigned an index according to their position in the array representation of the
+tree (described in {{tree-math}}). If `v` is a node in the AS Tree then
+`IndexOf(v)` denotes it's index while `v.leftChild` and `v.rightChild` denote
+the children of `v` (if they exist).
 
-Each node in the tree is assigned a secret. The root secret for the AS Tree of an epoch is simply the `application_secret` of that epoch. (See {{key-schedule}} for the definition of `application_secret`.)
+Each node in the tree is assigned a secret. The root secret for the AS Tree of
+an epoch is simply the `application_secret` of that epoch. (See {{key-schedule}}
+for the definition of `application_secret`.)
 
 ~~~~
 astree_node_[IndexOf(root)]_secret = application_secret
 ~~~~
 
-The secret of any other node in the tree is derived from its parent's secret using a call to Derive-Secret. The context for the call is the (hash of the) Group state of the epoch and the index of the node whose secret is being derived.
+The secret of any other node in the tree is derived from its parent's secret
+using a call to Derive-Secret. The context for the call is the (hash of the)
+Group state of the epoch and the index of the node whose secret is being
+derived.
 
 ~~~~
 struct {
@@ -1459,7 +1482,8 @@ struct {
 } ASTreeContext
 ~~~~
 
-If `v` is a node in the ASTree then `ASTreeContext[v]` denotes an `ASTreeContext` variable with:
+If `v` is a node in the ASTree then `ASTreeContext[v]` denotes an
+`ASTreeContext` variable with:
 
 * `gshash = Hash(GroupState_[n])`
 
@@ -1479,19 +1503,28 @@ Derive-Secret(., "astree-secret", ASTreeContext[v.rightChild])
 = astree_node_[IndexOf(v.rightChild)]_secret
 ~~~~
 
-Note that fixing concrete values for `GroupState_[n]` and `application_secret` completely defines all secrets in the AS Tree.
+Note that fixing concrete values for `GroupState_[n]` and `application_secret`
+completely defines all secrets in the AS Tree.
 
 ## Sender Ratchets {#sender-ratchets}
 
-The secret of a leaf in the AS Tree is used to initiate a symmetric hash ratchet which generates a sequence of keys and nonces. The group member assigned to that leaf uses `j`-th key/nonce pair in the sequence to encrypt (using the AEAD) the `j`-th message they send during that epoch. In particular, each key/nonce pair MUST NOT ever be used to encrypt more than one message.
+The secret of a leaf in the AS Tree is used to initiate a symmetric hash ratchet
+which generates a sequence of keys and nonces. The group member assigned to that
+leaf uses `j`-th key/nonce pair in the sequence to encrypt (using the AEAD) the
+`j`-th message they send during that epoch. In particular, each key/nonce pair
+MUST NOT ever be used to encrypt more than one message.
 
-More precisely, if a group member with identity `i` is assigned the node with index `x` then the initial ratchet secret for that member is simply the secret of leaf `x`.
+More precisely, if a group member with identity `i` is assigned the node with
+index `x` then the initial ratchet secret for that member is simply the secret
+of leaf `x`.
 
 ~~~~
 application_[i]_[0]_secret = astree_node_[x]_secret
 ~~~~
 
-Keys, nonces and secrets of ratchets are derived using HKDF-Expand. The context in the call is (a hash of) the current Group state, the sender's identity and the position in that sender's ratchet.
+Keys, nonces and secrets of ratchets are derived using HKDF-Expand-Label. The
+context in the call is (a hash of) the current Group state, the sender's
+identity and the position in that sender's ratchet.
 
 ~~~~
 struct {
@@ -1501,7 +1534,10 @@ struct {
 } RatchetContext
 ~~~~
 
-The identity field is copied from the eponymous field in the `BasicCredential` struct. The `ratchet_position` integer is initialized to `1` for the first HKDF-Expand call of a new ratchet and incremented for each subsequent call in that ratchet.
+The identity field is copied from the eponymous field in the `BasicCredential`
+struct. The `ratchet_position` integer is initialized to `1` for the first
+HKDF-Expand-Label call of a new ratchet and incremented for each subsequent call
+in that ratchet.
 
 `HashRatCont[i, j]`` denotes the hash of a RatchetContext variable where:
 
@@ -1515,40 +1551,62 @@ Using this notation the ratchet for group member `i` is defined to be:
 
 ~~~~
 application_[i]_[j]_secret
-        |
-        +--> HKDF-Expand(., "app-nonce", HashRatCont[i,j+1], AEAD.nonceLen)
-        |    = application_[i]_[j+1]_nonce
-        |
-        +--> HKDF-Expand(., "app-key", HashRatCont[i,j+1], AEAD.keyLength)
-        |    = application_[i]_[j+1]_key
-        |
-        V
-HKDF-Expand(., "app-secret", HashRatCont[i,j+1], Hash.length)
+      |
+      +--> HKDF-Expand-Label(., "app-nonce", HashRatCont[i,j+1], AEAD.nonceLen)
+      |    = application_[i]_[j+1]_nonce
+      |
+      +--> HKDF-Expand-Label(., "app-key", HashRatCont[i,j+1], AEAD.keyLength)
+      |    = application_[i]_[j+1]_key
+      |
+      V
+HKDF-Expand-Label(., "app-secret", HashRatCont[i,j+1], Hash.length)
 = application_[i]_[j+1]_secret
 ~~~~
 
-Here, `AEAD.nonceLen` and `AEAD.keyLength` denote the lengths in bytes of the nonce and key for the AEAD scheme defined by the ciphersuite.
+Here, `AEAD.nonceLen` and `AEAD.keyLength` denote the lengths in bytes of the
+nonce and key for the AEAD scheme defined by the ciphersuite.
 
 ## Deletion Schedule {#deletion-schedule}
 
-It is important to delete all security sensitive values as soon as they, or another value derived from them, is used for encryption or decryption.
+It is important to delete all security sensitive values as soon as they, or
+another value derived from them, is used for encryption or decryption.
 
-More precisely, the values `application_[i]_[j]_key` and `application_[i]_[j]_nonce` are said to be 'consumed' if they were used either to encrypt and send a message or to successfully decrypt and authenticate a received message. More generally, a secret `S` is 'consumed' if any key, nonce or secret derived from `S` has been consumed. (This goes both for values derived via Derive-Secret and HKDF-Expand). Here, `S` may be the `init_secret`, `update_secret`, `epoch_secret`, `application_secret` as well as any secret in the AS Tree and the ratchets.
+More precisely, the values `application_[i]_[j]_key` and
+`application_[i]_[j]_nonce` are said to be 'consumed' if they were used either
+to encrypt and send a message or to successfully decrypt and authenticate a
+received message. More generally, a secret `S` is 'consumed' if any key, nonce
+or secret derived from `S` has been consumed. (This goes both for values derived
+via Derive-Secret and HKDF-Expand-Label). Here, `S` may be the `init_secret`,
+`update_secret`, `epoch_secret`, `application_secret` as well as any secret in
+the AS Tree and the ratchets.
 
-As soon as a group member consumes a key, nonce or secret they MUST immediately delete (all representations of) that value. This is crucial to ensuring Forward Secrecy for past messages. Members MAY keep unconsumed secrets, keys and nonces around for some reasonable amount of time even if their generating secret was already consumed (e.g. due to out of order message delivery).
+As soon as a group member consumes a key, nonce or secret they MUST immediately
+delete (all representations of) that value. This is crucial to ensuring Forward
+Secrecy for past messages. Members MAY keep unconsumed secrets, keys and nonces
+around for some reasonable amount of time even if their generating secret was
+already consumed (e.g. due to out of order message delivery).
 
-For example, suppose a group member encrypts or successfully decrypts a message using the `j`-th key and nonce in the `i`-th ratchet. Then this means that, for that member, all of the following values (and possibly more) have been consumed and MUST be deleted:
+For example, suppose a group member encrypts or successfully decrypts a message
+using the `j`-th key and nonce in the `i`-th ratchet. Then this means that, for
+that member, all of the following values (and possibly more) have been consumed
+and MUST be deleted:
 
-* the `init_secret`, `update_secret`, `epoch_secret`, `application_secret` of that epoch,
-* all node secrets in the AS Tree on the path from the root to the leaf for identity `i`,
-* the first `j` secrets in the `i`-th ratchet and
+* the `init_secret`, `update_secret`, `epoch_secret`, `application_secret` of
+* that epoch, all node secrets in the AS Tree on the path from the root to the
+* leaf for identity `i`, the first `j` secrets in the `i`-th ratchet and
 * `application_[i]_[j]_key` and `application_[i]_[j]_nonce`.
 
 ## Further Restrictions {#further-restrictions}
 
-During each epoch senders MUST NOT encrypt more messages than permitted by the security bounds of the AEAD scheme used.
+During each epoch senders MUST NOT encrypt more messages than permitted by the
+security bounds of the AEAD scheme used.
 
-Note that each change to the Group through a Handshake message will also set a new `application_secret`. Hence this change MUST be applied before encrypting any new Application message. This is required both to ensure that any users removed from the group can no longer receive messages and to (potentially) recover confidentiality and authenticity for future messages despite a past state compromise.
+Note that each change to the Group through a Handshake message will also set a
+new `application_secret`. Hence this change MUST be applied before encrypting
+any new Application message. This is required both to ensure that any users
+removed from the group can no longer receive messages and to (potentially)
+recover confidentiality and authenticity for future messages despite a past
+state compromise.
 
 [[ OPEN ISSUE: At the moment there is no contributivity of Application secrets
 chained from the initial one to the next generation of Epoch secret. While this
