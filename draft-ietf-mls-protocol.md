@@ -494,81 +494,6 @@ as follows:
 used for the Merkle trees in the Certificate Transparency protocol
 {{?I-D.ietf-trans-rfc6962-bis}}.)
 
-## Ratchet Tree Nodes and Tree Updates
-
-Ratchet trees are used for generating shared group secrets. In this
-section, we describe the structure of a ratchet tree.  A particular
-instance of a ratchet tree is based on the following cryptographic
-primitives, defined by the ciphersuite in use:
-
-* A Diffie-Hellman finite-field group or elliptic curve
-* A Key Derivation Function (KDF)
-* A Derive-Key-Pair function that produces an asymmetric keypair
-  from a node secret
-
-A ratchet tree is a left-balanced binary tree, in which each node
-contains up to three values:
-
-* A secret octet string (optional)
-* An asymmetric private key (optional)
-* An asymmetric public key
-
-The contents of the parent are based on the latest-updated child.
-Nodes in a tree are always updated along the "direct path" from a
-leaf to the root.  The generator of the update chooses a random
-secret value "path_secret[0]", and generates a sequence of "path
-secrets", one for each node from the leaf to the root.  That is,
-path_secret[0] is used for the leaf, path_secret[1] for its parent,
-and so on.  At each step, the path secret is used to derive a new
-secret value for the corresponding node, from which the node's key
-pair is derived.
-
-~~~~~
-path_secret[n] = HKDF-Expand-Label(path_secret[n-1],
-                                   "path", "", Hash.Length)
-node_secret[n] = HKDF-Expand-Label(path_secret[n],
-                                   "node", "", Hash.Length)
-node_priv[n], node_pub[n] = Derive-Key-Pair(node_secret[n])
-~~~~~
-
-For example, suppose there is a group with four participants:
-
-~~~~~
-      G
-     / \
-    /   \
-   /     \
-  E       F
- / \     / \
-A   B   C   D
-~~~~~
-
-If the first participant subsequently generates an update based on a
-secret X, then the sender would generate the following sequence of
-path secrets and node secrets:
-
-~~~~~
-    path_secret[2] ---> node_secret[2]
-         ^
-         |
-    path_secret[1] ---> node_secret[1]
-         ^
-         |
-X = path_secret[0] ---> node_secret[0]
-~~~~~
-
-After the update, the tree will have the following structure, where
-"ns[i]" represents the node_secret values generated as described
-above:
-
-~~~~~
-          ns[2]
-         /     \
-     ns[1]      F
-     /  \      / \
-ns[0]    B    C   D
-~~~~~
-
 ## Blank Nodes and Resolution
 
 A node in the tree may be _blank_, indicating that no value is
@@ -604,27 +529,78 @@ In this tree, we can see all three of the above rules in play:
 * The resolution of node 2 is the empty list []
 * The resolution of node 3 is the list [A, CD]
 
+## Ratchet Tree Nodes
+
+Ratchet trees are used for generating shared group secrets. In next
+two sections, we describe the structure and function of a ratchet
+tree. A particular instance of a ratchet tree is based on the
+following cryptographic primitives, defined by the ciphersuite in
+use:
+
+* A Diffie-Hellman finite-field group or elliptic curve
+* A Key Derivation Function (KDF)
+* A Derive-Key-Pair function that produces an asymmetric keypair
+  from a node secret
+
+A ratchet tree is a left-balanced binary tree, in which each node
+contains up to two values:
+
+* An asymmetric private key (optional)
+* An asymmetric public key
+
+The contents of the parent are based on the latest-updated child.
+This is explained in the next section.
+
 ## Ratchet Tree Updates
 
 In order to update the state of the group such as adding and
 removing clients, MLS messages are used to make changes to the
-group's ratchet tree.  The member proposing an update to the
-tree transmits a set of values for intermediate nodes in the
-direct path of a leaf. Other members in the group
-can use these nodes to update their view of the tree, aligning their
-copy of the tree to the sender's.
+group's ratchet tree. The member proposing an update to the tree
+transmits a set of values for intermediate nodes in the direct path
+of a leaf. Other members in the group can use these nodes to update
+their view of the tree, aligning their copy of the tree with the
+sender's.
+
+The generator of the update chooses a random secret value
+"path_secret[0]", and generates a sequence of "path secrets", one
+for each node from the leaf to the root. That is, path_secret[0] is
+used for the leaf, path_secret[1] for its parent, and so on. So if a
+member generates an update based on a secret X, they would generate
+the following sequence of path secrets and node secrets:
+
+~~~~~
+    path_secret[2] ---> node_secret[2]
+         ^
+         |
+    path_secret[1] ---> node_secret[1]
+         ^
+         |
+X = path_secret[0] ---> node_secret[0]
+~~~~~
+
+The path secret is used to derive a "node secret", which, in turn,
+is used to derive the corresponding node's keypair.
+
+~~~~~
+path_secret[n] = HKDF-Expand-Label(path_secret[n-1],
+                                   "path", "", Hash.Length)
+node_secret[n] = HKDF-Expand-Label(path_secret[n],
+                                   "node", "", Hash.Length)
+node_priv[n], node_pub[n] = Derive-Key-Pair(node_secret[n])
+~~~~~
 
 To perform an update for a leaf, the sender transmits the following
 information for each node in the direct path of the leaf:
 
 * The public key for the node
-* Zero or more encrypted copies of the node's parent secret value
+* Zero or more encrypted copies of the node's parent's path secret
 
-The secret value is encrypted for the subtree corresponding to the
-parent's non-updated child, i.e., the child on the copath of the leaf node.
-There is one encrypted secret for each public key in the resolution
-of the non-updated child.  In particular, for the leaf node, there
-are no encrypted secrets, since a leaf node has no children.
+Each path secret is encrypted for the subtree corresponding to the
+parent's non-updated child, i.e., the child on the copath of the
+leaf node. There is one encrypted path secret for each public key in
+the resolution of the non-updated child.  In particular, for the
+leaf node, there are no encrypted secrets, since a leaf node has no
+children.
 
 The recipient of an update processes it with the following steps:
 
@@ -633,10 +609,10 @@ The recipient of an update processes it with the following steps:
     is in the subtree of the non-updated child
   * Identify a node in the resolution of the copath node for
     which this node has a private key
-  * Decrypt the secret value for the parent of the copath node using
+  * Decrypt the path secret for the parent of the copath node using
     the private key from the resolution node
-  * Derive secret values for ancestors of that node using the KDF keyed with the
-    decrypted secret
+  * Derive secret values for that node and its ancestors using the
+    process defined above
 2. Merge the updated secrets into the tree
   * Replace the public keys for nodes on the direct path with the
     received public keys
@@ -649,22 +625,22 @@ For example, suppose we had the following tree:
       G
     /   \
    /     \
-  E       _
+  F       _
  / \     / \
 A   B   C   D
 ~~~~~
 
-If an update is made along the direct path B-E-G, then the following
-values will be transmitted (using pk(X) to represent the public key
-corresponding to the secret value X and E(K, S) to represent
-public-key encryption to the public key K of the secret value S):
+If member B makes an update, they will transmit the following values
+(using pk(X) to represent the public key of node X and E(K, ps[n])
+to represent public-key encryption where the target is the public
+key K and the payload is the n-th path secret in the direct path of
+the sender).
 
-| Public Key | Ciphertext(s)            |
-|:-----------|:-------------------------|
-| pk(G)      | E(pk(C), G), E(pk(D), G) |
-| pk(E)      | E(pk(A), E)              |
-| pk(B)      |                          |
-
+| Public Key | Ciphertext(s)                    |
+|:-----------|:---------------------------------|
+| pk(G)      | E(pk(C), ps[2]), E(pk(D), ps[2]) |
+| pk(F)      | E(pk(A), ps[1])                  |
+| pk(B)      |                                  |
 
 ## Cryptographic Objects
 
@@ -881,7 +857,7 @@ struct {
 
 struct {
     HPKEPublicKey public_key;
-    HPKECiphertext node_secrets<0..2^16-1>;
+    HPKECiphertext path_secrets<0..2^16-1>;
 } RatchetNode;
 
 struct {
