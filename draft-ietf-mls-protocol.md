@@ -642,6 +642,8 @@ The recipient of an update processes it with the following steps:
     received public keys
   * For nodes where an updated secret was computed in step 1,
     replace the secret value for the node with the updated value
+  * Members MUST verify that the received public keys agree with the
+    public keys derived from the new node_secret values
 
 For example, suppose we had the following tree:
 
