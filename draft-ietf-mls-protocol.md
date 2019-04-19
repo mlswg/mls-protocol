@@ -494,7 +494,7 @@ as follows:
 used for the Merkle trees in the Certificate Transparency protocol
 {{?I-D.ietf-trans-rfc6962-bis}}.)
 
-## Ratchet Tree Nodes
+## Ratchet Tree Nodes and Tree Updates
 
 Ratchet trees are used for generating shared group secrets. In this
 section, we describe the structure of a ratchet tree.  A particular
@@ -503,7 +503,8 @@ primitives, defined by the ciphersuite in use:
 
 * A Diffie-Hellman finite-field group or elliptic curve
 * A Key Derivation Function (KDF)
-* A Derive-Public-Key function that produces a public key from a private key
+* A Derive-Key-Pair function that produces an asymmetric keypair
+  from a node secret
 
 A ratchet tree is a left-balanced binary tree, in which each node
 contains up to four values:
@@ -513,41 +514,60 @@ contains up to four values:
 * An asymmetric public key
 * A credential (optional)
 
-The private key for a node is derived from its secret value using the KDF. The
-public key is then derived from the private key using the Derive-Public-Key
-function.
-
-The contents of a parent node are computed from one of
-its children as follows:
-
-~~~~~
-parent_secret = KDF(child_secret)
-parent_private = KDF(parent_secret)
-parent_public = Derive-Public-Key(parent_private)
-~~~~~
-
 The contents of the parent are based on the latest-updated child.
-For example, if participants with leaf secrets A, B, C, and D join a
-group in that order, then the resulting tree will have the following
-structure:
+Nodes in a tree are always updated along the "direct path" from a
+leaf to the root.  The generator of the update chooses a random
+secret value "path_secret[0]", and generates a sequence of "path
+secrets", one for each node from the leaf to the root.  That is,
+path_secret[0] is used for the leaf, path_secret[1] for its parent,
+and so on.  At each step, the path secret is used to derive a new
+secret value for the corresponding node, from which the node's key
+pair is derived.
 
 ~~~~~
-     KDF(KDF(D))
-    /           \
- KDF(B)        KDF(D)
- /  \           /  \
-A    B         C    D
+path_secret[n] = HKDF-Expand-Label(path_secret[n-1],
+                                   "path", "", Hash.Length)
+node_secret[n] = HKDF-Expand-Label(path_secret[n],
+                                   "node", "", Hash.Length)
+node_priv[n], node_pub[n] = Derive-Key-Pair(node_secret[n])
 ~~~~~
 
-If the first participant subsequently changes its leaf secret to be
-X, then the tree will have the following structure.
+For example, suppose there is a group with four participants:
 
 ~~~~~
-     KDF(KDF(X))
-    /           \
- KDF(X)         KDF(D)
- /  \            /  \
-X    B          C    D
+      G
+     / \
+    /   \
+   /     \
+  E       F
+ / \     / \
+A   B   C   D
+~~~~~
+
+If the first participant subsequently generates an update based on a
+secret X, then the sender would generate the following sequence of
+path secrets and node secrets:
+
+~~~~~
+    path_secret[2] ---> node_secret[2]
+         ^
+         |
+    path_secret[1] ---> node_secret[1]
+         ^
+         |
+X = path_secret[0] ---> node_secret[0]
+~~~~~
+
+After the update, the tree will have the following structure, where
+"ns[i]" represents the node_secret values generated as described
+above:
+
+~~~~~
+          ns[2]
+         /     \
+     ns[1]      F
+     /  \      / \
+ns[0]    B    C   D
 ~~~~~
 
 ## Blank Nodes and Resolution
@@ -705,9 +725,6 @@ Section 6 of {{RFC7748}}.  If implementers use an alternative
 implementation of these elliptic curves, they SHOULD perform the
 additional checks specified in Section 7 of {{RFC7748}}
 
-Encryption keys are derived from shared secrets by taking the first
-16 bytes of H(Z), where Z is the shared secret and H is SHA-256.
-
 ### P-256, SHA-256, and AES-128-GCM
 
 This ciphersuite uses the following primitives:
@@ -744,9 +761,6 @@ This process consists of three steps: (1) verify that the value is not the point
 infinity (O), (2) verify that for Y = (x, y) both integers are in the correct
 interval, (3) ensure that (x, y) is a correct solution to the elliptic curve equation.
 For these curves, implementers do not need to verify membership in the correct subgroup.
-
-Encryption keys are derived from shared secrets by taking the first
-16 bytes of H(Z), where Z is the shared secret and H is SHA-256.
 
 ## Credentials
 
@@ -939,7 +953,7 @@ Group keys are derived using the HKDF-Extract and HKDF-Expand
 functions as defined in {{!RFC5869}}, as well as the functions
 defined below:
 
-~~~~
+~~~~~
 HKDF-Expand-Label(Secret, Label, Context, Length) =
     HKDF-Expand(Secret, HkdfLabel, Length)
 
@@ -953,7 +967,7 @@ struct {
 
 Derive-Secret(Secret, Label, Context) =
     HKDF-Expand-Label(Secret, Label, Hash(Context), Hash.length)
-~~~~
+~~~~~
 
 The Hash function used by HKDF is the ciphersuite hash algorithm.
 Hash.length is its output length in bytes.  In the below diagram:
@@ -1020,8 +1034,11 @@ considered malformed.  The input to the signature computation
 comprises all of the fields except for the signature field.
 
 ~~~~~
+uint8 ProtocolVersion;
+
 struct {
     opaque user_init_key_id<0..255>;
+    ProtocolVersion supported_versions<0..255>;
     CipherSuite cipher_suites<0..255>;
     HPKEPublicKey init_keys<1..2^16-1>;
     Credential credential;
@@ -1174,6 +1191,7 @@ struct {
 } RatchetNode;
 
 struct {
+  ProtocolVersion version;
   opaque group_id<0..255>;
   uint32 epoch;
   optional<RatchetNode> tree<1..2^32-1>;
@@ -1217,9 +1235,22 @@ member:
 
 ~~~~~
 struct {
+    uint32 index;
     UserInitKey init_key;
+    opaque welcome_info_hash<0..255>;
 } Add;
 ~~~~~
+
+The `index` field indicates where in the tree the new member should
+be added.  The new member can be added at an existing, blank leaf
+node, or at the right edge of the tree.  In any case, the `index`
+value MUST satisfy `0 <= index <= n`, where `n` is the size of the
+group. The case `index = n` indicates an add at the right edge of
+the tree).  If `index < n` and the leaf node at position `index` is
+not blank, then the recipient MUST reject the Add as malformed.
+
+The `welcome_info_hash` field contains a hash of the WelcomeInfo
+object sent in a Welcome message to the new member.
 
 A group member generates this message by requesting a UserInitKey
 from the directory for the user to be added, and encoding it into an
@@ -1234,16 +1265,19 @@ messages together as follows:
 An existing member receiving a Add message first verifies
 the signature on the message,  then updates its state as follows:
 
-* Increment the size of the group
+* If the `index` value is equal to the size of the group, increment
+  the size of the group, and extend the tree and roster accordingly
 * Verify the signature on the included UserInitKey; if the signature
   verification fails, abort
-* Update the ratchet tree by adding a new leaf node for the new
-  member, containing the public key from the UserInitKey in the Add
+* Generate a WelcomeInfo object describing the state prior to the
+  add, and verify that its hash is the same as the value of the
+  `welcome_info_hash` field
+* Update the ratchet tree by setting to blank all nodes in the
+  direct path of the new node
+* Set the leaf node in the tree at position `index` to a new node
+  containing the public key from the UserInitKey in the Add
   corresponding to the ciphersuite in use, as well as the
   credential under which the UserInitKey was signed
-* Update the ratchet tree by setting to blank all nodes in the
-  direct path of the new node, except for the leaf (which remains
-  set to the new member's public key)
 
 The update secret resulting from this change is an all-zero octet
 string of length Hash.length.
@@ -1303,6 +1337,8 @@ state as follows:
 
 * Update the ratchet tree by replacing nodes in the direct
   path from the removed leaf using the information in the Remove message
+* Reduce the size of the roster and the tree until the rightmost
+  element roster element and leaf node are non-null
 * Update the ratchet tree by setting to blank all nodes in the
   direct path of the removed leaf
 
@@ -1785,9 +1821,9 @@ structures in memory, even for partial trees. The basic
 rule is that the high-order bits of parent and child nodes have the
 following relation (where `x` is an arbitrary bit string):
 
-~~~
+~~~~~
 parent=01x => left=00x, right=10x
-~~~
+~~~~~
 
 The following python code demonstrates the tree computations
 necessary for MLS.  Test vectors can be derived from the diagram
