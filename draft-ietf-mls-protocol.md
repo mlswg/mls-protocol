@@ -841,7 +841,7 @@ struct {
 ## Tree Hashes
 
 To allow group members to verify that they agree on the
-cryptographic state of the group, this section define a scheme for
+cryptographic state of the group, this section defines a scheme for
 generating a hash value that represents the contents of the group's
 ratchet tree and the members' credentials.
 
