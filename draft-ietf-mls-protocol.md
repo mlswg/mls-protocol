@@ -506,11 +506,12 @@ primitives, defined by the ciphersuite in use:
 * A Derive-Public-Key function that produces a public key from a private key
 
 A ratchet tree is a left-balanced binary tree, in which each node
-contains up to three values:
+contains up to four values:
 
 * A secret octet string (optional)
 * An asymmetric private key (optional)
 * An asymmetric public key
+* A credential (optional)
 
 The private key for a node is derived from its secret value using the KDF. The
 public key is then derived from the private key using the Derive-Public-Key
@@ -828,9 +829,9 @@ of a `ParentNodeHashInput` struct:
 ~~~~~
 struct {
   uint8 hash_type = 1;
-  opaque public_key_hash[Hash.length];
-  opaque left_hash[Hash.length];
-  opaque right_hash[Hash.length];
+  HPKEPublicKey public_key;
+  opaque left_hash<0..255>;
+  opaque right_hash<0..255>;
 } ParentNodeHashInput
 ~~~~~
 
@@ -909,11 +910,11 @@ struct {
 
 struct {
     HPKEPublicKey public_key;
-    HPKECiphertext node_secrets<0..2^16-1>;
-} RatchetNode;
+    HPKECiphertext encrypted_path_secrets<0..2^16-1>;
+} DirectPathNode;
 
 struct {
-    RatchetNode nodes<0..2^16-1>;
+    DirectPathNode nodes<0..2^16-1>;
 } DirectPath;
 ~~~~~
 
@@ -1087,20 +1088,22 @@ follows:
 2. Use the `operation` message to produce an updated, provisional
    GroupState object incorporating the proposed changes.
 
-3. Look up the public key for slot index `signer_index` from the
-   roster in the current GroupState object (before the update).
+3. Look up the credential for the leaf node at position
+   `signer_index` in the current ratchet tree (before the update).
 
 4. Use that public key to verify the `signature` field in the
-   Handshake message, with the updated GroupState object as input.
+   Handshake message, as described below.
 
-5. If the signature fails to verify, discard the updated GroupState
-   object and consider the Handshake message invalid.
+6. Use the `confirmation_key` for the provisional group state to
+   compute the `confirmation` MAC for this message, as described
+   below, and verify that it is the same as the `confirmation`
+   field.
 
-6. Use the `confirmation_key` for the new group state to
-   compute the `confirmation` MAC for this message, as described below,
-   and verify that it is the same as the `confirmation` field.
+6. If either the signature or the MAC fails to verify, discard the
+   provisional GroupState object and consider the Handshake message
+   invalid.
 
-7. If the the above checks are successful, consider the updated
+7. If the the above checks are successful, accept the provisional
    GroupState object as the current state of the group.
 
 The `signature` and `confirmation` values are computed over the
@@ -1123,7 +1126,7 @@ cover the same data as the one we cover with the GroupState. ]]
 
 HMAC {{!RFC2104}} uses the Hash algorithm for the ciphersuite in
 use.  Sign uses the signature algorithm indicated by the signer's
-credential in the roster.
+credential.
 
 [[ OPEN ISSUE: The Add and Remove operations create a "double-join"
 situation, where a member's leaf key is also known to another
@@ -1166,10 +1169,14 @@ corresponding to the indicated ciphersuite.
 
 ~~~~~
 struct {
+  HPKEPublicKey public_key;
+  optional<Credential> credential;
+} RatchetNode;
+
+struct {
   opaque group_id<0..255>;
   uint32 epoch;
-  optional<Credential> roster<1..2^32-1>;
-  optional<HPKEPublicKey> tree<1..2^32-1>;
+  optional<RatchetNode> tree<1..2^32-1>;
   opaque transcript_hash<0..255>;
   opaque init_secret<0..255>;
 } WelcomeInfo;
@@ -1180,6 +1187,10 @@ struct {
   HPKECiphertext encrypted_welcome_info;
 } Welcome;
 ~~~~~
+
+In the description of the tree as a list of nodes, the `credential`
+field for a node MUST be populated if and only if that node is a
+leaf in the tree.
 
 Note that the `init_secret` in the Welcome message is the
 `init_secret` at the output of the key schedule diagram in
@@ -1226,11 +1237,10 @@ the signature on the message,  then updates its state as follows:
 * Increment the size of the group
 * Verify the signature on the included UserInitKey; if the signature
   verification fails, abort
-* Append an entry to the roster containing the credential in the
-  included UserInitKey
 * Update the ratchet tree by adding a new leaf node for the new
   member, containing the public key from the UserInitKey in the Add
-  corresponding to the ciphersuite in use
+  corresponding to the ciphersuite in use, as well as the
+  credential under which the UserInitKey was signed
 * Update the ratchet tree by setting to blank all nodes in the
   direct path of the new node, except for the leaf (which remains
   set to the new member's public key)
@@ -1291,15 +1301,13 @@ A member receiving a Remove message first verifies
 the signature on the message.  The member then updates its
 state as follows:
 
-* Update the roster by setting the credential in the removed slot to
-  the null optional value
 * Update the ratchet tree by replacing nodes in the direct
   path from the removed leaf using the information in the Remove message
 * Update the ratchet tree by setting to blank all nodes in the
   direct path of the removed leaf
 
 The update secret resulting from this change is the secret for the
-root node of the ratchet tree after the second step (after the third
+root node of the ratchet tree after the first step (after the second
 step, the root is blank).
 
 # Sequencing of State Changes {#sequencing}
@@ -1485,7 +1493,8 @@ to be used for its own sending chain:
            application_secret_[sender]_[0]
 ~~~~~
 
-Note that [sender] represents the index of the member in the roster.
+Note that [sender] represents the index of the member among the
+leaves of the ratchet tree.
 
 Updating the Application secret and deriving the associated AEAD key and nonce can
 be summarized as the following Application key schedule where
