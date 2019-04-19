@@ -471,10 +471,10 @@ A   B   C   D   E   F   G
 0 1 2 3 4 5 6 7 8 9 0 1 2
 ~~~~~
 
-Each node in the tree is assigned an _index_, starting at zero and
+Each node in the tree is assigned an _node index_, starting at zero and
 running from left to right.  A node is a leaf node if and only if it
-has an even index.  The indices for the nodes in the above tree are
-as follows:
+has an even index.  The node indices for the nodes in the above tree
+are as follows:
 
 * 0 = A
 * 1 = AB
@@ -494,27 +494,101 @@ as follows:
 used for the Merkle trees in the Certificate Transparency protocol
 {{?I-D.ietf-trans-rfc6962-bis}}.)
 
-## Ratchet Tree Nodes and Tree Updates
+The leaves of the tree are indexed separately, using a _leaf index_,
+since the protocol messages only need to refer to leaves in the
+tree.  Like nodes, leaves are numbered left to right.  Note that
+given the above numbering, a node is a leaf node if and only if it
+has an even node index, and a leaf node's leaf index is half its
+node index.  The leaf indices in the above tree are as follows:
 
-Ratchet trees are used for generating shared group secrets. In this
-section, we describe the structure of a ratchet tree.  A particular
-instance of a ratchet tree is based on the following cryptographic
-primitives, defined by the ciphersuite in use:
+* 0 = A
+* 1 = B
+* 2 = C
+* 3 = D
+* 4 = E
+* 5 = F
+* 6 = G
+
+
+## Ratchet Tree Contents
+
+A particular instance of a ratchet tree is based on the following
+cryptographic primitives, defined by the ciphersuite in use:
 
 * A Diffie-Hellman finite-field group or elliptic curve
 * A Key Derivation Function (KDF)
 * A Derive-Key-Pair function that produces an asymmetric keypair
   from a node secret
 
-A ratchet tree is a left-balanced binary tree, in which each node
-contains up to four values:
+Each node in a ratchet tree contains up to four values:
 
 * A secret octet string (optional)
 * An asymmetric private key (optional)
 * An asymmetric public key
-* A credential (optional)
+* A credential (only for leaf nodes)
 
-The contents of the parent are based on the latest-updated child.
+The contents of a given node are set as described below.
+
+A node in the tree may also be _blank_, indicating that no value is
+present at that node.  The _resolution_ of a node is an ordered list
+of non-blank nodes that collectively cover all non-blank descendants
+of the node.  The nodes in a resolution are ordered according to
+their indices.
+
+* The resolution of a non-blank node is a one element list
+  containing the node itself
+* The resolution of a blank leaf node is the empty list
+* The resolution of a blank intermediate node is the result of
+  concatinating the resolution of its left child with the resolution
+  of its right child, in that order
+
+For example, consider the following tree, where the "\_" character
+represents a blank node:
+
+~~~~~
+      _
+    /   \
+   /     \
+  _       CD
+ / \     / \
+A   _   C   D
+
+0 1 2 3 4 5 6
+~~~~~
+
+In this tree, we can see all three of the above rules in play:
+
+* The resolution of node 5 is the list [CD]
+* The resolution of node 2 is the empty list []
+* The resolution of node 3 is the list [A, CD]
+
+
+## Views of a Ratchet Tree
+
+MLS assumes that each participant maintains a complete and
+up-to-date view of the public state of the group's ratchet tree,
+including the public keys for all nodes and the credentials
+associated with the leaf nodes.
+
+No participant in an MLS group has full knowledge of the secret
+state the group, the secret values and private keys associated ot
+the nodes.  Instead, each member is assigned to a leaf of the tree,
+which determines the set of secret state known to the member.  The
+credential stored at that leaf is one provided by the member.
+
+In particular, MLS maintains the members view of the tree in such a
+way as to maintain the _tree invariant_:
+
+    The secret value and private key for a node in the tree are
+    known to a member of the group if and only if that member's leaf
+    is a descendent of the node or equal to it.
+
+In other words, each member holds the secrets for nodes in its
+direct path, and no others.
+
+
+## Ratchet Tree Updates
+
 Nodes in a tree are always updated along the "direct path" from a
 leaf to the root.  The generator of the update chooses a random
 secret value "path_secret[0]", and generates a sequence of "path
@@ -570,44 +644,9 @@ above:
 ns[0]    B    C   D
 ~~~~~
 
-## Blank Nodes and Resolution
-
-A node in the tree may be _blank_, indicating that no value is
-present at that node.  The _resolution_ of a node is an ordered list
-of non-blank nodes that collectively cover all non-blank descendants
-of the node.  The nodes in a resolution are ordered according to
-their indices.
-
-* The resolution of a non-blank node is a one element list
-  containing the node itself
-* The resolution of a blank leaf node is the empty list
-* The resolution of a blank intermediate node is the result of
-  concatinating the resolution of its left child with the resolution
-  of its right child, in that order
-
-For example, consider the following tree, where the "\_" character
-represents a blank node:
-
-~~~~~
-      _
-    /   \
-   /     \
-  _       CD
- / \     / \
-A   _   C   D
-
-0 1 2 3 4 5 6
-~~~~~
-
-In this tree, we can see all three of the above rules in play:
-
-* The resolution of node 5 is the list [CD]
-* The resolution of node 2 is the empty list []
-* The resolution of node 3 is the list [A, CD]
-
 ## Ratchet Tree Updates
 
-In order to update the state of the group such as adding and
+In order to perform updates the state of the group such as adding and
 removing clients, MLS messages are used to make changes to the
 group's ratchet tree.  The member proposing an update to the
 tree transmits a set of values for intermediate nodes in the
