@@ -510,7 +510,7 @@ node index.  The leaf indices in the above tree are as follows:
 * 6 = G
 
 
-## Ratchet Tree Contents
+## Ratchet Tree Nodes
 
 A particular instance of a ratchet tree is based on the following
 cryptographic primitives, defined by the ciphersuite in use:
@@ -520,14 +520,14 @@ cryptographic primitives, defined by the ciphersuite in use:
 * A Derive-Key-Pair function that produces an asymmetric keypair
   from a node secret
 
-Each node in a ratchet tree contains up to four values:
+Each node in a ratchet tree contains up to three values:
 
-* A secret octet string (optional)
-* An asymmetric private key (optional)
-* An asymmetric public key
+* A private key (only within direct path, see below)
+* A public key
 * A credential (only for leaf nodes)
 
-The contents of a given node are set as described below.
+The conditions under which each of these values must or must not be
+present are laid out in {{views}}.
 
 A node in the tree may also be _blank_, indicating that no value is
 present at that node.  The _resolution_ of a node is an ordered list
@@ -562,8 +562,12 @@ In this tree, we can see all three of the above rules in play:
 * The resolution of node 2 is the empty list []
 * The resolution of node 3 is the list [A, CD]
 
+Every node, regardless of whether a node is blank or populated, has
+a corresponding _hash_ that summarizes the contents of the subtree
+below that node.  The rules for computing these hashes are described
+in {{tree-hashes}}.
 
-## Views of a Ratchet Tree
+## Views of a Ratchet Tree {#views}
 
 MLS assumes that each participant maintains a complete and
 up-to-date view of the public state of the group's ratchet tree,
@@ -571,7 +575,7 @@ including the public keys for all nodes and the credentials
 associated with the leaf nodes.
 
 No participant in an MLS group has full knowledge of the secret
-state the group, the secret values and private keys associated ot
+state of the tree, i.e., the secret values and private keys associated to
 the nodes.  Instead, each member is assigned to a leaf of the tree,
 which determines the set of secret state known to the member.  The
 credential stored at that leaf is one provided by the member.
@@ -618,7 +622,7 @@ For example, suppose there is a group with four participants:
 A   B   C   D
 ~~~~~
 
-If the first participant subsequently generates an update based on a
+If the second participant (B) subsequently generates an update based on a
 secret X, then the sender would generate the following sequence of
 path secrets and node secrets:
 
@@ -641,72 +645,66 @@ above:
          /     \
      ns[1]      F
      /  \      / \
-ns[0]    B    C   D
+    A   ns[0] C   D
 ~~~~~
 
-## Ratchet Tree Updates
 
-In order to perform updates the state of the group such as adding and
-removing clients, MLS messages are used to make changes to the
-group's ratchet tree.  The member proposing an update to the
-tree transmits a set of values for intermediate nodes in the
-direct path of a leaf. Other members in the group
-can use these nodes to update their view of the tree, aligning their
-copy of the tree to the sender's.
+## Synchronizing Views of the Tree
+
+The members of the group need to keep their views of the tree in
+sync and up to date.  When a client proposes a change to the tree
+(e.g., to add or remove a member), it transmits a set of values for
+intermediate nodes in the direct path of a leaf. Other members of
+the group can use these nodes to update their view of the tree,
+aligning their copy of the tree to the sender's.
 
 To perform an update for a leaf, the sender transmits the following
 information for each node in the direct path of the leaf:
 
 * The public key for the node
-* Zero or more encrypted copies of the node's parent secret value
+* Zero or more encrypted copies of the path secret corresponding to
+  the node's parent
 
-The secret value is encrypted for the subtree corresponding to the
+The path secret value for a given node is encrypted for the subtree corresponding to the
 parent's non-updated child, i.e., the child on the copath of the leaf node.
-There is one encrypted secret for each public key in the resolution
+There is one encrypted path secret for each public key in the resolution
 of the non-updated child.  In particular, for the leaf node, there
 are no encrypted secrets, since a leaf node has no children.
 
 The recipient of an update processes it with the following steps:
 
-1. Compute the updated secret values
+1. Compute the updated path secrets
   * Identify a node in the direct path for which the local member
     is in the subtree of the non-updated child
   * Identify a node in the resolution of the copath node for
     which this node has a private key
-  * Decrypt the secret value for the parent of the copath node using
+  * Decrypt the path secret for the parent of the copath node using
     the private key from the resolution node
-  * Derive secret values for ancestors of that node using the KDF keyed with the
-    decrypted secret
-2. Merge the updated secrets into the tree
+  * Derive path secrets for ancestors of that node using the
+    algorithm described above
+2. Merge the updated path secrets into the tree
   * Replace the public keys for nodes on the direct path with the
     received public keys
-  * For nodes where an updated secret was computed in step 1,
-    replace the secret value for the node with the updated value
+  * For nodes where an updated path secret was computed in step 1,
+    compute the corresponding node secret and node key pair and
+    replace the values stored at the node with the computed values.
 
-For example, suppose we had the following tree:
+For example, in order to communicate the example update described in
+the previous section, the sender would transmit the following
+values:
 
-~~~~~
-      G
-    /   \
-   /     \
-  E       _
- / \     / \
-A   B   C   D
-~~~~~
+| Public Key | Ciphertext(s)                    |
+|:-----------|:---------------------------------|
+| pk(ns[2])  | E(pk(C), ps[2]), E(pk(D), ps[2]) |
+| pk(ns[1])  | E(pk(A), ps[1])                  |
+| pk(ns[0])  |                                  |
 
-If an update is made along the direct path B-E-G, then the following
-values will be transmitted (using pk(X) to represent the public key
-corresponding to the secret value X and E(K, S) to represent
-public-key encryption to the public key K of the secret value S):
-
-| Public Key | Ciphertext(s)            |
-|:-----------|:-------------------------|
-| pk(G)      | E(pk(C), G), E(pk(D), G) |
-| pk(E)      | E(pk(A), E)              |
-| pk(B)      |                          |
+Here pk(X) represents the public key corresponding derived from the
+node secret X and E(K, S) to represent public-key encryption to the
+public key K of the path secret S.
 
 
-## Cryptographic Objects
+# Cryptographic Objects
 
 Each MLS session uses a single ciphersuite that specifies the
 following primitives to be used in group key computations:
@@ -840,7 +838,7 @@ struct {
 } Credential;
 ~~~~~
 
-## Commitment to the Group's Cryptographic State {#tree-hash}
+## Tree Hashes
 
 To allow group members to verify that they agree on the
 cryptographic state of the group, this section define a scheme for
@@ -915,7 +913,7 @@ The fields in this state have the following semantics:
 * The `epoch` field represents the current version of the group key.
 * The `tree_hash` field contains a commitment to the contents of the
   group's rachet tree and the credentials for the members of the
-  group, as described in {{tree-hash}}.
+  group, as described in {{tree-hashes}}.
 * The `transcript_hash` field contains the list of `GroupOperation`
   messages that led to this state.
 
@@ -1349,7 +1347,7 @@ the signature on the message, then updates its state as follows:
   path from the updated leaf using the information contained in the
   Update message
 
-The update secret resulting from this change is the secret for the
+The update secret resulting from this change is the path secret for the
 root node of the ratchet tree.
 
 ## Remove
@@ -1381,9 +1379,8 @@ state as follows:
 * Update the ratchet tree by setting to blank all nodes in the
   direct path of the removed leaf
 
-The update secret resulting from this change is the secret for the
-root node of the ratchet tree after the first step (after the second
-step, the root is blank).
+The update secret resulting from this change is the path secret
+computed for the root node of the ratchet tree in the first step.
 
 # Sequencing of State Changes {#sequencing}
 
