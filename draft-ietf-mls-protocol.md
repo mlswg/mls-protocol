@@ -1093,21 +1093,9 @@ Handshake.confirmation = HMAC(confirmation_key,
                               confirmation_data)
 ~~~~~
 
-[[ OPEN ISSUE: The confirmation data and signature data should probably
-cover the same data as the one we cover with the GroupState. ]]
-
 HMAC {{!RFC2104}} uses the Hash algorithm for the ciphersuite in
 use.  Sign uses the signature algorithm indicated by the signer's
 credential in the roster.
-
-[[ OPEN ISSUE: The Add and Remove operations create a "double-join"
-situation, where a member's leaf key is also known to another
-client.  When a member A is double-joined to another B,
-deleting A will not remove them from the conversation, since they
-will still hold the leaf key for B.  These situations are resolved
-by updates, but since operations are asynchronous and members
-may be offline for a long time, the group will need to be able to
-maintain security in the presence of double-joins. ]]
 
 [[ OPEN ISSUE: It is not possible for the recipient of an handshake
 message to verify that ratchet tree information in the message is
@@ -1504,7 +1492,7 @@ derivation:
 The Application context provided together with the previous Application secret
 is used to bind the Application messages with the next key and add some freshness.
 
-[[OPEN ISSUE: The HKDF context field is left empty for now.
+[[ OPEN ISSUE: The HKDF context field is left empty for now.
 A proper security study is needed to make sure that we do not need
 more information in the context to achieve the security goals.]]
 
