@@ -137,6 +137,14 @@ shared keys with costs that scale as the log of the group size.
 
 RFC EDITOR PLEASE DELETE THIS SECTION.
 
+draft-05
+
+- Convert from literal state to a commitment via the "tree hash" (\*)
+
+- Add credentials to the tree and remove the "roster" concept (\*)
+
+- Remove the secret field from tree node values
+
 draft-04
 
 - Updating the language to be similar to the Architecture document
