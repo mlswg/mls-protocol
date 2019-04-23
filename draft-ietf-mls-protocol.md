@@ -849,18 +849,20 @@ its GroupState.
 
 Different group operations will have different effects on the group
 state.  These effects are described in their respective subsections
-of {{handshake-messages}}.  The following rules apply to all
-operations:
-
-* The `group_id` field is constant
-* The `epoch` field increments by one for each GroupOperation that
-  is processed
-* The `transcript_hash` is updated by a GroupOperation message
-  `operation` in the following way:
+of {{handshake-messages}}.  For all operations, the `group_id` field
+is constant, and the `epoch` and `transcript_hash` fields are
+updated in the following way:
 
 ~~~~~
+epoch_[n] = HMAC(epoch_change_secret, epoch_[n-1])[:4]
 transcript_hash_[n] = Hash(transcript_hash_[n-1] || operation)
 ~~~~~
+
+Here "operation" represents the GroupOperation object that has
+caused the update, "Hash" represents the hash function for the
+ciphersuite in use, "HMAC" represents HMAC {{!RFC2104}} using that
+hash function, and "[:4]" represents truncation to the first four
+octets (thus producing a uint32 value).
 
 When a new one-member group is created (which requires no
 GroupOperation), the `transcript_hash` field is set to an all-zero
