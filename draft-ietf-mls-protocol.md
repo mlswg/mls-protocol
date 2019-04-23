@@ -1139,8 +1139,11 @@ struct {
     ContentType content_type;
 
     select (MLSPlaintext.type) {
-        case handshake:   GroupOperation;
-        case application: Application;
+        case handshake:
+            GroupOperation operation;
+
+        case application:
+            opaque application_data<0..2^32-1>;
     }
 
     opaque signature<0..2^16-1>;
@@ -1151,7 +1154,7 @@ struct {
     uint32 epoch;
     opaque sender_data_nonce<0..255>;
     opaque encrypted_sender_data<0..255>;
-    opaque cipertext<0..2^32-1>;
+    opaque ciphertext<0..2^32-1>;
 } MLSCiphertext;
 ~~~~~
 
