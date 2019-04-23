@@ -958,6 +958,9 @@ proceeds as shown in the following diagram:
                      V
 update_secret -> HKDF-Extract = epoch_secret
                      |
+                     +--> Derive-Secret(., "sender", GroupState_[n])
+                     |    = sender_data_secret
+                     |
                      +--> Derive-Secret(., "handshake", GroupState_[n])
                      |    = handshake_secret
                      |
@@ -973,6 +976,97 @@ update_secret -> HKDF-Extract = epoch_secret
                      V
                init_secret_[n]
 ~~~~~
+
+## Encryption Keys
+
+As described in {{message-framing}}, MLS encrypts three different
+types of information:
+
+* Handshake messages
+* Application messages
+* "Sender data" used to look up handshake/application encryption keys
+
+Each of these classes uses a separate set of keys, derived from the
+analogous secret in the main key schedule.  For sender data
+encryption, there is one key that everyone in the group usese to
+encrypt, derived from the sender_data_secret:
+
+~~~~~
+              sender_data_secret
+                     |
+                     +--> HKDF-Expand-Label(.,"key", "", key_length)
+                          = sender_data_key
+~~~~~
+
+For handshake and application messages, a chain of keys is derived
+for each sender, in order to allow for forward secrecy within an
+epoch.  A step in this chain (the second subscript) is called a
+"generation".
+
+~~~~~
+           application_secret
+                     |
+                     V
+           HKDF-Expand-Label(., "app sender", [sender], Hash.length)
+                     |
+                     V
+           application_secret_[sender]_[0]
+                     |
+                    ...
+                     |
+                     V
+           application_secret_[sender]_[N-1]
+                     |
+                     +--> HKDF-Expand-Label(.,"nonce", "", nonce_length)
+                     |    = write_nonce_[sender]_[N-1]
+                     |
+                     +--> HKDF-Expand-Label(.,"key", "", key_length)
+                     |    = write_key_[sender]_[N-1]
+                     V
+           HKDF-Expand-Label(., "app sender", [sender], Hash.length)
+                     |
+                     V
+           application_secret_[sender]_[N]
+~~~~~
+
+Here the value [sender] represents the index of the member that will
+use this key to send, encoded as a uint32.
+
+The same rules are used to generate a sequence of keys and nonces
+for handshake encryption (handshake_secret_[sender]_[N],
+hanshake_write_nonce_[sender]_[N-1], hanshake_write_nonce_[sender]_[N-1]).
+In the case of handshake encryption, only one generation of key
+should be necessary (since a handshake message by definition changes
+the epoch), but we allow for multiple generations to accommodate
+situations where a handshake message might fail.
+
+[[ OPEN ISSUE: The HKDF context field is left empty for now.
+A proper security study is needed to make sure that we do not need
+more information in the context to achieve the security goals.]]
+
+[[ OPEN ISSUE: At the moment there is no contributivity of Application secrets
+chained from the initial one to the next generation of Epoch secret. While this
+seems safe because cryptographic operations using the application secrets can't
+affect the group init_secret, it remains to be proven correct. ]]
+
+The following rules apply to the usage of the secrets, keys, and
+nonces derived above:
+
+- Senders MUST only use a given secret once and monotonically
+  increment the generation of their secret. This is important to
+  provide Forward Secrecy at the level of Application messages. An
+  attacker getting hold of a member specific Application Secret at
+  generation [N+1] will not be able to derive the member's
+  Application Secret [N] nor the associated AEAD key and nonce.
+
+- Receivers MUST delete an Application Secret once it has been used
+  to derive the corresponding AEAD key and nonce as well as the next
+  Application Secret. Receivers MAY keep the AEAD key and nonce
+  around for some reasonable period.
+
+- Receivers MUST delete AEAD keys and nonces once they have been used to
+  successfully decrypt a message.
+
 
 # Initialization Keys
 
@@ -1017,8 +1111,18 @@ struct {
 
 # Message Framing
 
-Handshake and Application messages outputs in MLS are generated
-using the following layout:
+Handshake and application messages use a common framing structure.
+This framing provides encryption to assure confidentiality within the
+group, as well as signing to authenticate the sender within the group.
+
+The two main structures involved are MLSPlaintext and MLSCiphertext.
+MLSCiphertext represents a signed and encrypted message, with
+protections for both the content of the message and related
+metadata.  MLSPlaintext represents a message that is only signed,
+and not encrypted.  Applications SHOULD use MLSCiphertext to encode
+both application and handshake messages, but MAY transmit handshake
+messages encoded as MLSPlaintext objects in cases where it is
+necessary for the delivery service to examine such messages.
 
 ~~~~~
 enum {
@@ -1029,111 +1133,132 @@ enum {
 } ContentType;
 
 struct {
-    opaque content[MLSPlaintext.length];
-    uint8 signature[MLSInnerPlaintext.sig_len];
-    uint16 sig_len;
-    uint8  marker = 1;
-    uint8  zero\_padding[length\_of\_padding];
-} MLSInnerPlaintext;
+    opaque group_id<0..255>;
+    uint32 epoch;
+    uint32 sender;
+    ContentType content_type;
 
-struct {
     select (MLSPlaintext.type) {
-        case handshake:   Handshake;
+        case handshake:   GroupOperation;
         case application: Application;
     }
+
+    opaque signature<0..2^16-1>;
 } MLSPlaintext;
 
 struct {
     opaque group_id<0..255>;
     uint32 epoch;
-    ContentType type;
     opaque sender_data_nonce<0..255>;
     opaque encrypted_sender_data<0..255>;
     opaque cipertext<0..2^32-1>;
 } MLSCiphertext;
 ~~~~~
 
-The group identifier `group_id`, the `epoch` and the content type of the
-message cannot be encrypted so that a recipient can determine which
-key needs to be used for decryption of the message, either an
-handshake encryption key or an application encryption key.
+The remainder of this section describe how an MLSPlaintext object is
+signed and converted to an MLSCiphertext object.  The overall
+process is as follows:
 
-The AEAD encryption of the `MLSPlaintext` ensures that the
-`MLSInnerPlaintext.content` is protected in confidentiality and
-integrity against an active network adversary that is not a member
-of the group.
-The `content` of an handshake or application message is signed then
-optionally padded before AEAD encryption to further protect against
-traffic analysis.
+* Sign the protected content and metadata
 
-Inside the `MLSInnerPlaintext`, the signature is computed over
-the `SignatureContent` which contains all the data and metadata
-being sent over the network. This is done to provide strong
-authentication of this information from the sender and prevent
-an adversarial member of the group to encrypt a message and aggregate
-a signature and the content it covers with arbitrary metadata
-(ie. changing the `type`, `sender` or `generation` field).
+* Encrypt the content using a content encryption key identified by
+  the following metadata:
+  * Group ID
+  * Epoch
+  * Sender index
+  * Content type
+  * Key generation
+
+* Encrypt the metadata used to identify the content encryption key
+  using a per-epoch key
+
+The content encryption process populates the ciphertext field of the
+MLSCiphertext object.  The metadata encryption step populates the
+sender_data_nonce and encrypted_sender_data fields.  The remaining
+fields are copied from the MLSPlaintext object directly.
+
+Decryption follows the same step in reverse: Decrypting the
+metadata, then decrypting the content, then verifying the content
+signature.
+
+
+## Content Signing and Encryption
+
+The signature field in an MLSPlaintext object is computed using the
+signing private key corresponding to the credential at the leaf in
+the tree indicated by the sender field.  The signature covers the
+MLSPlaintext object, with the signature field truncated.
+
+The ciphertext field of the MLSCiphertext object is produced by
+supplying the inputs described below to the AEAD function specified
+by the ciphersuite in use.  The plaintext input contains content and
+signature of the MLSPlaintext, plus optional padding.  These values
+are encoded in the following form:
+
+~~~~~
+struct {
+    opaque content[MLSPlaintext.length];
+    uint8 signature[MLSInnerPlaintext.sig_len];
+    uint16 sig_len;
+    uint8  marker = 1;
+    uint8  zero\_padding[length\_of\_padding];
+} MLSContentPlaintext;
+~~~~~
+
+The key and nonce used for this encryption depend on the content
+type of the message.  The sender chooses an ununsed generation from
+its (per-sender) handshake or application key chain for the current
+epoch, according to the type of message being encrypted.
+
+The Additional Authenticated Data (AAD) input to the encryption
+contains an object of the following form, with the values used to
+identify the key and nonce:
 
 ~~~~~
 struct {
     opaque group_id<0..255>;
     uint32 epoch;
-    ContentType type;
     uint32 sender;
+    ContentType content_type;
     uint32 generation;
-    opaque content<0..2^32-1>;
-} SignatureContent;
+} MLSContentAAD;
 ~~~~~
 
-In the case of an application message the `index` of the sender in
-the roster and the `generation` of the key is also needed
-in order to select the decryption key from the application key schedule.
-To protect this public metadata in confidentiality, the `SenderData`
-is AEAD encrypted under the handshake encryption key provided by the
-key schedule for the current epoch; a random nonce is used to
-avoid key and nonce reuse over a different content and the
-additionnal data is computed as follows:
+The ciphertext field of the MLSCiphertext object is produced by
+supplying these inputs to the AEAD function specified by the
+ciphersuite in use.
+
+
+## Metadata Encryption
+
+The encrypted_sender_data field is produced by
+supplying the inputs described below to the AEAD function specified
+by the ciphersuite in use.  The plaintext input contains the
+metadata used to locate the key, encoded as follows:
 
 ~~~~~
 struct {
     uint32 sender;
+    ContentType content_type;
     uint32 generation;
 } SenderData;
+~~~~~
 
+The AAD input to the encryption contains an object of the following
+form, with corresponding fields set to the same values as in the
+MLSContentAAD object:
+
+~~~~~
 struct {
     opaque group_id<0..255>;
     uint32 epoch;
-    ContentType type;
 } SenderDataAAD;
 ~~~~~
 
-Successful decryption of the `SenderData` ensures that
-the `group_id`, the `epoch` and the content type are authentic
-and have been sent by a member of the group. In the case where
-the content of the message is an handshake message, the values
-contained in the `SenderData` can be random values.
-
-~~~~~
-struct {
-    opaque group_id<0..255>;
-    uint32 epoch;
-    ContentType type;
-} SenderDataAAD;
-~~~~~
-
-To perform decryption of the `MLSCiphertext` the correct key
-and nonce must be fetched according to the content type and
-`SenderData` and used with the following additionnal data:
-
-~~~~~
-struct {
-    opaque group_id<0..255>;
-    uint32 epoch;
-    ContentType type;
-    uint32 sender;
-    uint32 generation;
-} CiphertextAAD;
-~~~~~
+The key used for the encryption is the group's sender_data_key.  The
+nonce is a randomly-generated value of the maximum nonce length
+allowed by the AEAD function in use.  The nonce is transmitted in
+the sender_data_nonce field of the MLSCiphertext object.
 
 
 # Handshake Messages
@@ -1562,92 +1687,6 @@ any new Application message. This is required for confidentiality reasons
 in order for members to avoid receiving messages from the group after leaving,
 being added to, or excluded from the group.
 
-## Application Key Schedule {#key-schedule-application}
-
-After computing the initial group Application Secret, which is derived from the
-main key schedule, each member creates an initial sender Application Secret
-to be used for its own sending chain:
-
-~~~~~
-           application_secret
-                     |
-                     V
-           HKDF-Expand-Label(., "app sender", [sender], Hash.length)
-                     |
-                     V
-           application_secret_[sender]_[0]
-~~~~~
-
-Note that [sender] represents the index of the member in the roster.
-
-Updating the Application secret and deriving the associated AEAD key and nonce can
-be summarized as the following Application key schedule where
-each member's Application secret chain looks as follows after the initial
-derivation:
-
-~~~~~
-           application_secret_[sender]_[N-1]
-                     |
-                     +--> HKDF-Expand-Label(.,"nonce", "", nonce_length)
-                     |    = write_nonce_[sender]_[N-1]
-                     |
-                     +--> HKDF-Expand-Label(.,"key", "", key_length)
-                     |    = write_key_[sender]_[N-1]
-                     V
-           HKDF-Expand-Label(., "app sender", [sender], Hash.length)
-                     |
-                     V
-           application_secret_[sender]_[N]
-~~~~~
-
-The Application context provided together with the previous Application secret
-is used to bind the Application messages with the next key and add some freshness.
-
-[[ OPEN ISSUE: The HKDF context field is left empty for now.
-A proper security study is needed to make sure that we do not need
-more information in the context to achieve the security goals.]]
-
-[[ OPEN ISSUE: At the moment there is no contributivity of Application secrets
-chained from the initial one to the next generation of Epoch secret. While this
-seems safe because cryptographic operations using the application secrets can't
-affect the group init_secret, it remains to be proven correct. ]]
-
-### Updating the Application Secret
-
-The following rules apply to an Application Secret:
-
-- Senders MUST only use the Application Secret once and monotonically
-  increment the generation of their secret. This is important to provide
-  Forward Secrecy at the level of Application messages. An attacker getting
-  hold of a member specific Application Secret at generation [N+1] will not be
-  able to derive the member's Application Secret [N] nor the associated
-  AEAD key and nonce.
-
-- Receivers MUST delete an Application Secret once it has been used to
-  derive the corresponding AEAD key and nonce as well as the next Application
-  Secret. Receivers MAY keep the AEAD key and nonce around for some
-  reasonable period.
-
-- Receivers MUST delete AEAD keys and nonces once they have been used to
-  successfully decrypt a message.
-
-### Application AEAD Key Calculation
-
-The Application AEAD keying material is generated from the following
-input values:
-
-- The Application Secret value;
-- A purpose value indicating the specific value being generated;
-- The length of the key being generated.
-
-Note, that because the identity of the participant using the keys to send data
-is included in the initial Application Secret, all successive updates to the
-Application secret will implicitly inherit this ownership.
-
-All the traffic keying material is recomputed whenever the underlying
-Application Secret changes.
-
-
 ## Message Encryption and Decryption
 
 The group members MUST use the AEAD algorithm associated with
@@ -1700,7 +1739,7 @@ without padding ? Should the base ciphertext block length be negotiated or
 is is reasonable to allow to leak a range for the length of the plaintext
 by allowing to send a variable number of ciphertext blocks ? ]]
 
-### Delayed and Reordered Application messages
+## Delayed and Reordered Application messages
 
 Since each Application message contains the group identifier, the epoch and a
 message counter, a client can receive messages out of order.
