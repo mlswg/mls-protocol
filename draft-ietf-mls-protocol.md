@@ -137,6 +137,10 @@ shared keys with costs that scale as the log of the group size.
 
 RFC EDITOR PLEASE DELETE THIS SECTION.
 
+draft-05
+
+- Make epoch numbers unpredictable
+
 draft-04
 
 - Updating the language to be similar to the Architecture document
@@ -956,6 +960,9 @@ update_secret -> HKDF-Extract = epoch_secret
                      |
                      +--> Derive-Secret(., "app", GroupState_[n])
                      |    = application_secret
+                     |
+                     +--> Derive-Secret(., "epoch", GroupState_[n])
+                     |    = epoch_change_secret
                      |
                      +--> Derive-Secret(., "confirm", GroupState_[n])
                      |    = confirmation_key
