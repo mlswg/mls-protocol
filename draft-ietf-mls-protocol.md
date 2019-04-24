@@ -858,7 +858,8 @@ is constant, and the `epoch` and `transcript_hash` fields are
 updated in the following way:
 
 ~~~~~
-epoch_[n] = HMAC(epoch_change_secret, epoch_[n-1])[:4]
+epoch_[n] = HKDF-Expand-Label(epoch_change_secret, "epoch change",
+                              epoch_[n-1], 4)
 transcript_hash_[n] = Hash(transcript_hash_[n-1] || operation)
 ~~~~~
 
