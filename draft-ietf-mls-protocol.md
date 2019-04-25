@@ -454,7 +454,7 @@ node in the tree when counting from the left, starting from 0.
 The _direct path_ of a root is the empty list, and of any other node
 is the concatenation of that node with the direct path of its
 parent. The _copath_ of a node is the list of siblings of nodes in its
-direct path, excluding the root. The _frontier_ of a tree is the list of heads of the maximal
+direct path. The _frontier_ of a tree is the list of heads of the maximal
 full subtrees of the tree, ordered from left to right.
 
 For example, in the below tree:
@@ -523,10 +523,11 @@ node index.  The leaf indices in the above tree are as follows:
 A particular instance of a ratchet tree is based on the following
 cryptographic primitives, defined by the ciphersuite in use:
 
-* A Diffie-Hellman finite-field group or elliptic curve
-* A Key Derivation Function (KDF)
-* A Derive-Key-Pair function that produces an asymmetric keypair
-  from a node secret
+* An HPKE ciphersuite, which specifies a Key Encapsulation Method
+  (KEM), an AEAD encryption scheme, and a hash function
+* A Derive-Key-Pair function that produces an asymmetric key pair
+  for the specified KEM from a symmetric secret, using the specified
+  hash function.
 
 Each node in a ratchet tree contains up to three values:
 
@@ -583,7 +584,7 @@ including the public keys for all nodes and the credentials
 associated with the leaf nodes.
 
 No participant in an MLS group has full knowledge of the secret
-state of the tree, i.e., the secret values and private keys associated to
+state of the tree, i.e., private keys associated to
 the nodes.  Instead, each member is assigned to a leaf of the tree,
 which determines the set of secret state known to the member.  The
 credential stored at that leaf is one provided by the member.
@@ -591,17 +592,17 @@ credential stored at that leaf is one provided by the member.
 In particular, MLS maintains the members view of the tree in such a
 way as to maintain the _tree invariant_:
 
-    The secret value and private key for a node in the tree are
-    known to a member of the group if and only if that member's leaf
-    is a descendent of the node or equal to it.
+    The private key for a node in the tree is known to a member of
+    the group if and only if that member's leaf is a descendant of
+    the node or equal to it.
 
-In other words, each member holds the secrets for nodes in its
+In other words, each member holds the private keys for nodes in its
 direct path, and no others.
 
 
 ## Ratchet Tree Updates
 
-Nodes in a tree are always updated along the "direct path" from a
+Nodes in a tree are always updated along the direct path from a
 leaf to the root.  The generator of the update chooses a random
 secret value "path_secret[0]", and generates a sequence of "path
 secrets", one for each node from the leaf to the root.  That is,
@@ -667,11 +668,12 @@ the group can use these nodes to update their view of the tree,
 aligning their copy of the tree to the sender's.
 
 To perform an update for a leaf, the sender transmits the following
-information for each node in the direct path of the leaf:
+information for each node in the direct path of the leaf, as well as
+the root:
 
 * The public key for the node
 * Zero or more encrypted copies of the path secret corresponding to
-  the node's parent
+  the node
 
 The path secret value for a given node is encrypted for the subtree corresponding to the
 parent's non-updated child, i.e., the child on the copath of the leaf node.
@@ -888,14 +890,14 @@ of a `ParentNodeHashInput` struct:
 ~~~~~
 struct {
   uint8 hash_type = 1;
-  HPKEPublicKey public_key;
+  optional<HPKEPublicKey> public_key;
   opaque left_hash<0..255>;
   opaque right_hash<0..255>;
 } ParentNodeHashInput
 ~~~~~
 
 The `left_hash` and `right_hash` fields hold the hashes of the
-node's left and right children, respectively.  The `public_key_hash`
+node's left and right children, respectively.  The `public_key`
 field holds the hash of the public key stored at this node,
 represented as an `optional<HPKEPublicKey>` object, which is null if
 and only if the node is blank.
@@ -1573,8 +1575,8 @@ to be used for its own sending chain:
            application_secret_[sender]_[0]
 ~~~~~
 
-Note that [sender] represents the index of the member among the
-leaves of the ratchet tree.
+Note that [sender] represents the represents the leaf index of the
+ratchet tree leaf assigned to the sender.
 
 Updating the Application secret and deriving the associated AEAD key and nonce can
 be summarized as the following Application key schedule where
