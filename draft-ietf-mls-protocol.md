@@ -637,7 +637,7 @@ The recipient of an update processes it with the following steps:
     the private key from the resolution node
   * Derive secret values for ancestors of that node using the KDF keyed with the
     decrypted secret
-  * The recipient MUST verify that the received public keys agree with the
+  * The recipient SHOULD verify that the received public keys agree with the
     public keys derived from the new node_secret values
 2. Merge the updated secrets into the tree
   * Replace the public keys for nodes on the direct path with the
