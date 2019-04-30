@@ -816,19 +816,19 @@ state of the group:
 
 ~~~~~
 struct {
-  uint8 present;
-  switch (present) {
-    case 0: struct{};
-    case 1: T value;
-  }
+    uint8 present;
+    switch (present) {
+        case 0: struct{};
+        case 1: T value;
+    }
 } optional<T>;
 
 struct {
-  opaque group_id<0..255>;
-  uint32 epoch;
-  optional<Credential> roster<1..2^32-1>;
-  optional<HPKEPublicKey> tree<1..2^32-1>;
-  opaque transcript_hash<0..255>;
+    opaque group_id<0..255>;
+    uint32 epoch;
+    optional<Credential> roster<1..2^32-1>;
+    optional<HPKEPublicKey> tree<1..2^32-1>;
+    opaque transcript_hash<0..255>;
 } GroupState;
 ~~~~~
 
@@ -1375,19 +1375,19 @@ corresponding to the indicated ciphersuite.
 
 ~~~~~
 struct {
-  ProtocolVersion version;
-  opaque group_id<0..255>;
-  uint32 epoch;
-  optional<Credential> roster<1..2^32-1>;
-  optional<HPKEPublicKey> tree<1..2^32-1>;
-  opaque transcript_hash<0..255>;
-  opaque init_secret<0..255>;
+    ProtocolVersion version;
+    opaque group_id<0..255>;
+    uint32 epoch;
+    optional<Credential> roster<1..2^32-1>;
+    optional<HPKEPublicKey> tree<1..2^32-1>;
+    opaque transcript_hash<0..255>;
+    opaque init_secret<0..255>;
 } WelcomeInfo;
 
 struct {
-  opaque user_init_key_id<0..255>;
-  CipherSuite cipher_suite;
-  HPKECiphertext encrypted_welcome_info;
+    opaque user_init_key_id<0..255>;
+    CipherSuite cipher_suite;
+    HPKECiphertext encrypted_welcome_info;
 } Welcome;
 ~~~~~
 
