@@ -985,10 +985,26 @@ types of information:
 * Handshake messages
 * Application messages
 
-For handshake and application messages, a chain of keys is derived
-for each sender, in order to allow for forward secrecy within an
-epoch.  A step in this chain (the second subscript) is called a
-"generation".
+Each handshake message is encrypted using a key and a nonce derived
+from the handshake_secret for a specific sender to prevent two senders
+to perform in the following way:
+
+~~~~~
+handshake_nonce_[sender] =
+    HKDF-Expand-Label(handshake_secret, "hs nonce", "[sender]", nonce_length)
+
+handshake_key_[sender] =
+    HKDF-Expand-Label(handshake_secret, "hs key", "[sender]", key_length)
+~~~~~
+
+Here the value [sender] represents the index of the member that will
+use this key to send, encoded as a uint32.
+
+
+For application messages, a chain of keys is derived for each sender
+in a similar fashion. This allows forward secrecy at the level of
+application messages within and out of an epoch.
+A step in this chain (the second subscript) is called a "generation".
 
 ~~~~~
            application_secret
@@ -1016,7 +1032,7 @@ epoch.  A step in this chain (the second subscript) is called a
            application_secret_[sender]_[N]
 ~~~~~
 
-Here the value [sender] represents the index of the member that will
+As before the value [sender] represents the index of the member that will
 use this key to send, encoded as a uint32.
 
 The same rules are used to generate a sequence of keys and nonces
