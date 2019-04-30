@@ -538,7 +538,7 @@ node_secret[n] = HKDF-Expand-Label(path_secret[n],
 node_priv[n], node_pub[n] = Derive-Key-Pair(node_secret[n])
 ~~~~~
 
-For example, suppose there is a group with four participants:
+For example, suppose there is a group with four members:
 
 ~~~~~
       G
@@ -550,7 +550,7 @@ For example, suppose there is a group with four participants:
 A   B   C   D
 ~~~~~
 
-If the first participant subsequently generates an update based on a
+If the first client subsequently generates an update based on a
 secret X, then the sender would generate the following sequence of
 path secrets and node secrets:
 
@@ -614,7 +614,7 @@ In this tree, we can see all three of the above rules in play:
 ## Ratchet Tree Updates
 
 In order to update the state of the group such as adding and
-removing clients, MLS messages are used to make changes to the
+removing clients, Handshake messages are used to make changes to the
 group's ratchet tree.  The member proposing an update to the
 tree transmits a set of values for intermediate nodes in the
 direct path of a leaf. Other members in the group
@@ -639,14 +639,14 @@ The recipient of an update processes it with the following steps:
   * Identify a node in the direct path for which the local member
     is in the subtree of the non-updated child
   * Identify a node in the resolution of the copath node for
-    which this node has a private key
+    which this recipient has a private key
   * Decrypt the secret value for the parent of the copath node using
     the private key from the resolution node
   * Derive secret values for ancestors of that node using the KDF keyed with the
     decrypted secret
-  * The recipient SHOULD verify that the received public keys agree with the
-    public keys derived from the new node_secret values
-2. Merge the updated secrets into the tree
+  * The recipient SHOULD verify that the received public keys are identical
+    to the public keys derived from the new node_secret values
+2. Merge the updated values into the tree
   * Replace the public keys for nodes on the direct path with the
     received public keys
   * For nodes where an updated secret was computed in step 1,
@@ -865,12 +865,8 @@ operations:
   `operation` in the following way:
 
 ~~~~~
-op_data = remove_confirmation(operation)
-transcript_hash_[n] = Hash(transcript_hash_[n-1] || op_data)
+transcript_hash_[n] = Hash(transcript_hash_[n-1] || operation)
 ~~~~~
-
-Here the "remove_confirmation" operation truncates the serialized
-GroupOperation to remove its confirmation field.
 
 When a new one-member group is created (which requires no
 GroupOperation), the `transcript_hash` field is set to an all-zero
