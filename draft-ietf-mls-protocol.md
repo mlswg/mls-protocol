@@ -1271,9 +1271,11 @@ root node of the ratchet tree.
 
 ## Remove
 
-A Remove message is sent by a group member to remove one or more
+A Remove message is sent by a group member to remove one or more other
 members from the group. A member MUST NOT use a Remove message to
-remove themselves from the group.
+remove themselves from the group. If a member of a group receives a
+Remove message where the removed index is equal to the signer index,
+the recipient MUST reject the message as malformed.
 
 ~~~~~
 struct {
@@ -1300,12 +1302,17 @@ state as follows:
   direct path of the removed leaf, and also setting the root node
   to blank
 * Truncate the roster such that the last roster element is
-  non-null (there must be at least one such an element, since a
-  pre-Add GroupState cannot process a Remove, a non-pre-Add GroupState
-  must have the current member in the roster, and self-removal is
-  prohibited)
+  non-null
 * Truncate the tree such that the rightmost non-blank leaf is the
-  last node of the tree (clearing the tree if no such leaf exists)
+  last node of the tree
+
+Note that there must be at least one non-null element in the roster.
+For if this GroupState is pre-Add, then it is incapable of processing
+a Remove operation at all. And if this GroupState is not pre-Add, then
+it must have the current member in the roster. Since self-removal is
+prohibited, at least 1 non-null element must remain. The same
+reasoning justifies the existence of a non-blank leaf in the ratchet
+tree.
 
 The update secret resulting from this change is the secret for the
 root node of the ratchet tree after the second step (after the third
