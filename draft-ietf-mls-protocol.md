@@ -196,7 +196,7 @@ draft-01
 - Removal of the UserAdd construct and split of GroupAdd into Add
   and Welcome messages (\*)
 
-- Initial proposal for authenticating Handshake messages by signing
+- Initial proposal for authenticating handshake messages by signing
   over group state and including group state in the key schedule (\*)
 
 - Added an appendix with example code for tree math
@@ -1082,15 +1082,14 @@ to perform in the following way:
 
 ~~~~~
 handshake_nonce_[sender] =
-    HKDF-Expand-Label(handshake_secret, "hs nonce", "[sender]", nonce_length)
+    HKDF-Expand-Label(handshake_secret, "hs nonce", [sender], nonce_length)
 
 handshake_key_[sender] =
-    HKDF-Expand-Label(handshake_secret, "hs key", "[sender]", key_length)
+    HKDF-Expand-Label(handshake_secret, "hs key", [sender], key_length)
 ~~~~~
 
 Here the value [sender] represents the index of the member that will
 use this key to send, encoded as a uint32.
-
 
 For application messages, a chain of keys is derived for each sender
 in a similar fashion. This allows forward secrecy at the level of
@@ -1101,7 +1100,7 @@ A step in this chain (the second subscript) is called a "generation".
            application_secret
                      |
                      V
-           HKDF-Expand-Label(., "sender", [sender], Hash.length)
+           HKDF-Expand-Label(., "app sender", [sender], Hash.length)
                      |
                      V
            application_secret_[sender]_[0]
@@ -1117,7 +1116,7 @@ A step in this chain (the second subscript) is called a "generation".
                      +--> HKDF-Expand-Label(.,"key", "", key_length)
                      |    = write_key_[sender]_[N-1]
                      V
-           HKDF-Expand-Label(., "sender", [sender], Hash.length)
+           HKDF-Expand-Label(., "app sender", [sender], Hash.length)
                      |
                      V
            application_secret_[sender]_[N]
@@ -1232,7 +1231,7 @@ struct {
     uint32 sender;
     ContentType content_type;
 
-    select (MLSPlaintext.type) {
+    select (MLSPlaintext.content_type) {
         case handshake:
             GroupOperation operation;
 
@@ -1256,7 +1255,7 @@ The remainder of this section describe how to compute the signature of
 an MLSPlaintext object and how to convert it to an MLSCiphertext object.
 The overall process is as follows:
 
-* Compute the metadata by concatenating the following information:
+* Gather the required metadata:
   * Group ID
   * Epoch
   * Sender index
@@ -1270,7 +1269,8 @@ The overall process is as follows:
 * Mask the sender_data used to identify the content encryption key
   using a per-epoch key
 
-The group identifier and epoch fields are copied from the MLSPlaintext object directly.
+The group identifier, epoch and content_type fields are copied from
+the MLSPlaintext object directly.
 The content encryption process populates the ciphertext field of the
 MLSCiphertext object.  The metadata encryption step populates the
 masked_sender_data field.
@@ -1295,7 +1295,7 @@ are encoded in the following form:
 
 ~~~~~
 struct {
-    opaque content[MLSPlaintext.length];
+    opaque content[length\_of\_content];
     uint8 signature[MLSInnerPlaintext.sig_len];
     uint16 sig_len;
     uint8  marker = 1;
@@ -1774,7 +1774,7 @@ all arrive at the following state:
 
 The primary purpose of the handshake protocol is to provide an authenticated
 group key exchange to clients. In order to protect Application messages
-sent among those members of a group, the Application secret provided by the Handshake
+sent among those members of a group, the Application secret provided by the handshake
 key schedule is used to derive encryption keys for the Message Protection Layer.
 
 Application messages MUST be protected with the Authenticated-Encryption
@@ -1798,7 +1798,7 @@ used to encrypt and decrypt future Application messages.
 In all cases, a participant MUST NOT encrypt more than expected by the security
 bounds of the AEAD scheme used.
 
-Note that each change to the Group through a Handshake message will cause
+Note that each change to the Group through a handshake message will cause
 a change of the group Secret. Hence this change MUST be applied before encrypting
 any new Application message. This is required for confidentiality reasons
 in order for members to avoid receiving messages from the group after leaving,
@@ -1850,7 +1850,7 @@ contained as meta-data of the Signature. A different solution could be to
 include the GroupState instead, if more information is required to achieve
 the security goals regarding cross-group attacks. ]]
 
-[[ OPEN ISSUE: Should the padding be required for Handshake messages ?
+[[ OPEN ISSUE: Should the padding be required for handshake messages ?
 Can an adversary get more than the position of a participant in the tree
 without padding ? Should the base ciphertext block length be negotiated or
 is is reasonable to allow to leak a range for the length of the plaintext
