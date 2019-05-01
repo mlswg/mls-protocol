@@ -1125,14 +1125,6 @@ A step in this chain (the second subscript) is called a "generation".
 As before the value [sender] represents the index of the member that will
 use this key to send, encoded as a uint32.
 
-The same rules are used to generate a sequence of keys and nonces
-for handshake encryption (handshake_secret_[sender]_[N],
-hanshake_write_nonce_[sender]_[N-1], hanshake_write_nonce_[sender]_[N-1]).
-In the case of handshake encryption, only one generation of key
-should be necessary (since a handshake message by definition changes
-the epoch), but we allow for multiple generations to accommodate
-situations where a handshake message might fail.
-
 [[ OPEN ISSUE: The HKDF context field is left empty for now.
 A proper security study is needed to make sure that we do not need
 more information in the context to achieve the security goals.]]
@@ -1304,7 +1296,7 @@ struct {
 ~~~~~
 
 The key and nonce used for this encryption depend on the content
-type of the message.  The sender chooses an handshake_key for an
+type of the message.  The sender chooses a handshake key for a
 handshake message or an ununsed generation from its (per-sender)
 application key chain for the current epoch, according to the type
 of message being encrypted.
