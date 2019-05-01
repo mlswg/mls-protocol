@@ -581,7 +581,7 @@ in {{tree-hashes}}.
 
 ## Views of a Ratchet Tree {#views}
 
-MLS assumes that each participant maintains a complete and
+We generally assume that each participant maintains a complete and
 up-to-date view of the public state of the group's ratchet tree,
 including the public keys for all nodes and the credentials
 associated with the leaf nodes.
@@ -592,8 +592,8 @@ the nodes.  Instead, each member is assigned to a leaf of the tree,
 which determines the set of secret state known to the member.  The
 credential stored at that leaf is one provided by the member.
 
-In particular, MLS maintains the members view of the tree in such a
-way as to maintain the _tree invariant_:
+In particular, MLS maintains the members' views of the tree in such
+a way as to maintain the _tree invariant_:
 
     The private key for a node in the tree is known to a member of
     the group if and only if that member's leaf is a descendant of
@@ -665,14 +665,15 @@ above:
 
 The members of the group need to keep their views of the tree in
 sync and up to date.  When a client proposes a change to the tree
-(e.g., to add or remove a member), it transmits a set of values for
-intermediate nodes in the direct path of a leaf. Other members of
-the group can use these nodes to update their view of the tree,
-aligning their copy of the tree to the sender's.
+(e.g., to add or remove a member), it transmits a set of public
+values for intermediate nodes in the direct path of a leaf. The
+other members of the group can use these public values to update
+their view of the tree, aligning their copy of the tree to the
+sender's.
 
-To perform an update for a leaf, the sender transmits the following
-information for each node in the direct path of the leaf, as well as
-the root:
+To perform an update for a leaf, the sender broadcasts to the group
+the following information for each node in the direct path of the
+leaf, as well as the root:
 
 * The public key for the node
 * Zero or more encrypted copies of the path secret corresponding to
@@ -714,9 +715,10 @@ values:
 | pk(ns[1])  | E(pk(A), ps[1])                  |
 | pk(ns[0])  |                                  |
 
-Here pk(X) represents the public key corresponding derived from the
-node secret X and E(K, S) to represent public-key encryption to the
-public key K of the path secret S.
+In this table, the value pk(X) represents the public key
+corresponding derived from the node secret X.  The value E(K, S)
+represents the public-key encryption of the path secret S to the
+public key K.
 
 
 # Cryptographic Objects
