@@ -1318,7 +1318,8 @@ struct {
     opaque group_id<0..255>;
     uint32 epoch;
     ContentType content_type;
-    opaque masked_sender_data[8];
+    uint32 sender;
+    uint32 generation;
 } MLSCiphertextAAD;
 ~~~~~
 
@@ -1363,8 +1364,9 @@ encrypted_sender_data = sender_data ^ mask
 
 This approach is similar to the one used for protection of header
 information in QUIC (see Section 5.4 of {{?I-D.ietf-quic-tls}}).
-Note that the masked_sender_data is authenticated by the AEAD
-while the sender data values are authenticated by the signature.
+Note that the sender data values are authenticated by the AEAD
+and the signature, while the masked_sender_data is not and only
+benefit from passive security because it depends on the ciphertext.
 
 
 # Handshake Messages
