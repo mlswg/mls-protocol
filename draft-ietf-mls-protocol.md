@@ -1141,9 +1141,11 @@ corresponding to the indicated ciphersuite.
 
 We say a "pre-Add" GroupState is a GroupState that was created from a
 a WelcomeInfo object and has not yet received the corresponding Add
-message. A pre-Add GroupState is incapable of processing an Update or
-Remove message. Thus, a member in a pre-Add state MAY ignore all
-Handshake messages not an Add operation.
+message. A pre-Add GroupState does not have a defined signer key and
+its roster does not have an entry with the public key corresponding to
+the member's identity key. Thus, a pre-Add GroupState is incapable of
+processing Update and Remove messages. A member in a pre-Add state MAY
+therefore ignore all Handshake messages that are not an Add operation.
 
 ~~~~~
 struct {
