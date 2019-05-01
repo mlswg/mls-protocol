@@ -1139,6 +1139,12 @@ for the new member using HPKE.  The recipient key pair for the
 HPKE encryption is the one included in the indicated UserInitKey,
 corresponding to the indicated ciphersuite.
 
+We say a "pre-Add" GroupState is a GroupState that was created from a
+a WelcomeInfo object and has not yet received the corresponding Add
+message. A pre-Add GroupState is incapable of processing an Update or
+Remove message. Thus, a member in a pre-Add state MAY ignore all
+Handshake messages not an Add operation.
+
 ~~~~~
 struct {
   ProtocolVersion version;
@@ -1264,7 +1270,8 @@ root node of the ratchet tree.
 ## Remove
 
 A Remove message is sent by a group member to remove one or more
-members from the group.
+members from the group. A member MUST NOT use a Remove message to
+remove themselves from the group.
 
 ~~~~~
 struct {
@@ -1291,7 +1298,10 @@ state as follows:
   direct path of the removed leaf, and also setting the root node
   to blank
 * Truncate the roster such that the last roster element is
-  non-null (clearing the roster if no such element exists)
+  non-null (there must be at least one such an element, since a
+  pre-Add GroupState cannot process a Remove, a non-pre-Add GroupState
+  must have the current member in the roster, and self-removal is
+  prohibited)
 * Truncate the tree such that the rightmost non-blank leaf is the
   last node of the tree (clearing the tree if no such leaf exists)
 
