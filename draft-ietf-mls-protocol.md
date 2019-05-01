@@ -332,25 +332,28 @@ A              B              C          Directory            Channel
 |<-------------------------------------------|                   |
 |state.init()  |              |              |                   |
 |              |              |              |                   |
-| Add(A->AB)   |              |              |                   |
-|------------+ |              |              |                   |
-|            | |              |              |                   |
-|<-----------+ |              |              |                   |
-|state.add(B)  |              |              |                   |
+|              |              |              | Add(A->AB)        |
+|--------------------------------------------------------------->|
 |              |              |              |                   |
 |  Welcome(B)  |              |              |                   |
 |------------->|state.init()  |              |                   |
+|              |              |              |                   |
+|              |              |              | Add(A->AB)        |
+|<---------------------------------------------------------------|
+|state.add(B)  |<------------------------------------------------|
+|              |state.join()  |              |                   |
+|              |              |              |                   |
 |              |              |              | Add(AB->ABC)      |
 |--------------------------------------------------------------->|
+|              |              |              |                   |
+|              |  Welcome(C)  |              |                   |
+|---------------------------->|state.init()  |                   |
 |              |              |              |                   |
 |              |              |              | Add(AB->ABC)      |
 |<---------------------------------------------------------------|
 |state.add(C)  |<------------------------------------------------|
 |              |state.add(C)  |<---------------------------------|
-|              |              |              |                   |
-|              |  Welcome(C)  |              |                   |
-|---------------------------->|state.init()  |                   |
-|              |              |              |                   |
+|              |              |state.join()  |                   |
 ~~~~~
 
 Subsequent additions of group members proceed in the same way.  Any
@@ -692,6 +695,8 @@ The recipient of an update processes it with the following steps:
     the private key from the resolution node
   * Derive path secrets for ancestors of that node using the
     algorithm described above
+  * The recipient SHOULD verify that the received public keys agree with the
+    public keys derived from the new node_secret values
 2. Merge the updated path secrets into the tree
   * Replace the public keys for nodes on the direct path with the
     received public keys
@@ -861,11 +866,11 @@ the hash of a `LeafNodeHashInput` object:
 
 ~~~~~
 struct {
-  uint8 present;
-  switch (present) {
-    case 0: struct{};
-    case 1: T value;
-  }
+    uint8 present;
+    switch (present) {
+        case 0: struct{};
+        case 1: T value;
+    }
 } optional<T>;
 
 struct {
@@ -1185,21 +1190,9 @@ Handshake.confirmation = HMAC(confirmation_key,
                               confirmation_data)
 ~~~~~
 
-[[ OPEN ISSUE: The confirmation data and signature data should probably
-cover the same data as the one we cover with the GroupState. ]]
-
 HMAC {{!RFC2104}} uses the Hash algorithm for the ciphersuite in
 use.  Sign uses the signature algorithm indicated by the signer's
 credential.
-
-[[ OPEN ISSUE: The Add and Remove operations create a "double-join"
-situation, where a member's leaf key is also known to another
-client.  When a member A is double-joined to another B,
-deleting A will not remove them from the conversation, since they
-will still hold the leaf key for B.  These situations are resolved
-by updates, but since operations are asynchronous and members
-may be offline for a long time, the group will need to be able to
-maintain security in the presence of double-joins. ]]
 
 [[ OPEN ISSUE: It is not possible for the recipient of an handshake
 message to verify that ratchet tree information in the message is
@@ -1247,9 +1240,9 @@ struct {
 } WelcomeInfo;
 
 struct {
-  opaque user_init_key_id<0..255>;
-  CipherSuite cipher_suite;
-  HPKECiphertext encrypted_welcome_info;
+    opaque user_init_key_id<0..255>;
+    CipherSuite cipher_suite;
+    HPKECiphertext encrypted_welcome_info;
 } Welcome;
 ~~~~~
 
@@ -1601,7 +1594,7 @@ derivation:
 The Application context provided together with the previous Application secret
 is used to bind the Application messages with the next key and add some freshness.
 
-[[OPEN ISSUE: The HKDF context field is left empty for now.
+[[ OPEN ISSUE: The HKDF context field is left empty for now.
 A proper security study is needed to make sure that we do not need
 more information in the context to achieve the security goals.]]
 
