@@ -222,6 +222,8 @@ Client:
   cryptographic keys it holds.  An application or user may use one client
   per device (keeping keys local to each device) or sync keys among
   a user's devices so that each user appears as a single client.
+  In the scenario where multiple devices share the cryptographic material
+  the client is referred to as a "virtual" client.
 
 Group:
 : A collection of clients with shared cryptographic state.
@@ -1815,7 +1817,7 @@ The group members MUST use the AEAD algorithm associated with
 the negotiated MLS ciphersuite to AEAD encrypt and decrypt their
 Application messages according to the Message Framing section.
 
-The group identifier and epoch allow a device to know which group secrets
+The group identifier and epoch allow a recipient to know which group secrets
 should be used and from which Epoch secret to start computing other secrets
 and keys. The `sender` identifier is used to derive the member's
 Application secret chain from the initial group Application secret.
