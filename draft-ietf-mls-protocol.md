@@ -1049,7 +1049,7 @@ proceeds as shown in the following diagram:
                      V
 update_secret -> HKDF-Extract = epoch_secret
                      |
-                     +--> Derive-Secret(., "sender", GroupState_[n])
+                     +--> Derive-Secret(., "sender data", GroupState_[n])
                      |    = sender_data_secret
                      |
                      +--> Derive-Secret(., "handshake", GroupState_[n])
@@ -1070,11 +1070,21 @@ update_secret -> HKDF-Extract = epoch_secret
 
 ## Encryption Keys
 
-As described in {{message-framing}}, MLS encrypts two different
+As described in {{message-framing}}, MLS encrypts three different
 types of information:
 
+* Metadata (sender information)
 * Handshake messages
 * Application messages
+
+The sender information used to look up the key for the content encryption
+is encrypted under AEAD using a random nonce and the sender_data_key
+which is derived from the sender_data_secret as follows:
+
+~~~~~
+sender_data_key =
+    HKDF-Expand-Label(sender_data_secret, "sd key", "", key_length)
+~~~~~
 
 Each handshake message is encrypted using a key and a nonce derived
 from the handshake_secret for a specific sender to prevent two senders
@@ -1238,7 +1248,8 @@ struct {
     opaque group_id<0..255>;
     uint32 epoch;
     ContentType content_type;
-    opaque masked_sender_data[8];
+    opaque sender_data_nonce<0..255>;
+    opaque encrypted_sender_data<0..255>;
     opaque ciphertext<0..2^32-1>;
 } MLSCiphertext;
 ~~~~~
@@ -1250,34 +1261,65 @@ The overall process is as follows:
 * Gather the required metadata:
   * Group ID
   * Epoch
+  * Content Type
+  * Nonce
   * Sender index
   * Key generation
 
 * Sign the protected content and metadata
 
+* Encrypt the sender information using the random nonce and the key
+  derived from the sender_data_secret
+
 * Encrypt the content using a content encryption key identified by
   the metadata
-
-* Mask the sender_data used to identify the content encryption key
-  using a per-epoch key
 
 The group identifier, epoch and content_type fields are copied from
 the MLSPlaintext object directly.
 The content encryption process populates the ciphertext field of the
 MLSCiphertext object.  The metadata encryption step populates the
-masked_sender_data field.
+encrypted_sender_data field.
 
-Decryption follows the same step in reverse: Unmasking the
-metadata, then decrypting the content, then verifying the content
-signature.
+Decryption follows the same step in reverse: Decrypt the
+metadata, then the message and verify the content signature.
 
+## Metadata Encryption
+
+The "sender data" used to look up the key for the content encryption
+is encrypted under AEAD using the MLSCiphertext sender_data_nonce and
+the sender_data_key from the keyschedule. It is encoded as an
+object of the following form:
+
+~~~~~
+struct {
+    uint32 sender;
+    uint32 generation;
+} MLSSenderData;
+~~~~~
+
+The Additional Authenticated Data (AAD) for the SenderData ciphertext
+computation is its prefix in the MLSCiphertext, namely:
+
+~~~~~
+struct {
+    opaque group_id<0..255>;
+    uint32 epoch;
+    ContentType content_type;
+    opaque sender_data_nonce<0..255>;
+} MLSCiphertextSenderDataAAD;
+~~~~~
+
+When parsing a SenderData struct as part of message decryption, the
+recipient MUST verify that the sender field represents an occupied
+leaf in the ratchet tree.  In particular, the sender index value
+MUST be less than the number of leaves in the tree.
 
 ## Content Signing and Encryption
 
 The signature field in an MLSPlaintext object is computed using the
 signing private key corresponding to the credential at the leaf in
 the tree indicated by the sender field.  The signature covers the
-MLSPlaintext object, with the signature field truncated.
+metadata and message content, with the signature field truncated.
 
 The ciphertext field of the MLSCiphertext object is produced by
 supplying the inputs described below to the AEAD function specified
@@ -1295,8 +1337,8 @@ struct {
 } MLSCiphertextContent;
 ~~~~~
 
-The key and nonce used for this encryption depend on the content
-type of the message.  The sender chooses a handshake key for a
+The key and nonce used for the encryption of the message depend on the content
+type of the message.  The sender chooses the handshake key for a
 handshake message or an ununsed generation from its (per-sender)
 application key chain for the current epoch, according to the type
 of message being encrypted.
@@ -1310,56 +1352,14 @@ struct {
     opaque group_id<0..255>;
     uint32 epoch;
     ContentType content_type;
-    uint32 sender;
-    uint32 generation;
-} MLSCiphertextAAD;
+    opaque sender_data_nonce<0..255>;
+    opaque encrypted_sender_data<0..255>;
+} MLSCiphertextContentAAD;
 ~~~~~
 
 The ciphertext field of the MLSCiphertext object is produced by
 supplying these inputs to the AEAD function specified by the
 ciphersuite in use.
-
-
-## Metadata Encryption
-
-The "sender data" used to look up the key for the content encryption
-is protected by XORing it with a mask derived from the epoch secret
-and the content ciphertext.  The sender data is encoded as an
-object of the following form:
-
-~~~~~
-struct {
-    uint32 sender;
-    uint32 generation;
-} SenderData;
-~~~~~
-
-When parsing a SenderData struct as part of message decryption, the
-recipient MUST verify that the sender field represents an occupied
-leaf in the ratchet tree.  In particular, the sender index value
-MUST be less than the number of leaves in the tree.
-
-Note that the serialization of this struct is always eight octets
-long.  The mask is generated by combining the sender_data_secret for
-the current epoch with the first Hash.length octets of the
-ciphertext.  If the ciphertext is shorter than Hash.length octets,
-then the whole ciphertext is used.  The first eight octets of the
-derived mask are XORed with the serialized sender data, and the
-result is the value of the masked_sender_data field in the
-MLSCiphertext object.
-
-~~~~~
-sample = ciphertext[:Hash.length]
-mask = HMAC(sender_data_secret, sample)[:8]
-encrypted_sender_data = sender_data ^ mask
-~~~~~
-
-This approach is similar to the one used for protection of header
-information in QUIC (see Section 5.4 of {{?I-D.ietf-quic-tls}}).
-Note that the sender data values are authenticated by the AEAD
-and the signature, while the masked_sender_data is not and only
-benefit from passive security because it depends on the ciphertext.
-
 
 # Handshake Messages
 
