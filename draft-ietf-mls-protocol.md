@@ -1139,14 +1139,6 @@ for the new member using HPKE.  The recipient key pair for the
 HPKE encryption is the one included in the indicated UserInitKey,
 corresponding to the indicated ciphersuite.
 
-We say a "pre-Add" GroupState is a GroupState that was created from a
-a WelcomeInfo object and has not yet received the corresponding Add
-message. A pre-Add GroupState does not have a defined signer key and
-its roster does not have an entry with the public key corresponding to
-the member's identity key. Thus, a pre-Add GroupState is incapable of
-processing Update and Remove messages. A member in a pre-Add state MAY
-therefore ignore all Handshake messages that are not an Add operation.
-
 ~~~~~
 struct {
   ProtocolVersion version;
@@ -1306,13 +1298,11 @@ state as follows:
 * Truncate the tree such that the rightmost non-blank leaf is the
   last node of the tree
 
-Note that there must be at least one non-null element in the roster.
-For if this GroupState is pre-Add, then it is incapable of processing
-a Remove operation at all. And if this GroupState is not pre-Add, then
-it must have the current member in the roster. Since self-removal is
-prohibited, at least 1 non-null element must remain. The same
-reasoning justifies the existence of a non-blank leaf in the ratchet
-tree.
+Note that there must be at least one non-null element in the roster,
+since any valid GroupState must have the current member in the roster
+and self-removal is prohibited. Thus, at least 1 non-null element must
+remain. The same reasoning justifies the existence of a non-blank leaf
+in the ratchet tree.
 
 The update secret resulting from this change is the secret for the
 root node of the ratchet tree after the second step (after the third
