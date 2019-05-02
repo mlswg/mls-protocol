@@ -1553,7 +1553,7 @@ An existing member receiving a Add message first verifies
 the signature on the message,  then updates its state as follows:
 
 * If the `index` value is equal to the size of the group, increment
-  the size of the group, and extend the tree and roster accordingly
+  the size of the group, and extend the tree accordingly
 * Verify the signature on the included UserInitKey; if the signature
   verification fails, abort
 * Generate a WelcomeInfo object describing the state prior to the
@@ -1630,14 +1630,14 @@ state as follows:
 * Update the ratchet tree by setting to blank all nodes in the
   direct path of the removed leaf, and also setting the root node
   to blank
-* Truncate the roster such that the last roster element is
+* Truncate the tree such that the last tree element is
   non-null
 * Truncate the tree such that the rightmost non-blank leaf is the
   last node of the tree
 
 Note that, in step 4, there must be at least one non-null element in
-the roster, since any valid GroupState must have the current member in
-the roster and self-removal is prohibited. The same reasoning
+the tree, since any valid GroupState must have the current member in
+the tree and self-removal is prohibited. The same reasoning
 justifies the existence of a non-blank leaf in the ratchet tree in
 step 5.
 
