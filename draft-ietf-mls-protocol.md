@@ -1630,8 +1630,6 @@ state as follows:
 * Update the ratchet tree by setting to blank all nodes in the
   direct path of the removed leaf, and also setting the root node
   to blank
-* Truncate the tree such that the last tree element is
-  non-null
 * Truncate the tree such that the rightmost non-blank leaf is the
   last node of the tree
 
