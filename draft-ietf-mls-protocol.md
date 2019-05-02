@@ -1400,6 +1400,7 @@ struct {
         case update:    Update;
         case remove:    Remove;
     };
+    opaque confirmation<0..255>;
 } GroupOperation;
 ~~~~~
 
