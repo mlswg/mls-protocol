@@ -1566,7 +1566,7 @@ the signature on the message,  then updates its state as follows:
   corresponding to the ciphersuite in use, as well as the
   credential under which the UserInitKey was signed
 
-The update secret resulting from this change is an all-zero octet
+The `update_secret` resulting from this change is an all-zero octet
 string of length Hash.length.
 
 After processing an Add message, the new member SHOULD send an Update
@@ -1597,8 +1597,8 @@ the signature on the message, then updates its state as follows:
   path from the updated leaf using the information contained in the
   Update message
 
-The update secret resulting from this change is the path secret for the
-root node of the ratchet tree.
+The `update_secret` resulting from this change is the `path_secret[i+1]`
+derived from the `path_secret[i]` associated to the root node.
 
 ## Remove
 
@@ -1639,8 +1639,8 @@ the tree and self-removal is prohibited. The same reasoning
 justifies the existence of a non-blank leaf in the ratchet tree in
 step 5.
 
-The update secret resulting from this change is the path secret
-computed for the root node of the ratchet tree in the first step.
+The `update_secret` resulting from this change is the `path_secret[i+1]`
+derived from the `path_secret[i]` associated to the root node.
 
 # Sequencing of State Changes {#sequencing}
 
@@ -1687,7 +1687,6 @@ are received.  Generation of handshake messages MUST be stateless,
 since the endpoint cannot know at that time whether the change
 implied by the handshake message will succeed or not.
 
-
 ## Server-Enforced Ordering
 
 With this approach, the delivery service ensures that incoming messages are added to an
@@ -1719,7 +1718,6 @@ will wait for the winner to send their update before retrying new proposals.
 While this seems safer as it doesn't rely on the server, it is more complex and
 harder to implement. It also could cause starvation for some clients if they keep
 failing to get their proposal accepted.
-
 
 ## Merging Updates
 
