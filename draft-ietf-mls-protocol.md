@@ -135,6 +135,10 @@ shared keys with costs that scale as the log of the group size.
 
 RFC EDITOR PLEASE DELETE THIS SECTION.
 
+draft-06
+
+- Reorder blanking and update in the Remove operation (\*)
+
 draft-05
 
 - Common framing for handshake and application messages (\*)
@@ -1617,27 +1621,26 @@ struct {
 
 The sender of a Remove message generates it as as follows:
 
+* Blank the path from the removed leaf to the root node
 * Generate a fresh leaf key pair
 * Compute its direct path in the current ratchet tree, starting from
-  the removed leaf
+  the sender's leaf
 
 A member receiving a Remove message first verifies
 the signature on the message.  The member then updates its
 state as follows:
 
-* Update the ratchet tree by replacing nodes in the direct
-  path from the removed leaf using the information in the Remove message
 * Update the ratchet tree by setting to blank all nodes in the
   direct path of the removed leaf, and also setting the root node
   to blank
+* Update the ratchet tree by replacing nodes in the direct
+  path from the sender's leaf using the information in the Remove message
 * Truncate the tree such that the rightmost non-blank leaf is the
   last node of the tree
 
-Note that, in step 4, there must be at least one non-null element in
+Note that there must be at least one non-null element in
 the tree, since any valid GroupState must have the current member in
-the tree and self-removal is prohibited. The same reasoning
-justifies the existence of a non-blank leaf in the ratchet tree in
-step 5.
+the tree and self-removal is prohibited
 
 The update secret resulting from this change is the path secret
 computed for the root node of the ratchet tree in the first step.
