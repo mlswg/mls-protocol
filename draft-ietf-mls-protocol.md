@@ -1330,7 +1330,7 @@ are encoded in the following form:
 ~~~~~
 struct {
     opaque content[length\_of\_content];
-    uint8 signature[MLSInnerPlaintext.sig_len];
+    uint8 signature[MLSCiphertextContent.sig_len];
     uint16 sig_len;
     uint8  marker = 1;
     uint8  zero\_padding[length\_of\_padding];
