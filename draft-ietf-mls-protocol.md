@@ -135,6 +135,13 @@ shared keys with costs that scale as the log of the group size.
 
 RFC EDITOR PLEASE DELETE THIS SECTION.
 
+draft-06
+
+- Resolve the circular dependency that draft-05 introduced in the
+  confirmation MAC calculation (\*)
+
+- Cover the entire MLSPlaintext in the transcript hash (\*)
+
 draft-05
 
 - Common framing for handshake and application messages (\*)
