@@ -1625,7 +1625,10 @@ struct {
 
 The sender of a Remove message generates it as as follows:
 
-* Blank the path from the removed leaf to the root node
+* Blank the path from the removed leaf to the root node for
+  the time of the computation
+* Truncate the tree such that the rightmost non-blank leaf is the
+  last node of the tree, for the time of the computation
 * Generate a fresh leaf key pair
 * Compute its direct path in the current ratchet tree, starting from
   the sender's leaf
@@ -1637,10 +1640,10 @@ state as follows:
 * Update the ratchet tree by setting to blank all nodes in the
   direct path of the removed leaf, and also setting the root node
   to blank
-* Update the ratchet tree by replacing nodes in the direct
-  path from the sender's leaf using the information in the Remove message
 * Truncate the tree such that the rightmost non-blank leaf is the
   last node of the tree
+* Update the ratchet tree by replacing nodes in the direct
+  path from the sender's leaf using the information in the Remove message
 
 Note that there must be at least one non-null element in
 the tree, since any valid GroupContext must have the current member in
