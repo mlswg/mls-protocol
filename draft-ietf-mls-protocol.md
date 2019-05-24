@@ -1472,9 +1472,9 @@ The creator of the group constructs an Init message as follows:
 * Fetch a UserInitKey for each member (including the creator)
 * Identify a protocol version and cipher suite that is supported by
   all proposed members.
-* Construct a ratchet tree with its first leaf blank, the remaining
-  leaves populated with the public keys and credentials from the
-  UserInitKeys of the members, and all other nodes blank.
+* Construct a ratchet tree with its leaves populated with the public
+  keys and credentials from the UserInitKeys of the members, and all
+  other nodes blank.
 * Generate a fresh leaf key pair for the first leaf
 * Compute its direct path in this ratchet tree
 
