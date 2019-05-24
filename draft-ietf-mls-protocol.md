@@ -1452,11 +1452,43 @@ message with invalid values for public keys in the ratchet tree. ]]
 
 ## Init
 
-[[ OPEN ISSUE: Direct initialization is currently undefined.  A client can
-create a group by initializing its own state to reflect a group
-including only itself, then adding the initial members.  This
-has computation and communication complexity O(N log N) instead of
-the O(N) complexity of direct initialization. ]]
+A group can always be created by initializing a one-member group and
+using adding members individually.  For cases where the initial list
+of members is known, the Init message allows a group to be created
+more efficiently.
+
+~~~~~
+struct {
+  opaque group_id<0..255>;
+  ProtocolVersion version;
+  CipherSuite cipher_suite;
+  UserInitKey members<0..2^32-1>;
+  DirectPath path;
+} Init;
+~~~~~
+
+The creator of the group constructs an Init message as follows:
+
+* Fetch a UserInitKey for each member (including the creator)
+* Identify a protocol version and cipher suite that is supported by
+  all proposed members.
+* Construct a ratchet tree with its first leaf blank, the remaining
+  leaves populated with the public keys and credentials from the
+  UserInitKeys of the members, and all other nodes blank.
+* Generate a fresh leaf key pair for the first leaf
+* Compute its direct path in this ratchet tree
+
+Each member of the newly-created group initializes its state from
+the Init message as follows:
+
+* Note the group ID, protocol version, and cipher suite in use
+* Construct a ratchet tree as above
+* Update the cached ratchet tree by replacing nodes in the direct
+  path from the first leaf using the direct path
+
+The update secret for this interaction, used with an all-zero init
+secret to generate the first epoch secret, is the `path_secret[i+1]`
+derived from the `path_secret[i]` associated to the root node.
 
 ## Add
 
