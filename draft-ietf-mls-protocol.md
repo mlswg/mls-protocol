@@ -141,6 +141,8 @@ draft-06
 
 - Rename the GroupState structure to GroupContext (\*)
 
+- Rename UserInitKey to ClientInitKey
+
 draft-05
 
 - Common framing for handshake and application messages (\*)
@@ -241,7 +243,7 @@ Member:
 Initialization Key:
 : A short-lived HPKE key pair used to introduce a new
   client to a group.  Initialization keys are published for
-  each client (UserInitKey).
+  each client (ClientInitKey).
 
 Leaf Key:
 : A secret that represent a member's contribution to the group secret
@@ -304,27 +306,27 @@ There are four major operations in the lifecycle of a group:
 * Updating the leaf secret of a member;
 * Removing a member.
 
-Before the initialization of a group, clients publish UserInitKey
+Before the initialization of a group, clients publish ClientInitKey
 objects to a directory provided to the Messaging Service.
 
 ~~~~~
-                                                          Group
-A              B              C          Directory       Channel
-|              |              |              |              |
-| UserInitKeyA |              |              |              |
-|------------------------------------------->|              |
-|              |              |              |              |
-|              | UserInitKeyB |              |              |
-|              |---------------------------->|              |
-|              |              |              |              |
-|              |              | UserInitKeyC |              |
-|              |              |------------->|              |
-|              |              |              |              |
+                                                               Group
+A                B                C            Directory       Channel
+|                |                |                |              |
+| ClientInitKeyA |                |                |              |
+|------------------------------------------------->|              |
+|                |                |                |              |
+|                | ClientInitKeyB |                |              |
+|                |-------------------------------->|              |
+|                |                |                |              |
+|                |                | ClientInitKeyC |              |
+|                |                |--------------->|              |
+|                |                |                |              |
 ~~~~~
 
 When a client A wants to establish a group with B and C, it
-first downloads UserInitKeys for B and C.  It then initializes a group state
-containing only itself and uses the UserInitKeys to compute Welcome and Add messages
+first downloads ClientInitKeys for B and C.  It then initializes a group state
+containing only itself and uses the ClientInitKeys to compute Welcome and Add messages
 to add B and C, in a sequence chosen by A.  The Welcome messages are
 sent directly to the new members (there is no need to send them to
 the group).
@@ -338,7 +340,7 @@ back from the server does it update its state to reflect their addition.
                                                                Group
 A              B              C          Directory            Channel
 |              |              |              |                   |
-|         UserInitKeyB, UserInitKeyC         |                   |
+|         ClientInitKeyB, ClientInitKeyC     |                   |
 |<-------------------------------------------|                   |
 |state.init()  |              |              |                   |
 |              |              |              |                   |
@@ -367,7 +369,7 @@ A              B              C          Directory            Channel
 ~~~~~
 
 Subsequent additions of group members proceed in the same way.  Any
-member of the group can download an UserInitKey for a new client
+member of the group can download an ClientInitKey for a new client
 and broadcast an Add message that the current group can use to update
 their state and the new client can use to initialize its state.
 
@@ -1175,19 +1177,19 @@ nonces derived above:
 
 In order to facilitate asynchronous addition of clients to a
 group, it is possible to pre-publish initialization keys that
-provide some public information about a user.  UserInitKey
+provide some public information about a user.  ClientInitKey
 messages provide information about a client that any existing
 member can use to add this client to the group asynchronously.
 
-A UserInitKey object specifies what ciphersuites a client supports,
+A ClientInitKey object specifies what ciphersuites a client supports,
 as well as providing public keys that the client can use for key
 derivation and signing.  The client's identity key is intended to be
 stable throughout the lifetime of the group; there is no mechanism to
 change it.  Init keys are intended to be used a very limited number of
-times, potentially once. (see {{init-key-reuse}}).  UserInitKeys
+times, potentially once. (see {{init-key-reuse}}).  ClientInitKeys
 also contain an identifier chosen by the client, which the client
-MUST assure uniquely identifies a given UserInitKey object among the
-set of UserInitKeys created by this client.
+MUST assure uniquely identifies a given ClientInitKey object among the
+set of ClientInitKeys created by this client.
 
 The init\_keys array MUST have the same length as the cipher\_suites
 array, and each entry in the init\_keys array MUST be a public key
@@ -1195,7 +1197,7 @@ for the asymmetric encryption scheme defined in the cipher\_suites array
 and used in the HPKE construction for TreeKEM.
 
 The whole structure is signed using the client's identity key.  A
-UserInitKey object with an invalid signature field MUST be
+ClientInitKey object with an invalid signature field MUST be
 considered malformed.  The input to the signature computation
 comprises all of the fields except for the signature field.
 
@@ -1203,13 +1205,13 @@ comprises all of the fields except for the signature field.
 uint8 ProtocolVersion;
 
 struct {
-    opaque user_init_key_id<0..255>;
+    opaque client_init_key_id<0..255>;
     ProtocolVersion supported_versions<0..255>;
     CipherSuite cipher_suites<0..255>;
     HPKEPublicKey init_keys<1..2^16-1>;
     Credential credential;
     opaque signature<0..2^16-1>;
-} UserInitKey;
+} ClientInitKey;
 ~~~~~
 
 # Message Framing
@@ -1476,7 +1478,7 @@ The Welcome message contains the information that the new member
 needs to initialize a GroupContext object that can be updated to the
 current state using the Add message.  This information is encrypted
 for the new member using HPKE.  The recipient key pair for the
-HPKE encryption is the one included in the indicated UserInitKey,
+HPKE encryption is the one included in the indicated ClientInitKey,
 corresponding to the indicated ciphersuite.
 
 ~~~~~
@@ -1495,7 +1497,7 @@ struct {
 } WelcomeInfo;
 
 struct {
-    opaque user_init_key_id<0..255>;
+    opaque client_init_key_id<0..255>;
     CipherSuite cipher_suite;
     HPKECiphertext encrypted_welcome_info;
 } Welcome;
@@ -1531,7 +1533,7 @@ member:
 ~~~~~
 struct {
     uint32 index;
-    UserInitKey init_key;
+    ClientInitKey init_key;
     opaque welcome_info_hash<0..255>;
 } Add;
 ~~~~~
@@ -1547,7 +1549,7 @@ not blank, then the recipient MUST reject the Add as malformed.
 The `welcome_info_hash` field contains a hash of the WelcomeInfo
 object sent in a Welcome message to the new member.
 
-A group member generates this message by requesting a UserInitKey
+A group member generates this message by requesting a ClientInitKey
 from the directory for the user to be added, and encoding it into an
 Add message.
 
@@ -1562,7 +1564,7 @@ the signature on the message,  then updates its state as follows:
 
 * If the `index` value is equal to the size of the group, increment
   the size of the group, and extend the tree accordingly
-* Verify the signature on the included UserInitKey; if the signature
+* Verify the signature on the included ClientInitKey; if the signature
   verification fails, abort
 * Generate a WelcomeInfo object describing the state prior to the
   add, and verify that its hash is the same as the value of the
@@ -1570,9 +1572,9 @@ the signature on the message,  then updates its state as follows:
 * Update the ratchet tree by setting to blank all nodes in the
   direct path of the new node
 * Set the leaf node in the tree at position `index` to a new node
-  containing the public key from the UserInitKey in the Add
+  containing the public key from the ClientInitKey in the Add
   corresponding to the ciphersuite in use, as well as the
-  credential under which the UserInitKey was signed
+  credential under which the ClientInitKey was signed
 
 The `update_secret` resulting from this change is an all-zero octet
 string of length Hash.length.
