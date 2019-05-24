@@ -991,7 +991,7 @@ struct {
 
 struct {
     HPKEPublicKey public_key;
-    HPKECiphertext encrypted_path_secrets<0..2^16-1>;
+    HPKECiphertext node_secrets<0..2^16-1>;
 } DirectPathNode;
 
 struct {
