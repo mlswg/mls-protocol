@@ -137,6 +137,10 @@ RFC EDITOR PLEASE DELETE THIS SECTION.
 
 draft-06
 
+- Reorder blanking and update in the Remove operation (\*)
+
+- Rename the GroupState structure to GroupContext (\*)
+
 - Rename UserInitKey to ClientInitKey
 
 draft-05
@@ -226,6 +230,8 @@ Client:
   cryptographic keys it holds.  An application or user may use one client
   per device (keeping keys local to each device) or sync keys among
   a user's devices so that each user appears as a single client.
+  In the scenario where multiple devices share the cryptographic material
+  the client is referred to as a "virtual" client.
 
 Group:
 : A collection of clients with shared cryptographic state.
@@ -918,8 +924,8 @@ and only if the node is blank.
 
 ## Group State
 
-Each member of the group maintains a representation of the
-state of the group:
+Each member of the group maintains a GroupContext object that
+summarizes the state of the group:
 
 ~~~~~
 struct {
@@ -927,7 +933,7 @@ struct {
     uint32 epoch;
     opaque tree_hash<0..255>;
     opaque transcript_hash<0..255>;
-} GroupState;
+} GroupContext;
 ~~~~~
 
 The fields in this state have the following semantics:
@@ -944,7 +950,7 @@ The fields in this state have the following semantics:
 When a new member is added to the group, an existing member of the
 group provides the new member with a Welcome message.  The Welcome
 message provides the information the new member needs to initialize
-its GroupState.
+its GroupContext.
 
 Different group operations will have different effects on the group
 state.  These effects are described in their respective subsections
@@ -1042,7 +1048,7 @@ following information to derive new epoch secrets:
 
 * The init secret from the previous epoch
 * The update secret for the current epoch
-* The GroupState object for current epoch
+* The GroupContext object for current epoch
 
 Given these inputs, the derivation of secrets for an epoch
 proceeds as shown in the following diagram:
@@ -1053,20 +1059,20 @@ proceeds as shown in the following diagram:
                      V
 update_secret -> HKDF-Extract = epoch_secret
                      |
-                     +--> Derive-Secret(., "sender data", GroupState_[n])
+                     +--> Derive-Secret(., "sender data", GroupContext_[n])
                      |    = sender_data_secret
                      |
-                     +--> Derive-Secret(., "handshake", GroupState_[n])
+                     +--> Derive-Secret(., "handshake", GroupContext_[n])
                      |    = handshake_secret
                      |
-                     +--> Derive-Secret(., "app", GroupState_[n])
+                     +--> Derive-Secret(., "app", GroupContext_[n])
                      |    = application_secret
                      |
-                     +--> Derive-Secret(., "confirm", GroupState_[n])
+                     +--> Derive-Secret(., "confirm", GroupContext_[n])
                      |    = confirmation_key
                      |
                      V
-               Derive-Secret(., "init", GroupState_[n])
+               Derive-Secret(., "init", GroupContext_[n])
                      |
                      V
                init_secret_[n]
@@ -1334,7 +1340,7 @@ are encoded in the following form:
 ~~~~~
 struct {
     opaque content[length\_of\_content];
-    uint8 signature[MLSInnerPlaintext.sig_len];
+    uint8 signature[MLSCiphertextContent.sig_len];
     uint16 sig_len;
     uint8  marker = 1;
     uint8  zero\_padding[length\_of\_padding];
@@ -1416,14 +1422,14 @@ follows:
    described in {{message-framing}}.
 
 2. Verify that the `epoch` field of enclosing MLSPlaintext message
-   is equal the `epoch` field of the current GroupState object.
+   is equal the `epoch` field of the current GroupContext object.
 
 3. Verify that the signature on the MLSPlaintext message verifies
    using the public key from the credential stored at the leaf in
    the tree indicated by the `sender` field.
 
 4. Use the `operation` message to produce an updated, provisional
-   GroupState object incorporating the proposed changes.
+   GroupContext object incorporating the proposed changes.
 
 5. Use the `confirmation_key` for the new epoch to compute the
    confirmation MAC for this message, as described below, and verify
@@ -1431,14 +1437,14 @@ follows:
    GroupOperation object.
 
 6. If the the above checks are successful, consider the updated
-   GroupState object as the current state of the group.
+   GroupContext object as the current state of the group.
 
 The confirmation value confirms that the members of the group have
 arrived at the same state of the group:
 
 ~~~~~
 GroupOperation.confirmation =
-    HMAC(confirmation_key, GroupState.transcript\_hash)
+    HMAC(confirmation_key, GroupContext.transcript\_hash)
 ~~~~~
 
 HMAC {{!RFC2104}} uses the Hash algorithm for the ciphersuite in
@@ -1469,7 +1475,7 @@ group must take two actions:
 2. Send an Add message to the group (including the new member)
 
 The Welcome message contains the information that the new member
-needs to initialize a GroupState object that can be updated to the
+needs to initialize a GroupContext object that can be updated to the
 current state using the Add message.  This information is encrypted
 for the new member using HPKE.  The recipient key pair for the
 HPKE encryption is the one included in the indicated ClientInitKey,
@@ -1513,7 +1519,7 @@ are revealed to the new member.
 Since the new member is expected to process the Add message for
 itself, the Welcome message should reflect the state of the group
 before the new user is added. The sender of the Welcome message can
-simply copy all fields from their GroupState object.
+simply copy all fields from their GroupContext object.
 
 [[ OPEN ISSUE: The Welcome message needs to be synchronized in the
 same way as the Add.  That is, the Welcome should be sent only if
@@ -1521,7 +1527,7 @@ the Add succeeds, and is not in conflict with another, simultaneous
 Add. ]]
 
 An Add message provides existing group members with the information
-they need to update their GroupState with information about the new
+they need to update their GroupContext with information about the new
 member:
 
 ~~~~~
@@ -1550,7 +1556,7 @@ Add message.
 The client joining the group processes Welcome and Add
 messages together as follows:
 
-* Prepare a new GroupState object based on the Welcome message
+* Prepare a new GroupContext object based on the Welcome message
 * Process the Add message as an existing member would
 
 An existing member receiving a Add message first verifies
@@ -1570,7 +1576,7 @@ the signature on the message,  then updates its state as follows:
   corresponding to the ciphersuite in use, as well as the
   credential under which the ClientInitKey was signed
 
-The update secret resulting from this change is an all-zero octet
+The `update_secret` resulting from this change is an all-zero octet
 string of length Hash.length.
 
 After processing an Add message, the new member SHOULD send an Update
@@ -1601,8 +1607,8 @@ the signature on the message, then updates its state as follows:
   path from the updated leaf using the information contained in the
   Update message
 
-The update secret resulting from this change is the path secret for the
-root node of the ratchet tree.
+The `update_secret` resulting from this change is the `path_secret[i+1]`
+derived from the `path_secret[i]` associated to the root node.
 
 ## Remove
 
@@ -1621,30 +1627,32 @@ struct {
 
 The sender of a Remove message generates it as as follows:
 
+* Blank the path from the removed leaf to the root node for
+  the time of the computation
+* Truncate the tree such that the rightmost non-blank leaf is the
+  last node of the tree, for the time of the computation
 * Generate a fresh leaf key pair
 * Compute its direct path in the current ratchet tree, starting from
-  the removed leaf
+  the sender's leaf
 
 A member receiving a Remove message first verifies
 the signature on the message.  The member then updates its
 state as follows:
 
-* Update the ratchet tree by replacing nodes in the direct
-  path from the removed leaf using the information in the Remove message
 * Update the ratchet tree by setting to blank all nodes in the
   direct path of the removed leaf, and also setting the root node
   to blank
 * Truncate the tree such that the rightmost non-blank leaf is the
   last node of the tree
+* Update the ratchet tree by replacing nodes in the direct
+  path from the sender's leaf using the information in the Remove message
 
-Note that, in step 4, there must be at least one non-null element in
-the tree, since any valid GroupState must have the current member in
-the tree and self-removal is prohibited. The same reasoning
-justifies the existence of a non-blank leaf in the ratchet tree in
-step 5.
+Note that there must be at least one non-null element in
+the tree, since any valid GroupContext must have the current member in
+the tree and self-removal is prohibited
 
-The update secret resulting from this change is the path secret
-computed for the root node of the ratchet tree in the first step.
+The `update_secret` resulting from this change is the `path_secret[i+1]`
+derived from the `path_secret[i]` associated to the root node.
 
 # Sequencing of State Changes {#sequencing}
 
@@ -1691,7 +1699,6 @@ are received.  Generation of handshake messages MUST be stateless,
 since the endpoint cannot know at that time whether the change
 implied by the handshake message will succeed or not.
 
-
 ## Server-Enforced Ordering
 
 With this approach, the delivery service ensures that incoming messages are added to an
@@ -1723,7 +1730,6 @@ will wait for the winner to send their update before retrying new proposals.
 While this seems safer as it doesn't rely on the server, it is more complex and
 harder to implement. It also could cause starvation for some clients if they keep
 failing to get their proposal accepted.
-
 
 ## Merging Updates
 
@@ -1819,7 +1825,7 @@ The group members MUST use the AEAD algorithm associated with
 the negotiated MLS ciphersuite to AEAD encrypt and decrypt their
 Application messages according to the Message Framing section.
 
-The group identifier and epoch allow a device to know which group secrets
+The group identifier and epoch allow a recipient to know which group secrets
 should be used and from which Epoch secret to start computing other secrets
 and keys. The `sender` identifier is used to derive the member's
 Application secret chain from the initial group Application secret.
@@ -1856,7 +1862,7 @@ this authentication scheme.]]
 
 [[ OPEN ISSUE: Currently, the group identifier, epoch and generation are
 contained as meta-data of the Signature. A different solution could be to
-include the GroupState instead, if more information is required to achieve
+include the GroupContext instead, if more information is required to achieve
 the security goals regarding cross-group attacks. ]]
 
 [[ OPEN ISSUE: Should the padding be required for handshake messages ?
