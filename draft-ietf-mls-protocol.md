@@ -918,8 +918,8 @@ and only if the node is blank.
 
 ## Group State
 
-Each member of the group maintains a partial representation of the
-state of the group, called GroupContext:
+Each member of the group maintains a GroupContext object that
+summarizes the state of the group:
 
 ~~~~~
 struct {
