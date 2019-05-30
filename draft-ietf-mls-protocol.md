@@ -143,6 +143,11 @@ draft-06
 
 - Rename UserInitKey to ClientInitKey
 
+- Resolve the circular dependency that draft-05 introduced in the
+  confirmation MAC calculation (\*)
+
+- Cover the entire MLSPlaintext in the transcript hash (\*)
+
 draft-05
 
 - Common framing for handshake and application messages (\*)
@@ -962,12 +967,34 @@ operations:
   is processed
 * The `tree_hash` is updated to represent the current tree and
   credentials
-* The `transcript_hash` is updated by a GroupOperation message
-  `operation` in the following way:
+* The `transcript_hash` is updated with the data for an MLSPlaintext
+  message encoding a group operation in two parts:
 
 ~~~~~
-transcript_hash_[n] = Hash(transcript_hash_[n-1] || operation)
+struct {
+  opaque group_id<0..255>;
+  uint32 epoch;
+  uint32 sender;
+  ContentType content_type = handshake;
+  GroupOperation operation;
+} MLSPlaintextOpContent;
+
+struct {
+  opaque confirmation<0..255>;
+  opaque signature<0..2^16-1>;
+} MLSPlaintextOpAuthData;
+
+intermediate_hash_[n] = Hash(transcript_hash_[n-1] || MLSPlaintextOpAuthData_[n-1]);
+transcript_hash_[n] = Hash(intermediate_hash_[n] || MLSPlaintextOpContent_[n]);
 ~~~~~
+
+This structure incorporates everything in an MLSPlaintext up to the
+confirmation field in the transcript that is included in that
+confirmation field (via the GroupState).  The confirmation and
+signature fields are then included in the transcript for the next
+operation.  The intermediate hash enables implementations to in
+corporate a plaintext into the transcript without having to store the
+whole MLSPlaintextOpAuthData structure.
 
 When a new one-member group is created (which requires no
 GroupOperation), the `transcript_hash` field is set to an all-zero
@@ -1246,6 +1273,7 @@ struct {
     select (MLSPlaintext.content_type) {
         case handshake:
             GroupOperation operation;
+            opaque confirmation<0..255>;
 
         case application:
             opaque application_data<0..2^32-1>;
@@ -1410,7 +1438,6 @@ struct {
         case update:    Update;
         case remove:    Remove;
     };
-    opaque confirmation<0..255>;
 } GroupOperation;
 ~~~~~
 
@@ -1443,7 +1470,7 @@ The confirmation value confirms that the members of the group have
 arrived at the same state of the group:
 
 ~~~~~
-GroupOperation.confirmation =
+MLSPlaintext.confirmation =
     HMAC(confirmation_key, GroupContext.transcript\_hash)
 ~~~~~
 
