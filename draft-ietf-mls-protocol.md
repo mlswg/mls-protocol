@@ -990,7 +990,7 @@ transcript_hash_[n] = Hash(intermediate_hash_[n] || MLSPlaintextOpContent_[n]);
 
 This structure incorporates everything in an MLSPlaintext up to the
 confirmation field in the transcript that is included in that
-confirmation field (via the GroupState).  The confirmation and
+confirmation field (via the GroupContext).  The confirmation and
 signature fields are then included in the transcript for the next
 operation.  The intermediate hash enables implementations to in
 corporate a plaintext into the transcript without having to store the
