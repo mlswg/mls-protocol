@@ -137,6 +137,12 @@ RFC EDITOR PLEASE DELETE THIS SECTION.
 
 draft-06
 
+- Reorder blanking and update in the Remove operation (\*)
+
+- Rename the GroupState structure to GroupContext (\*)
+
+- Rename UserInitKey to ClientInitKey
+
 - Resolve the circular dependency that draft-05 introduced in the
   confirmation MAC calculation (\*)
 
@@ -242,7 +248,7 @@ Member:
 Initialization Key:
 : A short-lived HPKE key pair used to introduce a new
   client to a group.  Initialization keys are published for
-  each client (UserInitKey).
+  each client (ClientInitKey).
 
 Leaf Key:
 : A secret that represent a member's contribution to the group secret
@@ -305,27 +311,27 @@ There are four major operations in the lifecycle of a group:
 * Updating the leaf secret of a member;
 * Removing a member.
 
-Before the initialization of a group, clients publish UserInitKey
+Before the initialization of a group, clients publish ClientInitKey
 objects to a directory provided to the Messaging Service.
 
 ~~~~~
-                                                          Group
-A              B              C          Directory       Channel
-|              |              |              |              |
-| UserInitKeyA |              |              |              |
-|------------------------------------------->|              |
-|              |              |              |              |
-|              | UserInitKeyB |              |              |
-|              |---------------------------->|              |
-|              |              |              |              |
-|              |              | UserInitKeyC |              |
-|              |              |------------->|              |
-|              |              |              |              |
+                                                               Group
+A                B                C            Directory       Channel
+|                |                |                |              |
+| ClientInitKeyA |                |                |              |
+|------------------------------------------------->|              |
+|                |                |                |              |
+|                | ClientInitKeyB |                |              |
+|                |-------------------------------->|              |
+|                |                |                |              |
+|                |                | ClientInitKeyC |              |
+|                |                |--------------->|              |
+|                |                |                |              |
 ~~~~~
 
 When a client A wants to establish a group with B and C, it
-first downloads UserInitKeys for B and C.  It then initializes a group state
-containing only itself and uses the UserInitKeys to compute Welcome and Add messages
+first downloads ClientInitKeys for B and C.  It then initializes a group state
+containing only itself and uses the ClientInitKeys to compute Welcome and Add messages
 to add B and C, in a sequence chosen by A.  The Welcome messages are
 sent directly to the new members (there is no need to send them to
 the group).
@@ -339,7 +345,7 @@ back from the server does it update its state to reflect their addition.
                                                                Group
 A              B              C          Directory            Channel
 |              |              |              |                   |
-|         UserInitKeyB, UserInitKeyC         |                   |
+|         ClientInitKeyB, ClientInitKeyC     |                   |
 |<-------------------------------------------|                   |
 |state.init()  |              |              |                   |
 |              |              |              |                   |
@@ -368,7 +374,7 @@ A              B              C          Directory            Channel
 ~~~~~
 
 Subsequent additions of group members proceed in the same way.  Any
-member of the group can download an UserInitKey for a new client
+member of the group can download an ClientInitKey for a new client
 and broadcast an Add message that the current group can use to update
 their state and the new client can use to initialize its state.
 
@@ -923,8 +929,8 @@ and only if the node is blank.
 
 ## Group State
 
-Each member of the group maintains a representation of the
-state of the group:
+Each member of the group maintains a GroupContext object that
+summarizes the state of the group:
 
 ~~~~~
 struct {
@@ -932,7 +938,7 @@ struct {
     uint32 epoch;
     opaque tree_hash<0..255>;
     opaque transcript_hash<0..255>;
-} GroupState;
+} GroupContext;
 ~~~~~
 
 The fields in this state have the following semantics:
@@ -949,7 +955,7 @@ The fields in this state have the following semantics:
 When a new member is added to the group, an existing member of the
 group provides the new member with a Welcome message.  The Welcome
 message provides the information the new member needs to initialize
-its GroupState.
+its GroupContext.
 
 Different group operations will have different effects on the group
 state.  These effects are described in their respective subsections
@@ -1069,7 +1075,7 @@ following information to derive new epoch secrets:
 
 * The init secret from the previous epoch
 * The update secret for the current epoch
-* The GroupState object for current epoch
+* The GroupContext object for current epoch
 
 Given these inputs, the derivation of secrets for an epoch
 proceeds as shown in the following diagram:
@@ -1080,20 +1086,20 @@ proceeds as shown in the following diagram:
                      V
 update_secret -> HKDF-Extract = epoch_secret
                      |
-                     +--> Derive-Secret(., "sender data", GroupState_[n])
+                     +--> Derive-Secret(., "sender data", GroupContext_[n])
                      |    = sender_data_secret
                      |
-                     +--> Derive-Secret(., "handshake", GroupState_[n])
+                     +--> Derive-Secret(., "handshake", GroupContext_[n])
                      |    = handshake_secret
                      |
-                     +--> Derive-Secret(., "app", GroupState_[n])
+                     +--> Derive-Secret(., "app", GroupContext_[n])
                      |    = application_secret
                      |
-                     +--> Derive-Secret(., "confirm", GroupState_[n])
+                     +--> Derive-Secret(., "confirm", GroupContext_[n])
                      |    = confirmation_key
                      |
                      V
-               Derive-Secret(., "init", GroupState_[n])
+               Derive-Secret(., "init", GroupContext_[n])
                      |
                      V
                init_secret_[n]
@@ -1198,19 +1204,19 @@ nonces derived above:
 
 In order to facilitate asynchronous addition of clients to a
 group, it is possible to pre-publish initialization keys that
-provide some public information about a user.  UserInitKey
+provide some public information about a user.  ClientInitKey
 messages provide information about a client that any existing
 member can use to add this client to the group asynchronously.
 
-A UserInitKey object specifies what ciphersuites a client supports,
+A ClientInitKey object specifies what ciphersuites a client supports,
 as well as providing public keys that the client can use for key
 derivation and signing.  The client's identity key is intended to be
 stable throughout the lifetime of the group; there is no mechanism to
 change it.  Init keys are intended to be used a very limited number of
-times, potentially once. (see {{init-key-reuse}}).  UserInitKeys
+times, potentially once. (see {{init-key-reuse}}).  ClientInitKeys
 also contain an identifier chosen by the client, which the client
-MUST assure uniquely identifies a given UserInitKey object among the
-set of UserInitKeys created by this client.
+MUST assure uniquely identifies a given ClientInitKey object among the
+set of ClientInitKeys created by this client.
 
 The init\_keys array MUST have the same length as the cipher\_suites
 array, and each entry in the init\_keys array MUST be a public key
@@ -1218,7 +1224,7 @@ for the asymmetric encryption scheme defined in the cipher\_suites array
 and used in the HPKE construction for TreeKEM.
 
 The whole structure is signed using the client's identity key.  A
-UserInitKey object with an invalid signature field MUST be
+ClientInitKey object with an invalid signature field MUST be
 considered malformed.  The input to the signature computation
 comprises all of the fields except for the signature field.
 
@@ -1226,13 +1232,13 @@ comprises all of the fields except for the signature field.
 uint8 ProtocolVersion;
 
 struct {
-    opaque user_init_key_id<0..255>;
+    opaque client_init_key_id<0..255>;
     ProtocolVersion supported_versions<0..255>;
     CipherSuite cipher_suites<0..255>;
     HPKEPublicKey init_keys<1..2^16-1>;
     Credential credential;
     opaque signature<0..2^16-1>;
-} UserInitKey;
+} ClientInitKey;
 ~~~~~
 
 # Message Framing
@@ -1443,14 +1449,14 @@ follows:
    described in {{message-framing}}.
 
 2. Verify that the `epoch` field of enclosing MLSPlaintext message
-   is equal the `epoch` field of the current GroupState object.
+   is equal the `epoch` field of the current GroupContext object.
 
 3. Verify that the signature on the MLSPlaintext message verifies
    using the public key from the credential stored at the leaf in
    the tree indicated by the `sender` field.
 
 4. Use the `operation` message to produce an updated, provisional
-   GroupState object incorporating the proposed changes.
+   GroupContext object incorporating the proposed changes.
 
 5. Use the `confirmation_key` for the new epoch to compute the
    confirmation MAC for this message, as described below, and verify
@@ -1458,14 +1464,14 @@ follows:
    GroupOperation object.
 
 6. If the the above checks are successful, consider the updated
-   GroupState object as the current state of the group.
+   GroupContext object as the current state of the group.
 
 The confirmation value confirms that the members of the group have
 arrived at the same state of the group:
 
 ~~~~~
 MLSPlaintext.confirmation =
-    HMAC(confirmation_key, GroupState.transcript\_hash)
+    HMAC(confirmation_key, GroupContext.transcript\_hash)
 ~~~~~
 
 HMAC {{!RFC2104}} uses the Hash algorithm for the ciphersuite in
@@ -1496,10 +1502,10 @@ group must take two actions:
 2. Send an Add message to the group (including the new member)
 
 The Welcome message contains the information that the new member
-needs to initialize a GroupState object that can be updated to the
+needs to initialize a GroupContext object that can be updated to the
 current state using the Add message.  This information is encrypted
 for the new member using HPKE.  The recipient key pair for the
-HPKE encryption is the one included in the indicated UserInitKey,
+HPKE encryption is the one included in the indicated ClientInitKey,
 corresponding to the indicated ciphersuite.
 
 ~~~~~
@@ -1518,7 +1524,7 @@ struct {
 } WelcomeInfo;
 
 struct {
-    opaque user_init_key_id<0..255>;
+    opaque client_init_key_id<0..255>;
     CipherSuite cipher_suite;
     HPKECiphertext encrypted_welcome_info;
 } Welcome;
@@ -1540,7 +1546,7 @@ are revealed to the new member.
 Since the new member is expected to process the Add message for
 itself, the Welcome message should reflect the state of the group
 before the new user is added. The sender of the Welcome message can
-simply copy all fields from their GroupState object.
+simply copy all fields from their GroupContext object.
 
 [[ OPEN ISSUE: The Welcome message needs to be synchronized in the
 same way as the Add.  That is, the Welcome should be sent only if
@@ -1548,13 +1554,13 @@ the Add succeeds, and is not in conflict with another, simultaneous
 Add. ]]
 
 An Add message provides existing group members with the information
-they need to update their GroupState with information about the new
+they need to update their GroupContext with information about the new
 member:
 
 ~~~~~
 struct {
     uint32 index;
-    UserInitKey init_key;
+    ClientInitKey init_key;
     opaque welcome_info_hash<0..255>;
 } Add;
 ~~~~~
@@ -1570,14 +1576,14 @@ not blank, then the recipient MUST reject the Add as malformed.
 The `welcome_info_hash` field contains a hash of the WelcomeInfo
 object sent in a Welcome message to the new member.
 
-A group member generates this message by requesting a UserInitKey
+A group member generates this message by requesting a ClientInitKey
 from the directory for the user to be added, and encoding it into an
 Add message.
 
 The client joining the group processes Welcome and Add
 messages together as follows:
 
-* Prepare a new GroupState object based on the Welcome message
+* Prepare a new GroupContext object based on the Welcome message
 * Process the Add message as an existing member would
 
 An existing member receiving a Add message first verifies
@@ -1585,7 +1591,7 @@ the signature on the message,  then updates its state as follows:
 
 * If the `index` value is equal to the size of the group, increment
   the size of the group, and extend the tree accordingly
-* Verify the signature on the included UserInitKey; if the signature
+* Verify the signature on the included ClientInitKey; if the signature
   verification fails, abort
 * Generate a WelcomeInfo object describing the state prior to the
   add, and verify that its hash is the same as the value of the
@@ -1593,9 +1599,9 @@ the signature on the message,  then updates its state as follows:
 * Update the ratchet tree by setting to blank all nodes in the
   direct path of the new node
 * Set the leaf node in the tree at position `index` to a new node
-  containing the public key from the UserInitKey in the Add
+  containing the public key from the ClientInitKey in the Add
   corresponding to the ciphersuite in use, as well as the
-  credential under which the UserInitKey was signed
+  credential under which the ClientInitKey was signed
 
 The `update_secret` resulting from this change is an all-zero octet
 string of length Hash.length.
@@ -1648,27 +1654,29 @@ struct {
 
 The sender of a Remove message generates it as as follows:
 
+* Blank the path from the removed leaf to the root node for
+  the time of the computation
+* Truncate the tree such that the rightmost non-blank leaf is the
+  last node of the tree, for the time of the computation
 * Generate a fresh leaf key pair
 * Compute its direct path in the current ratchet tree, starting from
-  the removed leaf
+  the sender's leaf
 
 A member receiving a Remove message first verifies
 the signature on the message.  The member then updates its
 state as follows:
 
-* Update the ratchet tree by replacing nodes in the direct
-  path from the removed leaf using the information in the Remove message
 * Update the ratchet tree by setting to blank all nodes in the
   direct path of the removed leaf, and also setting the root node
   to blank
 * Truncate the tree such that the rightmost non-blank leaf is the
   last node of the tree
+* Update the ratchet tree by replacing nodes in the direct
+  path from the sender's leaf using the information in the Remove message
 
-Note that, in step 4, there must be at least one non-null element in
-the tree, since any valid GroupState must have the current member in
-the tree and self-removal is prohibited. The same reasoning
-justifies the existence of a non-blank leaf in the ratchet tree in
-step 5.
+Note that there must be at least one non-null element in
+the tree, since any valid GroupContext must have the current member in
+the tree and self-removal is prohibited
 
 The `update_secret` resulting from this change is the `path_secret[i+1]`
 derived from the `path_secret[i]` associated to the root node.
@@ -1881,7 +1889,7 @@ this authentication scheme.]]
 
 [[ OPEN ISSUE: Currently, the group identifier, epoch and generation are
 contained as meta-data of the Signature. A different solution could be to
-include the GroupState instead, if more information is required to achieve
+include the GroupContext instead, if more information is required to achieve
 the security goals regarding cross-group attacks. ]]
 
 [[ OPEN ISSUE: Should the padding be required for handshake messages ?
