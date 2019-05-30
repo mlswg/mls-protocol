@@ -1018,7 +1018,7 @@ struct {
 
 struct {
     HPKEPublicKey public_key;
-    HPKECiphertext encrypted_path_secrets<0..2^16-1>;
+    HPKECiphertext encrypted_path_secret<0..2^16-1>;
 } DirectPathNode;
 
 struct {
@@ -1026,9 +1026,9 @@ struct {
 } DirectPath;
 ~~~~~
 
-The length of the `node_secrets` vector MUST be zero for the first
+The length of the `encrypted_path_secret` vector MUST be zero for the first
 node in the path.  For the remaining elements in the vector, the
-number of ciphertexts in the `node_secrets` vector MUST be equal to
+number of ciphertexts in the `encrypted_path_secret` vector MUST be equal to
 the length of the resolution of the corresponding copath node.  Each
 ciphertext in the list is the encryption to the corresponding node
 in the resolution.
