@@ -1026,9 +1026,9 @@ struct {
 } DirectPath;
 ~~~~~
 
-The length of the `node\_secrets` vector MUST be zero for the first
+The length of the `node_secrets` vector MUST be zero for the first
 node in the path.  For the remaining elements in the vector, the
-number of ciphertexts in the `node\_secrets` vector MUST be equal to
+number of ciphertexts in the `node_secrets` vector MUST be equal to
 the length of the resolution of the corresponding copath node.  Each
 ciphertext in the list is the encryption to the corresponding node
 in the resolution.
@@ -1367,11 +1367,11 @@ are encoded in the following form:
 
 ~~~~~
 struct {
-    opaque content[length\_of\_content];
+    opaque content[length_of_content];
     uint8 signature[MLSCiphertextContent.sig_len];
     uint16 sig_len;
     uint8  marker = 1;
-    uint8  zero\_padding[length\_of\_padding];
+    uint8  zero_padding[length_of_padding];
 } MLSCiphertextContent;
 ~~~~~
 
@@ -1471,7 +1471,7 @@ arrived at the same state of the group:
 
 ~~~~~
 MLSPlaintext.confirmation =
-    HMAC(confirmation_key, GroupContext.transcript\_hash)
+    HMAC(confirmation_key, GroupContext.transcript_hash)
 ~~~~~
 
 HMAC {{!RFC2104}} uses the Hash algorithm for the ciphersuite in
