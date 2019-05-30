@@ -969,7 +969,7 @@ struct {
   opaque group_id<0..255>;
   uint32 epoch;
   uint32 sender;
-  ContentType content_type;
+  ContentType content_type = handshake;
   GroupOperation operation;
 } MLSPlaintextOpContent;
 
@@ -981,6 +981,14 @@ struct {
 intermediate_hash_[n] = Hash(transcript_hash_[n-1] || MLSPlaintextOpAuthData_[n-1]);
 transcript_hash_[n] = Hash(intermediate_hash_[n] || MLSPlaintextOpContent_[n]);
 ~~~~~
+
+This structure incorporates everything in an MLSPlaintext up to the
+confirmation field in the transcript that is included in that
+confirmation field (via the GroupState).  The confirmation and
+signature fields are then included in the transcript for the next
+operation.  The intermediate hash enables implementations to in
+corporate a plaintext into the transcript without having to store the
+whole MLSPlaintextOpAuthData structure.
 
 When a new one-member group is created (which requires no
 GroupOperation), the `transcript_hash` field is set to an all-zero
