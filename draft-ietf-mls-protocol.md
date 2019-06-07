@@ -937,7 +937,7 @@ struct {
     opaque group_id<0..255>;
     uint32 epoch;
     opaque tree_hash<0..255>;
-    opaque transcript_hash<0..255>;
+    opaque confirmed_transcript_hash<0..255>;
 } GroupContext;
 ~~~~~
 
@@ -949,8 +949,8 @@ The fields in this state have the following semantics:
 * The `tree_hash` field contains a commitment to the contents of the
   group's rachet tree and the credentials for the members of the
   group, as described in {{tree-hashes}}.
-* The `transcript_hash` field contains the list of `GroupOperation`
-  messages that led to this state.
+* The `confirmed_transcript_hash` field contains a running hash over
+  the handshake messages that led to this state.
 
 When a new member is added to the group, an existing member of the
 group provides the new member with a Welcome message.  The Welcome
@@ -967,7 +967,7 @@ operations:
   is processed
 * The `tree_hash` is updated to represent the current tree and
   credentials
-* The `transcript_hash` is updated with the data for an MLSPlaintext
+* The `confirmed_transcript_hash` is updated with the data for an MLSPlaintext
   message encoding a group operation in two parts:
 
 ~~~~~
@@ -984,22 +984,27 @@ struct {
   opaque signature<0..2^16-1>;
 } MLSPlaintextOpAuthData;
 
-intermediate_hash_[n] = Hash(transcript_hash_[n-1] || MLSPlaintextOpAuthData_[n-1]);
-transcript_hash_[n] = Hash(intermediate_hash_[n] || MLSPlaintextOpContent_[n]);
+confirmed_transcript_hash_[n] =
+    Hash(interim_transcript_hash_[n-1] ||
+         MLSPlaintextOpContent_[n]);
+
+interim_transcript_hash_[n] =
+    Hash(confirmed_transcript_hash_[n] ||
+         MLSPlaintextOpAuthData_[n]);
 ~~~~~
 
 This structure incorporates everything in an MLSPlaintext up to the
 confirmation field in the transcript that is included in that
 confirmation field (via the GroupContext).  The confirmation and
 signature fields are then included in the transcript for the next
-operation.  The intermediate hash enables implementations to in
-corporate a plaintext into the transcript without having to store the
+operation.  The interim transcript hash is passed to new members in
+the WelcomeInfo struct, and enables existing members to incorporate
+a handshake message into the transcript without having to store the
 whole MLSPlaintextOpAuthData structure.
 
 When a new one-member group is created (which requires no
-GroupOperation), the `transcript_hash` field is set to an all-zero
-vector of length Hash.length, where the Hash algorithm is defined
-by the ciphersuite.
+GroupOperation), the `interim_transcript_hash` field is set to the
+zero-length octet string.
 
 ## Direct Paths
 
@@ -1519,7 +1524,7 @@ struct {
     opaque group_id<0..255>;
     uint32 epoch;
     optional<RatchetNode> tree<1..2^32-1>;
-    opaque transcript_hash<0..255>;
+    opaque interim_transcript_hash<0..255>;
     opaque init_secret<0..255>;
 } WelcomeInfo;
 
