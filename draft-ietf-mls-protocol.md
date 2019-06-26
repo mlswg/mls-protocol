@@ -1308,7 +1308,8 @@ The overall process is as follows:
   * Sender index
   * Key generation
 
-* Sign the protected content and metadata
+* Sign the plaintext metadata—the group ID, epoch, sender index, and
+  content type—as well as the message content
 
 * Encrypt the sender information using the random nonce and the key
   derived from the sender_data_secret
@@ -1361,7 +1362,8 @@ MUST be less than the number of leaves in the tree.
 The signature field in an MLSPlaintext object is computed using the
 signing private key corresponding to the credential at the leaf in
 the tree indicated by the sender field.  The signature covers the
-metadata and message content, with the signature field truncated.
+plaintext metadata and message content, i.e., all fields of
+MLSPlaintext except for the `signature` field.
 
 The ciphertext field of the MLSCiphertext object is produced by
 supplying the inputs described below to the AEAD function specified
