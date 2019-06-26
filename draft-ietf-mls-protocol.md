@@ -1037,8 +1037,16 @@ the length of the resolution of the corresponding copath node.  Each
 ciphertext in the list is the encryption to the corresponding node
 in the resolution.
 
-The HPKECiphertext values are computed according to the Encrypt
-function defined in {{!I-D.barnes-cfrg-hpke}}.
+The HPKECiphertext values are computed as
+
+~~~~~
+context = SetupBaseI(node_public_key, "")
+ciphertext = context.Seal("", path_secret)
+~~~~~
+
+where `node_public_key` is the public key of the node that the path
+secret is being encrypted for, and the functions `SetupBaseI` and
+`Seal` are defined according to {{!I-D.barnes-cfrg-hpke}}.
 
 Decryption is performed in the corresponding way, using the private
 key of the resolution node and the ephemeral public key
