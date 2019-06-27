@@ -1467,7 +1467,7 @@ follows:
 5. Use the `confirmation_key` for the new epoch to compute the
    confirmation MAC for this message, as described below, and verify
    that it is the same as the `confirmation` field in the
-   GroupOperation object.
+   MLSPlaintext object.
 
 6. If the the above checks are successful, consider the updated
    GroupContext object as the current state of the group.
