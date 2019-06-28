@@ -1311,8 +1311,8 @@ The overall process is as follows:
 * Sign the plaintext metadata—the group ID, epoch, sender index, and
   content type—as well as the message content
 
-* Encrypt the sender information using the random nonce and the key
-  derived from the sender_data_secret
+* Randomly generate sender_data_nonce and encrypt the sender information using
+  it and the key derived from the sender_data_secret
 
 * Encrypt the content using a content encryption key identified by
   the metadata
