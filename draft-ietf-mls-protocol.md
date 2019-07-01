@@ -1308,8 +1308,8 @@ The overall process is as follows:
   * Sender index
   * Key generation
 
-* Sign the plaintext metadata—the group ID, epoch, sender index, and
-  content type—as well as the message content
+* Sign the plaintext metadata -- the group ID, epoch, sender index, and
+  content type -- as well as the message content
 
 * Randomly generate sender_data_nonce and encrypt the sender information using
   it and the key derived from the sender_data_secret
