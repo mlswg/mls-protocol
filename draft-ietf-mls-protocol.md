@@ -1040,7 +1040,7 @@ in the resolution.
 The HPKECiphertext values are computed as
 
 ~~~~~
-context = SetupBaseI(node_public_key, "")
+ephemeral_key, context = SetupBaseI(node_public_key, "")
 ciphertext = context.Seal("", path_secret)
 ~~~~~
 
