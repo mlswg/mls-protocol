@@ -1316,10 +1316,11 @@ The overall process is as follows:
   * Sender index
   * Key generation
 
-* Sign the protected content and metadata
+* Sign the plaintext metadata -- the group ID, epoch, sender index, and
+  content type -- as well as the message content
 
-* Encrypt the sender information using the random nonce and the key
-  derived from the sender_data_secret
+* Randomly generate sender_data_nonce and encrypt the sender information using
+  it and the key derived from the sender_data_secret
 
 * Encrypt the content using a content encryption key identified by
   the metadata
@@ -1369,7 +1370,8 @@ MUST be less than the number of leaves in the tree.
 The signature field in an MLSPlaintext object is computed using the
 signing private key corresponding to the credential at the leaf in
 the tree indicated by the sender field.  The signature covers the
-metadata and message content, with the signature field truncated.
+plaintext metadata and message content, i.e., all fields of
+MLSPlaintext except for the `signature` field.
 
 The ciphertext field of the MLSCiphertext object is produced by
 supplying the inputs described below to the AEAD function specified
@@ -1473,7 +1475,7 @@ follows:
 5. Use the `confirmation_key` for the new epoch to compute the
    confirmation MAC for this message, as described below, and verify
    that it is the same as the `confirmation` field in the
-   GroupOperation object.
+   MLSPlaintext object.
 
 6. If the the above checks are successful, consider the updated
    GroupContext object as the current state of the group.
