@@ -1501,7 +1501,7 @@ struct {
   opaque group_id<0..255>;
   ProtocolVersion version;
   CipherSuite cipher_suite;
-  UserInitKey members<0..2^32-1>;
+  ClientInitKey members<0..2^32-1>;
   DirectPath path;
 } Init;
 ~~~~~
@@ -1524,10 +1524,16 @@ the Init message as follows:
 * Construct a ratchet tree as above
 * Update the cached ratchet tree by replacing nodes in the direct
   path from the first leaf using the direct path
+* Update the cached ratchet tree by replacing nodes in the direct
+  path from the first leaf using the information contained in the
+  "path" attribute
 
 The update secret for this interaction, used with an all-zero init
 secret to generate the first epoch secret, is the `path_secret[i+1]`
-derived from the `path_secret[i]` associated to the root node.
+derived from the `path_secret[i]` associated to the root node.  The
+members learn the relevant path secrets by decrypting one of the
+encrypted path secrets in the DirectPath and working back to the
+root (as in normal DirectPath processing).
 
 ## Add
 
