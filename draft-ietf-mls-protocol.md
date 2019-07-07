@@ -1429,7 +1429,7 @@ all arrive at the following state:
  A    X    Y    D
 ~~~~~
 
-# Message Protection {#message-protection}
+# Message Protection
 
 The primary purpose of the Handshake protocol is to provide an authenticated
 group key exchange to clients. In order to protect Application messages sent
@@ -1439,29 +1439,31 @@ Protection Layer according to the Application Key Schedule. That is, each epoch
 is equipped with a fresh Application Key Schedule which consist of a tree of
 Application Secrets as well as one symmetric ratchet per group member.
 
-Each user maintains their own local copy of (parts of) the Application Key
+Each client maintains their own local copy of (parts of) the Application Key
 Schedule for each epoch during which they are a group member. They derive new
 keys, nonces and secrets as needed while deleting old ones as soon as they have
 been used.
 
 Application messages MUST be protected with the Authenticated-Encryption
-with Associated-Data (AEAD) encryption scheme associated with the MLS ciphersuite.
+with Associated-Data (AEAD) encryption scheme associated with the MLS
+ciphersuite.
 Note that "Authenticated" in this context does not mean messages are known to
 be sent by a specific client but only from a legitimate member of the group.
 To authenticate a message from a particular member, signatures are required.
 Handshake messages MUST use asymmetric signatures to strongly authenticate
 the sender of a message.
 
-## Tree Of Application Secrets {#tree-of-application-secrets}
+## Tree Of Application Secrets
 
 The Application schedule begins with the Application secrets which are arranged
-in an "AS Tree"; a left balanced binary tree with the same set of nodes and
-edges as the epoch's ratchet tree. Each leaf in the AS Tree is associated with
-the same group member as the corresponding leaf in the ratchet tree. Nodes are
-also assigned an index according to their position in the array representation
-of the tree (described in {{tree-math}}). If V is a node in the AS Tree then
-IndexOf(V) denotes it's index while V.leftChild and V.rightChild denote
-the children of V (if they exist).
+in an "Application Secret Tree" or AS Tree for short; a left balanced binary
+tree with the same set of nodes and edges as the epoch's ratchet tree. Each
+leaf in the AS Tree is associated with the same group member as the
+corresponding leaf in the ratchet tree. Nodes are also assigned an index
+according to their position in the array representation of the tree (described
+in {{tree-math}}). If V is a node in the AS Tree then IndexOf(V) denotes it's
+index while V.leftChild and V.rightChild denote the children of V (if they
+exist).
 
 Each node in the tree is assigned a secret. The root's secret is simply the
 application_secret of that epoch. (See {{key-schedule}} for the definition of
@@ -1479,7 +1481,7 @@ derived.
 ~~~~
 struct {
   opaque gshash<0..2^32-1> = Hash(GroupState_[n]);
-  uint16 node_index;
+  uint32 node_index;
 } ASTreeContext
 ~~~~
 
@@ -1497,17 +1499,16 @@ astree_node_[IndexOf(V)]_secret
         |
         |
         +--> Derive-Secret(., "astree-secret", ASTreeContext[V.leftChild])
-        |    = astree_node_[IndexOf(V.leftChild)]_secret
+        |    = astree_node_[IndexOf(V.left_child)]_secret
         |
-        V
-Derive-Secret(., "astree-secret", ASTreeContext[V.rightChild])
-= astree_node_[IndexOf(V.rightChild)]_secret
+        +--> Derive-Secret(., "astree-secret", ASTreeContext[V.rightChild])
+             = astree_node_[IndexOf(V.right_child)]_secret
 ~~~~
 
 Note that fixing concrete values for GroupState_[n] and application_secret
 completely defines all secrets in the AS Tree.
 
-## Sender Ratchets {#sender-ratchets}
+## Sender Ratchets
 
 The secret of a leaf in the AS Tree is used to initiate a symmetric hash ratchet
 which generates a sequence of keys and nonces. The group member assigned to that
@@ -1522,26 +1523,27 @@ application_[i]_[0]_secret = astree_node_[i]_secret
 ~~~~
 
 Keys, nonces and secrets of ratchets are derived using HKDF-Expand-Label. The
-context in the call is (a hash of) the current Group state, the index of sender's leaf and the position in that sender's ratchet.
+context in a given call consists of (a hash of) the current Group state, the
+index of the sender's leaf in the ratchet tree and the position in the ratchet.
+In particular, the index of the sender's leaf in the ratchet tree is the same
+as the index of the leaf in the AS Tree used to initialize the sender's ratchet.
 
 ~~~~
 struct {
   opaque gshash<0..2^32-1> = Hash(GroupState_[n]);
-  opaque leaf_index<0..2^16-1>;
+  uint32 leaf_index;
   uint32 ratchet_position;
 } RatchetContext
 ~~~~
 
-The identity field is copied from the eponymous field in the BasicCredential
-struct. Further, ratchet_position is initialized to 1 for the first
-HKDF-Expand-Label call of a new ratchet and incremented for each subsequent call
-in that ratchet.
+Ratchet_position is initialized to 1 for the first HKDF-Expand-Label call of a
+new ratchet and incremented for each subsequent call in that ratchet.
 
-HashRatCont[i, j] denotes the hash of a RatchetContext variable where:
+HashRatCont[i, j] denotes a RatchetContext variable where:
 
 - gshash = Hash(GropuState_[n])
 
-- identity = i
+- leaf_index = i
 
 - ratchet_position = j
 
@@ -1564,7 +1566,7 @@ HKDF-Expand-Label(., "app-secret", HashRatCont[i,j+1], Hash.length)
 Here, AEAD.nonceLen and AEAD.keyLength denote the lengths in bytes of the
 nonce and key for the AEAD scheme defined by the ciphersuite.
 
-## Deletion Schedule {#deletion-schedule}
+## Deletion Schedule
 
 It is important to delete all security sensitive values as soon as they, or
 another value derived from them, is used for encryption or decryption.
@@ -1573,24 +1575,22 @@ More precisely, the values application_[i]\_[j]\_key and
 application\_[i]\_[j]_nonce are said to be "consumed" if they were used either
 to:
 
-* encrypt and send a message or
-* to successfully decrypt and authenticate a received message.
+* encrypt or (successfully) decrypt a message or
+* if a key, nonce or secret derived from S has been consumed. (This goes both
+for values derived via Derive-Secret and HKDF-Expand-Label).
 
-More generally, a secret S is "consumed" if any key, nonce or secret derived
-from S has been consumed. (This goes both for values derived via Derive-Secret
-and HKDF-Expand-Label). Here, S may be the init_secret, update_secret,
-epoch_secret, application_secret as well as any secret in the AS Tree or one of
-the ratchets.
+Here, S may be the init_secret, update_secret, epoch_secret, application_secret
+as well as any secret in the AS Tree or one of the ratchets.
 
-As soon as a group member consumes a key, nonce or secret they MUST immediately
-delete (all representations of) that value. This is crucial to ensuring Forward
-Secrecy for past messages. Members MAY keep unconsumed secrets, keys and nonces
-around for some reasonable amount of time even if their generating secret was
-already consumed (e.g. due to out of order message delivery).
+As soon as a group member consumes a value they MUST immediately delete (all
+representations of) that value. This is crucial to ensuring Forward Secrecy for
+past messages. Members MAY keep unconsumed values around for some reasonable
+amount of time even if their generating secret was already consumed (e.g. due
+to out of order message delivery).
 
-For example, suppose a group member encrypts or successfully decrypts a message
-using the j-th key and nonce in the i-th ratchet. Then, for that member, all of
-the following values (and possibly more) have been consumed and MUST be deleted:
+For example, suppose a group member encrypts or (successfully) decrypts a
+message using the j-th key and nonce in the i-th ratchet. Then, for that
+member, at least the following values have been consumed and MUST be deleted:
 
 * the init_secret, update_secret, epoch_secret, application_secret of that
 epoch,
@@ -1598,6 +1598,31 @@ epoch,
 index i,
 * the first j secrets in the i-th ratchet and
 * application_[i]\_[j]\_key and application_[i]\_[j]\_nonce.
+
+Concretely, suppose we have the following AS Tree.
+
+~~~
+       G
+     /   \
+    /     \
+   E       F
+  / \     / \
+A0  B0  C0  D0 -+- KD0
+            |   |
+            |   +- ND0
+            |
+            D1 -+- KD1
+            |   |
+            |   +- ND1
+            |
+            D2 -+- KD2
+            |
+            +- ND2
+~~~
+
+Then if a client uses key KD1 and nonce ND1 during epoch n then it must consume
+(at least) values G, F, D0, D1, KD1, ND1 as well as the update_secret and
+init_secret used to derive G (i.e. the application_secret).
 
 ## Further Restrictions {#further-restrictions}
 
