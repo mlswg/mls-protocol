@@ -139,6 +139,16 @@ shared keys with costs that scale as the log of the group size.
 
 RFC EDITOR PLEASE DELETE THIS SECTION.
 
+draft-07
+
+- Initial version of the Tree based Application Key Schedule (\*)
+
+- Initial definition of the Init message for group creation (\*)
+
+- Fix issue with the transcript used for newcomers (*\)
+
+- Clarifications on message framing and HPKE contexts (*\)
+
 draft-06
 
 - Reorder blanking and update in the Remove operation (\*)
