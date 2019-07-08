@@ -2222,10 +2222,6 @@ TODO: Registries for protocol parameters, e.g., ciphersuites
   Wickr \\
   joel.alwen@wickr.com
 
-* Benjamin Beurdouche \\
-  INRIA \\
-  benjamin.beurdouche@ens.fr
-
 * Karthikeyan Bhargavan \\
   INRIA \\
   karthikeyan.bhargavan@inria.fr
