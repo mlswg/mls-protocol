@@ -844,12 +844,14 @@ other than for computing other secrets.)
 
 Clients MUST validate remote public values by ensuring
 that the point is a valid point on the elliptic curve.
-The appropriate validation procedures are defined in Section 4.3.7 of {{X962}}
-and alternatively in Section 5.6.2.3 of {{keyagreement}}.
-This process consists of three steps: (1) verify that the value is not the point at
-infinity (O), (2) verify that for Y = (x, y) both integers are in the correct
-interval, (3) ensure that (x, y) is a correct solution to the elliptic curve equation.
-For these curves, implementers do not need to verify membership in the correct subgroup.
+The appropriate validation procedures are defined in Section 4.3.7
+of {{X962}} and alternatively in Section 5.6.2.3 of {{keyagreement}}.
+This process consists of three steps: (1) verify that the value is not
+the point at infinity (O), (2) verify that for Y = (x, y) both integers
+are in the correct interval, (3) ensure that (x, y) is a correct solution
+to the elliptic curve equation.
+For these curves, implementers do not need to verify membership in
+the correct subgroup.
 
 ## Credentials
 
@@ -984,8 +986,8 @@ operations:
   is processed
 * The `tree_hash` is updated to represent the current tree and
   credentials
-* The `confirmed_transcript_hash` is updated with the data for an MLSPlaintext
-  message encoding a group operation in two parts:
+* The `confirmed_transcript_hash` is updated with the data for an
+  MLSPlaintext message encoding a group operation in two parts:
 
 ~~~~~
 struct {
@@ -1206,10 +1208,11 @@ use this key to send, encoded as a uint32.
 A proper security study is needed to make sure that we do not need
 more information in the context to achieve the security goals.]]
 
-[[ OPEN ISSUE: At the moment there is no contributivity of Application secrets
-chained from the initial one to the next generation of Epoch secret. While this
-seems safe because cryptographic operations using the application secrets can't
-affect the group init_secret, it remains to be proven correct. ]]
+[[ OPEN ISSUE: At the moment there is no contributivity of Application
+secrets chained from the initial one to the next generation of
+Epoch secret. While this seems safe because cryptographic operations
+using the application secrets can't affect the group init_secret,
+it remains to be proven correct. ]]
 
 The following rules apply to the usage of the secrets, keys, and
 nonces derived above:
@@ -1253,8 +1256,8 @@ array, and each entry in the init\_keys array MUST be a public key
 for the asymmetric encryption scheme defined in the cipher\_suites array
 and used in the HPKE construction for TreeKEM.
 
-The whole structure is signed using the client's identity key.  A
-ClientInitKey object with an invalid signature field MUST be
+The whole structure is signed using the client's identity key.
+A ClientInitKey object with an invalid signature field MUST be
 considered malformed.  The input to the signature computation
 comprises all of the fields except for the signature field.
 
@@ -1338,8 +1341,8 @@ The overall process is as follows:
 * Sign the plaintext metadata -- the group ID, epoch, sender index, and
   content type -- as well as the message content
 
-* Randomly generate sender_data_nonce and encrypt the sender information using
-  it and the key derived from the sender_data_secret
+* Randomly generate sender_data_nonce and encrypt the sender information
+  using it and the key derived from the sender_data_secret
 
 * Encrypt the content using a content encryption key identified by
   the metadata
@@ -1408,8 +1411,8 @@ struct {
 } MLSCiphertextContent;
 ~~~~~
 
-The key and nonce used for the encryption of the message depend on the content
-type of the message.  The sender chooses the handshake key for a
+The key and nonce used for the encryption of the message depend on the
+content type of the message.  The sender chooses the handshake key for a
 handshake message or an ununsed generation from its (per-sender)
 application key chain for the current epoch, according to the type
 of message being encrypted.
@@ -1450,8 +1453,8 @@ a change is made to the group state. This means an unbounded number
 of interleaved application and handshake messages.
 
 An MLS handshake message encapsulates a specific GroupOperation
-message that accomplishes a change to the group state.  It is carried in an
-MLSPlaintext message that provides a signature by the sender of the
+message that accomplishes a change to the group state.  It is carried in
+an MLSPlaintext message that provides a signature by the sender of the
 message.  Applications may choose to send handshake messages in
 encrypted form, as MLSCiphertext messages.
 
@@ -1516,8 +1519,9 @@ credential.
 message to verify that ratchet tree information in the message is
 accurate, because each node can only compute the secret and private
 key for nodes in its direct path.  This creates the possibility
-that a malicious participant could cause a denial of service by sending a handshake
-message with invalid values for public keys in the ratchet tree. ]]
+that a malicious participant could cause a denial of service by sending a
+handshake message with invalid values for public keys in the ratchet
+tree. ]]
 
 ## Init
 
@@ -1702,8 +1706,8 @@ degrading into subtrees, and thus maintain the protocol's efficiency.
 ## Update
 
 An Update message is sent by a group member to update its leaf
-secret and key pair.  This operation provides post-compromise security with
-regard to the member's prior leaf private key.
+secret and key pair.  This operation provides post-compromise security
+with regard to the member's prior leaf private key.
 
 ~~~~~
 struct {
@@ -1795,58 +1799,66 @@ general approaches:
 * Have the delivery service enforce a total order
 * Have a signal in the message that clients can use to break ties
 
-As long as handshake messages cannot be merged, there is a risk of starvation.  In a sufficiently
-busy group, a given member may never be able to send a handshake
-message, because he always loses to other members.  The degree to
-which this is a practical problem will depend on the dynamics of the
-application.
+As long as handshake messages cannot be merged, there is a risk of
+starvation.  In a sufficiently busy group, a given member may never
+be able to send a handshake message, because he always loses to other
+members.  The degree to which this is a practical problem will depend
+on the dynamics of the application.
 
-It might be possible, because of the non-contributivity of intermediate nodes,
-that update messages could be applied one after the other without the Delivery
-Service having to reject any handshake message, which would make MLS
-more resilient regarding the concurrency of handshake messages.
+It might be possible, because of the non-contributivity of intermediate
+nodes, that update messages could be applied one after the other
+without the Delivery Service having to reject any handshake message,
+which would make MLS more resilient regarding the concurrency of
+handshake messages.
 The Messaging system can decide to choose the order for applying
-the state changes. Note that there are certain cases (if no total ordering
-is applied by the Delivery Service) where the ordering is important
-for security, ie. all updates must be executed before removes.
+the state changes. Note that there are certain cases (if no total
+ordering is applied by the Delivery Service) where the ordering is
+important for security, ie. all updates must be executed before
+removes.
 
 Regardless of how messages are kept in sequence, implementations
-MUST only update their cryptographic state when valid handshake messages
-are received.  Generation of handshake messages MUST be stateless,
-since the endpoint cannot know at that time whether the change
-implied by the handshake message will succeed or not.
+MUST only update their cryptographic state when valid handshake
+messages are received.
+Generation of handshake messages MUST be stateless, since the
+endpoint cannot know at that time whether the change implied by
+the handshake message will succeed or not.
 
 ## Server-Enforced Ordering
 
-With this approach, the delivery service ensures that incoming messages are added to an
-ordered queue and outgoing messages are dispatched in the same order. The server
-is trusted to resolve conflicts during race-conditions (when two members send a
-message at the same time), as the server doesn't have any additional knowledge
-thanks to the confidentiality of the messages.
+With this approach, the delivery service ensures that incoming
+messages are added to an ordered queue and outgoing messages are
+dispatched in the same order. The server is trusted to resolve
+conflicts during race-conditions (when two members send a message
+at the same time), as the server doesn't have any additional
+knowledge thanks to the confidentiality of the messages.
 
-Messages should have a counter field sent in clear-text that can be checked by
-the server and used for tie-breaking. The counter starts at 0 and is incremented
-for every new incoming message. If two group members send a message with the same
-counter, the first message to arrive will be accepted by the server and the second
-one will be rejected. The rejected message needs to be sent again with the correct
-counter number.
+Messages should have a counter field sent in clear-text that can
+be checked by the server and used for tie-breaking. The counter
+starts at 0 and is incremented for every new incoming message.
+If two group members send a message with the same counter, the
+first message to arrive will be accepted by the server and the
+second one will be rejected. The rejected message needs to be sent
+again with the correct counter number.
 
-To prevent counter manipulation by the server, the counter's integrity can be
-ensured by including the counter in a signed message envelope.
+To prevent counter manipulation by the server, the counter's
+integrity can be ensured by including the counter in a signed
+message envelope.
 
 This applies to all messages, not only state changing messages.
 
 ## Client-Enforced Ordering
 
-Order enforcement can be implemented on the client as well, one way to achieve it
-is to use a two step update protocol: the first client sends a proposal to update and
-the proposal is accepted when it gets 50%+ approval from the rest of the group,
-then it sends the approved update. Clients which didn't get their proposal accepted,
-will wait for the winner to send their update before retrying new proposals.
+Order enforcement can be implemented on the client as well,
+one way to achieve it is to use a two step update protocol: the
+first client sends a proposal to update and the proposal is
+accepted when it gets 50%+ approval from the rest of the group,
+then it sends the approved update. Clients which didn't get
+their proposal accepted, will wait for the winner to send their
+update before retrying new proposals.
 
-While this seems safer as it doesn't rely on the server, it is more complex and
-harder to implement. It also could cause starvation for some clients if they keep
-failing to get their proposal accepted.
+While this seems safer as it doesn't rely on the server, it is
+more complex and harder to implement. It also could cause starvation
+for some clients if they keep failing to get their proposal accepted.
 
 ## Merging Updates
 
@@ -1905,42 +1917,45 @@ all arrive at the following state:
 
 # Application Messages
 
-The primary purpose of the Handshake protocol is to provide an authenticated
-group key exchange to clients. In order to protect Application messages sent
-among the members of a group, the Application secret provided by the Handshake
-key schedule is used to derive nonces and encryption keys for the Message
-Protection Layer according to the Application Key Schedule. That is, each epoch
-is equipped with a fresh Application Key Schedule which consist of a tree of
-Application Secrets as well as one symmetric ratchet per group member.
+The primary purpose of the Handshake protocol is to provide an
+authenticated group key exchange to clients. In order to protect
+Application messages sent among the members of a group, the Application
+secret provided by the Handshake key schedule is used to derive nonces
+and encryption keys for the Message Protection Layer according to
+the Application Key Schedule. That is, each epoch is equipped with
+a fresh Application Key Schedule which consist of a tree of Application
+Secrets as well as one symmetric ratchet per group member.
 
-Each client maintains their own local copy of (parts of) the Application Key
-Schedule for each epoch during which they are a group member. They derive new
-keys, nonces and secrets as needed while deleting old ones as soon as they have
-been used.
+Each client maintains their own local copy of (parts of) the
+Application Key Schedule for each epoch during which they are a
+group member. They derive new keys, nonces and secrets as needed
+while deleting old ones as soon as they have been used.
 
 Application messages MUST be protected with the Authenticated-Encryption
-with Associated-Data (AEAD) encryption scheme associated with the MLS
-ciphersuite.
-Note that "Authenticated" in this context does not mean messages are known to
-be sent by a specific client but only from a legitimate member of the group.
-To authenticate a message from a particular member, signatures are required.
-Handshake messages MUST use asymmetric signatures to strongly authenticate
-the sender of a message.
+with Associated-Data (AEAD) encryption scheme associated with the
+MLS ciphersuite.
+Note that "Authenticated" in this context does not mean messages are
+known to be sent by a specific client but only from a legitimate
+member of the group.
+To authenticate a message from a particular member, signatures are
+required. Handshake messages MUST use asymmetric signatures to strongly
+authenticate the sender of a message.
 
 ## Tree Of Application Secrets
 
-The Application schedule begins with the Application secrets which are arranged
-in an "Application Secret Tree" or AS Tree for short; a left balanced binary
-tree with the same set of nodes and edges as the epoch's ratchet tree. Each
-leaf in the AS Tree is associated with the same group member as the
-corresponding leaf in the ratchet tree. Nodes are also assigned an index
-according to their position in the array representation of the tree (described
-in {{tree-math}}). If N is a node index in the AS Tree then left(N)
-and right(N) denote the children of N (if they exist).
+The Application schedule begins with the Application secrets which
+are arranged in an "Application Secret Tree" or AS Tree for short;
+a left balanced binary tree with the same set of nodes and edges as
+the epoch's ratchet tree. Each leaf in the AS Tree is associated with
+the same group member as the corresponding leaf in the ratchet tree.
+Nodes are also assigned an index according to their position in the
+array representation of the tree (described in {{tree-math}}). If N
+is a node index in the AS Tree then left(N) and right(N) denote the
+children of N (if they exist).
 
-Each node in the tree is assigned a secret. The root's secret is simply the
-application_secret of that epoch. (See {{key-schedule}} for the definition of
-application_secret.)
+Each node in the tree is assigned a secret. The root's secret is simply
+the application_secret of that epoch. (See {{key-schedule}} for the
+definition of application_secret.)
 
 ~~~~
 astree_node_[root]_secret = application_secret
@@ -1980,11 +1995,12 @@ completely defines all secrets in the AS Tree.
 
 ## Sender Ratchets
 
-The secret of a leaf in the AS Tree is used to initiate a symmetric hash ratchet
-which generates a sequence of keys and nonces. The group member assigned to that
-leaf uses the j-th key/nonce pair in the sequence to encrypt (using the AEAD)
-the j-th message they send during that epoch. In particular, each key/nonce pair
-MUST NOT be used to encrypt more than one message.
+The secret of a leaf in the AS Tree is used to initiate a symmetric hash
+ratchet which generates a sequence of keys and nonces. The group member
+assigned to that leaf uses the j-th key/nonce pair in the sequence to
+encrypt (using the AEAD) the j-th message they send during that epoch.
+In particular, each key/nonce pair MUST NOT be used to encrypt more
+than one message.
 
 More precisely, the initial secret of the ratchet for the group
 member assigned to the leaf with node index N is simply the secret of
@@ -2015,30 +2031,32 @@ Derive-App-Secret(., "app-secret", N, j, Hash.length)
 = application_[N]_[j+1]_secret
 ~~~~
 
-Here, AEAD.nonce\_length and AEAD.key\_length denote the lengths in bytes of the
-nonce and key for the AEAD scheme defined by the ciphersuite.
+Here, AEAD.nonce\_length and AEAD.key\_length denote the lengths
+in bytes of the nonce and key for the AEAD scheme defined by
+the ciphersuite.
 
 ## Deletion Schedule
 
-It is important to delete all security sensitive values as soon as they, or
-another value derived from them, is used for encryption or decryption.
+It is important to delete all security sensitive values as soon as they,
+or another value derived from them, is used for encryption or decryption.
 
 More precisely, the values application_[i]\_[j]\_key and
-application\_[i]\_[j]_nonce are said to be "consumed" if they were used either
-to:
+application\_[i]\_[j]_nonce are said to be "consumed" if they were
+used either to:
 
 * encrypt or (successfully) decrypt a message or
-* if a key, nonce or secret derived from S has been consumed. (This goes both
-for values derived via Derive-Secret and HKDF-Expand-Label).
+* if a key, nonce or secret derived from S has been consumed.
+
+(This goes both for values derived via Derive-Secret and HKDF-Expand-Label).
 
 Here, S may be the init_secret, update_secret, epoch_secret, application_secret
 as well as any secret in the AS Tree or one of the ratchets.
 
-As soon as a group member consumes a value they MUST immediately delete (all
-representations of) that value. This is crucial to ensuring Forward Secrecy for
-past messages. Members MAY keep unconsumed values around for some reasonable
-amount of time even if their generating secret was already consumed (e.g. due
-to out of order message delivery).
+As soon as a group member consumes a value they MUST immediately delete
+(all representations of) that value. This is crucial to ensuring
+Forward Secrecy for past messages. Members MAY keep unconsumed values around
+for some reasonable amount of time even if their generating secret was
+already consumed (e.g. due to out of order message delivery).
 
 For example, suppose a group member encrypts or (successfully) decrypts a
 message using the j-th key and nonce in the i-th ratchet. Then, for that
@@ -2165,22 +2183,26 @@ on which Secret or key is kept alive, the security guarantees will vary.]]
 
 # Security Considerations
 
-The security goals of MLS are described in [I-D.ietf-mls-architecture]. We describe here how the
-protocol achieves its goals at a high level, though a complete security analysis is outside of the
-scope of this document.
+The security goals of MLS are described in [I-D.ietf-mls-architecture].
+We describe here how the protocol achieves its goals at a high level,
+though a complete security analysis is outside of the scope of this
+document.
 
 ## Confidentiality of the Group Secrets
 
-Group secrets are derived from (i) previous group secrets, and (ii) the root key of a ratcheting
-tree. Only group members know their leaf private key in the group, therefore, the root key of the
-group's ratcheting tree is secret and thus so are all values derived from it.
+Group secrets are derived from (i) previous group secrets, and (ii)
+the root key of a ratcheting tree. Only group members know their leaf
+private key in the group, therefore, the root key of the group's ratcheting
+tree is secret and thus so are all values derived from it.
 
-Initial leaf keys are known only by their owner and the group creator, because they are derived from
-an authenticated key exchange protocol. Subsequent leaf keys are known only by their owner. [[TODO:
-or by someone who replaced them.]]
+Initial leaf keys are known only by their owner and the group creator,
+because they are derived from an authenticated key exchange protocol.
+Subsequent leaf keys are known only by their owner. [[TODO: or by
+someone who replaced them.]]
 
-Note that the long-term identity keys used by the protocol MUST be distributed by an "honest"
-authentication service for clients to authenticate their legitimate peers.
+Note that the long-term identity keys used by the protocol MUST be
+distributed by an "honest" authentication service for clients to
+authenticate their legitimate peers.
 
 ## Authentication
 
@@ -2200,23 +2222,27 @@ particular member of the group. This property is provided by digital
 signatures on the messages under identity keys.
 
 [[ OPEN ISSUE: Signatures under the identity keys, while simple, have
-the side-effect of preclude deniability. We may wish to allow other options, such as (ii) a key
-chained off of the identity key, or (iii) some other key obtained
-through a different manner, such as a pairwise channel that
-provides deniability for the message contents.]]
+the side-effect of preclude deniability. We may wish to allow other
+options, such as (ii) a key chained off of the identity key,
+or (iii) some other key obtained through a different manner, such
+as a pairwise channel that provides deniability for the message
+contents.]]
 
 ## Forward and post-compromise security
 
-Message encryption keys are derived via a hash ratchet, which provides a form of forward secrecy: learning a
-message key does not reveal previous message or root keys. Post-compromise security is provided by
-Update operations, in which a new root key is generated from the latest ratcheting tree. If the
-adversary cannot derive the updated root key after an Update operation, it cannot compute any
+Message encryption keys are derived via a hash ratchet, which
+provides a form of forward secrecy: learning a message key does not
+reveal previous message or root keys. Post-compromise security is
+provided by Update operations, in which a new root key is generated
+from the latest ratcheting tree. If the adversary cannot derive the
+updated root key after an Update operation, it cannot compute any
 derived secrets.
 
 ## Init Key Reuse
 
-Initialization keys are intended to be used only once and then deleted. Reuse of init keys is not believed to be
-inherently insecure {{dhreuse}}, although it can complicate protocol analyses.
+Initialization keys are intended to be used only once and then
+deleted. Reuse of init keys is not believed to be inherently insecure
+{{dhreuse}}, although it can complicate protocol analyses.
 
 
 # IANA Considerations
