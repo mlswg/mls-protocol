@@ -849,9 +849,8 @@ of {{X962}} and alternatively in Section 5.6.2.3 of {{keyagreement}}.
 This process consists of three steps: (1) verify that the value is not
 the point at infinity (O), (2) verify that for Y = (x, y) both integers
 are in the correct interval, (3) ensure that (x, y) is a correct solution
-to the elliptic curve equation.
-For these curves, implementers do not need to verify membership in
-the correct subgroup.
+to the elliptic curve equation. For these curves, implementers do
+not need to verify membership in the correct subgroup.
 
 ## Credentials
 
@@ -1174,35 +1173,8 @@ For application messages, a chain of keys is derived for each sender
 in a similar fashion. This allows forward secrecy at the level of
 application messages within and out of an epoch.
 A step in this chain (the second subscript) is called a "generation".
-
-[[ OPEN ISSUE: The HKDF context field is left empty for now.
-A proper security study is needed to make sure that we do not need
-more information in the context to achieve the security goals.]]
-
-[[ OPEN ISSUE: At the moment there is no contributivity of Application
-secrets chained from the initial one to the next generation of
-Epoch secret. While this seems safe because cryptographic operations
-using the application secrets can't affect the group init_secret,
-it remains to be proven correct. ]]
-
-The following rules apply to the usage of the secrets, keys, and
-nonces derived above:
-
-- Senders MUST only use a given secret once and monotonically
-  increment the generation of their secret. This is important to
-  provide Forward Secrecy at the level of Application messages. An
-  attacker getting hold of a member specific Application Secret at
-  generation [N+1] will not be able to derive the member's
-  Application Secret [N] nor the associated AEAD key and nonce.
-
-- Receivers MUST delete an Application Secret once it has been used
-  to derive the corresponding AEAD key and nonce as well as the next
-  Application Secret. Receivers MAY keep the AEAD key and nonce
-  around for some reasonable period.
-
-- Receivers MUST delete AEAD keys and nonces once they have been used to
-  successfully decrypt a message.
-
+The details of application key derivation are described in the
+{{astree}} section below.
 
 # Initialization Keys
 
@@ -1912,7 +1884,7 @@ To authenticate a message from a particular member, signatures are
 required. Handshake messages MUST use asymmetric signatures to strongly
 authenticate the sender of a message.
 
-## Tree of Application Secrets
+## Tree of Application Secrets {#astree}
 
 The application key schedule begins with the application secrets which
 are arranged in an "Application Secret Tree" or AS Tree for short;
