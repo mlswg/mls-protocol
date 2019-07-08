@@ -1566,7 +1566,10 @@ needs to initialize a GroupContext object that can be updated to the
 current state using the Add message.  This information is encrypted
 for the new member using HPKE.  The recipient key pair for the
 HPKE encryption is the one included in the indicated ClientInitKey,
-corresponding to the indicated ciphersuite.
+corresponding to the indicated ciphersuite.  The "add_key_nonce"
+field contains the key and nonce used to encrypt the corresponding
+Add message; if it is not encrypted, then this field MUST be set to
+the null optional value.
 
 ~~~~~
 struct {
@@ -1575,12 +1578,18 @@ struct {
 } RatchetNode;
 
 struct {
+    opaque key<0..255>;
+    opaque nonce<0..255>;
+} KeyAndNonce;
+
+struct {
     ProtocolVersion version;
     opaque group_id<0..255>;
     uint32 epoch;
     optional<RatchetNode> tree<1..2^32-1>;
     opaque transcript_hash<0..255>;
     opaque init_secret<0..255>;
+    optional<KeyAndNonce> add_key_nonce;
 } WelcomeInfo;
 
 struct {
