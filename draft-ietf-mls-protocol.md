@@ -1175,35 +1175,6 @@ in a similar fashion. This allows forward secrecy at the level of
 application messages within and out of an epoch.
 A step in this chain (the second subscript) is called a "generation".
 
-~~~~~
-           application_secret
-                     |
-                     V
-           HKDF-Expand-Label(., "app sender", [sender], Hash.length)
-                     |
-                     V
-           application_secret_[sender]_[0]
-                     |
-                    ...
-                     |
-                     V
-           application_secret_[sender]_[N-1]
-                     |
-                     +--> HKDF-Expand-Label(.,"nonce", "", nonce_length)
-                     |    = write_nonce_[sender]_[N-1]
-                     |
-                     +--> HKDF-Expand-Label(.,"key", "", key_length)
-                     |    = write_key_[sender]_[N-1]
-                     V
-           HKDF-Expand-Label(., "app sender", [sender], Hash.length)
-                     |
-                     V
-           application_secret_[sender]_[N]
-~~~~~
-
-As before the value [sender] represents the index of the member that will
-use this key to send, encoded as a uint32.
-
 [[ OPEN ISSUE: The HKDF context field is left empty for now.
 A proper security study is needed to make sure that we do not need
 more information in the context to achieve the security goals.]]
