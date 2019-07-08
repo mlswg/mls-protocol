@@ -1535,6 +1535,14 @@ members learn the relevant path secrets by decrypting one of the
 encrypted path secrets in the DirectPath and working back to the
 root (as in normal DirectPath processing).
 
+[[ OPEN ISSUE: This approach leaks the initial contents of the tree
+to the Delivery Service, unlike the sequential-Add case. ]]
+
+[[ OPEN ISSUE: It might be desireable for the group creator to be
+able to "pre-warm" the tree, by providing values for some nodes not
+on its direct path.  This would violate the tree invariant, so we
+would need to figure out what mitigations would be necessary. ]]
+
 ## Add
 
 In order to add a new member to the group, an existing member of the
