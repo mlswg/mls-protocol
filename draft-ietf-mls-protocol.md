@@ -2227,6 +2227,10 @@ TODO: Registries for protocol parameters, e.g., ciphersuites
 
 # Contributors
 
+* Joel Alwen \\
+  Wickr \\
+  joel.alwen@wickr.com
+
 * Benjamin Beurdouche \\
   INRIA \\
   benjamin.beurdouche@ens.fr
