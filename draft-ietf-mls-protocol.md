@@ -1897,14 +1897,14 @@ the Application Key Schedule. That is, each epoch is equipped with
 a fresh Application Key Schedule which consist of a tree of Application
 Secrets as well as one symmetric ratchet per group member.
 
-Each client maintains their own local copy of (parts of) the
-Application Key Schedule for each epoch during which they are a
-group member. They derive new keys, nonces and secrets as needed
-while deleting old ones as soon as they have been used.
+Each client maintains their own local copy of the Application Key
+Schedule for each epoch during which they are a group member. They
+derive new keys, nonces and secrets as needed while deleting old
+ones as soon as they have been used.
 
 Application messages MUST be protected with the Authenticated-Encryption
 with Associated-Data (AEAD) encryption scheme associated with the
-MLS ciphersuite.
+MLS ciphersuite using the common framing mechanism.
 Note that "Authenticated" in this context does not mean messages are
 known to be sent by a specific client but only from a legitimate
 member of the group.
@@ -1912,9 +1912,9 @@ To authenticate a message from a particular member, signatures are
 required. Handshake messages MUST use asymmetric signatures to strongly
 authenticate the sender of a message.
 
-## Tree Of Application Secrets
+## Tree of Application Secrets
 
-The Application schedule begins with the Application secrets which
+The application key schedule begins with the application secrets which
 are arranged in an "Application Secret Tree" or AS Tree for short;
 a left balanced binary tree with the same set of nodes and edges as
 the epoch's ratchet tree. Each leaf in the AS Tree is associated with
@@ -1947,7 +1947,7 @@ struct {
 } ApplicationContext
 ~~~~
 
-If N is a node index in the ASTree then the secrets of the children
+If N is a node index in the AS Tree then the secrets of the children
 of N are defined to be:
 
 ~~~~
@@ -1961,7 +1961,7 @@ astree_node_[N]_secret
              = astree_node_[right(N)]_secret
 ~~~~
 
-Note that fixing concrete values for GroupState_[n] and application_secret
+Note that fixing concrete values for GroupContext_[n] and application_secret
 completely defines all secrets in the AS Tree.
 
 ## Sender Ratchets
@@ -2008,7 +2008,7 @@ the ciphersuite.
 
 ## Deletion Schedule
 
-It is important to delete all security sensitive values as soon as they,
+It is important to delete all security sensitive values S as soon as they,
 or another value derived from them, is used for encryption or decryption.
 
 More precisely, the values application_[i]\_[j]\_key and
@@ -2069,7 +2069,7 @@ processing future messages.
 
 ## Further Restrictions {#further-restrictions}
 
-During each epoch senders MUST NOT encrypt more messages than permitted by the
+During each epoch senders MUST NOT encrypt more data than permitted by the
 security bounds of the AEAD scheme used.
 
 Note that each change to the Group through a Handshake message will also set a
