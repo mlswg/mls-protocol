@@ -1073,7 +1073,7 @@ struct {
 } HkdfLabel;
 
 Derive-Secret(Secret, Label) =
-    Derive-In-Group(Secret, Label, "", Hash.length)
+    HKDF-Expand-Label(Secret, Label, "", Hash.length)
 ~~~~~
 
 The Hash function used by HKDF is the ciphersuite hash algorithm.
@@ -1905,8 +1905,8 @@ tree with the same set of nodes and edges as the epoch's ratchet tree. Each
 leaf in the AS Tree is associated with the same group member as the
 corresponding leaf in the ratchet tree. Nodes are also assigned an index
 according to their position in the array representation of the tree (described
-in {{tree-math}}). If V is a node index in the AS Tree then left(V)
-and right(V) denote the children of V (if they exist).
+in {{tree-math}}). If N is a node index in the AS Tree then left(N)
+and right(N) denote the children of N (if they exist).
 
 Each node in the tree is assigned a secret. The root's secret is simply the
 application_secret of that epoch. (See {{key-schedule}} for the definition of
@@ -1921,7 +1921,7 @@ using a call to Derive-App-Secret.
 
 ~~~~
 Derive-App-Secret(Secret, Label, Node, Generation, Length) =
-    Derive-In-Group(Secret, Label, ApplicationContext, Length)
+    HKDF-Expand-Label(Secret, Label, ApplicationContext, Length)
 
 Where ApplicationContext is specified as:
 
@@ -1931,18 +1931,18 @@ struct {
 } ApplicationContext
 ~~~~
 
-If V is a node index in the ASTree then the secrets of the children
-of V are defined to be:
+If N is a node index in the ASTree then the secrets of the children
+of N are defined to be:
 
 ~~~~
-astree_node_[V]_secret
+astree_node_[N]_secret
         |
         |
-        +--> Derive-App-Secret(., "tree", left(V), 0, Hash.length)
-        |    = astree_node_[left(V)]_secret
+        +--> Derive-App-Secret(., "tree", left(N), 0, Hash.length)
+        |    = astree_node_[left(N)]_secret
         |
-        +--> Derive-App-Secret(., "tree", right(V), 0, Hash.length)
-             = astree_node_[right(V)]_secret
+        +--> Derive-App-Secret(., "tree", right(N), 0, Hash.length)
+             = astree_node_[right(N)]_secret
 ~~~~
 
 Note that fixing concrete values for GroupState_[n] and application_secret
@@ -1957,11 +1957,11 @@ the j-th message they send during that epoch. In particular, each key/nonce pair
 MUST NOT be used to encrypt more than one message.
 
 More precisely, the initial secret of the ratchet for the group
-member assigned to the leaf with node index V is simply the secret of
+member assigned to the leaf with node index N is simply the secret of
 that leaf.
 
 ~~~~
-application_[V]_[0]_secret = astree_node_[V]_secret
+application_[N]_[0]_secret = astree_node_[N]_secret
 ~~~~
 
 Keys, nonces and secrets of ratchets are derived using
@@ -1972,17 +1972,17 @@ ratchet tree is the same as the index of the leaf in the AS Tree
 used to initialize the sender's ratchet.
 
 ~~~~
-application_[V]_[j]_secret
+application_[N]_[j]_secret
       |
-      +--> Derive-App-Secret(., "app-nonce", V, j, AEAD.nonce_length)
-      |    = application_[V]_[j]_nonce
+      +--> Derive-App-Secret(., "app-nonce", N, j, AEAD.nonce_length)
+      |    = application_[N]_[j]_nonce
       |
-      +--> Derive-App-Secret(., "app-key", V, j, AEAD.key_length)
-      |    = application_[V]_[j]_key
+      +--> Derive-App-Secret(., "app-key", N, j, AEAD.key_length)
+      |    = application_[N]_[j]_key
       |
       V
-Derive-App-Secret(., "app-secret", V, j, Hash.length)
-= application_[V]_[j+1]_secret
+Derive-App-Secret(., "app-secret", N, j, Hash.length)
+= application_[N]_[j+1]_secret
 ~~~~
 
 Here, AEAD.nonce\_length and AEAD.key\_length denote the lengths in bytes of the
@@ -2038,16 +2038,15 @@ A0  B0  C0  D0 -+- KD0
             |   |
             |   +- ND1
             |
-            D2 -+- KD2
-                |
-                +- ND2
+            D2
 ~~~
 
 Then if a client uses key KD1 and nonce ND1 during epoch n then it must consume
 (at least) values G, F, D0, D1, KD1, ND1 as well as the update_secret and
 init_secret used to derive G (i.e. the application_secret).  The
 client MAY retain (i.e., not consume) the values KD0 and ND0 to
-allow for out-of-order delivery.
+allow for out-of-order delivery, and SHOULD retain D2 to allow for
+processing future messages.
 
 ## Further Restrictions {#further-restrictions}
 
