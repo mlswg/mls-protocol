@@ -1066,13 +1066,14 @@ HKDF-Expand-Label(Secret, Label, Context, Length) =
 Where HkdfLabel is specified as:
 
 struct {
-    uint16 length = Length;
-    opaque label<7..255> = "mls10 " + Label;
-    opaque context<0..2^32-1> = Context;
+  opaque group_context<0..255> = Hash(GroupContext_[n]);
+  uint16 length = Length;
+  opaque label<7..255> = "mls10 " + Label;
+  opaque context<0..2^32-1> = Context;
 } HkdfLabel;
 
-Derive-Secret(Secret, Label, Context) =
-    HKDF-Expand-Label(Secret, Label, Hash(Context), Hash.length)
+Derive-Secret(Secret, Label) =
+    Derive-In-Group(Secret, Label, "", Hash.length)
 ~~~~~
 
 The Hash function used by HKDF is the ciphersuite hash algorithm.
@@ -1904,48 +1905,44 @@ tree with the same set of nodes and edges as the epoch's ratchet tree. Each
 leaf in the AS Tree is associated with the same group member as the
 corresponding leaf in the ratchet tree. Nodes are also assigned an index
 according to their position in the array representation of the tree (described
-in {{tree-math}}). If V is a node in the AS Tree then IndexOf(V) denotes it's
-index while V.leftChild and V.rightChild denote the children of V (if they
-exist).
+in {{tree-math}}). If V is a node index in the AS Tree then left(V)
+and right(V) denote the children of V (if they exist).
 
 Each node in the tree is assigned a secret. The root's secret is simply the
 application_secret of that epoch. (See {{key-schedule}} for the definition of
 application_secret.)
 
 ~~~~
-astree_node_[IndexOf(root)]_secret = application_secret
+astree_node_[root]_secret = application_secret
 ~~~~
 
 The secret of any other node in the tree is derived from its parent's secret
-using a call to Derive-Secret. The context for the call is the (hash of the)
-Group state of the epoch and the index of the node whose secret is being
-derived.
+using a call to Derive-App-Secret.
 
 ~~~~
+Derive-App-Secret(Secret, Label, Node, Generation, Length) =
+    Derive-In-Group(Secret, Label, ApplicationContext, Length)
+
+Where ApplicationContext is specified as:
+
 struct {
-  opaque gshash<0..2^32-1> = Hash(GroupState_[n]);
-  uint32 node_index;
-} ASTreeContext
+    uint32 node = Node;
+    uint32 generation = Generation;
+} ApplicationContext
 ~~~~
 
-If V is a node in the ASTree then ASTreeContext[V] denotes an
-ASTreeContext variable with:
-
-* gshash = Hash(GroupState_[n])
-
-* node_index = IndexOf(V)
-
-Moreover, the secrets of the children of V are defined to be:
+If V is a node index in the ASTree then the secrets of the children
+of V are defined to be:
 
 ~~~~
-astree_node_[IndexOf(V)]_secret
+astree_node_[V]_secret
         |
         |
-        +--> Derive-Secret(., "astree-secret", ASTreeContext[V.leftChild])
-        |    = astree_node_[IndexOf(V.left_child)]_secret
+        +--> Derive-App-Secret(., "tree", left(V), 0, Hash.length)
+        |    = astree_node_[left(V)]_secret
         |
-        +--> Derive-Secret(., "astree-secret", ASTreeContext[V.rightChild])
-             = astree_node_[IndexOf(V.right_child)]_secret
+        +--> Derive-App-Secret(., "tree", right(V), 0, Hash.length)
+             = astree_node_[right(V)]_secret
 ~~~~
 
 Note that fixing concrete values for GroupState_[n] and application_secret
@@ -1959,54 +1956,36 @@ leaf uses the j-th key/nonce pair in the sequence to encrypt (using the AEAD)
 the j-th message they send during that epoch. In particular, each key/nonce pair
 MUST NOT be used to encrypt more than one message.
 
-More precisely, the initial secret of the ratchet for the group member assigned to the leaf with index i is simply the secret of that leaf.
+More precisely, the initial secret of the ratchet for the group
+member assigned to the leaf with node index V is simply the secret of
+that leaf.
 
 ~~~~
-application_[i]_[0]_secret = astree_node_[i]_secret
+application_[V]_[0]_secret = astree_node_[V]_secret
 ~~~~
 
-Keys, nonces and secrets of ratchets are derived using HKDF-Expand-Label. The
-context in a given call consists of (a hash of) the current Group state, the
-index of the sender's leaf in the ratchet tree and the position in the ratchet.
-In particular, the index of the sender's leaf in the ratchet tree is the same
-as the index of the leaf in the AS Tree used to initialize the sender's ratchet.
+Keys, nonces and secrets of ratchets are derived using
+Derive-App-Secret. The context in a given call consists of the index
+of the sender's leaf in the ratchet tree and the current position in
+the ratchet.  In particular, the index of the sender's leaf in the
+ratchet tree is the same as the index of the leaf in the AS Tree
+used to initialize the sender's ratchet.
 
 ~~~~
-struct {
-  opaque gshash<0..2^32-1> = Hash(GroupState_[n]);
-  uint32 leaf_index;
-  uint32 ratchet_position;
-} RatchetContext
-~~~~
-
-Ratchet_position is initialized to 1 for the first HKDF-Expand-Label call of a
-new ratchet and incremented for each subsequent call in that ratchet.
-
-HashRatCont[i, j] denotes a RatchetContext variable where:
-
-- gshash = Hash(GropuState_[n])
-
-- leaf_index = i
-
-- ratchet_position = j
-
-Using this notation the ratchet for the group member at leaf i is defined to be:
-
-~~~~
-application_[i]_[j]_secret
+application_[V]_[j]_secret
       |
-      +--> HKDF-Expand-Label(., "app-nonce", HashRatCont[i,j+1], AEAD.nonceLen)
-      |    = application_[i]_[j+1]_nonce
+      +--> Derive-App-Secret(., "app-nonce", V, j, AEAD.nonce_length)
+      |    = application_[V]_[j]_nonce
       |
-      +--> HKDF-Expand-Label(., "app-key", HashRatCont[i,j+1], AEAD.keyLength)
-      |    = application_[i]_[j+1]_key
+      +--> Derive-App-Secret(., "app-key", V, j, AEAD.key_length)
+      |    = application_[V]_[j]_key
       |
       V
-HKDF-Expand-Label(., "app-secret", HashRatCont[i,j+1], Hash.length)
-= application_[i]_[j+1]_secret
+Derive-App-Secret(., "app-secret", V, j, Hash.length)
+= application_[V]_[j+1]_secret
 ~~~~
 
-Here, AEAD.nonceLen and AEAD.keyLength denote the lengths in bytes of the
+Here, AEAD.nonce\_length and AEAD.key\_length denote the lengths in bytes of the
 nonce and key for the AEAD scheme defined by the ciphersuite.
 
 ## Deletion Schedule
@@ -2042,7 +2021,8 @@ index i,
 * the first j secrets in the i-th ratchet and
 * application_[i]\_[j]\_key and application_[i]\_[j]\_nonce.
 
-Concretely, suppose we have the following AS Tree.
+Concretely, suppose we have the following AS Tree and ratchet for
+participant D:
 
 ~~~
        G
@@ -2059,13 +2039,15 @@ A0  B0  C0  D0 -+- KD0
             |   +- ND1
             |
             D2 -+- KD2
-            |
-            +- ND2
+                |
+                +- ND2
 ~~~
 
 Then if a client uses key KD1 and nonce ND1 during epoch n then it must consume
 (at least) values G, F, D0, D1, KD1, ND1 as well as the update_secret and
-init_secret used to derive G (i.e. the application_secret).
+init_secret used to derive G (i.e. the application_secret).  The
+client MAY retain (i.e., not consume) the values KD0 and ND0 to
+allow for out-of-order delivery.
 
 ## Further Restrictions {#further-restrictions}
 
