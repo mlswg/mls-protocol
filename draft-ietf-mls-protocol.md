@@ -235,6 +235,7 @@ draft-00
 
 - Initial adoption of draft-barnes-mls-protocol-01 as a WG item.
 
+
 # Terminology
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
@@ -555,7 +556,6 @@ node index.  The leaf indices in the above tree are as follows:
 * 5 = F
 * 6 = G
 
-
 ## Ratchet Tree Nodes
 
 A particular instance of a ratchet tree is based on the following
@@ -637,7 +637,6 @@ a way as to maintain the _tree invariant_:
 In other words, each member holds the private keys for nodes in its
 direct path, and no others.
 
-
 ## Ratchet Tree Updates
 
 Nodes in a tree are always updated along the direct path from a
@@ -694,7 +693,6 @@ above:
      /  \      / \
     A   ns[0] C   D
 ~~~~~
-
 
 ## Synchronizing Views of the Tree
 
@@ -1072,7 +1070,6 @@ Decryption is performed in the corresponding way, using the private
 key of the resolution node and the ephemeral public key
 transmitted in the message.
 
-
 ## Key Schedule
 
 Group keys are derived using the HKDF-Extract and HKDF-Expand
@@ -1274,6 +1271,7 @@ struct {
 } ClientInitKey;
 ~~~~~
 
+
 # Message Framing
 
 Handshake and application messages use a common framing structure.
@@ -1433,6 +1431,7 @@ struct {
 The ciphertext field of the MLSCiphertext object is produced by
 supplying these inputs to the AEAD function specified by the
 ciphersuite in use.
+
 
 # Handshake Messages
 
@@ -1771,6 +1770,7 @@ the tree and self-removal is prohibited
 The `update_secret` resulting from this change is the `path_secret[i+1]`
 derived from the `path_secret[i]` associated to the root node.
 
+
 # Sequencing of State Changes {#sequencing}
 
 [[ OPEN ISSUE: This section has an initial set of considerations
@@ -1901,6 +1901,7 @@ all arrive at the following state:
   /  \      /  \
  A    X    Y    D
 ~~~~~
+
 
 # Application Messages
 
@@ -2161,6 +2162,7 @@ decryption is being done.
 [[TODO: Describe here or in the Architecture spec the details. Depending
 on which Secret or key is kept alive, the security guarantees will vary.]]
 
+
 # Security Considerations
 
 The security goals of MLS are described in [I-D.ietf-mls-architecture]. We describe here how the
@@ -2221,6 +2223,7 @@ inherently insecure {{dhreuse}}, although it can complicate protocol analyses.
 
 TODO: Registries for protocol parameters, e.g., ciphersuites
 
+
 # Contributors
 
 * Joel Alwen \\
@@ -2256,6 +2259,7 @@ TODO: Registries for protocol parameters, e.g., ciphersuites
   thyla.van.der@merwe.tech
 
 --- back
+
 
 # Tree Math {#tree-math}
 
