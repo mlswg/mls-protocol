@@ -798,8 +798,14 @@ enum {
 This ciphersuite uses the following primitives:
 
 * Hash function: SHA-256
-* Diffie-Hellman group: Curve25519 {{!RFC7748}}
 * AEAD: AES-128-GCM
+
+When HPKE is used with this ciphersuite, it uses the following
+algorithms:
+
+* KEM: 0x0002 = DHKEM(Curve25519)
+* KDF: 0x0001 = HKDF-SHA256
+* AEAD: 0x0001 = AES-GCM-128
 
 Given an octet string X, the private key produced by the
 Derive-Key-Pair operation is SHA-256(X).  (Recall that any 32-octet
@@ -807,7 +813,7 @@ string is a valid Curve25519 private key.)  The corresponding public
 key is X25519(SHA-256(X), 9).
 
 Implementations SHOULD use the approach
-specified in {{RFC7748}} to calculate the Diffie-Hellman shared secret.
+specified in {{?RFC7748}} to calculate the Diffie-Hellman shared secret.
 Implementations MUST check whether the computed Diffie-Hellman shared
 secret is the all-zero value and abort if so, as described in
 Section 6 of {{RFC7748}}.  If implementers use an alternative
@@ -819,8 +825,14 @@ additional checks specified in Section 7 of {{RFC7748}}
 This ciphersuite uses the following primitives:
 
 * Hash function: SHA-256
-* Diffie-Hellman group: secp256r1 (NIST P-256)
 * AEAD: AES-128-GCM
+
+When HPKE is used with this ciphersuite, it uses the following
+algorithms:
+
+* KEM: 0x0001 = DHKEM(P-256)
+* KDF: 0x0001 = HKDF-SHA256
+* AEAD: 0x0001 = AES-GCM-128
 
 Given an octet string X, the private key produced by the
 Derive-Key-Pair operation is SHA-256(X), interpreted as a big-endian
@@ -1065,7 +1077,7 @@ ciphertext = context.Seal("", path_secret)
 
 where `node_public_key` is the public key of the node that the path
 secret is being encrypted for, and the functions `SetupBaseI` and
-`Seal` are defined according to {{!I-D.barnes-cfrg-hpke}}.
+`Seal` are defined according to {{!I-D.irtf-cfrg-hpke}}.
 
 Decryption is performed in the corresponding way, using the private
 key of the resolution node and the ephemeral public key
