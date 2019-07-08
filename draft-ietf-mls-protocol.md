@@ -1990,7 +1990,7 @@ used either to:
 * encrypt or (successfully) decrypt a message or
 * if a key, nonce or secret derived from S has been consumed.
 
-(This goes both for values derived via Derive-Secret and HKDF-Expand-Label).
+(This goes both for values derived via Derive-Secret and HKDF-Expand-Label.)
 
 Here, S may be the init_secret, update_secret, epoch_secret, application_secret
 as well as any secret in the AS Tree or one of the ratchets.
