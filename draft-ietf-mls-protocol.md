@@ -2223,6 +2223,10 @@ TODO: Registries for protocol parameters, e.g., ciphersuites
   Mozilla \\
   ekr@rtfm.com
 
+* Michael Rosenberg \\
+  Trail of Bits \\
+  michael.rosenberg@trailofbits.com
+
 * Thyla van der Merwe \\
   Royal Holloway, University of London \\
   thyla.van.der@merwe.tech
