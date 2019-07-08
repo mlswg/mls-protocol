@@ -302,22 +302,26 @@ the MS provides the following services:
 
 # Protocol Overview
 
-The goal of this protocol is to allow a group of clients to exchange confidential and
-authenticated messages. It does so by deriving a sequence of secrets and keys known only to members. Those
-should be secret against an active network adversary and should have both forward and
-post-compromise secrecy with respect to compromise of a participant.
+The goal of this protocol is to allow a group of clients to exchange
+confidential and authenticated messages. It does so by deriving a sequence
+of secrets and keys known only to members. Those should be secret against an
+active network adversary and should have both forward and post-compromise
+secrecy with respect to compromise of a participant.
 
-We describe the information stored by each client as a _state_, which includes both public and
-private data. An initial state, including an initial set of clients, is set up by a group
-creator using the _Init_ algorithm and based on information pre-published by clients. The creator
-sends the _Init_ message to the clients, who can then set up their own group state and derive
-the same shared secret. Clients then exchange messages to produce new shared states which are
-causally linked to their predecessors, forming a logical Directed Acyclic Graph (DAG) of states.
-Members can send _Update_ messages for post-compromise secrecy and new clients can be
-added or existing members removed from the group.
+We describe the information stored by each client as a _state_, which
+includes both public and private data. An initial state, including an initial
+set of clients, is set up by a group creator using the _Init_ algorithm and
+based on information pre-published by clients. The creator sends the _Init_
+message to the clients, who can then set up their own group state and derive
+the same shared secret. Clients then exchange messages to produce new shared
+states which are causally linked to their predecessors, forming a logical
+Directed Acyclic Graph (DAG) of states.
+Members can send _Update_ messages for post-compromise secrecy and new clients
+can be added or existing members removed from the group.
 
-The protocol algorithms we specify here follow. Each algorithm specifies both (i) how a client
-performs the operation and (ii) how other clients update their state based on it.
+The protocol algorithms we specify here follow. Each algorithm specifies
+both (i) how a client performs the operation and (ii) how other clients
+update their state based on it.
 
 There are four major operations in the lifecycle of a group:
 
@@ -345,8 +349,8 @@ A                B                C            Directory       Channel
 
 When a client A wants to establish a group with B and C, it
 first downloads ClientInitKeys for B and C.  It then initializes a group state
-containing only itself and uses the ClientInitKeys to compute Welcome and Add messages
-to add B and C, in a sequence chosen by A.  The Welcome messages are
+containing only itself and uses the ClientInitKeys to compute Welcome and Add
+messages to add B and C, in a sequence chosen by A.  The Welcome messages are
 sent directly to the new members (there is no need to send them to
 the group).
 The Add messages are broadcasted to the group, and processed in sequence
@@ -711,8 +715,9 @@ leaf, as well as the root:
 * Zero or more encrypted copies of the path secret corresponding to
   the node
 
-The path secret value for a given node is encrypted for the subtree corresponding to the
-parent's non-updated child, i.e., the child on the copath of the leaf node.
+The path secret value for a given node is encrypted for the subtree
+corresponding to the parent's non-updated child, i.e., the child
+on the copath of the leaf node.
 There is one encrypted path secret for each public key in the resolution
 of the non-updated child.  In particular, for the leaf node, there
 are no encrypted secrets, since a leaf node has no children.
@@ -728,8 +733,8 @@ The recipient of an update processes it with the following steps:
     the private key from the resolution node
   * Derive path secrets for ancestors of that node using the
     algorithm described above
-  * The recipient SHOULD verify that the received public keys agree with the
-    public keys derived from the new node_secret values
+  * The recipient SHOULD verify that the received public keys agree
+    with the public keys derived from the new node_secret values
 2. Merge the updated path secrets into the tree
   * Replace the public keys for nodes on the direct path with the
     received public keys
