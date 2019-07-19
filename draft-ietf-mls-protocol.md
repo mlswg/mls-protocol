@@ -1480,10 +1480,8 @@ tree. ]]
 
 ## Init
 
-A group can always be created by initializing a one-member group and
-using adding members individually.  For cases where the initial list
-of members is known, the Init message allows a group to be created
-more efficiently.
+So as to establish an update secret upon creation, a group MUST always be
+initialized through the processing of an Init message.
 
 ~~~~~
 struct {
@@ -1497,11 +1495,11 @@ struct {
 
 The creator of the group constructs an Init message as follows:
 
-* Fetch a UserInitKey for each member (including the creator)
+* Fetch a ClientInitKey for each member (including the creator)
 * Identify a protocol version and cipher suite that is supported by
   all proposed members.
 * Construct a ratchet tree with its leaves populated with the public
-  keys and credentials from the UserInitKeys of the members, and all
+  keys and credentials from the ClientInitKeys of the members, and all
   other nodes blank.
 * Generate a fresh leaf key pair for the first leaf
 * Compute its direct path in this ratchet tree
