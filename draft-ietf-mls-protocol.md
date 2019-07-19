@@ -1480,8 +1480,11 @@ tree. ]]
 
 ## Init
 
-So as to establish an update secret upon creation, a group MUST always be
-initialized through the processing of an Init message.
+A group can always be created by initializing a one-member group and
+using adding members individually. For cases where the initial list
+of members is known, the Init message allows a group to be created
+more efficiently. When shared, Init messages MUST be sent unencrypted
+in an MLSPlaintext.
 
 ~~~~~
 struct {
