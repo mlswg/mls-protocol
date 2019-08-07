@@ -1181,6 +1181,13 @@ handshake_key_[sender] =
 Here the value [sender] represents the index of the member that will
 use this key to send, encoded as a uint32.
 
+If a group does not have a `handshake_secret` (i.e., if the group was just
+created and has not yet processed any group operations) and the creator
+wishes to send an encrypted Add, the `sender_data_key`, `handshake_key`,
+and `handshake_nonce` MUST be randomly generated values. The latter two
+MUST be included in the `add_key_nonce` field of the WelcomeInfo that
+precedes the Add.
+
 For application messages, a chain of keys is derived for each sender
 in a similar fashion. This allows forward secrecy at the level of
 application messages within and out of an epoch.
@@ -1587,9 +1594,8 @@ Note that the `init_secret` in the Welcome message is the
 {{key-schedule}}.  That is, if the `epoch` value in the Welcome
 message is `n`, then the `init_secret` value is `init_secret_[n]`.
 The new member can combine this init secret with the update secret
-transmitted in the corresponding Add message to get the epoch secret
-for the epoch in which it is added.  No secrets from prior epochs
-are revealed to the new member.
+resulting from the corresponding Add message to get the epoch secret
+for the epoch in which it is added.
 
 Since the new member is expected to process the Add message for
 itself, the Welcome message should reflect the state of the group
