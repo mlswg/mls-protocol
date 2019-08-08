@@ -1993,7 +1993,7 @@ the ciphersuite.
 ## Deletion Schedule
 
 It is important to delete all security sensitive values as soon as they are
-consumed. A sensitive value S is said to be "consumed" if
+_consumed_. A sensitive value S is said to be _consumed_ if
 
 * S was used to encrypt or (successfully) decrypt a message, or if
 * a key, nonce, or secret derived from S has been consumed. (This goes for
