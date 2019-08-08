@@ -1589,13 +1589,11 @@ In the description of the tree as a list of nodes, the `credential`
 field for a node MUST be populated if and only if that node is a
 leaf in the tree.
 
-Note that the `init_secret` in the Welcome message is the
-`init_secret` at the output of the key schedule diagram in
-{{key-schedule}}.  That is, if the `epoch` value in the Welcome
-message is `n`, then the `init_secret` value is `init_secret_[n]`.
-The new member can combine this init secret with the update secret
-resulting from the corresponding Add message to get the epoch secret
-for the epoch in which it is added.
+Note that the `init_secret` in the Welcome message is the `init_secret` of
+the group _after_ the corresponding Add operation has been performed. The
+new member can combine this init secret with the Add operation's update
+secret to derive the epoch secret for the first epoch in which it is a
+member of the group.
 
 Since the new member is expected to process the Add message for
 itself, the Welcome message should reflect the state of the group
