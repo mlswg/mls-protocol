@@ -324,7 +324,7 @@ The protocol algorithms we specify here follow. Each algorithm specifies
 both (i) how a client performs the operation and (ii) how other clients
 update their state based on it.
 
-There are four major operations in the lifecycle of a group:
+There are three major operations in the lifecycle of a group:
 
 * Adding a member, initiated by a current member;
 * Updating the leaf secret of a member;
