@@ -1181,11 +1181,11 @@ handshake_key_[sender] =
 Here the value [sender] represents the index of the member that will
 use this key to send, encoded as a uint32.
 
-If a group does not have a `handshake_secret` (i.e., if the group was just
-created and has not yet processed any group operations) and the creator
-wishes to send an encrypted Add, the `sender_data_key`, `handshake_key`,
-and `handshake_nonce` MUST be randomly generated values. The latter two
-MUST be included in the `add_key_nonce` field of the WelcomeInfo that
+If a group does not have a `handshake_secret` or `sender_data_secret`
+(i.e., if the group was just created and has not yet processed any group
+operations) and the creator wishes to send an encrypted Add, then these
+values MUST be generated randomly (still with length Hash.length) and
+included in the `add_unframing_secrets` field of the WelcomeInfo that
 precedes the Add.
 
 For application messages, a chain of keys is derived for each sender
@@ -1552,10 +1552,13 @@ needs to initialize a GroupContext object that can be updated to the
 current state using the Add message.  This information is encrypted
 for the new member using HPKE.  The recipient key pair for the
 HPKE encryption is the one included in the indicated ClientInitKey,
-corresponding to the indicated ciphersuite.  The "add_key_nonce"
-field contains the key and nonce used to encrypt the corresponding
-Add message; if it is not encrypted, then this field MUST be set to
-the null optional value.
+corresponding to the indicated ciphersuite.
+
+The `add_unframing_secrets` field contains the handshake secret and sender
+key secret of the current group _before_ the Add operation. These secrets
+are used to derive the handshake key and nonce with which the Add message
+is encrypted. If the Add message is not encrypted, then this field MUST be
+set to the null optional value.
 
 ~~~~~
 struct {
@@ -1564,9 +1567,9 @@ struct {
 } RatchetNode;
 
 struct {
-    opaque key<0..255>;
-    opaque nonce<0..255>;
-} KeyAndNonce;
+    opaque handshake_secret<0..255>;
+    opaque sender_key_secret<0..255>;
+} UnframingSecrets;
 
 struct {
     ProtocolVersion version;
@@ -1575,7 +1578,7 @@ struct {
     optional<RatchetNode> tree<1..2^32-1>;
     opaque interim_transcript_hash<0..255>;
     opaque init_secret<0..255>;
-    optional<KeyAndNonce> add_key_nonce;
+    optional<UnframingSecrets> add_unframing_secrets;
 } WelcomeInfo;
 
 struct {
