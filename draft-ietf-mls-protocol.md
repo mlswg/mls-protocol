@@ -767,11 +767,15 @@ following primitives to be used in group key computations:
 * A Diffie-Hellman finite-field group or elliptic curve
 * An AEAD encryption algorithm {{!RFC5116}}
 
-The ciphersuite must also specify an algorithm `Derive-Key-Pair`
-that maps octet strings with the same length as the output of the
-hash function to key pairs for the asymmetric encryption scheme.
+The ciphersuite's Diffie-Hellman group is used to instantiate an HPKE
+{{!I-D.irtf-cfrg-hpke}} instance for the purpose of public-key encryption.
+The ciphersuite must specify an algorithm `Derive-Key-Pair` that maps octet
+strings with length Hash.length to HPKE key pairs.
 
-Ciphersuites are represented with the CipherSuite type:
+Ciphersuites are represented with the CipherSuite type. HPKE public keys
+are opaque values in a format defined by the underlying Diffie-Hellman
+protocol (see the Ciphersuites section of the HPKE specification for more
+information):
 
 ~~~~~
 enum {
@@ -779,6 +783,8 @@ enum {
     X25519_SHA256_AES128GCM(0x0001),
     (0xFFFF)
 } CipherSuite;
+
+opaque HPKEPublicKey<1..2^16-1>;
 ~~~~~
 
 ### Curve25519, SHA-256, and AES-128-GCM
