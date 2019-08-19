@@ -130,7 +130,7 @@ the size of the group.
 In this document, we describe a protocol based on tree structures
 that enable asynchronous group keying with forward secrecy and
 post-compromise security.  Based on earlier work on "asynchronous
-ratcheting trees" {{art}}, the mechanism presented here use a
+ratcheting trees" {{art}}, the protocol presented here uses an
 asynchronous key-encapsulation mechanism for tree structures.
 This mechanism allows the members of the group to derive and update
 shared keys with costs that scale as the log of the group size.
@@ -266,7 +266,7 @@ Initialization Key:
   each client (ClientInitKey).
 
 Leaf Key:
-: A secret that represent a member's contribution to the group secret
+: A secret that represents a member's contribution to the group secret
   (so called because the members' leaf keys are the leaves in the
   group's ratchet tree).
 
@@ -722,23 +722,23 @@ are no encrypted secrets, since a leaf node has no children.
 
 The recipient of an update processes it with the following steps:
 
-1. Compute the updated path secrets
-  * Identify a node in the direct path for which the local member
-    is in the subtree of the non-updated child
-  * Identify a node in the resolution of the copath node for
-    which this node has a private key
-  * Decrypt the path secret for the parent of the copath node using
-    the private key from the resolution node
-  * Derive path secrets for ancestors of that node using the
-    algorithm described above
-  * The recipient SHOULD verify that the received public keys agree
-    with the public keys derived from the new node_secret values
-2. Merge the updated path secrets into the tree
-  * Replace the public keys for nodes on the direct path with the
-    received public keys
-  * For nodes where an updated path secret was computed in step 1,
-    compute the corresponding node secret and node key pair and
-    replace the values stored at the node with the computed values.
+1. Compute the updated path secrets.
+   * Identify a node in the direct path for which the local member
+     is in the subtree of the non-updated child.
+   * Identify a node in the resolution of the copath node for
+     which this node has a private key.
+   * Decrypt the path secret for the parent of the copath node using
+     the private key from the resolution node.
+   * Derive path secrets for ancestors of that node using the
+     algorithm described above.
+   * The recipient SHOULD verify that the received public keys agree
+     with the public keys derived from the new node_secret values.
+2. Merge the updated path secrets into the tree.
+   * Replace the public keys for nodes on the direct path with the
+     received public keys.
+   * For nodes where an updated path secret was computed in step 1,
+     compute the corresponding node secret and node key pair and
+     replace the values stored at the node with the computed values.
 
 For example, in order to communicate the example update described in
 the previous section, the sender would transmit the following
@@ -751,8 +751,8 @@ values:
 | pk(ns[0])  |                                  |
 
 In this table, the value pk(X) represents the public key
-corresponding derived from the node secret X.  The value E(K, S)
-represents the public-key encryption of the path secret S to the
+derived from the node secret X.  The value E(K, S) represents
+the public-key encryption of the path secret S to the
 public key K.
 
 
@@ -792,6 +792,8 @@ enum {
     (0xFFFF)
 } CipherSuite;
 ~~~~~
+
+## Ciphersuites
 
 ### Curve25519, SHA-256, and AES-128-GCM
 
@@ -1497,11 +1499,11 @@ struct {
 
 The creator of the group constructs an Init message as follows:
 
-* Fetch a UserInitKey for each member (including the creator)
+* Fetch a ClientInitKey for each member (including the creator)
 * Identify a protocol version and cipher suite that is supported by
   all proposed members.
 * Construct a ratchet tree with its leaves populated with the public
-  keys and credentials from the UserInitKeys of the members, and all
+  keys and credentials from the ClientInitKeys of the members, and all
   other nodes blank.
 * Generate a fresh leaf key pair for the first leaf
 * Compute its direct path in this ratchet tree
