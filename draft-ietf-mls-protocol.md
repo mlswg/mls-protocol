@@ -571,6 +571,8 @@ Each node in a ratchet tree contains up to three values:
 
 * A private key (only within direct path, see below)
 * A public key
+* An ordered list of leaf indices for "unmerged" leaves (see
+  {{views}})
 * A credential (only for leaf nodes)
 
 The conditions under which each of these values must or must not be
@@ -579,11 +581,10 @@ present are laid out in {{views}}.
 A node in the tree may also be _blank_, indicating that no value is
 present at that node.  The _resolution_ of a node is an ordered list
 of non-blank nodes that collectively cover all non-blank descendants
-of the node.  The nodes in a resolution are ordered according to
-their indices.
+of the node.
 
-* The resolution of a non-blank node is a one element list
-  containing the node itself
+* The resolution of a non-blank node comprises the node itself,
+  followed by its list of unmerged leaves, if any
 * The resolution of a blank leaf node is the empty list
 * The resolution of a blank intermediate node is the result of
   concatinating the resolution of its left child with the resolution
@@ -596,20 +597,20 @@ represents a blank node:
       _
     /   \
    /     \
-  _       CD
+  _       CD[C]
  / \     / \
 A   _   C   D
 
 0 1 2 3 4 5 6
 ~~~~~
 
-In this tree, we can see all three of the above rules in play:
+In this tree, we can see all of the above rules in play:
 
-* The resolution of node 5 is the list [CD]
+* The resolution of node 5 is the list [CD, C]
 * The resolution of node 2 is the empty list []
-* The resolution of node 3 is the list [A, CD]
+* The resolution of node 3 is the list [A, CD, C]
 
-Every node, regardless of whether a node is blank or populated, has
+Every node, regardless of whether the node is blank or populated, has
 a corresponding _hash_ that summarizes the contents of the subtree
 below that node.  The rules for computing these hashes are described
 in {{tree-hashes}}.
@@ -631,11 +632,22 @@ In particular, MLS maintains the members' views of the tree in such
 a way as to maintain the _tree invariant_:
 
     The private key for a node in the tree is known to a member of
-    the group if and only if that member's leaf is a descendant of
+    the group only if that member's leaf is a descendant of
     the node or equal to it.
 
-In other words, each member holds the private keys for nodes in its
-direct path, and no others.
+In other words, if node is not blank, then it holds a key pair, and
+the private key of that key pair is known only to members holding
+leaves below that node.
+
+The reverse implication is not true: A leaf below an intermediate
+node might not hold the private key for the node.  Such a leaf is
+called an _unmerged_ leaf, since encrypting to the subtree below the
+node requires encrypting to the node's public key as well as the
+unmerged leaves below it.  A leaf is unmerged when it is first
+added, because the process of adding the leaf does not give it
+access to all of the nodes above it in the tree.  Leaves are
+"merged" as they receive the private keys for nodes, as described in
+{{ratchet-tree-updates}}.
 
 ## Ratchet Tree Updates
 
@@ -739,6 +751,8 @@ The recipient of an update processes it with the following steps:
    * For nodes where an updated path secret was computed in step 1,
      compute the corresponding node secret and node key pair and
      replace the values stored at the node with the computed values.
+   * For all updated nodes, set the list of unmerged leaves to the
+     empty list.
 
 For example, in order to communicate the example update described in
 the previous section, the sender would transmit the following
@@ -946,8 +960,13 @@ of a `ParentNodeHashInput` struct:
 
 ~~~~~
 struct {
+    HPKEPublicKey public_key;
+    uint32_t unmerged_leaves<0..2^32-1>;
+} ParentNodeInfo;
+
+struct {
     uint8 hash_type = 1;
-    optional<HPKEPublicKey> public_key;
+    optional<ParentNodeInfo> info;
     opaque left_hash<0..255>;
     opaque right_hash<0..255>;
 } ParentNodeHashInput
@@ -1555,6 +1574,7 @@ the null optional value.
 ~~~~~
 struct {
     HPKEPublicKey public_key;
+    uint32_t unmerged_leaves<0..2^32-1>;
     optional<Credential> credential;
 } RatchetNode;
 
@@ -1646,8 +1666,9 @@ the signature on the message,  then updates its state as follows:
 * Generate a WelcomeInfo object describing the state prior to the
   add, and verify that its hash is the same as the value of the
   `welcome_info_hash` field
-* Update the ratchet tree by setting to blank all nodes in the
-  direct path of the new node
+* Update the ratchet tree by adding the new leaf's index to the list
+  of unmerged leaves at each node in the direct path of the new
+  leaf, making sure to keep the list sorted
 * Set the leaf node in the tree at position `index` to a new node
   containing the public key from the ClientInitKey in the Add
   corresponding to the ciphersuite in use, as well as the
