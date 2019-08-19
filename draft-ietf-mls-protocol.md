@@ -1185,7 +1185,7 @@ If a group does not have a `handshake_secret` or `sender_data_secret`
 (i.e., if the group was just created and has not yet processed any group
 operations) and the creator wishes to send an encrypted Add, then these
 values MUST be generated randomly (still with length Hash.length) and
-included in the `add_unframing_secrets` field of the WelcomeInfo that
+included in the `add_encryption_secrets` field of the WelcomeInfo that
 precedes the Add.
 
 For application messages, a chain of keys is derived for each sender
@@ -1554,8 +1554,8 @@ for the new member using HPKE.  The recipient key pair for the
 HPKE encryption is the one included in the indicated ClientInitKey,
 corresponding to the indicated ciphersuite.
 
-The `add_unframing_secrets` field contains the handshake secret and sender
-key secret of the current group _before_ the Add operation. These secrets
+The `add_encryption_secrets` field contains the handshake secret and sender
+key secret of the current group before the Add operation. These secrets
 are used to derive the handshake key and nonce with which the Add message
 is encrypted. If the Add message is not encrypted, then this field MUST be
 set to the null optional value.
@@ -1568,8 +1568,8 @@ struct {
 
 struct {
     opaque handshake_secret<0..255>;
-    opaque sender_key_secret<0..255>;
-} UnframingSecrets;
+    opaque sender_data_secret<0..255>;
+} HandshakeEncryptionSecrets;
 
 struct {
     ProtocolVersion version;
@@ -1578,7 +1578,7 @@ struct {
     optional<RatchetNode> tree<1..2^32-1>;
     opaque interim_transcript_hash<0..255>;
     opaque init_secret<0..255>;
-    optional<UnframingSecrets> add_unframing_secrets;
+    optional<HandshakeEncryptionSecrets> add_encryption_secrets;
 } WelcomeInfo;
 
 struct {
@@ -1593,7 +1593,7 @@ field for a node MUST be populated if and only if that node is a
 leaf in the tree.
 
 Note that the `init_secret` in the Welcome message is the `init_secret` of
-the group _after_ the corresponding Add operation has been performed. The
+the group before the corresponding Add operation has been performed. The
 new member can combine this init secret with the Add operation's update
 secret to derive the epoch secret for the first epoch in which it is a
 member of the group.
