@@ -1483,8 +1483,8 @@ tree. ]]
 A group can always be created by initializing a one-member group and
 using adding members individually. For cases where the initial list
 of members is known, the Init message allows a group to be created
-more efficiently. When shared, Init messages MUST be sent unencrypted
-in an MLSPlaintext.
+more efficiently. Init messages MUST be sent unencrypted in an
+MLSPlaintext.
 
 ~~~~~
 struct {
