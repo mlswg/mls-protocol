@@ -1994,19 +1994,14 @@ the ciphersuite.
 
 ## Deletion Schedule
 
-It is important to delete all security sensitive values S as soon as they,
-or another value derived from them, is used for encryption or decryption.
+It is important to delete all security sensitive values as soon as they are
+_consumed_. A sensitive value S is said to be _consumed_ if
 
-More precisely, the values application_[i]\_[j]\_key and
-application\_[i]\_[j]_nonce are said to be "consumed" if they were
-used either to:
+* S was used to encrypt or (successfully) decrypt a message, or if
+* a key, nonce, or secret derived from S has been consumed. (This goes for
+  values derived via Derive-Secret as well as HKDF-Expand-Label.)
 
-* encrypt or (successfully) decrypt a message or
-* if a key, nonce or secret derived from S has been consumed.
-
-(This goes both for values derived via Derive-Secret and HKDF-Expand-Label.)
-
-Here, S may be the init_secret, update_secret, epoch_secret, application_secret
+Here, S may be the `init_secret`, `update_secret`, `epoch_secret`, `application_secret`
 as well as any secret in the AS Tree or one of the ratchets.
 
 As soon as a group member consumes a value they MUST immediately delete
@@ -2019,12 +2014,12 @@ For example, suppose a group member encrypts or (successfully) decrypts a
 message using the j-th key and nonce in the i-th ratchet. Then, for that
 member, at least the following values have been consumed and MUST be deleted:
 
-* the init_secret, update_secret, epoch_secret, application_secret of that
+* the `init_secret`, `update_secret`, `epoch_secret`, `application_secret` of that
 epoch,
 * all node secrets in the AS Tree on the path from the root to the leaf with
 index i,
 * the first j secrets in the i-th ratchet and
-* application_[i]\_[j]\_key and application_[i]\_[j]\_nonce.
+* `application_[i]_[j]_key` and `application_[i]_[j]_nonce`.
 
 Concretely, suppose we have the following AS Tree and ratchet for
 participant D:
