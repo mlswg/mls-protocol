@@ -1049,7 +1049,7 @@ each node MUST be the parent of its predecessor.
 
 ~~~~~
 struct {
-    HPKEPublicKey ephemeral_key;
+    opaque kem_output<0..2^16-1>;
     opaque ciphertext<0..2^16-1>;
 } HPKECiphertext;
 
@@ -1073,7 +1073,7 @@ in the resolution.
 The HPKECiphertext values are computed as
 
 ~~~~~
-ephemeral_key, context = SetupBaseI(node_public_key, "")
+kem_output, context = SetupBaseI(node_public_key, "")
 ciphertext = context.Seal("", path_secret)
 ~~~~~
 
