@@ -950,7 +950,7 @@ struct {
     optional<HPKEPublicKey> public_key;
     opaque left_hash<0..255>;
     opaque right_hash<0..255>;
-} ParentNodeHashInput
+} ParentNodeHashInput;
 ~~~~~
 
 The `left_hash` and `right_hash` fields hold the hashes of the
@@ -1219,7 +1219,10 @@ considered malformed.  The input to the signature computation
 comprises all of the fields except for the signature field.
 
 ~~~~~
-uint8 ProtocolVersion;
+enum {
+    mls10(0),
+    (255)
+} ProtocolVersion;
 
 struct {
     opaque client_init_key_id<0..255>;
