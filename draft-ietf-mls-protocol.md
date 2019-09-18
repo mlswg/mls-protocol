@@ -1051,8 +1051,7 @@ interim transcript hash is passed to new members in the WelcomeInfo struct, and
 enables existing members to incorporate a handshake message into the transcript
 without having to store the whole MLSPlaintext structure.
 
-When a new one-member group is created (which requires no
-GroupOperation), the `interim_transcript_hash` field is set to the
+When a new group is created, the `interim_transcript_hash` field is set to the
 zero-length octet string.
 
 ## Direct Paths
@@ -1173,7 +1172,7 @@ As described in {{message-framing}}, MLS encrypts three different
 types of information:
 
 * Metadata (sender information)
-* Handshake messages
+* Proposal and Commit messages
 * Application messages
 
 The sender information used to look up the key for the content encryption
@@ -1206,6 +1205,10 @@ application messages within and out of an epoch.
 A step in this chain (the second subscript) is called a "generation".
 The details of application key derivation are described in the
 {{astree}} section below.
+
+[[ OPEN ISSUE: With the addition of Proposals, handshake encryption is now
+broken.  We need a framework where each sender has multiple keys, so we should
+probably just generate another AStree for handshake encryption. ]]
 
 # Initialization Keys
 
