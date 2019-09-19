@@ -1194,29 +1194,28 @@ The details of application key derivation are described in the
 
 In order to facilitate asynchronous addition of clients to a
 group, it is possible to pre-publish initialization keys that
-provide some public information about a user.  ClientInitKey
+provide some public information about a user. ClientInitKey
 messages provide information about a client that any existing
 member can use to add this client to the group asynchronously.
 
-A ClientInitKey object specifies what ciphersuites a client supports,
-as well as providing public keys that the client can use for key
-derivation and signing.  The client's identity key is intended to be
+A ClientInitKey object specifies a ciphersuite that the client
+supports, as well as providing a public key that others can use
+for key agreement. The client's identity key is intended to be
 stable throughout the lifetime of the group; there is no mechanism to
 change it.  Init keys are intended to be used a very limited number of
-times, potentially once. (see {{init-key-reuse}}).  ClientInitKeys
-also contain an identifier chosen by the client, which the client
-MUST assure uniquely identifies a given ClientInitKey object among the
-set of ClientInitKeys created by this client.
+times, ideally only once. (See {{init-key-reuse}}). Clients MAY
+generate and publish multiple ClientInitKey objects to support multiple
+ciphersuites, or to reduce the likelihood of init key reuse.
+ClientInitKeys contain an identifier chosen by the client, which the
+client MUST assure uniquely identifies a given ClientInitKey object
+among the set of ClientInitKeys created by this client.
 
-The init\_keys array MUST have the same length as the cipher\_suites
-array, and each entry in the init\_keys array MUST be a public key
-for the asymmetric encryption scheme defined in the cipher\_suites array
-and used in the HPKE construction for TreeKEM.
-
-The whole structure is signed using the client's identity key.
-A ClientInitKey object with an invalid signature field MUST be
-considered malformed.  The input to the signature computation
-comprises all of the fields except for the signature field.
+The value for init\_key MUST be a public key for the asymmetric
+encryption scheme defined by cipher\_suite. The whole structure
+is signed using the client's identity key. A ClientInitKey object
+with an invalid signature field MUST be considered malformed.
+The input to the signature computation comprises all of the fields
+except for the signature field.
 
 ~~~~~
 enum {
@@ -1225,10 +1224,10 @@ enum {
 } ProtocolVersion;
 
 struct {
+    ProtocolVersion supported_version;
     opaque client_init_key_id<0..255>;
-    ProtocolVersion supported_versions<0..255>;
-    CipherSuite cipher_suites<0..255>;
-    HPKEPublicKey init_keys<1..2^16-1>;
+    CipherSuite cipher_suite;
+    HPKEPublicKey init_key;
     Credential credential;
     opaque signature<0..2^16-1>;
 } ClientInitKey;
@@ -1502,7 +1501,7 @@ struct {
 
 The creator of the group constructs an Init message as follows:
 
-* Fetch a ClientInitKey for each member (including the creator)
+* Fetch one or more ClientInitKeys for each member (including the creator)
 * Identify a protocol version and cipher suite that is supported by
   all proposed members.
 * Construct a ratchet tree with its leaves populated with the public
@@ -1549,11 +1548,10 @@ The Welcome message contains the information that the new member
 needs to initialize a GroupContext object that can be updated to the
 current state using the Add message.  This information is encrypted
 for the new member using HPKE.  The recipient key pair for the
-HPKE encryption is the one included in the indicated ClientInitKey,
-corresponding to the indicated ciphersuite.  The "add_key_nonce"
-field contains the key and nonce used to encrypt the corresponding
-Add message; if it is not encrypted, then this field MUST be set to
-the null optional value.
+HPKE encryption is the one included in the indicated ClientInitKey.
+The "add_key_nonce" field contains the key and nonce used to encrypt
+the corresponding Add message; if it is not encrypted, then this
+field MUST be set to the null optional value.
 
 ~~~~~
 struct {
@@ -1578,7 +1576,6 @@ struct {
 
 struct {
     opaque client_init_key_id<0..255>;
-    CipherSuite cipher_suite;
     HPKECiphertext encrypted_welcome_info;
 } Welcome;
 ~~~~~
@@ -1652,9 +1649,8 @@ the signature on the message,  then updates its state as follows:
 * Update the ratchet tree by setting to blank all nodes in the
   direct path of the new node
 * Set the leaf node in the tree at position `index` to a new node
-  containing the public key from the ClientInitKey in the Add
-  corresponding to the ciphersuite in use, as well as the
-  credential under which the ClientInitKey was signed
+  containing the public key from the ClientInitKey in the Add, as
+  well as the credential under which the ClientInitKey was signed
 
 The `update_secret` resulting from this change is an all-zero octet
 string of length Hash.length.
