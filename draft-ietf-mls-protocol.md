@@ -130,7 +130,7 @@ the size of the group.
 In this document, we describe a protocol based on tree structures
 that enable asynchronous group keying with forward secrecy and
 post-compromise security.  Based on earlier work on "asynchronous
-ratcheting trees" {{art}}, the mechanism presented here use a
+ratcheting trees" {{art}}, the protocol presented here uses an
 asynchronous key-encapsulation mechanism for tree structures.
 This mechanism allows the members of the group to derive and update
 shared keys with costs that scale as the log of the group size.
@@ -266,7 +266,7 @@ Initialization Key:
   each client (ClientInitKey).
 
 Leaf Key:
-: A secret that represent a member's contribution to the group secret
+: A secret that represents a member's contribution to the group secret
   (so called because the members' leaf keys are the leaves in the
   group's ratchet tree).
 
@@ -324,7 +324,7 @@ The protocol algorithms we specify here follow. Each algorithm specifies
 both (i) how a client performs the operation and (ii) how other clients
 update their state based on it.
 
-There are four major operations in the lifecycle of a group:
+There are three major operations in the lifecycle of a group:
 
 * Adding a member, initiated by a current member;
 * Updating the leaf secret of a member;
@@ -722,23 +722,23 @@ are no encrypted secrets, since a leaf node has no children.
 
 The recipient of an update processes it with the following steps:
 
-1. Compute the updated path secrets
-  * Identify a node in the direct path for which the local member
-    is in the subtree of the non-updated child
-  * Identify a node in the resolution of the copath node for
-    which this node has a private key
-  * Decrypt the path secret for the parent of the copath node using
-    the private key from the resolution node
-  * Derive path secrets for ancestors of that node using the
-    algorithm described above
-  * The recipient SHOULD verify that the received public keys agree
-    with the public keys derived from the new node_secret values
-2. Merge the updated path secrets into the tree
-  * Replace the public keys for nodes on the direct path with the
-    received public keys
-  * For nodes where an updated path secret was computed in step 1,
-    compute the corresponding node secret and node key pair and
-    replace the values stored at the node with the computed values.
+1. Compute the updated path secrets.
+   * Identify a node in the direct path for which the local member
+     is in the subtree of the non-updated child.
+   * Identify a node in the resolution of the copath node for
+     which this node has a private key.
+   * Decrypt the path secret for the parent of the copath node using
+     the private key from the resolution node.
+   * Derive path secrets for ancestors of that node using the
+     algorithm described above.
+   * The recipient SHOULD verify that the received public keys agree
+     with the public keys derived from the new node_secret values.
+2. Merge the updated path secrets into the tree.
+   * Replace the public keys for nodes on the direct path with the
+     received public keys.
+   * For nodes where an updated path secret was computed in step 1,
+     compute the corresponding node secret and node key pair and
+     replace the values stored at the node with the computed values.
 
 For example, in order to communicate the example update described in
 the previous section, the sender would transmit the following
@@ -751,8 +751,8 @@ values:
 | pk(ns[0])  |                                  |
 
 In this table, the value pk(X) represents the public key
-corresponding derived from the node secret X.  The value E(K, S)
-represents the public-key encryption of the path secret S to the
+derived from the node secret X.  The value E(K, S) represents
+the public-key encryption of the path secret S to the
 public key K.
 
 
@@ -786,6 +786,8 @@ enum {
 
 opaque HPKEPublicKey<1..2^16-1>;
 ~~~~~
+
+## Ciphersuites
 
 ### Curve25519, SHA-256, and AES-128-GCM
 
@@ -955,7 +957,7 @@ struct {
     optional<HPKEPublicKey> public_key;
     opaque left_hash<0..255>;
     opaque right_hash<0..255>;
-} ParentNodeHashInput
+} ParentNodeHashInput;
 ~~~~~
 
 The `left_hash` and `right_hash` fields hold the hashes of the
@@ -1054,7 +1056,7 @@ each node MUST be the parent of its predecessor.
 
 ~~~~~
 struct {
-    HPKEPublicKey ephemeral_key;
+    opaque kem_output<0..2^16-1>;
     opaque ciphertext<0..2^16-1>;
 } HPKECiphertext;
 
@@ -1078,7 +1080,7 @@ in the resolution.
 The HPKECiphertext values are computed as
 
 ~~~~~
-ephemeral_key, context = SetupBaseI(node_public_key, "")
+kem_output, context = SetupBaseI(node_public_key, "")
 ciphertext = context.Seal("", path_secret)
 ~~~~~
 
@@ -1199,38 +1201,40 @@ The details of application key derivation are described in the
 
 In order to facilitate asynchronous addition of clients to a
 group, it is possible to pre-publish initialization keys that
-provide some public information about a user.  ClientInitKey
+provide some public information about a user. ClientInitKey
 messages provide information about a client that any existing
 member can use to add this client to the group asynchronously.
 
-A ClientInitKey object specifies what ciphersuites a client supports,
-as well as providing public keys that the client can use for key
-derivation and signing.  The client's identity key is intended to be
+A ClientInitKey object specifies a ciphersuite that the client
+supports, as well as providing a public key that others can use
+for key agreement. The client's identity key is intended to be
 stable throughout the lifetime of the group; there is no mechanism to
 change it.  Init keys are intended to be used a very limited number of
-times, potentially once. (see {{init-key-reuse}}).  ClientInitKeys
-also contain an identifier chosen by the client, which the client
-MUST assure uniquely identifies a given ClientInitKey object among the
-set of ClientInitKeys created by this client.
+times, ideally only once. (See {{init-key-reuse}}). Clients MAY
+generate and publish multiple ClientInitKey objects to support multiple
+ciphersuites, or to reduce the likelihood of init key reuse.
+ClientInitKeys contain an identifier chosen by the client, which the
+client MUST assure uniquely identifies a given ClientInitKey object
+among the set of ClientInitKeys created by this client.
 
-The init\_keys array MUST have the same length as the cipher\_suites
-array, and each entry in the init\_keys array MUST be a public key
-for the asymmetric encryption scheme defined in the cipher\_suites array
-and used in the HPKE construction for TreeKEM.
-
-The whole structure is signed using the client's identity key.
-A ClientInitKey object with an invalid signature field MUST be
-considered malformed.  The input to the signature computation
-comprises all of the fields except for the signature field.
+The value for init\_key MUST be a public key for the asymmetric
+encryption scheme defined by cipher\_suite. The whole structure
+is signed using the client's identity key. A ClientInitKey object
+with an invalid signature field MUST be considered malformed.
+The input to the signature computation comprises all of the fields
+except for the signature field.
 
 ~~~~~
-uint8 ProtocolVersion;
+enum {
+    mls10(0),
+    (255)
+} ProtocolVersion;
 
 struct {
+    ProtocolVersion supported_version;
     opaque client_init_key_id<0..255>;
-    ProtocolVersion supported_versions<0..255>;
-    CipherSuite cipher_suites<0..255>;
-    HPKEPublicKey init_keys<1..2^16-1>;
+    CipherSuite cipher_suite;
+    HPKEPublicKey init_key;
     Credential credential;
     opaque signature<0..2^16-1>;
 } ClientInitKey;
@@ -1504,11 +1508,11 @@ struct {
 
 The creator of the group constructs an Init message as follows:
 
-* Fetch a UserInitKey for each member (including the creator)
+* Fetch one or more ClientInitKeys for each member (including the creator)
 * Identify a protocol version and ciphersuite that is supported by
   all proposed members.
 * Construct a ratchet tree with its leaves populated with the public
-  keys and credentials from the UserInitKeys of the members, and all
+  keys and credentials from the ClientInitKeys of the members, and all
   other nodes blank.
 * Generate a fresh leaf key pair for the first leaf
 * Compute its direct path in this ratchet tree
@@ -1551,11 +1555,10 @@ The Welcome message contains the information that the new member
 needs to initialize a GroupContext object that can be updated to the
 current state using the Add message.  This information is encrypted
 for the new member using HPKE.  The recipient key pair for the
-HPKE encryption is the one included in the indicated ClientInitKey,
-corresponding to the indicated ciphersuite.  The "add_key_nonce"
-field contains the key and nonce used to encrypt the corresponding
-Add message; if it is not encrypted, then this field MUST be set to
-the null optional value.
+HPKE encryption is the one included in the indicated ClientInitKey.
+The "add_key_nonce" field contains the key and nonce used to encrypt
+the corresponding Add message; if it is not encrypted, then this
+field MUST be set to the null optional value.
 
 ~~~~~
 struct {
@@ -1580,7 +1583,6 @@ struct {
 
 struct {
     opaque client_init_key_id<0..255>;
-    CipherSuite cipher_suite;
     HPKECiphertext encrypted_welcome_info;
 } Welcome;
 ~~~~~
@@ -1654,9 +1656,8 @@ the signature on the message,  then updates its state as follows:
 * Update the ratchet tree by setting to blank all nodes in the
   direct path of the new node
 * Set the leaf node in the tree at position `index` to a new node
-  containing the public key from the ClientInitKey in the Add
-  corresponding to the ciphersuite in use, as well as the
-  credential under which the ClientInitKey was signed
+  containing the public key from the ClientInitKey in the Add, as
+  well as the credential under which the ClientInitKey was signed
 
 The `update_secret` resulting from this change is an all-zero octet
 string of length Hash.length.
@@ -1999,19 +2000,14 @@ the ciphersuite.
 
 ## Deletion Schedule
 
-It is important to delete all security sensitive values S as soon as they,
-or another value derived from them, is used for encryption or decryption.
+It is important to delete all security sensitive values as soon as they are
+_consumed_. A sensitive value S is said to be _consumed_ if
 
-More precisely, the values application_[i]\_[j]\_key and
-application\_[i]\_[j]_nonce are said to be "consumed" if they were
-used either to:
+* S was used to encrypt or (successfully) decrypt a message, or if
+* a key, nonce, or secret derived from S has been consumed. (This goes for
+  values derived via Derive-Secret as well as HKDF-Expand-Label.)
 
-* encrypt or (successfully) decrypt a message or
-* if a key, nonce or secret derived from S has been consumed.
-
-(This goes both for values derived via Derive-Secret and HKDF-Expand-Label.)
-
-Here, S may be the init_secret, update_secret, epoch_secret, application_secret
+Here, S may be the `init_secret`, `update_secret`, `epoch_secret`, `application_secret`
 as well as any secret in the AS Tree or one of the ratchets.
 
 As soon as a group member consumes a value they MUST immediately delete
@@ -2024,12 +2020,12 @@ For example, suppose a group member encrypts or (successfully) decrypts a
 message using the j-th key and nonce in the i-th ratchet. Then, for that
 member, at least the following values have been consumed and MUST be deleted:
 
-* the init_secret, update_secret, epoch_secret, application_secret of that
+* the `init_secret`, `update_secret`, `epoch_secret`, `application_secret` of that
 epoch,
 * all node secrets in the AS Tree on the path from the root to the leaf with
 index i,
 * the first j secrets in the i-th ratchet and
-* application_[i]\_[j]\_key and application_[i]\_[j]\_nonce.
+* `application_[i]_[j]_key` and `application_[i]_[j]_nonce`.
 
 Concretely, suppose we have the following AS Tree and ratchet for
 participant D:
