@@ -339,7 +339,7 @@ There are three major operations in the lifecycle of a group:
 Each of these operations is "proposed" by sending a message of the corresponding
 type (Add / Update / Remove).  The state of the group is not changed, however,
 until a Commit message is sent to provide the group with fresh entropy.  In this
-section, we show each proposal being committed immediately, but in more advance
+section, we show each proposal being committed immediately, but in more advanced
 deployment cases, an application might gather several proposals before
 committing them all at once.
 
@@ -808,8 +808,6 @@ enum {
 opaque HPKEPublicKey<1..2^16-1>;
 ~~~~~
 
-## Ciphersuites
-
 ### Curve25519, SHA-256, and AES-128-GCM
 
 This ciphersuite uses the following primitives:
@@ -1045,20 +1043,20 @@ struct {
 
 confirmed_transcript_hash_[n] =
     Hash(interim_transcript_hash_[n-1] ||
-         MLSPlaintextOpContent_[n]);
+         MLSPlaintextCommitContent_[n]);
 
 interim_transcript_hash_[n] =
     Hash(confirmed_transcript_hash_[n] ||
-         MLSPlaintextOpAuthData_[n]);
+         MLSPlaintextCommitAuthData_[n]);
 ~~~~~
 
 Thus the `confirmed_transcript_hash` field in a GroupContext object represents a
-transcript over the whole transcript of MLSPlaintext Commit messages, up to the
+transcript over the whole history of MLSPlaintext Commit messages, up to the
 confirmation field in the current MLSPlaintext message.  The confirmation and
 signature fields are then included in the transcript for the next epoch.  The
 interim transcript hash is passed to new members in the WelcomeInfo struct, and
 enables existing members to incorporate a handshake message into the transcript
-without having to store the whole MLSPlaintext structure.
+without having to store the whole MLSPlaintextCommitAuthData structure.
 
 When a new group is created, the `interim_transcript_hash` field is set to the
 zero-length octet string.
@@ -1443,8 +1441,6 @@ an Init message and sending it to those members.
 ~~~~~
 struct {
   opaque group_id<0..255>;
-  ProtocolVersion version;
-  CipherSuite cipher_suite;
   ClientInitKey members<0..2^32-1>;
   DirectPath path;
 } Init;
@@ -1464,7 +1460,9 @@ The creator of the group constructs an Init message as follows:
 Each member of the newly-created group initializes its state from
 the Init message as follows:
 
-* Note the group ID, protocol version, and ciphersuite in use
+* Verify that all of the ClientInitKeys listed are for the same protocol and
+  ciphersuite; if not, reject the Init as malformed
+* Note the group ID, protocol version, and ciphersuite in use.
 * Construct a ratchet tree as above
 * Update the cached ratchet tree by replacing nodes in the direct
   path from the first leaf using the direct path
@@ -1542,6 +1540,11 @@ struct {
 } Proposal;
 ~~~~~
 
+On receiving a MLSPlaintext containing a Proposal, a client MUST verify the
+signature on the enclosing MLSPlaintext.  If the signature verifies
+successfully, then the Proposal should be cached in such a way that it can be
+retrieved using a ProposalID in a later Commit message.
+
 ### Add
 
 An Add proposal requests that a client with a specified ClientInitKey be added
@@ -1565,10 +1568,9 @@ in the Commit message by taking the following steps:
 
 * Blank the path from the leaf at position `index` to the root
 
-* Set the leaf node in the tree at position `index` to a new node
-  containing the public key from the ClientInitKey in the Add
-  corresponding to the ciphersuite in use, as well as the
-  credential under which the ClientInitKey was signed
+* Set the leaf node in the tree at position `index` to a new node containing the
+  public key from the ClientInitKey in the Add, as well as the credential under
+  which the ClientInitKey was signed
 
 ### Update
 
@@ -1611,6 +1613,11 @@ A Commit message initiates a new epoch for the group, based on a collection of
 proposals.  It instructs group members to update their representation of the
 state of the group by applying the proposals and advancing the key schedule.
 
+A group member that has observed one or more Proposal messages within an epoch
+MUST send a Commit message before sending application data.  This ensures, for
+example, that any members whose removal was proposed during the epoch are
+actually removed before any application information is transmitted.
+
 Each proposal covered by the Commit is identified by a ProposalID structure.
 The `sender` field in this structure indicates the member of the group that sent
 the proposal (according to their index in the ratchet tree).  The `hash` field
@@ -1624,14 +1631,9 @@ struct {
 } ProposalID;
 
 struct {
-    uint32 index;
-    ProposalID add;
-} AddCommit;
-
-struct {
     ProposalID updates<0..2^16-1>;
     ProposalID removes<0..2^16-1>;
-    AddCommit adds<0..2^16-1>;
+    ProposalID adds<0..2^16-1>;
     DirectPath path;
 } Commit;
 ~~~~~
@@ -1653,8 +1655,9 @@ A member of the group applies a Commit message by taking the following steps:
 
 3. Generate a provisional GroupContext object by applying the proposals
    referenced in the commit object in the order provided, as described in
-   {{proposals}}.  For Add proposals, the client whose ClientInitKey is
-   included in the proposal is added at the indicated index.
+   {{proposals}}.  Add proposals are applied left to right: Each Add proposal is
+   applied at the leftmost unoccupied leaf, or appended to the right edge of the
+   tree if all leaves are occupied.
 
 4. Process the `update_path` value to update the ratchet tree referenced by the
    provisional GroupContext and generate the update secret:
@@ -1705,10 +1708,7 @@ initiated by the Commit message.
 
 The information in a Welcome message is encrypted for the new member using HPKE.
 The recipient key pair for the HPKE encryption is the one included in the
-indicated ClientInitKey, corresponding to the indicated ciphersuite.
-
-[[ OPEN ISSUE: This will need to be updated if we make ClientInitKeys specific
-to one ciphersuite ]]
+indicated ClientInitKey.
 
 ~~~~~
 struct {
