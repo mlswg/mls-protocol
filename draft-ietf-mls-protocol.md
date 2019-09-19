@@ -758,6 +758,8 @@ public key K.
 
 # Cryptographic Objects
 
+## Ciphersuites
+
 Each MLS session uses a single ciphersuite that specifies the
 following primitives to be used in group key computations:
 
@@ -765,32 +767,24 @@ following primitives to be used in group key computations:
 * A Diffie-Hellman finite-field group or elliptic curve
 * An AEAD encryption algorithm {{!RFC5116}}
 
-The ciphersuite must also specify an algorithm `Derive-Key-Pair`
-that maps octet strings with the same length as the output of the
-hash function to key pairs for the asymmetric encryption scheme.
+The ciphersuite's Diffie-Hellman group is used to instantiate an HPKE
+{{!I-D.irtf-cfrg-hpke}} instance for the purpose of public-key encryption.
+The ciphersuite must specify an algorithm `Derive-Key-Pair` that maps octet
+strings with length Hash.length to HPKE key pairs.
 
-Public keys used in the protocol are opaque values
-in a format defined by the ciphersuite, using the following types:
-
-~~~~~
-opaque HPKEPublicKey<1..2^16-1>;
-opaque SignaturePublicKey<1..2^16-1>;
-~~~~~
-
-Cryptographic algorithms are indicated using the following types:
+Ciphersuites are represented with the CipherSuite type. HPKE public keys
+are opaque values in a format defined by the underlying Diffie-Hellman
+protocol (see the Ciphersuites section of the HPKE specification for more
+information):
 
 ~~~~~
-enum {
-    ecdsa_secp256r1_sha256(0x0403),
-    ed25519(0x0807),
-    (0xFFFF)
-} SignatureScheme;
-
 enum {
     P256_SHA256_AES128GCM(0x0000),
     X25519_SHA256_AES128GCM(0x0001),
     (0xFFFF)
 } CipherSuite;
+
+opaque HPKEPublicKey<1..2^16-1>;
 ~~~~~
 
 ## Ciphersuites
@@ -903,6 +897,19 @@ struct {
             opaque cert_data<1..2^24-1>;
     };
 } Credential;
+~~~~~
+
+The SignatureScheme type represents a signature algorithm. Signature public
+keys are opaque values in a format defined by the signature scheme.
+
+~~~~~
+enum {
+    ecdsa_secp256r1_sha256(0x0403),
+    ed25519(0x0807),
+    (0xFFFF)
+} SignatureScheme;
+
+opaque SignaturePublicKey<1..2^16-1>;
 ~~~~~
 
 ## Tree Hashes
@@ -1502,7 +1509,7 @@ struct {
 The creator of the group constructs an Init message as follows:
 
 * Fetch one or more ClientInitKeys for each member (including the creator)
-* Identify a protocol version and cipher suite that is supported by
+* Identify a protocol version and ciphersuite that is supported by
   all proposed members.
 * Construct a ratchet tree with its leaves populated with the public
   keys and credentials from the ClientInitKeys of the members, and all
@@ -1513,7 +1520,7 @@ The creator of the group constructs an Init message as follows:
 Each member of the newly-created group initializes its state from
 the Init message as follows:
 
-* Note the group ID, protocol version, and cipher suite in use
+* Note the group ID, protocol version, and ciphersuite in use
 * Construct a ratchet tree as above
 * Update the cached ratchet tree by replacing nodes in the direct
   path from the first leaf using the direct path
