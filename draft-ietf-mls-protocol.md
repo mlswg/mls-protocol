@@ -1509,7 +1509,7 @@ In MLS, each such change is accomplished by a two-step process:
 
 The group thus evolves from one cryptographic state to another each time a
 Commit message is sent and processed.  These states are referred to as "epochs"
-and uniquely identified among states of the group by four-octet epoch values.
+and are uniquely identified among states of the group by four-octet epoch values.
 When a new group is initialized, its initial state epoch 0x00000000.  Each time
 a state transition occurs, the epoch number is incremented by one.
 
@@ -1540,7 +1540,7 @@ struct {
 } Proposal;
 ~~~~~
 
-On receiving a MLSPlaintext containing a Proposal, a client MUST verify the
+On receiving an MLSPlaintext containing a Proposal, a client MUST verify the
 signature on the enclosing MLSPlaintext.  If the signature verifies
 successfully, then the Proposal should be cached in such a way that it can be
 retrieved using a ProposalID in a later Commit message.
@@ -1610,13 +1610,22 @@ A member of the group applies a Remove message by taking the following steps:
 ## Commit
 
 A Commit message initiates a new epoch for the group, based on a collection of
-proposals.  It instructs group members to update their representation of the
+Proposals.  It instructs group members to update their representation of the
 state of the group by applying the proposals and advancing the key schedule.
 
 A group member that has observed one or more Proposal messages within an epoch
 MUST send a Commit message before sending application data.  This ensures, for
 example, that any members whose removal was proposed during the epoch are
 actually removed before any application information is transmitted.
+
+The sender of a Commit message MUST include in it all valid Proposals that the
+sender has received during the current epoch.  Invalid Proposals include, for
+example, Proposals with an invalid signature or Proposals that are semantically
+inconsistent, such as a Remove proposal for an unoccupied leaf. The Commit MUST
+NOT combine Proposals sent within different epochs.  Despite these requirements,
+it is still possible for a valid Proposal not to be covered by a Commit, e.g.,
+because the sender of the Commit did not receive the Proposal.  In such cases,
+the sender of the proposal can retransmit the Proposal in the new epoch.
 
 Each proposal covered by the Commit is identified by a ProposalID structure.
 The `sender` field in this structure indicates the member of the group that sent
