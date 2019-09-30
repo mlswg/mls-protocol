@@ -893,7 +893,7 @@ struct {
 
 struct {
     CredentialType credential_type;
-    select (credential_type) {
+    select (Credential.credential_type) {
         case basic:
             BasicCredential;
 
@@ -1218,7 +1218,7 @@ times, ideally only once. (See {{init-key-reuse}}). Clients MAY
 generate and publish multiple ClientInitKey objects to support multiple
 ciphersuites, or to reduce the likelihood of init key reuse.
 ClientInitKeys contain an identifier chosen by the client, which the
-client MUST assure uniquely identifies a given ClientInitKey object
+client MUST ensure uniquely identifies a given ClientInitKey object
 among the set of ClientInitKeys created by this client.
 
 The value for init\_key MUST be a public key for the asymmetric
@@ -1248,7 +1248,7 @@ struct {
 # Message Framing
 
 Handshake and application messages use a common framing structure.
-This framing provides encryption to assure confidentiality within the
+This framing provides encryption to ensure confidentiality within the
 group, as well as signing to authenticate the sender within the group.
 
 The two main structures involved are MLSPlaintext and MLSCiphertext.
@@ -1296,7 +1296,7 @@ struct {
 } MLSCiphertext;
 ~~~~~
 
-The remainder of this section describe how to compute the signature of
+The remainder of this section describes how to compute the signature of
 an MLSPlaintext object and how to convert it to an MLSCiphertext object.
 The overall process is as follows:
 
@@ -1373,11 +1373,17 @@ are encoded in the following form:
 
 ~~~~~
 struct {
-    opaque content[length_of_content];
-    uint8 signature[MLSCiphertextContent.sig_len];
-    uint16 sig_len;
-    uint8  marker = 1;
-    uint8  zero_padding[length_of_padding];
+    select (MLSCiphertext.content_type) {
+        case handshake:
+            GroupOperation operation;
+            opaque confirmation<0..255>;
+
+        case application:
+            opaque application_data<0..2^32-1>;
+    }
+
+    opaque signature<0..2^16-1>;
+    opaque padding<0..2^16-1>;
 } MLSCiphertextContent;
 ~~~~~
 
@@ -1940,7 +1946,7 @@ Where ApplicationContext is specified as:
 struct {
     uint32 node = Node;
     uint32 generation = Generation;
-} ApplicationContext
+} ApplicationContext;
 ~~~~
 
 If N is a node index in the AS Tree then the secrets of the children
