@@ -1357,6 +1357,27 @@ recipient MUST verify that the sender field represents an occupied
 leaf in the ratchet tree.  In particular, the sender index value
 MUST be less than the number of leaves in the tree.
 
+The sender's generation counter not only allows the recipient
+to choose the correct decryption key, it also prevents application
+message truncation attacks. In the case of an handshake message
+the generation MUST be increased by one as if it were an application
+message, before reset to zero for the next epoch.
+
+Upon receipt of a Handshake message, members SHOULD check that they
+received and decrypted all application messages advertized by the
+sender and SHOULD delete keys associated with a generation equal or
+higher to that number to spare storage space.
+
+This mechanism allows the recipients to know if application
+messages have been lost in transit or suppressed by an active
+adversary via an application message truncation attack without
+the need for an explicit acknowledgment.
+
+Note that the generation is reset to zero only for the sender
+updating its contribution to the group secrets via a handshake
+message.
+
+
 ## Content Signing and Encryption
 
 The signature field in an MLSPlaintext object is computed using the
