@@ -590,7 +590,7 @@ their indices.
   containing the node itself
 * The resolution of a blank leaf node is the empty list
 * The resolution of a blank intermediate node is the result of
-  concatinating the resolution of its left child with the resolution
+  concatenating the resolution of its left child with the resolution
   of its right child, in that order
 
 For example, consider the following tree, where the "\_" character
@@ -2394,8 +2394,8 @@ def copath(x, n):
 
     return [sibling(y, n) for y in d]
 
-# Frontier is is the list of full subtrees, from left to right.  A
-# balance binary tree with n leaves has a full subtree for every
+# Frontier is the list of full subtrees, from left to right.  A
+# balanced binary tree with n leaves has a full subtree for every
 # power of two where n has a bit set, with the largest subtrees
 # furthest to the left.  For example, a tree with 11 leaves has full
 # subtrees of size 8, 2, and 1.
