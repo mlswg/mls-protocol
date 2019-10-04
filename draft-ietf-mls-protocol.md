@@ -2206,10 +2206,6 @@ In case part of the group messaging state is lost, and if enough
 information about the group is still available, a client MUST perform
 an update of their leaf secret before sending application messages.
 
-In the case where the client cannot recover from the state loss,
-the client SHOULD signal the delivery service to expire all the
-previous ClientInitKeys and publish fresh ones to avoid replay attacks.
-
 ## Init Key Reuse
 
 Initialization keys are intended to be used only once and then
