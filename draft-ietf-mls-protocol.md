@@ -748,11 +748,11 @@ For example, in order to communicate the example update described in
 the previous section, the sender would transmit the following
 values:
 
-| Public Key | Ciphertext(s)                    |
-|:-----------|:---------------------------------|
-| pk(ns[2])  | E(pk(C), ps[2]), E(pk(D), ps[2]) |
-| pk(ns[1])  | E(pk(A), ps[1])                  |
-| pk(ns[0])  |                                  |
+| Public Key | Ciphertext(s)   |
+|:-----------|:----------------|
+| pk(ns[2])  | E(pk(F), ps[2]) |
+| pk(ns[1])  | E(pk(A), ps[1]) |
+| pk(ns[0])  |                 |
 
 In this table, the value pk(X) represents the public key
 derived from the node secret X.  The value E(K, S) represents
