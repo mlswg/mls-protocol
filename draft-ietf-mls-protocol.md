@@ -1142,20 +1142,20 @@ proceeds as shown in the following diagram:
                      V
 update_secret -> HKDF-Extract = epoch_secret
                      |
-                     +--> Derive-Secret(., "sender data", GroupContext_[n])
+                     +--> Derive-Secret(., "sender data")
                      |    = sender_data_secret
                      |
-                     +--> Derive-Secret(., "handshake", GroupContext_[n])
+                     +--> Derive-Secret(., "handshake")
                      |    = handshake_secret
                      |
-                     +--> Derive-Secret(., "app", GroupContext_[n])
+                     +--> Derive-Secret(., "app")
                      |    = application_secret
                      |
-                     +--> Derive-Secret(., "confirm", GroupContext_[n])
+                     +--> Derive-Secret(., "confirm")
                      |    = confirmation_key
                      |
                      V
-               Derive-Secret(., "init", GroupContext_[n])
+               Derive-Secret(., "init")
                      |
                      V
                init_secret_[n]
@@ -1236,7 +1236,6 @@ enum {
 
 struct {
     ProtocolVersion supported_version;
-    opaque client_init_key_id<0..255>;
     CipherSuite cipher_suite;
     HPKEPublicKey init_key;
     Credential credential;
@@ -1559,16 +1558,13 @@ In order to add a new member to the group, an existing member of the
 group must take two actions:
 
 1. Send a Welcome message to the new member
-2. Send an Add message to the group (including the new member)
+2. Send an Add message to the current members of the group
 
 The Welcome message contains the information that the new member
-needs to initialize a GroupContext object that can be updated to the
-current state using the Add message.  This information is encrypted
+needs to initialize a GroupContext object and join the group key schedule at the
+epoch in which it is added.  This information is encrypted
 for the new member using HPKE.  The recipient key pair for the
 HPKE encryption is the one included in the indicated ClientInitKey.
-The "add_key_nonce" field contains the key and nonce used to encrypt
-the corresponding Add message; if it is not encrypted, then this
-field MUST be set to the null optional value.
 
 ~~~~~
 struct {
@@ -1577,22 +1573,19 @@ struct {
 } RatchetNode;
 
 struct {
-    opaque key<0..255>;
-    opaque nonce<0..255>;
-} KeyAndNonce;
-
-struct {
     ProtocolVersion version;
+    CipherSuite cipher_suite;
     opaque group_id<0..255>;
     uint32 epoch;
+    uint32 index;
     optional<RatchetNode> tree<1..2^32-1>;
+    opaque confirmed_transcript_hash<0..255>;
     opaque interim_transcript_hash<0..255>;
     opaque init_secret<0..255>;
-    optional<KeyAndNonce> add_key_nonce;
 } WelcomeInfo;
 
 struct {
-    opaque client_init_key_id<0..255>;
+    opaque client_init_key_hash<0..255>;
     HPKECiphertext encrypted_welcome_info;
 } Welcome;
 ~~~~~
@@ -1601,19 +1594,18 @@ In the description of the tree as a list of nodes, the `credential`
 field for a node MUST be populated if and only if that node is a
 leaf in the tree.
 
-Note that the `init_secret` in the Welcome message is the
-`init_secret` at the output of the key schedule diagram in
-{{key-schedule}}.  That is, if the `epoch` value in the Welcome
-message is `n`, then the `init_secret` value is `init_secret_[n]`.
-The new member can combine this init secret with the update secret
-transmitted in the corresponding Add message to get the epoch secret
-for the epoch in which it is added.  No secrets from prior epochs
-are revealed to the new member.
+The values in the WelcomeInfo struct correspond to the state of the group after
+the Add message has been processed.  Thus, for example, the `tree` field will
+already include the new member at the indicated index, and the transcript hash
+fields will cover the MLSPlaintext that conveyed the Add in which the new member
+was added.
 
-Since the new member is expected to process the Add message for
-itself, the Welcome message should reflect the state of the group
-before the new user is added. The sender of the Welcome message can
-simply copy all fields from their GroupContext object.
+The exception to this rule is the `init_secret` field, which is the value at the
+input of the key schedule diagram in {{key-schedule}}.  That is, if the `epoch`
+value in the Welcome message is `n`, then the `init_secret` value is
+`init_secret_[n-1]`.  Based on this value and the GroupContext object
+constructed from the other fields, the new member can derive the `epoch_secret`
+and other derived secrets for the epoch.
 
 [[ OPEN ISSUE: The Welcome message needs to be synchronized in the
 same way as the Add.  That is, the Welcome should be sent only if
