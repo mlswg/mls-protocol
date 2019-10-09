@@ -1234,14 +1234,42 @@ enum {
     (255)
 } ProtocolVersion;
 
+enum {
+    invalid(0),
+    supported_versions(1),
+    supported_ciphersuites(2)
+    (65535)
+} ExtensionType;
+
+struct {
+    ExtensionType extension_type;
+    opaque extension_data<0..2^16-1>;
+} Extension;
+
 struct {
     ProtocolVersion supported_version;
     opaque client_init_key_id<0..255>;
     CipherSuite cipher_suite;
     HPKEPublicKey init_key;
     Credential credential;
+    Extension extensions<0..2^16-1>;
     opaque signature<0..2^16-1>;
 } ClientInitKey;
+~~~~~
+
+ClientInitKey objects MUST contain at least two extensions, one of type
+`supported_versions` and one of type `supported_ciphersuites`.  These extensions
+allow MLS session establishment to be safe from downgrade attacks on these two
+parameters, while still only advertising one version / ciphersuite per
+ClientInitKey.
+
+The `supported_versions` extension contains a list of MLS versions that are
+supported by the client.  The `supported_ciphersuites` extension contains a list
+of MLS ciphersuites that are supported by the client.
+
+~~~~~
+ProtocolVersion supported_versions<0..255>;
+CipherSuite supported_ciphersuites<0..255>;
 ~~~~~
 
 
