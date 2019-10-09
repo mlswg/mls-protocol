@@ -1620,7 +1620,6 @@ member:
 struct {
     uint32 index;
     ClientInitKey init_key;
-    opaque welcome_info_hash<0..255>;
 } Add;
 ~~~~~
 
@@ -1631,9 +1630,6 @@ value MUST satisfy `0 <= index <= n`, where `n` is the size of the
 group. The case `index = n` indicates an add at the right edge of
 the tree).  If `index < n` and the leaf node at position `index` is
 not blank, then the recipient MUST reject the Add as malformed.
-
-The `welcome_info_hash` field contains a hash of the WelcomeInfo
-object sent in a Welcome message to the new member.
 
 A group member generates this message by requesting a ClientInitKey
 from the directory for the user to be added, and encoding it into an
@@ -1652,9 +1648,6 @@ the signature on the message,  then updates its state as follows:
   the size of the group, and extend the tree accordingly
 * Verify the signature on the included ClientInitKey; if the signature
   verification fails, abort
-* Generate a WelcomeInfo object describing the state prior to the
-  add, and verify that its hash is the same as the value of the
-  `welcome_info_hash` field
 * Update the ratchet tree by setting to blank all nodes in the
   direct path of the new node
 * Set the leaf node in the tree at position `index` to a new node
