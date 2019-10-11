@@ -1351,6 +1351,7 @@ struct {
     uint32 epoch;
     ContentType content_type;
     opaque sender_data_nonce<0..255>;
+    opaque authenticated_data<0..2^32-1>;
 } MLSCiphertextSenderDataAAD;
 ~~~~~
 
@@ -1405,8 +1406,8 @@ struct {
     uint32 epoch;
     ContentType content_type;
     opaque sender_data_nonce<0..255>;
-    opaque encrypted_sender_data<0..255>;
     opaque authenticated_data<0..2^32-1>;
+    opaque encrypted_sender_data<0..255>;
 } MLSCiphertextContentAAD;
 ~~~~~
 
