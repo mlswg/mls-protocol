@@ -139,15 +139,19 @@ shared keys with costs that scale as the log of the group size.
 
 RFC EDITOR PLEASE DELETE THIS SECTION.
 
+draft-08
+
+- Change ClientInitKeys so that they only refer to one ciphersuite (\*)
+
 draft-07
 
 - Initial version of the Tree based Application Key Schedule (\*)
 
 - Initial definition of the Init message for group creation (\*)
 
-- Fix issue with the transcript used for newcomers (*\)
+- Fix issue with the transcript used for newcomers (\*)
 
-- Clarifications on message framing and HPKE contexts (*\)
+- Clarifications on message framing and HPKE contexts (\*)
 
 draft-06
 
@@ -586,7 +590,7 @@ their indices.
   containing the node itself
 * The resolution of a blank leaf node is the empty list
 * The resolution of a blank intermediate node is the result of
-  concatinating the resolution of its left child with the resolution
+  concatenating the resolution of its left child with the resolution
   of its right child, in that order
 
 For example, consider the following tree, where the "\_" character
@@ -758,6 +762,8 @@ public key K.
 
 # Cryptographic Objects
 
+## Ciphersuites
+
 Each MLS session uses a single ciphersuite that specifies the
 following primitives to be used in group key computations:
 
@@ -765,32 +771,24 @@ following primitives to be used in group key computations:
 * A Diffie-Hellman finite-field group or elliptic curve
 * An AEAD encryption algorithm {{!RFC5116}}
 
-The ciphersuite must also specify an algorithm `Derive-Key-Pair`
-that maps octet strings with the same length as the output of the
-hash function to key pairs for the asymmetric encryption scheme.
+The ciphersuite's Diffie-Hellman group is used to instantiate an HPKE
+{{!I-D.irtf-cfrg-hpke}} instance for the purpose of public-key encryption.
+The ciphersuite must specify an algorithm `Derive-Key-Pair` that maps octet
+strings with length Hash.length to HPKE key pairs.
 
-Public keys used in the protocol are opaque values
-in a format defined by the ciphersuite, using the following types:
-
-~~~~~
-opaque HPKEPublicKey<1..2^16-1>;
-opaque SignaturePublicKey<1..2^16-1>;
-~~~~~
-
-Cryptographic algorithms are indicated using the following types:
+Ciphersuites are represented with the CipherSuite type. HPKE public keys
+are opaque values in a format defined by the underlying Diffie-Hellman
+protocol (see the Ciphersuites section of the HPKE specification for more
+information):
 
 ~~~~~
-enum {
-    ecdsa_secp256r1_sha256(0x0403),
-    ed25519(0x0807),
-    (0xFFFF)
-} SignatureScheme;
-
 enum {
     P256_SHA256_AES128GCM(0x0000),
     X25519_SHA256_AES128GCM(0x0001),
     (0xFFFF)
 } CipherSuite;
+
+opaque HPKEPublicKey<1..2^16-1>;
 ~~~~~
 
 ## Ciphersuites
@@ -895,7 +893,7 @@ struct {
 
 struct {
     CredentialType credential_type;
-    select (credential_type) {
+    select (Credential.credential_type) {
         case basic:
             BasicCredential;
 
@@ -903,6 +901,19 @@ struct {
             opaque cert_data<1..2^24-1>;
     };
 } Credential;
+~~~~~
+
+The SignatureScheme type represents a signature algorithm. Signature public
+keys are opaque values in a format defined by the signature scheme.
+
+~~~~~
+enum {
+    ecdsa_secp256r1_sha256(0x0403),
+    ed25519(0x0807),
+    (0xFFFF)
+} SignatureScheme;
+
+opaque SignaturePublicKey<1..2^16-1>;
 ~~~~~
 
 ## Tree Hashes
@@ -1049,7 +1060,7 @@ each node MUST be the parent of its predecessor.
 
 ~~~~~
 struct {
-    HPKEPublicKey ephemeral_key;
+    opaque kem_output<0..2^16-1>;
     opaque ciphertext<0..2^16-1>;
 } HPKECiphertext;
 
@@ -1073,7 +1084,7 @@ in the resolution.
 The HPKECiphertext values are computed as
 
 ~~~~~
-ephemeral_key, context = SetupBaseI(node_public_key, "")
+kem_output, context = SetupBaseI(node_public_key, "")
 ciphertext = context.Seal("", path_secret)
 ~~~~~
 
@@ -1194,29 +1205,28 @@ The details of application key derivation are described in the
 
 In order to facilitate asynchronous addition of clients to a
 group, it is possible to pre-publish initialization keys that
-provide some public information about a user.  ClientInitKey
+provide some public information about a user. ClientInitKey
 messages provide information about a client that any existing
 member can use to add this client to the group asynchronously.
 
-A ClientInitKey object specifies what ciphersuites a client supports,
-as well as providing public keys that the client can use for key
-derivation and signing.  The client's identity key is intended to be
+A ClientInitKey object specifies a ciphersuite that the client
+supports, as well as providing a public key that others can use
+for key agreement. The client's identity key is intended to be
 stable throughout the lifetime of the group; there is no mechanism to
 change it.  Init keys are intended to be used a very limited number of
-times, potentially once. (see {{init-key-reuse}}).  ClientInitKeys
-also contain an identifier chosen by the client, which the client
-MUST assure uniquely identifies a given ClientInitKey object among the
-set of ClientInitKeys created by this client.
+times, ideally only once. (See {{init-key-reuse}}). Clients MAY
+generate and publish multiple ClientInitKey objects to support multiple
+ciphersuites, or to reduce the likelihood of init key reuse.
+ClientInitKeys contain an identifier chosen by the client, which the
+client MUST ensure uniquely identifies a given ClientInitKey object
+among the set of ClientInitKeys created by this client.
 
-The init\_keys array MUST have the same length as the cipher\_suites
-array, and each entry in the init\_keys array MUST be a public key
-for the asymmetric encryption scheme defined in the cipher\_suites array
-and used in the HPKE construction for TreeKEM.
-
-The whole structure is signed using the client's identity key.
-A ClientInitKey object with an invalid signature field MUST be
-considered malformed.  The input to the signature computation
-comprises all of the fields except for the signature field.
+The value for init\_key MUST be a public key for the asymmetric
+encryption scheme defined by cipher\_suite. The whole structure
+is signed using the client's identity key. A ClientInitKey object
+with an invalid signature field MUST be considered malformed.
+The input to the signature computation comprises all of the fields
+except for the signature field.
 
 ~~~~~
 enum {
@@ -1225,10 +1235,10 @@ enum {
 } ProtocolVersion;
 
 struct {
+    ProtocolVersion supported_version;
     opaque client_init_key_id<0..255>;
-    ProtocolVersion supported_versions<0..255>;
-    CipherSuite cipher_suites<0..255>;
-    HPKEPublicKey init_keys<1..2^16-1>;
+    CipherSuite cipher_suite;
+    HPKEPublicKey init_key;
     Credential credential;
     opaque signature<0..2^16-1>;
 } ClientInitKey;
@@ -1238,7 +1248,7 @@ struct {
 # Message Framing
 
 Handshake and application messages use a common framing structure.
-This framing provides encryption to assure confidentiality within the
+This framing provides encryption to ensure confidentiality within the
 group, as well as signing to authenticate the sender within the group.
 
 The two main structures involved are MLSPlaintext and MLSCiphertext.
@@ -1288,7 +1298,7 @@ struct {
 } MLSCiphertext;
 ~~~~~
 
-The remainder of this section describe how to compute the signature of
+The remainder of this section describes how to compute the signature of
 an MLSPlaintext object and how to convert it to an MLSCiphertext object.
 The overall process is as follows:
 
@@ -1365,11 +1375,17 @@ are encoded in the following form:
 
 ~~~~~
 struct {
-    opaque content[length_of_content];
-    uint8 signature[MLSCiphertextContent.sig_len];
-    uint16 sig_len;
-    uint8  marker = 1;
-    uint8  zero_padding[length_of_padding];
+    select (MLSCiphertext.content_type) {
+        case handshake:
+            GroupOperation operation;
+            opaque confirmation<0..255>;
+
+        case application:
+            opaque application_data<0..2^32-1>;
+    }
+
+    opaque signature<0..2^16-1>;
+    opaque padding<0..2^16-1>;
 } MLSCiphertextContent;
 ~~~~~
 
@@ -1505,8 +1521,8 @@ struct {
 
 The creator of the group constructs an Init message as follows:
 
-* Fetch a ClientInitKey for each member (including the creator)
-* Identify a protocol version and cipher suite that is supported by
+* Fetch one or more ClientInitKeys for each member (including the creator)
+* Identify a protocol version and ciphersuite that is supported by
   all proposed members.
 * Construct a ratchet tree with its leaves populated with the public
   keys and credentials from the ClientInitKeys of the members, and all
@@ -1517,7 +1533,7 @@ The creator of the group constructs an Init message as follows:
 Each member of the newly-created group initializes its state from
 the Init message as follows:
 
-* Note the group ID, protocol version, and cipher suite in use
+* Note the group ID, protocol version, and ciphersuite in use
 * Construct a ratchet tree as above
 * Update the cached ratchet tree by replacing nodes in the direct
   path from the first leaf using the direct path
@@ -1552,11 +1568,10 @@ The Welcome message contains the information that the new member
 needs to initialize a GroupContext object that can be updated to the
 current state using the Add message.  This information is encrypted
 for the new member using HPKE.  The recipient key pair for the
-HPKE encryption is the one included in the indicated ClientInitKey,
-corresponding to the indicated ciphersuite.  The "add_key_nonce"
-field contains the key and nonce used to encrypt the corresponding
-Add message; if it is not encrypted, then this field MUST be set to
-the null optional value.
+HPKE encryption is the one included in the indicated ClientInitKey.
+The "add_key_nonce" field contains the key and nonce used to encrypt
+the corresponding Add message; if it is not encrypted, then this
+field MUST be set to the null optional value.
 
 ~~~~~
 struct {
@@ -1581,7 +1596,6 @@ struct {
 
 struct {
     opaque client_init_key_id<0..255>;
-    CipherSuite cipher_suite;
     HPKECiphertext encrypted_welcome_info;
 } Welcome;
 ~~~~~
@@ -1655,9 +1669,8 @@ the signature on the message,  then updates its state as follows:
 * Update the ratchet tree by setting to blank all nodes in the
   direct path of the new node
 * Set the leaf node in the tree at position `index` to a new node
-  containing the public key from the ClientInitKey in the Add
-  corresponding to the ciphersuite in use, as well as the
-  credential under which the ClientInitKey was signed
+  containing the public key from the ClientInitKey in the Add, as
+  well as the credential under which the ClientInitKey was signed
 
 The `update_secret` resulting from this change is an all-zero octet
 string of length Hash.length.
@@ -1936,7 +1949,7 @@ Where ApplicationContext is specified as:
 struct {
     uint32 node = Node;
     uint32 generation = Generation;
-} ApplicationContext
+} ApplicationContext;
 ~~~~
 
 If N is a node index in the AS Tree then the secrets of the children
@@ -2384,8 +2397,8 @@ def copath(x, n):
 
     return [sibling(y, n) for y in d]
 
-# Frontier is is the list of full subtrees, from left to right.  A
-# balance binary tree with n leaves has a full subtree for every
+# Frontier is the list of full subtrees, from left to right.  A
+# balanced binary tree with n leaves has a full subtree for every
 # power of two where n has a bit set, with the largest subtrees
 # furthest to the left.  For example, a tree with 11 leaves has full
 # subtrees of size 8, 2, and 1.
