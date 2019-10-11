@@ -1263,6 +1263,7 @@ struct {
     uint32 epoch;
     uint32 sender;
     ContentType content_type;
+    opaque authenticated_data<0..2^32-1>;
 
     select (MLSPlaintext.content_type) {
         case handshake:
@@ -1273,7 +1274,6 @@ struct {
             opaque application_data<0..2^32-1>;
     }
 
-    opaque authenticated_data<0..2^32-1>;
     opaque signature<0..2^16-1>;
 } MLSPlaintext;
 
@@ -1390,7 +1390,7 @@ struct {
     ContentType content_type;
     opaque sender_data_nonce<0..255>;
     opaque encrypted_sender_data<0..255>;
-    opaque authenticated_content[length_of_authenticated_content];
+    opaque authenticated_data<0..2^32-1>;
 } MLSCiphertextContentAAD;
 ~~~~~
 
