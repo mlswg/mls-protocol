@@ -1560,8 +1560,10 @@ The proposer of the Add does not control where in the group's ratchet tree the
 new member is added.  Instead, the sender of the Commit message chooses a
 location for each added member and states it in the Commit message.
 
-A member of the group applies an Add message at leaf index `index` specified
-in the Commit message by taking the following steps:
+An Add is applied after being included in a Commit message.  The position of the
+Add in the list of adds determines the leaf index `index` where the new member
+will be added.  For the first Add in the Commit, `index` is the leftmost empty
+leaf in the tree, for the second Add, the next empty leaf to the right, etc.
 
 * If necessary, extend the tree to the right until it has at least index + 1
   leaves
@@ -1636,7 +1638,7 @@ using the hash function for the group's ciphersuite.
 ~~~~~
 struct {
     uint32 sender;
-    opaque hash[4];
+    opaque hash<0..255>;
 } ProposalID;
 
 struct {
@@ -1668,7 +1670,7 @@ A member of the group applies a Commit message by taking the following steps:
    applied at the leftmost unoccupied leaf, or appended to the right edge of the
    tree if all leaves are occupied.
 
-4. Process the `update_path` value to update the ratchet tree referenced by the
+4. Process the `path` value to update the ratchet tree referenced by the
    provisional GroupContext and generate the update secret:
 
    * Update the ratchet tree by replacing nodes in the direct path of the sender
@@ -1833,61 +1835,6 @@ update before retrying new proposals.
 While this seems safer as it doesn't rely on the server, it is
 more complex and harder to implement. It also could cause starvation
 for some clients if they keep failing to get their proposal accepted.
-
-## Merging Updates
-
-It is possible in principle to partly address the problem
-of concurrent changes by having the recipients of the changes merge
-them, rather than having the senders retry.  Because the value of
-intermediate node is determined by its last updated child,
-updates can be merged
-by recipients as long as the recipients agree on an order -- the
-only question is which node was last updated.
-
-Recall that the processing of an update proceeds in two steps:
-
-1. Compute updated secret values by hashing up the tree
-2. Update the tree with the new secret and public values
-
-To merge an ordered list of updates, a recipient simply performs
-these updates in the specified order.
-
-For example, suppose we have a tree in the following configuration:
-
-~~~~~
-     KDF(KDF(D))
-     /       \
-  KDF(B)    KDF(D)
-  /  \      /  \
- A    B    C    D
-~~~~~
-
-Now suppose B and C simultaneously decide to update to X and Y,
-respectively.  They will send out updates of the following form:
-
-~~~~~
-  Update from B      Update from C
-  =============      =============
-      KDF(KDF(X))             KDF(KDF(Y))
-     /                         \
-  KDF(X)                        KDF(Y)
-     \                         /
-      X                       Y
-~~~~~
-
-Assuming that the ordering agreed by the group says that B's update
-should be processed before C's, the other members in the group
-will overwrite the root value for B with the root value from C, and
-all arrive at the following state:
-
-~~~~~
-      KDF(KDF(Y))
-     /       \
-  KDF(X)    KDF(Y)
-  /  \      /  \
- A    X    Y    D
-~~~~~
-
 
 # Application Messages
 
