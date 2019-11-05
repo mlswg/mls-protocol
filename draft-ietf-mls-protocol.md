@@ -916,6 +916,19 @@ enum {
 opaque SignaturePublicKey<1..2^16-1>;
 ~~~~~
 
+Note that each new credential that has not already been validated
+by the application SHOULD be validated against the Authentication
+Service.
+
+[[OPEN ISSUE: 1. SHOULD vs MUST.
+2. A client that wants to update its identity key
+can perform the operation UNDER THIS CONDITION by adding a new
+version of herself using a new credential signed under a new
+IdentityKey, then performing a remove of the old leaf. This is
+fine as long as the credential binds to the same identity for
+the application. If this verfication is not met, there is no
+authentication guarantee at the application layer anyway.]]
+
 ## Tree Hashes
 
 To allow group members to verify that they agree on the
