@@ -2210,6 +2210,10 @@ from the latest ratcheting tree. If the adversary cannot derive the
 updated root key after an Update operation, it cannot compute any
 derived secrets.
 
+In the case where the client could have been compromised (device
+loss...), the client SHOULD signal the delivery service to expire
+all the previous ClientInitKeys and publish fresh ones for PCS.
+
 ## Init Key Reuse
 
 Initialization keys are intended to be used only once and then
