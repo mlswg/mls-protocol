@@ -1593,6 +1593,9 @@ leaf in the tree, for the second Add, the next empty leaf to the right, etc.
 * If necessary, extend the tree to the right until it has at least index + 1
   leaves
 
+* For each intermediate node along the path from the leaf at position `index` to
+  the root, add `index` to the `unmerged_leaves` list for the node.
+
 * Blank the path from the leaf at position `index` to the root
 
 * Set the leaf node in the tree at position `index` to a new node containing the
