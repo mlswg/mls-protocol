@@ -607,7 +607,7 @@ their indices.
   containing the node itself
 * The resolution of a blank leaf node is the empty list
 * The resolution of a blank intermediate node is the result of
-  concatinating the resolution of its left child with the resolution
+  concatenating the resolution of its left child with the resolution
   of its right child, in that order
 
 For example, consider the following tree, where the "\_" character
@@ -908,7 +908,7 @@ struct {
 
 struct {
     CredentialType credential_type;
-    select (credential_type) {
+    select (Credential.credential_type) {
         case basic:
             BasicCredential;
 
@@ -1234,7 +1234,7 @@ times, ideally only once. (See {{init-key-reuse}}). Clients MAY
 generate and publish multiple ClientInitKey objects to support multiple
 ciphersuites, or to reduce the likelihood of init key reuse.
 ClientInitKeys contain an identifier chosen by the client, which the
-client MUST assure uniquely identifies a given ClientInitKey object
+client MUST ensure uniquely identifies a given ClientInitKey object
 among the set of ClientInitKeys created by this client.
 
 The value for init\_key MUST be a public key for the asymmetric
@@ -1264,7 +1264,7 @@ struct {
 # Message Framing
 
 Handshake and application messages use a common framing structure.
-This framing provides encryption to assure confidentiality within the
+This framing provides encryption to ensure confidentiality within the
 group, as well as signing to authenticate the sender within the group.
 
 The two main structures involved are MLSPlaintext and MLSCiphertext.
@@ -1324,7 +1324,7 @@ a message.  Syntactically, you would just define an MLSFrame that would
 encapsulate the select statement in the middle of MLSPlaintext, and have
 MLSPlaintext carry a vector of them. ]]
 
-The remainder of this section describe how to compute the signature of
+The remainder of this section describes how to compute the signature of
 an MLSPlaintext object and how to convert it to an MLSCiphertext object.
 The overall process is as follows:
 
@@ -1401,11 +1401,17 @@ are encoded in the following form:
 
 ~~~~~
 struct {
-    opaque content[length_of_content];
-    uint8 signature[MLSCiphertextContent.sig_len];
-    uint16 sig_len;
-    uint8  marker = 1;
-    uint8  zero_padding[length_of_padding];
+    select (MLSCiphertext.content_type) {
+        case handshake:
+            GroupOperation operation;
+            opaque confirmation<0..255>;
+
+        case application:
+            opaque application_data<0..2^32-1>;
+    }
+
+    opaque signature<0..2^16-1>;
+    opaque padding<0..2^16-1>;
 } MLSCiphertextContent;
 ~~~~~
 
@@ -1894,7 +1900,7 @@ Where ApplicationContext is specified as:
 struct {
     uint32 node = Node;
     uint32 generation = Generation;
-} ApplicationContext
+} ApplicationContext;
 ~~~~
 
 If N is a node index in the AS Tree then the secrets of the children
@@ -2342,8 +2348,8 @@ def copath(x, n):
 
     return [sibling(y, n) for y in d]
 
-# Frontier is is the list of full subtrees, from left to right.  A
-# balance binary tree with n leaves has a full subtree for every
+# Frontier is the list of full subtrees, from left to right.  A
+# balanced binary tree with n leaves has a full subtree for every
 # power of two where n has a bit set, with the largest subtrees
 # furthest to the left.  For example, a tree with 11 leaves has full
 # subtrees of size 8, 2, and 1.
