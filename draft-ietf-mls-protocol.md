@@ -145,6 +145,8 @@ draft-08
 
 - Decompose group operations into Proposals and Commits (\*)
 
+- Replace Init messages with multi-recipient Welcome message (\*)
+
 draft-07
 
 - Initial version of the Tree based Application Key Schedule (\*)
@@ -1456,69 +1458,59 @@ The ciphertext field of the MLSCiphertext object is produced by
 supplying these inputs to the AEAD function specified by the
 ciphersuite in use.
 
-# Group Initialization
+# Group Creation
 
-A client creates a group with a specified set of initial members by constructing
-an Init message and sending it to those members.
+A group is always created with a single member, the "creator".  The other
+members are added when the creator effectively sends itself an Add proposal and
+commits it, then sends the corresponding Welcome message to the new
+participants.  These processes are described in detail in {{add}}, {{commit}},
+and {{welcoming-new-members}}.
 
-~~~~~
-struct {
-  opaque group_id<0..255>;
-  ClientInitKey members<0..2^32-1>;
-  DirectPath path;
-} Init;
-~~~~~
+The creator of a group MUST take the following steps to initialize the group:
 
-The creator of the group constructs an Init message as follows:
+* Fetch ClientInitKeys for the members to be added, and selects a version and
+  ciphersuite according to the capabilities of the members. [[ TODO: Discuss
+  downgrade prevention here ]]
 
-* Fetch one or more ClientInitKeys for each member (including the creator)
-* Identify a protocol version and ciphersuite that is supported by
-  all proposed members.
-* Construct a ratchet tree with its leaves populated with the public
-  keys and credentials from the ClientInitKeys of the members, and all
-  other nodes blank.
-* Generate a fresh leaf key pair for the first leaf
-* Compute its direct path in this ratchet tree
+* Initialize a one-member group with the following initial values (where "0"
+  represents an all-zero vector of size Hash.length):
+  * Ratchet tree: A tree with a single node, a leaf containing an HPKE public
+    key and credential for the creator
+  * Group ID: A value set by the creator
+  * Epoch: 0x00000000
+  * Tree hash: The root hash of the above ratchet tree
+  * Confirmed transcript hash: 0
+  * Interim transcript hash: 0
+  * Init secret: 0
 
-Each member of the newly-created group initializes its state from
-the Init message as follows:
+* For each member, construct an Add proposal from the ClientInitKey for that
+  member (see {{add}})
 
-* Verify that all of the ClientInitKeys listed are for the same protocol and
-  ciphersuite; if not, reject the Init as malformed
-* Note the group ID, protocol version, and ciphersuite in use.
-* Construct a ratchet tree as above
-* Update the cached ratchet tree by replacing nodes in the direct
-  path from the first leaf using the direct path
-* Update the cached ratchet tree by replacing nodes in the direct
-  path from the first leaf using the information contained in the
-  "path" attribute
+* Construct a Commit message that commits all of the Add proposals, in any order
+  chosen by the creator (see {{commit}})
 
-The epoch secret for the first epoch is computed from:
+* Process the Commit message to obtain a new group state (for the epoch in which
+  the new members are added) and a Welcome message
 
-* An all-zero init secret
-* An update secret `path_secret[i+1]` derived from the `path_secret[i]`
-  associated to the root node
-* A GroupContext object resulting from the above initialization
+* Transmit the Welcome message to the other new members
 
-The members learn the relevant path secrets by decrypting one of the encrypted
-path secrets in the DirectPath and working back to the root (as in normal
-DirectPath processing).
+The recipient of a Welcome message processes it as described in
+{{welcoming-new-members}}.
 
-Note the degenerate case of this process: The group creator can initialize a
-group with one member (itself) and add the remaining members by sending Add
-proposals followed by a Commit.  This approach is slightly more verbose than
-simply sending an Init message, but also slightly more private.  The Init
-leaks the initial configuration of the group, while in the Add approach, the
-initial group state is sent in encrypted Welcome messages.
+In principle, the above process could be streamlined by having the creator
+directly create a tree and choose a random value for first epoch's epoch secret.
+We follow the steps above because it removes unnecessary choices, by which, for
+example, bad randomness could be introduced.  The only choices the creator makes
+here are its own HPKE key and credential, and the leaf secret from which the
+Commit is built.
 
-[[ OPEN ISSUE: It might be better to collapse these two approaches.  This would
-entail sending multiple Proposals alongside a Commit and encrypting a Welcome to
-multiple participants, both of which seen like nice optimizations anyway. ]]
-
-[[ OPEN ISSUE: It might be desireable for the group creator to be
-able to "pre-warm" the tree, by providing values for some nodes not
-on its direct path.  This would violate the tree invariant, so we
-would need to figure out what mitigations would be necessary. ]]
+A new member receiving a Welcome message can recognize group creation if the
+signer of the Welcome message is at index 0, and the number of entries in the
+`members` array is equal to the number of leaves in the tree minus one.  A
+client receiving a Welcome message SHOULD verify whether it is a newly created
+group, and if so, SHOULD verify that the above process was followed by
+reconstructing the Add and Commit messages and verifying that the resulting
+transcript hashes and epoch secret match those found in the Welcome message.
 
 # Group Evolution
 
@@ -1733,16 +1725,17 @@ tree. ]]
 
 ### Welcoming New Members
 
-The sender of a Commit message is responsible for sending Welcome messages to
+The sender of a Commit message is responsible for sending a Welcome message to
 any new members added via Add proposals.  The Welcome message provides the new
-member with the current state of the group, after the application of the Commit
-message.  So the new member will not be able to decrypt or verify the Commit
-message, but will have the secrets it needs to participate in the epoch
+members with the current state of the group, after the application of the Commit
+message.  The new members will not be able to decrypt or verify the Commit
+message, but will have the secrets they need to participate in the epoch
 initiated by the Commit message.
 
-The information in a Welcome message is encrypted for the new member using HPKE.
-The recipient key pair for the HPKE encryption is the one included in the
-indicated ClientInitKey.
+In order to allow the same Welcome message to be sent to all new members,
+information describing the group is encrypted with a symmetric key and nonce
+chosen by the sender.  This key and nonce are then encrypted ot each new member
+using HPKE.
 
 ~~~~~
 struct {
@@ -1751,28 +1744,69 @@ struct {
 } RatchetNode;
 
 struct {
-    ProtocolVersion version = mls10;
-    opaque group_id<0..255>;
-    uint32 epoch;
-    optional<RatchetNode> tree<1..2^32-1>;
-    uint32 index;
-    opaque interim_transcript_hash<0..255>;
-    opaque epoch_secret<0..255>;
-} WelcomeInfo;
+  // GroupContext inputs
+  opaque group_id<0..255>;
+  uint32 epoch;
+  optional<RatchetNode> tree<1..2^32-1>;
+  opaque confirmed_transcript_hash<0..255>;
+
+  // Inputs to the next round of the key schedule
+  opaque interim_transcript_hash<0..255>;
+  opaque epoch_secret<0..255>;
+
+  uint32 signer_index;
+  opaque signature<0..255>;
+} GroupInfo;
 
 struct {
-    opaque client_init_key_id<0..255>;
-    HPKECiphertext encrypted_welcome_info;
+  opaque group_info_key<1..255>;
+  opaque group_info_nonce<1..255>;
+} MemberInfo;
+
+struct {
+  opaque client_init_key_hash<1..255>;
+  HPKECiphertext encrypted_member_info;
+} EncryptedMemberInfo;
+
+struct {
+  ProtocolVersion version = mls10;
+  CipherSuite cipher_suite;
+  EncryptedMemberInfo members<1..V>;
+  opaque encrypted_group_info;
 } Welcome;
 ~~~~~
 
 In the description of the tree as a list of nodes, the `credential`
 field for a node MUST be populated if and only if that node is a
-leaf in the tree.
+leaf in the tree (i.e., a node with an even index).
 
-[[ OPEN ISSUE: If multiple members are being added, it would be nice to be able
-to encrypt the group state once and just encrypt the key to the members.  In
-that case, you would also need to factor out the "index" field. ]]
+On receiving a Welcome message, a client processes it using the following steps:
+
+* Identify an entry in the `members` array where the `client_init_key_hash`
+  value corresponds to one of this client's ClientInitKeys, using the hash
+  indicated by the `cipher_suite` field.  If no such field exists, or if the
+  ciphersuite indicated in the  ClientInitKey does not match the one in the
+  Welcome message, return an error.
+
+* Decrypt the `encrypted_member_info` using HPKE with the algorithms indicated
+  by the ciphersuite and the HPKE public key in the ClientInitKey.
+
+* Decrypt the `encrypted_group_info` field using the key and nonce in the
+  decrypted MemberInfo object.
+
+* Verify the signature on the GroupInfo object.  The signature input comprises
+  all of the fields in the GroupInfo object except the signature field.  The
+  public key and algorithm are taken from the credential in the leaf node at
+  position `signer_index`.  If this verification fails, return an error.
+
+* Identify a leaf in the `tree` array (i.e., an even-numbered node) whose
+  `public_key` and `credential` fields are identical to the corresponding fields
+  in the ClientInitKey.  If no such field exists, return an error.  Let `index`
+  represent the index of this node among the leaves in the tree, namely the
+  index of the node in the `tree` array divided by two.
+
+* Construct a new group state using the information in the GroupInfo object.
+  The new member's position in the tree is `index`, as defined above.
 
 # Sequencing of State Changes {#sequencing}
 
