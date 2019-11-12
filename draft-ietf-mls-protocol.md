@@ -145,6 +145,8 @@ draft-08
 
 - Decompose group operations into Proposals and Commits (\*)
 
+- Allow multiple Proposals and a single Commit in one MLSPlaintext (\*)
+
 draft-07
 
 - Initial version of the Tree based Application Key Schedule (\*)
@@ -1045,8 +1047,9 @@ struct {
   opaque group_id<0..255>;
   uint32 epoch;
   uint32 sender;
-  ContentType content_type = commit;
-  Commit commit;
+  ContentType content_type = handshake;
+  Proposal proposals<0..2^32-1>;
+  optional<Commit> commit;
 } MLSPlaintextCommitContent;
 
 struct {
@@ -1293,8 +1296,7 @@ necessary for the delivery service to examine such messages.
 enum {
     invalid(0),
     application(1),
-    proposal(2),
-    commit(3)
+    handshake(2),
     (255)
 } ContentType;
 
@@ -1309,11 +1311,9 @@ struct {
         case application:
           opaque application_data<0..2^32-1>;
 
-        case proposal:
-          Proposal proposal;
-
-        case commit:
-          Commit commit;
+        case handshake:
+          Proposal proposals<0..2^32-1>;
+          optional<Commit> commit;
           opaque confirmation<0..255>;
     }
 
@@ -1330,14 +1330,6 @@ struct {
     opaque ciphertext<0..2^32-1>;
 } MLSCiphertext;
 ~~~~~
-
-[[ OPEN-ISSUE: Should we allow multiple payloads to be packed into a single
-MLSPlaintext?  For example, this would allow a Proposal and a Commit to be sent
-at the same time, emulating the behavior of earlier verions of this protocol.
-Or you could emulate Signal by always sending an Update and Commit when you send
-a message.  Syntactically, you would just define an MLSFrame that would
-encapsulate the select statement in the middle of MLSPlaintext, and have
-MLSPlaintext carry a vector of them. ]]
 
 The remainder of this section describes how to compute the signature of
 an MLSPlaintext object and how to convert it to an MLSCiphertext object.
