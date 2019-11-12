@@ -1268,7 +1268,8 @@ enum {
 enum {
     invalid(0),
     supported_versions(1),
-    supported_ciphersuites(2)
+    supported_ciphersuites(2),
+    expiration(3),
     (65535)
 } ExtensionType;
 
@@ -1303,6 +1304,22 @@ ProtocolVersion supported_versions<0..255>;
 CipherSuite supported_ciphersuites<0..255>;
 ~~~~~
 
+The `expiration` extension represents the time at which clients MUST consider
+this ClientInitKey invalid.  This time is represented as an absolute time,
+measured in seconds since the Unix epoch (1970-01-01T00:00:00Z).  If a client
+receives a ClientInitKey that contains an expiration extension at a time after
+its expiration time, then it MUST consider the ClientInitKey invalid and not use
+it for any further processing.
+
+~~~~~
+uint64 expiration;
+~~~~~
+
+Note that as an extension, it is not required that any given ClientInitKey have
+an expiration time.  In particular, applications that rely on "last resort"
+ClientInitKeys to ensure continued reachability may choose to omit the
+expiration extension from these keys, or give them much longer lifetimes than
+other ClientInitKeys.
 
 # Message Framing
 
