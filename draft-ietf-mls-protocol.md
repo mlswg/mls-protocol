@@ -1291,8 +1291,8 @@ struct {
 ClientInitKey objects MUST contain at least two extensions, one of type
 `supported_versions` and one of type `supported_ciphersuites`.  These extensions
 allow MLS session establishment to be safe from downgrade attacks on these two
-parameters, while still only advertising one version / ciphersuite per
-ClientInitKey.
+parameters (as discussed in {{group-creation}}), while still only advertising
+one version / ciphersuite per ClientInitKey.
 
 The `supported_versions` extension contains a list of MLS versions that are
 supported by the client.  The `supported_ciphersuites` extension contains a list
@@ -1497,8 +1497,10 @@ and {{welcoming-new-members}}.
 The creator of a group MUST take the following steps to initialize the group:
 
 * Fetch ClientInitKeys for the members to be added, and selects a version and
-  ciphersuite according to the capabilities of the members. [[ TODO: Discuss
-  downgrade prevention here ]]
+  ciphersuite according to the capabilities of the members.  To protect against
+  downgrade attacks, the creator MUST use the `supported_versions` and
+  `supported_ciphersuites` fields in these ClientInitKeys to verify that the
+  chosen version and ciphersuite is the best option supported by all members.
 
 * Initialize a one-member group with the following initial values (where "0"
   represents an all-zero vector of size Hash.length):
