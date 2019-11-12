@@ -145,6 +145,8 @@ draft-08
 
 - Decompose group operations into Proposals and Commits (\*)
 
+- Enable Add and Remove proposals from outside the group (\*)
+
 draft-07
 
 - Initial version of the Tree based Application Key Schedule (\*)
@@ -1631,6 +1633,27 @@ A member of the group applies a Remove message by taking the following steps:
 * Replace the leaf node at position `removed` with a blank node
 
 * Blank the intermediate nodes along the path from the removed leaf to the root
+
+### External Proposals
+
+Add and Remove proposals can be constructed and sent to the group by a party
+that is outside the group.  For example, a Delivery Service might propose to
+remove a member of a group has been inactive for a long time, or propose adding
+a newly-hired staff member to a group representing a real-world team.
+
+Proposals originating outside the group are identified by having a `sender`
+value in the range 0xFFFFFF00 - 0xFFFFFFFF.  In a group that accepts external
+proposals, the members of the group MUST be provisioned by the application with
+a mapping between sender indices in this range and authorized signing keys.  To
+ensure consistent handling of external proposals, the application MUST ensure
+that the members of a group have the same mapping and apply the same policies to
+external proposals.
+
+Such a proposal MUST be sent as an MLSPlaintext object, since the sender will
+not have the keys necessary to construct an MLSCiphertext object.
+
+[[ TODO: Should recognized external signers be added to some object that the
+group explicitly agrees on, e.g., as an extension to the GroupContext? ]]
 
 ## Commit
 
