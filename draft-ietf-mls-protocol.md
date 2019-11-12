@@ -1295,6 +1295,8 @@ allow MLS session establishment to be safe from downgrade attacks on these two
 parameters (as discussed in {{group-creation}}), while still only advertising
 one version / ciphersuite per ClientInitKey.
 
+## Supported Versions and Supported Ciphersuites
+
 The `supported_versions` extension contains a list of MLS versions that are
 supported by the client.  The `supported_ciphersuites` extension contains a list
 of MLS ciphersuites that are supported by the client.
@@ -1303,6 +1305,8 @@ of MLS ciphersuites that are supported by the client.
 ProtocolVersion supported_versions<0..255>;
 CipherSuite supported_ciphersuites<0..255>;
 ~~~~~
+
+## Expiration
 
 The `expiration` extension represents the time at which clients MUST consider
 this ClientInitKey invalid.  This time is represented as an absolute time,
