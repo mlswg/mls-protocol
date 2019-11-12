@@ -147,6 +147,8 @@ draft-08
 
 - Replace Init messages with multi-recipient Welcome message (\*)
 
+- Add extensions to ClientInitKeys for expiration and downgrade resistance (\*)
+
 draft-07
 
 - Initial version of the Tree based Application Key Schedule (\*)
