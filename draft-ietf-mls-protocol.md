@@ -785,7 +785,7 @@ Each MLS session uses a single ciphersuite that specifies the
 following primitives to be used in group key computations:
 
 * A hash function
-* A Diffie-Hellman finite-field group or elliptic curve
+* A Diffie-Hellman finite-field group or elliptic curve group
 * An AEAD encryption algorithm {{!RFC5116}}
 
 The ciphersuite's Diffie-Hellman group is used to instantiate an HPKE
@@ -2190,8 +2190,35 @@ deleted. Reuse of init keys is not believed to be inherently insecure
 
 # IANA Considerations
 
-TODO: Registries for protocol parameters, e.g., ciphersuites
+This document requests the creation of the following new IANA registries:
 
+* MLS Ciphersuites
+
+All of these registries should be under a heading of "Message Layer Security",
+and administered under a Specification Required policy {{!RFC8126}}.
+
+## MLS Ciphersuites
+
+The "MLS Ciphersuites" registry lists identifiers for suites of cryptographic
+algorithms defined for use with MLS.  These are two-byte values, so the maximum
+possible value is 0xFFFF = 65535.  Values in the range 0xF000 - 0xFFFF are
+reserved for vendor-internal usage.
+
+Template:
+
+* Value: The two-byte identifier for the ciphersuite
+* Name: The name of the ciphersuite
+* Reference: Where this algorithm is defined
+
+The initial contents for this registry are as follows:
+
+| Value  | Name                    | Reference |
+|:-------|:------------------------|:----------|
+| 0x0000 | P256_SHA256_AES128GCM   | RFC XXXX  |
+| 0x0001 | X25519_SHA256_AES128GCM | RFC XXXX  |
+
+[[ Note to RFC Editor: Please replace "XXXX" above with the number assigned to
+this RFC. ]]
 
 # Contributors
 
