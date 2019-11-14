@@ -1220,7 +1220,9 @@ handshake_key_[sender] =
 ~~~~~
 
 Here the value [sender] represents the index of the member that will
-use this key to send, encoded as a uint32.
+use this key to send, encoded as a uint32.  Each sender maintains two "generation"
+counters, one for application messages and one for handshake messages.  These
+counters are incremented by one each time the sender sends a message.
 
 For application messages, a chain of keys is derived for each sender
 in a similar fashion. This allows forward secrecy at the level of
@@ -1229,9 +1231,16 @@ A step in this chain (the second subscript) is called a "generation".
 The details of application key derivation are described in the
 {{astree}} section below.
 
-[[ OPEN ISSUE: With the addition of Proposals, handshake encryption is now
-broken.  We need a framework where each sender has multiple keys, so we should
-probably just generate another AStree for handshake encryption. ]]
+For handshake messages (Proposals and Commits), the same key is used for all
+messages, but the nonce is updated according to the generation of the message:
+
+~~~~~
+handshake_nonce_[sender]_[generation] = handshake_nonce_[sender]
+                                        XOR encode_big_endian(generation)
+~~~~~
+
+where `encode_big_endian()` encodes the generation in a big-endian integer of
+the same size as the base handshake nonce.
 
 # Initialization Keys
 
@@ -1647,8 +1656,8 @@ the sender of the proposal can retransmit the Proposal in the new epoch.
 Each proposal covered by the Commit is identified by a ProposalID structure.
 The `sender` field in this structure indicates the member of the group that sent
 the proposal (according to their index in the ratchet tree).  The `hash` field
-contains the first four octets of the hash of the Proposal structure itself,
-using the hash function for the group's ciphersuite.
+contains the hash of the MLSPlaintext in which the Proposal was sent, using the
+hash function for the group's ciphersuite.
 
 ~~~~~
 struct {
@@ -1660,9 +1669,18 @@ struct {
     ProposalID updates<0..2^16-1>;
     ProposalID removes<0..2^16-1>;
     ProposalID adds<0..2^16-1>;
+    ProposalID ignored<0..2^16-1>;
     DirectPath path;
 } Commit;
 ~~~~~
+
+The sender of a Commit message MUST include in it all proposals that it has
+received during the current epoch.  Proposals that recipients should implement
+are placed in the `updates`, `removes`, and `adds` vector, according to their
+type.  Proposals that should not be implemented are placed in the `ignored`
+vector.  For example, if two Update proposals are issued for the same leaf, then
+one of them (presumably the earlier one) should be ignored and the other
+(presumably the later) should be added to the `updates` vector.
 
 [[ OPEN ISSUE: This structure loses the welcome_info_hash, because new
 participants are no longer expected to have access to the Commit message adding
