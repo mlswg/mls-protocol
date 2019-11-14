@@ -1059,8 +1059,9 @@ These effects are described in their respective subsections of {{proposals}}.
 The following general rules apply:
 
 * The `group_id` field is constant
-* The `epoch` field increments by one for each Commit message that
-  is processed
+* The `epoch` field is set to the first four octets of the hash of  the
+  MLSPlaintext carrying the relevant commit, interpreted as an unsigned integer
+  in network byte order
 * The `tree_hash` is updated to represent the current tree and
   credentials
 * The `confirmed_transcript_hash` is updated with the data for an
