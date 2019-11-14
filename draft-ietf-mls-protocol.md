@@ -1074,7 +1074,7 @@ struct {
   uint32 sender;
   ContentType content_type = handshake;
   Proposal proposals<0..2^32-1>;
-  optional<Commit> commit;
+  Commit commit;
 } MLSPlaintextCommitContent;
 
 struct {
@@ -1380,7 +1380,8 @@ necessary for the delivery service to examine such messages.
 enum {
     invalid(0),
     application(1),
-    handshake(2),
+    proposal(2),
+    commit(3),
     (255)
 } ContentType;
 
@@ -1395,9 +1396,12 @@ struct {
         case application:
           opaque application_data<0..2^32-1>;
 
-        case handshake:
-          Proposal proposals<0..2^32-1>;
-          optional<Commit> commit;
+        case proposal:
+          Proposal proposal<1..2^32-1>;
+
+        case commit:
+          Proposal proposal<1..2^32-1>;
+          Commit commit;
           opaque confirmation<0..255>;
     }
 
@@ -1502,9 +1506,10 @@ struct {
           opaque application_data<0..2^32-1>;
 
         case proposal:
-          Proposal proposal;
+          Proposal proposal<1..2^32-1>;
 
         case commit:
+          Proposal proposal<1..2^32-1>;
           Commit commit;
           opaque confirmation<0..255>;
     }
