@@ -1072,7 +1072,7 @@ struct {
   opaque group_id<0..255>;
   uint32 epoch;
   uint32 sender;
-  ContentType content_type = handshake;
+  ContentType content_type = commit;
   Proposal proposals<0..2^32-1>;
   Commit commit;
 } MLSPlaintextCommitContent;
