@@ -1273,10 +1273,10 @@ A ClientInitKey object specifies a ciphersuite that the client
 supports, as well as providing a public key that others can use
 for key agreement. The client's identity key is intended to be
 stable throughout the lifetime of the group; there is no mechanism to
-change it.  Init keys are intended to be used a very limited number of
-times, ideally only once. (See {{init-key-reuse}}). Clients MAY
-generate and publish multiple ClientInitKey objects to support multiple
-ciphersuites, or to reduce the likelihood of init key reuse.
+change it.  Init keys are intended to be used only once and SHOULD NOT
+be reused except in case of last resort. (See {{init-key-reuse}}).
+Clients MAY generate and publish multiple ClientInitKey objects to
+support multiple ciphersuites.
 ClientInitKeys contain an identifier chosen by the client, which the
 client MUST ensure uniquely identifies a given ClientInitKey object
 among the set of ClientInitKeys created by this client.
@@ -2284,8 +2284,7 @@ all the previous ClientInitKeys and publish fresh ones for PCS.
 ## Init Key Reuse
 
 Initialization keys are intended to be used only once and then
-deleted. Reuse of init keys is not believed to be inherently insecure
-{{dhreuse}}, although it can complicate protocol analyses.
+deleted. Reuse of init keys can lead to replay attacks.
 
 
 # IANA Considerations
