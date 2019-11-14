@@ -1397,10 +1397,10 @@ struct {
           opaque application_data<0..2^32-1>;
 
         case proposal:
-          Proposal proposal<1..2^32-1>;
+          Proposal proposals<1..2^32-1>;
 
         case commit:
-          Proposal proposal<1..2^32-1>;
+          Proposal proposals<1..2^32-1>;
           Commit commit;
           opaque confirmation<0..255>;
     }
@@ -1506,10 +1506,10 @@ struct {
           opaque application_data<0..2^32-1>;
 
         case proposal:
-          Proposal proposal<1..2^32-1>;
+          Proposal proposals<1..2^32-1>;
 
         case commit:
-          Proposal proposal<1..2^32-1>;
+          Proposal proposals<1..2^32-1>;
           Commit commit;
           opaque confirmation<0..255>;
     }
