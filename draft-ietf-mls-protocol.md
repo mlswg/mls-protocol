@@ -664,18 +664,17 @@ a way as to maintain the _tree invariant_:
     the group only if that member's leaf is a descendant of
     the node or equal to it.
 
-In other words, if node is not blank, then it holds a key pair, and
+In other words, if a node is not blank, then it holds a key pair, and
 the private key of that key pair is known only to members holding
 leaves below that node.
 
-The reverse implication is not true: A leaf below an intermediate
-node might not hold the private key for the node.  Such a leaf is
-called an _unmerged_ leaf, since encrypting to the subtree below the
-node requires encrypting to the node's public key as well as the
-unmerged leaves below it.  A leaf is unmerged when it is first
-added, because the process of adding the leaf does not give it
-access to all of the nodes above it in the tree.  Leaves are
-"merged" as they receive the private keys for nodes, as described in
+The reverse implication is not true: A member may not know the private keys of
+all the intermediate nodes they're below.  Such a member has an _unmerged_ leaf.
+Encrypting to an intermediate node requires encrypting to the node's public key,
+as well as the public keys of all the unmerged leaves below it.  A leaf is
+unmerged when it is first added, because the process of adding the leaf does not
+give it access to all of the nodes above it in the tree.  Leaves are "merged" as
+they receive the private keys for nodes, as described in
 {{ratchet-tree-updates}}.
 
 ## Ratchet Tree Updates
@@ -704,7 +703,7 @@ For example, suppose there is a group with four members:
      / \
     /   \
    /     \
-  E       F
+  E       _
  / \     / \
 A   B   C   D
 ~~~~~
@@ -730,7 +729,7 @@ above:
 ~~~~~
           ns[2]
          /     \
-     ns[1]      F
+     ns[1]      _
      /  \      / \
     A   ns[0] C   D
 ~~~~~
