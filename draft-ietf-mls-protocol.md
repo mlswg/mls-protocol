@@ -149,6 +149,8 @@ draft-08
 
 - Replace Init messages with multi-recipient Welcome message (\*)
 
+- Add extensions to ClientInitKeys for expiration and downgrade resistance (\*)
+
 draft-07
 
 - Initial version of the Tree based Application Key Schedule (\*)
@@ -1296,16 +1298,65 @@ enum {
     (255)
 } ProtocolVersion;
 
+enum {
+    invalid(0),
+    supported_versions(1),
+    supported_ciphersuites(2),
+    expiration(3),
+    (65535)
+} ExtensionType;
+
+struct {
+    ExtensionType extension_type;
+    opaque extension_data<0..2^16-1>;
+} Extension;
+
 struct {
     ProtocolVersion supported_version;
     opaque client_init_key_id<0..255>;
     CipherSuite cipher_suite;
     HPKEPublicKey init_key;
     Credential credential;
+    Extension extensions<0..2^16-1>;
     opaque signature<0..2^16-1>;
 } ClientInitKey;
 ~~~~~
 
+ClientInitKey objects MUST contain at least two extensions, one of type
+`supported_versions` and one of type `supported_ciphersuites`.  These extensions
+allow MLS session establishment to be safe from downgrade attacks on these two
+parameters (as discussed in {{group-creation}}), while still only advertising
+one version / ciphersuite per ClientInitKey.
+
+## Supported Versions and Supported Ciphersuites
+
+The `supported_versions` extension contains a list of MLS versions that are
+supported by the client.  The `supported_ciphersuites` extension contains a list
+of MLS ciphersuites that are supported by the client.
+
+~~~~~
+ProtocolVersion supported_versions<0..255>;
+CipherSuite supported_ciphersuites<0..255>;
+~~~~~
+
+## Expiration
+
+The `expiration` extension represents the time at which clients MUST consider
+this ClientInitKey invalid.  This time is represented as an absolute time,
+measured in seconds since the Unix epoch (1970-01-01T00:00:00Z).  If a client
+receives a ClientInitKey that contains an expiration extension at a time after
+its expiration time, then it MUST consider the ClientInitKey invalid and not use
+it for any further processing.
+
+~~~~~
+uint64 expiration;
+~~~~~
+
+Note that as an extension, it is not required that any given ClientInitKey have
+an expiration time.  In particular, applications that rely on "last resort"
+ClientInitKeys to ensure continued reachability may choose to omit the
+expiration extension from these keys, or give them much longer lifetimes than
+other ClientInitKeys.
 
 # Message Framing
 
@@ -1526,8 +1577,10 @@ and {{welcoming-new-members}}.
 The creator of a group MUST take the following steps to initialize the group:
 
 * Fetch ClientInitKeys for the members to be added, and selects a version and
-  ciphersuite according to the capabilities of the members. [[ TODO: Discuss
-  downgrade prevention here ]]
+  ciphersuite according to the capabilities of the members.  To protect against
+  downgrade attacks, the creator MUST use the `supported_versions` and
+  `supported_ciphersuites` fields in these ClientInitKeys to verify that the
+  chosen version and ciphersuite is the best option supported by all members.
 
 * Initialize a one-member group with the following initial values (where "0"
   represents an all-zero vector of size Hash.length):
