@@ -1510,16 +1510,17 @@ In principle, the above process could be streamlined by having the creator
 directly create a tree and choose a random value for first epoch's epoch secret.
 We follow the steps above because it removes unnecessary choices, by which, for
 example, bad randomness could be introduced.  The only choices the creator makes
-here are its own HPKE key and credential, and the leaf secret from which the
-Commit is built.
+here are its own HPKE key and credential, the leaf secret from which the
+Commit is built, and the intermediate key pairs along the direct path to the
+root.
 
 A new member receiving a Welcome message can recognize group creation if the
-signer of the Welcome message is at index 0, and the number of entries in the
-`members` array is equal to the number of leaves in the tree minus one.  A
-client receiving a Welcome message SHOULD verify whether it is a newly created
-group, and if so, SHOULD verify that the above process was followed by
-reconstructing the Add and Commit messages and verifying that the resulting
-transcript hashes and epoch secret match those found in the Welcome message.
+number of entries in the `members` array is equal to the number of leaves in the
+tree minus one.  A client receiving a Welcome message SHOULD verify whether it
+is a newly created group, and if so, SHOULD verify that the above process was
+followed by reconstructing the Add and Commit messages and verifying that the
+resulting transcript hashes and epoch secret match those found in the Welcome
+message.
 
 # Group Evolution
 
@@ -1752,8 +1753,12 @@ initiated by the Commit message.
 
 In order to allow the same Welcome message to be sent to all new members,
 information describing the group is encrypted with a symmetric key and nonce
-chosen by the sender.  This key and nonce are then encrypted ot each new member
-using HPKE.
+randomly chosen by the sender.  This key and nonce are then encrypted to each
+new member using HPKE.  In the same encrypted package, the committer transmits
+the path secret for the lowest node contained in the direct paths of both the
+committer and the new member.  This allows the new member to compute private
+keys for nodes in its direct path that are being reset by the corresponding
+Commit.
 
 ~~~~~
 struct {
@@ -1779,17 +1784,18 @@ struct {
 struct {
   opaque group_info_key<1..255>;
   opaque group_info_nonce<1..255>;
-} MemberInfo;
+  opaque path_secret<1..255>;
+} KeyPackage;
 
 struct {
   opaque client_init_key_hash<1..255>;
-  HPKECiphertext encrypted_member_info;
-} EncryptedMemberInfo;
+  HPKECiphertext encrypted_key_package;
+} EncryptedKeyPackage;
 
 struct {
   ProtocolVersion version = mls10;
   CipherSuite cipher_suite;
-  EncryptedMemberInfo members<1..V>;
+  EncryptedKeyPackage key_packages<1..V>;
   opaque encrypted_group_info;
 } Welcome;
 ~~~~~
@@ -1800,17 +1806,17 @@ leaf in the tree (i.e., a node with an even index).
 
 On receiving a Welcome message, a client processes it using the following steps:
 
-* Identify an entry in the `members` array where the `client_init_key_hash`
+* Identify an entry in the `key_packages` array where the `client_init_key_hash`
   value corresponds to one of this client's ClientInitKeys, using the hash
   indicated by the `cipher_suite` field.  If no such field exists, or if the
   ciphersuite indicated in the  ClientInitKey does not match the one in the
   Welcome message, return an error.
 
-* Decrypt the `encrypted_member_info` using HPKE with the algorithms indicated
+* Decrypt the `encrypted_key_package` using HPKE with the algorithms indicated
   by the ciphersuite and the HPKE public key in the ClientInitKey.
 
 * Decrypt the `encrypted_group_info` field using the key and nonce in the
-  decrypted MemberInfo object.
+  decrypted KeyPackage object.
 
 * Verify the signature on the GroupInfo object.  The signature input comprises
   all of the fields in the GroupInfo object except the signature field.  The
@@ -1825,6 +1831,11 @@ On receiving a Welcome message, a client processes it using the following steps:
 
 * Construct a new group state using the information in the GroupInfo object.
   The new member's position in the tree is `index`, as defined above.
+
+* Identify the lowest node at which the direct paths from `index` and
+  `signer_index` overlap.  Set private keys for that node and its parents up to
+  the root of the tree, using the `path_secret` from the KeyPackage and
+  following the algorithm in {{ratchet-tree-updates}} to move up the tree.
 
 # Sequencing of State Changes {#sequencing}
 
