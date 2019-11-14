@@ -1112,11 +1112,12 @@ The HPKECiphertext values are computed as
 
 ~~~~~
 kem_output, context = SetupBaseI(node_public_key, "")
-ciphertext = context.Seal("", path_secret)
+ciphertext = context.Seal(group_context, path_secret)
 ~~~~~
 
 where `node_public_key` is the public key of the node that the path
-secret is being encrypted for, and the functions `SetupBaseI` and
+secret is being encrypted for, group_context is the current GroupContext object
+for the group, and the functions `SetupBaseI` and
 `Seal` are defined according to {{!I-D.irtf-cfrg-hpke}}.
 
 Decryption is performed in the corresponding way, using the private
@@ -1418,7 +1419,33 @@ The signature field in an MLSPlaintext object is computed using the
 signing private key corresponding to the credential at the leaf in
 the tree indicated by the sender field.  The signature covers the
 plaintext metadata and message content, i.e., all fields of
-MLSPlaintext except for the `signature` field.
+MLSPlaintext except for the `signature` field.  The signature also covers the
+GroupContext for the current epoch, so that signatures are specific to a given
+group and epoch.
+
+~~~~~
+struct {
+    GroupContext context;
+
+    opaque group_id<0..255>;
+    uint32 epoch;
+    uint32 sender;
+    ContentType content_type;
+    opaque authenticated_data<0..2^32-1>;
+
+    select (MLSPlaintext.content_type) {
+        case application:
+          opaque application_data<0..2^32-1>;
+
+        case proposal:
+          Proposal proposal;
+
+        case commit:
+          Commit commit;
+          opaque confirmation<0..255>;
+    }
+} MLSPlaintextSignatureInput;
+~~~~~
 
 The ciphertext field of the MLSCiphertext object is produced by
 supplying the inputs described below to the AEAD function specified
