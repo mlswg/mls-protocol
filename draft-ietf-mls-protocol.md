@@ -1195,6 +1195,9 @@ proceeds as shown in the following diagram:
                      V
 update_secret -> HKDF-Extract = epoch_secret
                      |
+                     +--> HKDF-Expand(., "mls 1.0 welcome", Hash.length)
+                     |    = welcome_secret
+                     |
                      +--> Derive-Secret(., "sender data", GroupContext_[n])
                      |    = sender_data_secret
                      |
@@ -1903,20 +1906,15 @@ struct {
   uint32 epoch;
   optional<RatchetNode> tree<1..2^32-1>;
   opaque confirmed_transcript_hash<0..255>;
-
-  // Inputs to the next round of the key schedule
   opaque interim_transcript_hash<0..255>;
-  opaque epoch_secret<0..255>;
 
   opaque confirmation<0..255>;
-
   uint32 signer_index;
   opaque signature<0..255>;
 } GroupInfo;
 
 struct {
-  opaque group_info_key<1..255>;
-  opaque group_info_nonce<1..255>;
+  opaque epoch_secret<1..255>;
   opaque path_secret<1..255>;
 } KeyPackage;
 
@@ -1948,8 +1946,13 @@ On receiving a Welcome message, a client processes it using the following steps:
 * Decrypt the `encrypted_key_package` using HPKE with the algorithms indicated
   by the ciphersuite and the HPKE public key in the ClientInitKey.
 
-* Decrypt the `encrypted_group_info` field using the key and nonce in the
-  decrypted KeyPackage object.
+~~~~~
+welcome_nonce = HKDF-Expand(welcome_secret, "nonce", nonce_length)
+welcome_key = HKDF-Expand(welcome_secret, "key", key_length)
+~~~~~
+
+* From the `epoch_secret` provided in the key package, derive the welcome key
+  and nonce, and use them to decrypt the `encrypted_group_info` field.
 
 * Verify the signature on the GroupInfo object.  The signature input comprises
   all of the fields in the GroupInfo object except the signature field.  The
