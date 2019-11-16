@@ -1908,6 +1908,8 @@ struct {
   opaque interim_transcript_hash<0..255>;
   opaque epoch_secret<0..255>;
 
+  opaque confirmation<0..255>;
+
   uint32 signer_index;
   opaque signature<0..255>;
 } GroupInfo;
@@ -1962,6 +1964,10 @@ On receiving a Welcome message, a client processes it using the following steps:
 
 * Construct a new group state using the information in the GroupInfo object.
   The new member's position in the tree is `index`, as defined above.
+
+* Verify the confirmation value by deriving the `confirmation_key` from the
+  provided `epoch_secret` and the constructed group state, and computing the MAC
+  over the provided confirmed_transcript_hash (as shown in {{commit}})
 
 * Identify the lowest node at which the direct paths from `index` and
   `signer_index` overlap.  Set private keys for that node and its parents up to
