@@ -1314,10 +1314,9 @@ struct {
 } Extension;
 
 struct {
-    ProtocolVersion supported_version;
-    opaque client_init_key_id<0..255>;
+    ProtocolVersion version;
     CipherSuite cipher_suite;
-    HPKEPublicKey init_key;
+    HPKEPublicKey leaf_key;
     Credential credential;
     Extension extensions<0..2^16-1>;
     opaque signature<0..2^16-1>;
