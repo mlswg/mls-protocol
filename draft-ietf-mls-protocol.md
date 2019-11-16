@@ -1785,15 +1785,16 @@ because the sender of the Commit did not receive the Proposal.  In such cases,
 the sender of the proposal can retransmit the Proposal in the new epoch.
 
 Each proposal covered by the Commit is identified by a ProposalID structure.
-The `sender` field in this structure indicates the member of the group that sent
-the proposal (according to their index in the ratchet tree).  The `hash` field
-contains the hash of the MLSPlaintext in which the Proposal was sent, using the
-hash function for the group's ciphersuite.
+The `plaintext_hash` field contains the hash of the MLSPlaintext in which the
+Proposal was sent, and the `index` field contains the index of the proposal in
+the `proposals` array in the MLSPlaintext.  For proposals sent in the same
+MLSPlaintext as a Commit, the `plaintext_hash` value MUST be the zero-length
+octet string.
 
 ~~~~~
 struct {
-    uint32 sender;
-    opaque hash<0..255>;
+    opaque plaintext_hash<0..255>;
+    uint16 index;
 } ProposalID;
 
 struct {
