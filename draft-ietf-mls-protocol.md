@@ -1926,8 +1926,8 @@ struct {
 struct {
   ProtocolVersion version = mls10;
   CipherSuite cipher_suite;
-  EncryptedKeyPackage key_packages<1..V>;
-  opaque encrypted_group_info;
+  EncryptedKeyPackage key_packages<1..2^32-1>;
+  opaque encrypted_group_info<1..2^32-1>;
 } Welcome;
 ~~~~~
 
