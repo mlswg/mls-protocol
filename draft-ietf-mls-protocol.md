@@ -1072,7 +1072,6 @@ struct {
   uint32 epoch;
   uint32 sender;
   ContentType content_type = commit;
-  Proposal proposals<0..2^32-1>;
   Commit commit;
 } MLSPlaintextCommitContent;
 
@@ -1395,10 +1394,9 @@ struct {
           opaque application_data<0..2^32-1>;
 
         case proposal:
-          Proposal proposals<1..2^32-1>;
+          Proposal proposals;
 
         case commit:
-          Proposal proposals<1..2^32-1>;
           Commit commit;
           opaque confirmation<0..255>;
     }
@@ -1785,16 +1783,10 @@ the sender of the proposal can retransmit the Proposal in the new epoch.
 
 Each proposal covered by the Commit is identified by a ProposalID structure.
 The `plaintext_hash` field contains the hash of the MLSPlaintext in which the
-Proposal was sent, and the `index` field contains the index of the proposal in
-the `proposals` array in the MLSPlaintext.  For proposals sent in the same
-MLSPlaintext as a Commit, the `plaintext_hash` value MUST be the zero-length
-octet string.
+Proposal was sent.
 
 ~~~~~
-struct {
-    opaque plaintext_hash<0..255>;
-    uint16 index;
-} ProposalID;
+opaque ProposalID<0..255>;
 
 struct {
     ProposalID updates<0..2^16-1>;
