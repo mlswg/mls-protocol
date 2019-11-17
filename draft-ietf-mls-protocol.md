@@ -1315,7 +1315,7 @@ struct {
 struct {
     ProtocolVersion version;
     CipherSuite cipher_suite;
-    HPKEPublicKey leaf_key;
+    HPKEPublicKey init_key;
     Credential credential;
     Extension extensions<0..2^16-1>;
     opaque signature<0..2^16-1>;
