@@ -1233,6 +1233,10 @@ having a full run of updates accross members is too expensive or in
 the case where the external group key establishment mechanism provides
 stronger security against classical or quantum adversaries.
 
+The security level associated to the PSK injected in the key schedule
+SHOULD match at least the security level of the ciphersuite in use in
+the group.
+
 Note that, as a PSK may have a different lifetime than an update, it
 does not necessarily provide the same FS or PCS guarantees than
 a Commit message.
