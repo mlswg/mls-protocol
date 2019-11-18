@@ -1193,7 +1193,12 @@ proceeds as shown in the following diagram:
                init_secret_[n-1] (or 0)
                      |
                      V
-update_secret -> HKDF-Extract = epoch_secret
+    PSK (or 0) -> HKDF-Extract = early_secret
+                     |
+               Derive-Secret(., "derived", "")
+                     |
+                     V
+ update_secret -> HKDF-Extract = epoch_secret
                      |
                      +--> Derive-Secret(., "sender data", GroupContext_[n])
                      |    = sender_data_secret
@@ -1213,6 +1218,24 @@ update_secret -> HKDF-Extract = epoch_secret
                      V
                init_secret_[n]
 ~~~~~
+
+## Pre-Shared Keys
+
+Groups which already have an out-of-band mechanism to generate
+shared group secrets can inject those in the MLS key schedule to seed
+the MLS group secrets computations by this external entropy.
+
+At any epoch, including the initial state, an application can decide
+to synchronize the injection of a PSK in the MLS key schedule.
+
+This mechanism can be used to improve security in the cases where
+having a full run of updates accross members is too expensive or in
+the case where the external group key establishment mechanism provides
+stronger security against classical or quantum adversaries.
+
+Note that, as a PSK may have a different lifetime than an update, it
+does not necessarily provide the same FS or PCS guarantees than
+a Commit message.
 
 ## Encryption Keys
 
