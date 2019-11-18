@@ -962,7 +962,7 @@ can perform the operation UNDER THIS CONDITION by adding a new
 version of herself using a new credential signed under a new
 IdentityKey, then performing a remove of the old leaf. This is
 fine as long as the credential binds to the same identity for
-the application. If this verfication is not met, there is no
+the application. If this verification is not met, there is no
 authentication guarantee at the application layer anyway.]]
 
 ## Tree Hashes
@@ -1007,7 +1007,7 @@ of a `ParentNodeHashInput` struct:
 ~~~~~
 struct {
     HPKEPublicKey public_key;
-    uint32_t unmerged_leaves<0..2^32-1>;
+    opaque unmerged_leaves<0..2^32-1>;
 } ParentNodeInfo;
 
 struct {
@@ -1044,7 +1044,7 @@ The fields in this state have the following semantics:
   group.
 * The `epoch` field represents the current version of the group key.
 * The `tree_hash` field contains a commitment to the contents of the
-  group's rachet tree and the credentials for the members of the
+  group's ratchet tree and the credentials for the members of the
   group, as described in {{tree-hashes}}.
 * The `confirmed_transcript_hash` field contains a running hash over
   the handshake messages that led to this state.
@@ -1539,7 +1539,7 @@ struct {
 
 The key and nonce used for the encryption of the message depend on the
 content type of the message.  The sender chooses the handshake key for a
-handshake message or an ununsed generation from its (per-sender)
+handshake message or an unused generation from its (per-sender)
 application key chain for the current epoch, according to the type
 of message being encrypted.
 
@@ -1893,7 +1893,7 @@ Commit.
 ~~~~~
 struct {
     HPKEPublicKey public_key;
-    uint32_t unmerged_leaves<0..2^32-1>;
+    opaque unmerged_leaves<0..2^32-1>;
     optional<Credential> credential;
 } RatchetNode;
 
@@ -1909,7 +1909,7 @@ struct {
   opaque epoch_secret<0..255>;
 
   uint32 signer_index;
-  opaque signature<0..255>;
+  opaque signature<0..2^16-1>;
 } GroupInfo;
 
 struct {
