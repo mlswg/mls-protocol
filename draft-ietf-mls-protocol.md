@@ -331,7 +331,7 @@ message to the clients, who can then set up their own group state and derive
 the same shared secret. Clients then exchange messages to produce new shared
 states which are causally linked to their predecessors, forming a logical
 Directed Acyclic Graph (DAG) of states.
-Members can send _Update_ messages for post-compromise secrecy and new clients
+Members can send _Commit_ messages for post-compromise secrecy and new clients
 can be added or existing members removed from the group.
 
 The protocol algorithms we specify here follow. Each algorithm specifies
@@ -426,13 +426,13 @@ To enforce forward secrecy and post-compromise security of messages,
 each member periodically updates its leaf secret which represents
 its contribution to the group secret.  Any member of the
 group can send an Update at any time by generating a fresh leaf secret
-and sending an Update message that describes how to update the
+and sending an Commit message that describes how to update the
 group secret with that new information.  Once all members have
 processed this message, the group's secrets will be unknown to an
 attacker that had compromised the sender's prior leaf secret.
 
 It is left to the application to determine the interval of time between
-Update messages. This policy could require a change for each message, or
+Update+Commit messages. This policy could require a change for each message, or
 it could require sending an update every week or more.
 
 ~~~~~
@@ -452,9 +452,10 @@ A              B     ...      Z          Directory        Channel
 |              |              |              |              |
 ~~~~~
 
-Members are removed from the group in a similar way, as an update
+Members are removed from the group in a similar way, as a Commit
 is effectively removing the old leaf from the group.
-Any member of the group can generate a Remove message that adds new
+Any member of the group can generate a Remove proposal followed by a
+Commit message that adds new
 entropy to the group state that is known to all members except the
 removed member.  After other participants have processed this message,
 the group's secrets will be unknown to the removed participant.
@@ -677,10 +678,10 @@ give it access to all of the nodes above it in the tree.  Leaves are "merged" as
 they receive the private keys for nodes, as described in
 {{ratchet-tree-updates}}.
 
-## Ratchet Tree Updates
+## Ratchet Tree Commits
 
 Nodes in a tree are always updated along the direct path from a
-leaf to the root.  The generator of the update chooses a random
+leaf to the root.  The generator of the Commit chooses a random
 secret value "path_secret[0]", and generates a sequence of "path
 secrets", one for each node from the leaf to the root.  That is,
 path_secret[0] is used for the leaf, path_secret[1] for its parent,
@@ -708,7 +709,7 @@ For example, suppose there is a group with four members:
 A   B   C   D
 ~~~~~
 
-If the second participant (B) subsequently generates an update based on a
+If the second participant (B) subsequently generates an Commit based on a
 secret X, then the sender would generate the following sequence of
 path secrets and node secrets:
 
@@ -722,7 +723,7 @@ path secrets and node secrets:
 X = path_secret[0] ---> node_secret[0]
 ~~~~~
 
-After the update, the tree will have the following structure, where
+After the Commit, the tree will have the following structure, where
 "ns[i]" represents the node_secret values generated as described
 above:
 
@@ -745,7 +746,7 @@ other members of the group can use these public values to update
 their view of the tree, aligning their copy of the tree to the
 sender's.
 
-To perform an update for a leaf, the sender broadcasts to the group
+To perform an update for a path (a Commit), the sender broadcasts to the group
 the following information for each node in the direct path of the
 leaf, as well as the root:
 
@@ -760,7 +761,7 @@ There is one encrypted path secret for each public key in the resolution
 of the non-updated child.  In particular, for the leaf node, there
 are no encrypted secrets, since a leaf node has no children.
 
-The recipient of an update processes it with the following steps:
+The recipient of a path update processes it with the following steps:
 
 1. Compute the updated path secrets.
    * Identify a node in the direct path for which the local member
@@ -1103,7 +1104,7 @@ zero-length octet string.
 
 ## Direct Paths
 
-As described in {{ratchet-tree-updates}}, each MLS message needs to
+As described in {{ratchet-tree-commits}}, each MLS message needs to
 transmit node values along the direct path of a leaf.
 The path contains a public key for the leaf node, and a
 public key and encrypted secret value for intermediate nodes in the
@@ -1183,7 +1184,7 @@ When processing a handshake message, a client combines the
 following information to derive new epoch secrets:
 
 * The init secret from the previous epoch
-* The update secret for the current epoch
+* The commit secret for the current epoch
 * The GroupContext object for current epoch
 
 Given these inputs, the derivation of secrets for an epoch
@@ -1193,7 +1194,7 @@ proceeds as shown in the following diagram:
                init_secret_[n-1] (or 0)
                      |
                      V
-update_secret -> HKDF-Extract = epoch_secret
+commit_secret -> HKDF-Extract = epoch_secret
                      |
                      +--> Derive-Secret(., "sender data", GroupContext_[n])
                      |    = sender_data_secret
@@ -1835,15 +1836,15 @@ A member of the group applies a Commit message by taking the following steps:
    tree if all leaves are occupied.
 
 4. Process the `path` value to update the ratchet tree referenced by the
-   provisional GroupContext and generate the update secret:
+   provisional GroupContext and generate the `commit_secret`:
 
    * Update the ratchet tree by replacing nodes in the direct path of the sender
      with the corresponding nodes in the path (see {{direct-paths}}).
 
-   * The update secret is the value `path_secret[n+1]` derived from the
+   * The `commit_secret` is the value `path_secret[n+1]` derived from the
      `path_secret[n]` value associated to the root node.
 
-5. Use the update secret, the provisional GroupContext, and the init secret from
+5. Use the `commit_secret`, the provisional GroupContext, and the init secret from
    the previous epoch to compute the epoch secret and derived secrets for the
    new epoch.
 
@@ -1966,7 +1967,7 @@ On receiving a Welcome message, a client processes it using the following steps:
 * Identify the lowest node at which the direct paths from `index` and
   `signer_index` overlap.  Set private keys for that node and its parents up to
   the root of the tree, using the `path_secret` from the KeyPackage and
-  following the algorithm in {{ratchet-tree-updates}} to move up the tree.
+  following the algorithm in {{ratchet-tree-commits}} to move up the tree.
 
 # Sequencing of State Changes {#sequencing}
 
@@ -1999,7 +2000,7 @@ members.  The degree to which this is a practical problem will depend
 on the dynamics of the application.
 
 It might be possible, because of the non-contributivity of intermediate
-nodes, that update messages could be applied one after the other
+nodes, that Commit messages could be applied one after the other
 without the Delivery Service having to reject any handshake message,
 which would make MLS more resilient regarding the concurrency of
 handshake messages.
@@ -2182,7 +2183,7 @@ _consumed_. A sensitive value S is said to be _consumed_ if
 * a key, nonce, or secret derived from S has been consumed. (This goes for
   values derived via Derive-Secret as well as HKDF-Expand-Label.)
 
-Here, S may be the `init_secret`, `update_secret`, `epoch_secret`, `application_secret`
+Here, S may be the `init_secret`, `commit_secret`, `epoch_secret`, `application_secret`
 as well as any secret in the AS Tree or one of the ratchets.
 
 As soon as a group member consumes a value they MUST immediately delete
@@ -2195,7 +2196,7 @@ For example, suppose a group member encrypts or (successfully) decrypts a
 message using the j-th key and nonce in the i-th ratchet. Then, for that
 member, at least the following values have been consumed and MUST be deleted:
 
-* the `init_secret`, `update_secret`, `epoch_secret`, `application_secret` of that
+* the `init_secret`, `commit_secret`, `epoch_secret`, `application_secret` of that
 epoch,
 * all node secrets in the AS Tree on the path from the root to the leaf with
 index i,
@@ -2223,7 +2224,7 @@ A0  B0  C0  D0 -+- KD0
 ~~~
 
 Then if a client uses key KD1 and nonce ND1 during epoch n then it must consume
-(at least) values G, F, D0, D1, KD1, ND1 as well as the update_secret and
+(at least) values G, F, D0, D1, KD1, ND1 as well as the `commit_secret` and
 init_secret used to derive G (i.e. the application_secret).  The
 client MAY retain (i.e., not consume) the values KD0 and ND0 to
 allow for out-of-order delivery, and SHOULD retain D2 to allow for
@@ -2366,9 +2367,9 @@ contents.]]
 Message encryption keys are derived via a hash ratchet, which
 provides a form of forward secrecy: learning a message key does not
 reveal previous message or root keys. Post-compromise security is
-provided by Update operations, in which a new root key is generated
+provided by Commit operations, in which a new root key is generated
 from the latest ratcheting tree. If the adversary cannot derive the
-updated root key after an Update operation, it cannot compute any
+updated root key after an Commit operation, it cannot compute any
 derived secrets.
 
 In the case where the client could have been compromised (device
