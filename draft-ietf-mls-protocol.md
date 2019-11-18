@@ -1277,8 +1277,9 @@ be used by an application as the basis to derive new secrets called
 `exported_value` outside the MLS layer.
 
 ~~~~~
-exported_value =
-    HKDF-Expand-Label(exporter_secret, Label, Context, output_length)
+MLS-Exporter(Label, Context, key_length) =
+       HKDF-Expand-Label(Derive-Secret(exporter_secret, Label),
+                         "exporter", Hash(Context), key_length)
 ~~~~~
 
 The context used for the derivation of the `exported_value` MAY be
@@ -1292,8 +1293,7 @@ The exported values are bound to the Group epoch from which the
 the Group.
 
 It is RECOMMENDED for the application generating exported values
-to refresh those values after an ADD or an REMOVE group operation
-is processed.
+to refresh those values after a group operation is processed.
 
 # Initialization Keys
 
