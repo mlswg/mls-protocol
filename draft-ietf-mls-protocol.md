@@ -596,7 +596,7 @@ cryptographic primitives, defined by the ciphersuite in use:
   for the specified KEM from a symmetric secret, using the specified
   hash function.
 
-Each node in a ratchet tree contains up to three values:
+Each node in a ratchet tree contains up to four values:
 
 * A private key (only within direct path, see below)
 * A public key
@@ -1690,10 +1690,8 @@ leaf in the tree, for the second Add, the next empty leaf to the right, etc.
 * If necessary, extend the tree to the right until it has at least index + 1
   leaves
 
-* For each intermediate node along the path from the leaf at position `index` to
-  the root, add `index` to the `unmerged_leaves` list for the node.
-
-* Blank the path from the leaf at position `index` to the root
+* For each non-blank intermediate node along the path from the leaf at position
+  `index` to the root, add `index` to the `unmerged_leaves` list for the node.
 
 * Set the leaf node in the tree at position `index` to a new node containing the
   public key from the ClientInitKey in the Add, as well as the credential under
