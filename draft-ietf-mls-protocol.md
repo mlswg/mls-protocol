@@ -1070,7 +1070,7 @@ The following general rules apply:
 struct {
   opaque group_id<0..255>;
   uint32 epoch;
-  uint32 sender;
+  Sender sender;
   ContentType content_type = commit;
   Proposal proposals<0..2^32-1>;
   Commit commit;
@@ -1384,10 +1384,23 @@ enum {
     (255)
 } ContentType;
 
+enum {
+    invalid(0),
+    member(1),
+    external_authority(2),
+    external_self(3),
+    (255)
+} SenderType;
+
+struct {
+    SenderType sender_type;
+    uint32 sender;
+} Sender;
+
 struct {
     opaque group_id<0..255>;
     uint32 epoch;
-    uint32 sender;
+    Sender sender;
     ContentType content_type;
     opaque authenticated_data<0..2^32-1>;
 
@@ -1418,9 +1431,12 @@ struct {
 } MLSCiphertext;
 ~~~~~
 
+External sender types are sent as MLSPlaintext, see {{external-proposals}}
+for their use.
+
 The remainder of this section describes how to compute the signature of
-an MLSPlaintext object and how to convert it to an MLSCiphertext object.
-The overall process is as follows:
+an MLSPlaintext object and how to convert it to an MLSCiphertext object
+for `member` sender types. The steps are:
 
 * Gather the required metadata:
   * Group ID
@@ -1732,29 +1748,29 @@ A member of the group applies a Remove message by taking the following steps:
 
 * Blank the intermediate nodes along the path from the removed leaf to the root
 
-### External Proposals
+### External Proposals {#external-proposals}
 
 Add and Remove proposals can be constructed and sent to the group by a party
 that is outside the group.  For example, a Delivery Service might propose to
 remove a member of a group has been inactive for a long time, or propose adding
-a newly-hired staff member to a group representing a real-world team. Proposals
-originating outside the group are identified by having a `sender` value in the
-range 0xFFFFFF00 - 0xFFFFFFFF.
+a newly-hired staff member to a group representing a real-world team.  Proposals
+originating outside the group are identified by an `external` SenderType in
+MLSPlaintext.
 
-The specific value 0xFFFFFFFF is reserved for clients proposing that they
-themselves be added.  Proposals with types other than Add MUST NOT be sent with
-this sender index.  In such cases, the MLSPlaintext MUST be signed with the
-private key corresponding to the ClientInitKey in the Add message.  Recipients
-MUST verify that the MLSPlaintext carrying the Proposal message is validly
-signed with this key.
+The `external_self` SenderType is used for clients proposing that they
+themselves be added.  For this ID type the sender value is ignored.  Proposals
+with types other than Add MUST NOT be sent with this sender type.  In such
+cases, the MLSPlaintext MUST be signed with the private key corresponding to the
+ClientInitKey in the Add message.  Recipients MUST verify that the MLSPlaintext
+carrying the Proposal message is validly signed with this key.
 
-The remaining values 0xFFFFFF00 - 0xFFFFFFFE are reserved for signer that are
+The `external_authority` SenderType is reserved for signers that are
 pre-provisioned to the clients within a group.  If proposals with these sender
 IDs are to be accepted within a group, the members of the group MUST be
-provisioned by the application with a mapping between sender indices in this
-range and authorized signing keys.  To ensure consistent handling of external
-proposals, the application MUST ensure that the members of a group have the same
-mapping and apply the same policies to external proposals.
+provisioned by the application with a mapping between these IDs and authorized
+signing keys.  To ensure consistent handling of external proposals, the
+application MUST ensure that the members of a group have the same mapping
+and apply the same policies to external proposals.
 
 An external proposal MUST be sent as an MLSPlaintext object, since the sender
 will not have the keys necessary to construct an MLSCiphertext object.
