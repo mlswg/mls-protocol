@@ -1210,6 +1210,9 @@ commit_secret -> HKDF-Extract = epoch_secret
                      +--> Derive-Secret(., "app", GroupContext_[n])
                      |    = application_secret
                      |
+                     +--> Derive-Secret(., "exporter", GroupContext_[n])
+                     |    = exporter_secret
+                     |
                      +--> Derive-Secret(., "confirm", GroupContext_[n])
                      |    = confirmation_key
                      |
@@ -1297,6 +1300,31 @@ handshake_nonce_[sender]_[generation] = handshake_nonce_[sender]
 
 where `encode_big_endian()` encodes the generation in a big-endian integer of
 the same size as the base handshake nonce.
+
+## Exporters
+
+The main MLS key schedule provides an `exporter_secret` which can
+be used by an application as the basis to derive new secrets called
+`exported_value` outside the MLS layer.
+
+~~~~~
+MLS-Exporter(Label, Context, key_length) =
+       HKDF-Expand-Label(Derive-Secret(exporter_secret, Label),
+                         "exporter", Hash(Context), key_length)
+~~~~~
+
+The context used for the derivation of the `exported_value` MAY be
+empty while each application SHOULD provide a unique label as an input
+of the HKDF-Expand-Label for each use case. This is to prevent two
+exported outputs from being generated with the same values and used
+for different functionalities.
+
+The exported values are bound to the Group epoch from which the
+`exporter_secret` is derived, hence reflects a particular state of
+the Group.
+
+It is RECOMMENDED for the application generating exported values
+to refresh those values after a group operation is processed.
 
 # Initialization Keys
 
