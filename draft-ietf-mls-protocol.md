@@ -1241,6 +1241,9 @@ Note that, as a PSK may have a different lifetime than an update, it
 does not necessarily provide the same FS or PCS guarantees than
 a Commit message.
 
+[[OPEN ISSUE: We have to decide if we want an external coordination
+via the application of a Handshake proposal.]]
+
 ## Encryption Keys
 
 As described in {{message-framing}}, MLS encrypts three different
