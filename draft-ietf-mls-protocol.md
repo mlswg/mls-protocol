@@ -2285,11 +2285,6 @@ the total size of the ApplicationPlaintext and the length of the content.
 [[ TODO: A preliminary formal security analysis has yet to be performed on
 this authentication scheme.]]
 
-[[ OPEN ISSUE: Currently, the group identifier, epoch and generation are
-contained as meta-data of the Signature. A different solution could be to
-include the GroupContext instead, if more information is required to achieve
-the security goals regarding cross-group attacks. ]]
-
 [[ OPEN ISSUE: Should the padding be required for handshake messages ?
 Can an adversary get more than the position of a participant in the tree
 without padding ? Should the base ciphertext block length be negotiated or
