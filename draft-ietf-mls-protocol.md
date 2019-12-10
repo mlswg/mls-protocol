@@ -1033,7 +1033,7 @@ summarizes the state of the group:
 ~~~~~
 struct {
     opaque group_id<0..255>;
-    uint32 epoch;
+    uint64 epoch;
     opaque tree_hash<0..255>;
     opaque confirmed_transcript_hash<0..255>;
 } GroupContext;
@@ -1070,7 +1070,7 @@ The following general rules apply:
 ~~~~~
 struct {
   opaque group_id<0..255>;
-  uint32 epoch;
+  uint64 epoch;
   uint32 sender;
   ContentType content_type = commit;
   Proposal proposals<0..2^32-1>;
@@ -1387,7 +1387,7 @@ enum {
 
 struct {
     opaque group_id<0..255>;
-    uint32 epoch;
+    uint64 epoch;
     uint32 sender;
     ContentType content_type;
     opaque authenticated_data<0..2^32-1>;
@@ -1410,7 +1410,7 @@ struct {
 
 struct {
     opaque group_id<0..255>;
-    uint32 epoch;
+    uint64 epoch;
     ContentType content_type;
     opaque authenticated_data<0..2^32-1>;
     opaque sender_data_nonce<0..255>;
@@ -1469,7 +1469,7 @@ computation is its prefix in the MLSCiphertext, namely:
 ~~~~~
 struct {
     opaque group_id<0..255>;
-    uint32 epoch;
+    uint64 epoch;
     ContentType content_type;
     opaque authenticated_data<0..2^32-1>;
     opaque sender_data_nonce<0..255>;
@@ -1496,7 +1496,7 @@ struct {
     GroupContext context;
 
     opaque group_id<0..255>;
-    uint32 epoch;
+    uint64 epoch;
     uint32 sender;
     ContentType content_type;
     opaque authenticated_data<0..2^32-1>;
@@ -1551,7 +1551,7 @@ identify the key and nonce:
 ~~~~~
 struct {
     opaque group_id<0..255>;
-    uint32 epoch;
+    uint64 epoch;
     ContentType content_type;
     opaque authenticated_data<0..2^32-1>;
     opaque sender_data_nonce<0..255>;
@@ -1584,7 +1584,7 @@ The creator of a group MUST take the following steps to initialize the group:
   * Ratchet tree: A tree with a single node, a leaf containing an HPKE public
     key and credential for the creator
   * Group ID: A value set by the creator
-  * Epoch: 0x00000000
+  * Epoch: 0
   * Tree hash: The root hash of the above ratchet tree
   * Confirmed transcript hash: 0
   * Interim transcript hash: 0
@@ -1632,12 +1632,15 @@ In MLS, each such change is accomplished by a two-step process:
 
 The group thus evolves from one cryptographic state to another each time a
 Commit message is sent and processed.  These states are referred to as "epochs"
-and are uniquely identified among states of the group by four-octet epoch values.
-When a new group is initialized, its initial state epoch 0x00000000.  Each time
+and are uniquely identified among states of the group by eight-octet epoch values.
+When a new group is initialized, its initial state epoch 0x0000000000000000.  Each time
 a state transition occurs, the epoch number is incremented by one.
 
 [[ OPEN ISSUE: It would be better to have non-linear epochs, in order to
-tolerate forks in the history. ]]
+tolerate forks in the history. There is a need to discuss whether we
+want to keep lexicographical ordering for the public value we serialize
+in the common framing, as it influence the ability of the DS to order
+messages.]]
 
 ## Proposals
 
@@ -1899,7 +1902,7 @@ struct {
 struct {
   // GroupContext inputs
   opaque group_id<0..255>;
-  uint32 epoch;
+  uint64 epoch;
   optional<RatchetNode> tree<1..2^32-1>;
   opaque confirmed_transcript_hash<0..255>;
 
