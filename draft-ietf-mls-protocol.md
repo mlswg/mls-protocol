@@ -1317,7 +1317,7 @@ The context used for the derivation of the `exported_value` MAY be
 empty while each application SHOULD provide a unique label as an input
 of the HKDF-Expand-Label for each use case. This is to prevent two
 exported outputs from being generated with the same values and used
-for different functionnalities.
+for different functionalities.
 
 The exported values are bound to the Group epoch from which the
 `exporter_secret` is derived, hence reflects a particular state of
