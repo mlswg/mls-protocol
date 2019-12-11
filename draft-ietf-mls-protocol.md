@@ -676,9 +676,9 @@ as well as the public keys of all the unmerged leaves below it.  A leaf is
 unmerged when it is first added, because the process of adding the leaf does not
 give it access to all of the nodes above it in the tree.  Leaves are "merged" as
 they receive the private keys for nodes, as described in
-{{ratchet-tree-updates}}.
+{{ratchet-tree-evolution}}.
 
-## Ratchet Tree Commits
+## Ratchet Tree Evolution
 
 Nodes in a tree are always updated along the direct path from a
 leaf to the root.  The generator of the Commit chooses a random
@@ -1008,7 +1008,7 @@ of a `ParentNodeHashInput` struct:
 ~~~~~
 struct {
     HPKEPublicKey public_key;
-    opaque unmerged_leaves<0..2^32-1>;
+    uint32 unmerged_leaves<0..2^32-1>;
 } ParentNodeInfo;
 
 struct {
@@ -1073,7 +1073,6 @@ struct {
   uint64 epoch;
   uint32 sender;
   ContentType content_type = commit;
-  Proposal proposals<0..2^32-1>;
   Commit commit;
 } MLSPlaintextCommitContent;
 
@@ -1104,7 +1103,7 @@ zero-length octet string.
 
 ## Direct Paths
 
-As described in {{ratchet-tree-commits}}, each MLS message needs to
+As described in {{ratchet-tree-evolution}}, each MLS message needs to
 transmit node values along the direct path of a leaf.
 The path contains a public key for the leaf node, and a
 public key and encrypted secret value for intermediate nodes in the
@@ -1192,6 +1191,9 @@ proceeds as shown in the following diagram:
 
 ~~~~~
                init_secret_[n-1] (or 0)
+                     |
+                     +--> Derive-Secret(. "group info", "")
+                     |    = group_info_secret
                      |
                      V
     PSK (or 0) -> HKDF-Extract = early_secret
@@ -1455,10 +1457,9 @@ struct {
           opaque application_data<0..2^32-1>;
 
         case proposal:
-          Proposal proposals<1..2^32-1>;
+          Proposal proposals;
 
         case commit:
-          Proposal proposals<1..2^32-1>;
           Commit commit;
           opaque confirmation<0..255>;
     }
@@ -1851,10 +1852,7 @@ contains the hash of the MLSPlaintext in which the Proposal was sent, using the
 hash function for the group's ciphersuite.
 
 ~~~~~
-struct {
-    uint32 sender;
-    opaque hash<0..255>;
-} ProposalID;
+opaque ProposalID<0..255>;
 
 struct {
     ProposalID updates<0..2^16-1>;
@@ -1879,40 +1877,91 @@ them to the group.  It might be we need to re-introduce this assumption, though
 it seems like the information confirmed by the welcome_info_hash is confirmed at
 the next epoch change anyway. ]]
 
-A member of the group applies a Commit message by taking the following steps:
+A member of the group creates a Commit message and the corresponding Welcome
+message at the same time, by taking the following steps:
 
-1. Verify that the `epoch` field of the enclosing MLSPlaintext message is equal
-   to the `epoch` field of the current GroupContext object
+* Construct an initial Commit object with `updates`, `removes`, `adds`, and
+  `ignored` fields populated from Proposals received during the current epoch,
+  and an empty `path` field.
 
-2. Verify that the signature on the MLSPlaintext message verifies using the
-   public key from the credential stored at the leaf in the tree indicated by
-   the `sender` field.
+* Generate a provisional GroupContext object by applying the proposals
+  referenced in the initial Commit object in the order provided, as described in
+  {{proposals}}.  Add proposals are applied left to right: Each Add proposal is
+  applied at the leftmost unoccupied leaf, or appended to the right edge of the
+  tree if all leaves are occupied.
 
-3. Generate a provisional GroupContext object by applying the proposals
-   referenced in the commit object in the order provided, as described in
-   {{proposals}}.  Add proposals are applied left to right: Each Add proposal is
-   applied at the leftmost unoccupied leaf, or appended to the right edge of the
-   tree if all leaves are occupied.
+* Create an initial, partial GroupInfo object reflecting the following values:
+  * Group ID: The group ID for the group
+  * Epoch: The epoch ID for the next epoch
+  * Tree: The group's ratchet tree after the commit has been applied
+  * Prior confirmed transcript hash: The confirmed transcript hash for the
+    current state of the group (not the provisional state)
 
-4. Process the `path` value to update the ratchet tree referenced by the
-   provisional GroupContext and generate the `commit_secret`:
+* Create a DirectPath using the new tree (which includes any new members).  The
+  GroupContext for this operation uses the `group_id`, `epoch`, `tree`, and
+  `prior_confirmed_transcript_hash` values in the initial GroupInfo object.
 
-   * Update the ratchet tree by replacing nodes in the direct path of the sender
-     with the corresponding nodes in the path (see {{direct-paths}}).
+   * Assign this DirectPath to the `path` fields in the Commit and GroupInfo objects.
 
    * The `commit_secret` is the value `path_secret[n+1]` derived from the
      `path_secret[n]` value associated to the root node.
 
-5. Use the `commit_secret`, the provisional GroupContext, and the init secret from
-   the previous epoch to compute the epoch secret and derived secrets for the
-   new epoch.
+* Construct an MLSPlaintext object containing the Commit object.  Use the
+  `commit_secret` to advance the key schedule and compute the `confirmation`
+  value in the MLSPlaintext.  Sign the MLSPlaintext using the current epoch's
+  GroupContext as context.
 
-6. Use the `confirmation_key` for the new epoch to compute the confirmation MAC
-   for this message, as described below, and verify that it is the same as the
-   `confirmation` field in the MLSPlaintext object.
+* Complete the GroupInfo by populating the following fields:
+  * Confirmed transcript hash: The confirmed transcript hash including the
+    current Commit object
+  * Interim transcript hash: The interim transcript hash including the current
+    Commit object
+  * Confirmation: The confirmation from the MLSPlaintext
+  * Sign the GroupInfo using the member's private signing key
+  * Encrypt the GroupInfo using the key and nonce derived from the `init_secret`
+    for the current epoch (see {{welcoming-new-members}})
 
-7. If the above checks are successful, consider the updated GroupContext object
-   as the current state of the group.
+* For each new member in the group, compute an EncryptedKeyPackage object that
+  encapsulates the `init_secret` for the current epoch.  Construct a Welcome
+  message from the encrypted GroupInfo object and the encrypted key packages.
+
+A member of the group applies a Commit message by taking the following steps:
+
+* Verify that the `epoch` field of the enclosing MLSPlaintext message is equal
+  to the `epoch` field of the current GroupContext object
+
+* Verify that the signature on the MLSPlaintext message verifies using the
+  public key from the credential stored at the leaf in the tree indicated by
+  the `sender` field.
+
+* Generate a provisional GroupContext object by applying the proposals
+  referenced in the commit object in the order provided, as described in
+  {{proposals}}.  Add proposals are applied left to right: Each Add proposal is
+  applied at the leftmost unoccupied leaf, or appended to the right edge of the
+  tree if all leaves are occupied.
+
+* Process the `path` value using the ratchet tree the provisional GroupContext,
+  to update the ratchet tree and generate the `commit_secret`:
+
+  * Update the ratchet tree by replacing nodes in the direct path of the sender
+    with the corresponding nodes in the path (see {{direct-paths}}).
+
+  * The `commit_secret` is the value `path_secret[n+1]` derived from the
+    `path_secret[n]` value associated to the root node.
+
+* Update the new GroupContexts confirmed and interim transcript hashes using the
+  new Commit.
+
+* Use the `commit_secret`, the provisional GroupContext, and the init secret from
+  the previous epoch to compute the epoch secret and derived secrets for the
+  new epoch.
+
+* Use the `confirmation_key` for the new epoch to compute the confirmation MAC
+  for this message, as described below, and verify that it is the same as the
+  `confirmation` field in the MLSPlaintext object.
+
+* If the above checks are successful, consider the updated GroupContext object
+  as the current state of the group.
 
 The confirmation value confirms that the members of the group have arrived at
 the same state of the group:
@@ -1953,7 +2002,7 @@ Commit.
 ~~~~~
 struct {
     HPKEPublicKey public_key;
-    opaque unmerged_leaves<0..2^32-1>;
+    uint32 unmerged_leaves<0..2^32-1>;
     optional<Credential> credential;
 } RatchetNode;
 
@@ -1962,20 +2011,20 @@ struct {
   opaque group_id<0..255>;
   uint64 epoch;
   optional<RatchetNode> tree<1..2^32-1>;
-  opaque confirmed_transcript_hash<0..255>;
+  opaque prior_confirmed_transcript_hash<0..255>;
 
-  // Inputs to the next round of the key schedule
+  opaque confirmed_transcript_hash<0..255>;
   opaque interim_transcript_hash<0..255>;
-  opaque epoch_secret<0..255>;
+
+  DirectPath path;
+  opaque confirmation<0..255>
 
   uint32 signer_index;
   opaque signature<0..2^16-1>;
 } GroupInfo;
 
 struct {
-  opaque group_info_key<1..255>;
-  opaque group_info_nonce<1..255>;
-  opaque path_secret<1..255>;
+  opaque init_secret<1..255>;
 } KeyPackage;
 
 struct {
@@ -1986,8 +2035,8 @@ struct {
 struct {
   ProtocolVersion version = mls10;
   CipherSuite cipher_suite;
-  EncryptedKeyPackage key_packages<1..V>;
-  opaque encrypted_group_info;
+  EncryptedKeyPackage key_packages<0..2^32-1>;
+  opaque encrypted_group_info<1..2^32-1>;
 } Welcome;
 ~~~~~
 
@@ -2004,10 +2053,11 @@ On receiving a Welcome message, a client processes it using the following steps:
   Welcome message, return an error.
 
 * Decrypt the `encrypted_key_package` using HPKE with the algorithms indicated
-  by the ciphersuite and the HPKE public key in the ClientInitKey.
+  by the ciphersuite and the HPKE private key corresponding to the ClientInitKey.
 
-* Decrypt the `encrypted_group_info` field using the key and nonce in the
-  decrypted KeyPackage object.
+* From the `init_secret` in the decrypted KeyPackage object, derive the
+  `group_info_secret`, `group_info_key`, and `group_info_nonce`.  Use the key
+  and nonce to decrypt the `encrypted_group_info` field.
 
 * Verify the signature on the GroupInfo object.  The signature input comprises
   all of the fields in the GroupInfo object except the signature field.  The
@@ -2021,12 +2071,27 @@ On receiving a Welcome message, a client processes it using the following steps:
   index of the node in the `tree` array divided by two.
 
 * Construct a new group state using the information in the GroupInfo object.
-  The new member's position in the tree is `index`, as defined above.
+  The new member's position in the tree is `index`, as defined above.  In
+  particular, the confirmed transcript hash for the new state is the
+  `prior_confirmed_transcript_hash` in the GroupInfo object.
 
-* Identify the lowest node at which the direct paths from `index` and
-  `signer_index` overlap.  Set private keys for that node and its parents up to
-  the root of the tree, using the `path_secret` from the KeyPackage and
-  following the algorithm in {{ratchet-tree-commits}} to move up the tree.
+* Process the `path` field in the GroupInfo to update the new group state:
+
+   * Update the ratchet tree by replacing nodes in the direct path of the sender
+     with the corresponding nodes in the path (see {{direct-paths}}).
+
+   * The `commit_secret` is the value `path_secret[n+1]` derived from the
+     `path_secret[n]` value associated to the root node.
+
+* Use the `init_secret` from the KeyPackage object together with the decrypted
+  `commit_secret` to generate the epoch secret and other derived secrets for the
+  current epoch.
+
+* Set the confirmed transcript hash in the new state to the value of the
+  `confirmed_transcript_hash` in the GroupInfo.
+
+* Verify the confirmation MAC in the GroupInfo using the derived confirmation
+  key and the `confirmed_transcript_hash` from the GroupInfo.
 
 # Sequencing of State Changes {#sequencing}
 
