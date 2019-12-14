@@ -966,12 +966,111 @@ fine as long as the credential binds to the same identity for
 the application. If this verification is not met, there is no
 authentication guarantee at the application layer anyway.]]
 
+# Initialization Keys
+
+In order to facilitate asynchronous addition of clients to a
+group, it is possible to pre-publish initialization keys that
+provide some public information about a user. ClientInitKey
+structures provide information about a client that any existing
+member can use to add this client to the group asynchronously.
+
+A ClientInitKey object specifies a ciphersuite that the client
+supports, as well as providing a public key that others can use
+for key agreement. The client's identity key is intended to be
+stable throughout the lifetime of the group; there is no mechanism to
+change it.  Init keys are intended to be used only once and SHOULD NOT
+be reused except in case of last resort. (See {{init-key-reuse}}).
+Clients MAY generate and publish multiple ClientInitKey objects to
+support multiple ciphersuites.
+ClientInitKeys contain an identifier chosen by the client, which the
+client MUST ensure uniquely identifies a given ClientInitKey object
+among the set of ClientInitKeys created by this client.
+
+The value for init\_key MUST be a public key for the asymmetric
+encryption scheme defined by cipher\_suite. The whole structure
+is signed using the client's identity key. A ClientInitKey object
+with an invalid signature field MUST be considered malformed.
+The input to the signature computation comprises all of the fields
+except for the signature field.
+
+~~~~~
+enum {
+    mls10(0),
+    (255)
+} ProtocolVersion;
+
+enum {
+    invalid(0),
+    supported_versions(1),
+    supported_ciphersuites(2),
+    expiration(3),
+    (65535)
+} ExtensionType;
+
+struct {
+    ExtensionType extension_type;
+    opaque extension_data<0..2^16-1>;
+} Extension;
+
+struct {
+    ProtocolVersion supported_version;
+    opaque client_init_key_id<0..255>;
+    CipherSuite cipher_suite;
+    HPKEPublicKey init_key;
+    Credential credential;
+    Extension extensions<0..2^16-1>;
+    opaque signature<0..2^16-1>;
+} ClientInitKey;
+~~~~~
+
+ClientInitKey objects MUST contain at least two extensions, one of type
+`supported_versions` and one of type `supported_ciphersuites`.  These extensions
+allow MLS session establishment to be safe from downgrade attacks on these two
+parameters (as discussed in {{group-creation}}), while still only advertising
+one version / ciphersuite per ClientInitKey.
+
+As the `ClientInitKey` is a structure which is stored in the Ratchet
+Tree and updated depending on the evolution of this tree, each
+modification of its content MUST be reflected by a change of its
+signature. This allow other members to control the validity of the CIK
+at any time and in particular in the case of a newcomer joining the group.
+
+## Supported Versions and Supported Ciphersuites
+
+The `supported_versions` extension contains a list of MLS versions that are
+supported by the client.  The `supported_ciphersuites` extension contains a list
+of MLS ciphersuites that are supported by the client.
+
+~~~~~
+ProtocolVersion supported_versions<0..255>;
+CipherSuite supported_ciphersuites<0..255>;
+~~~~~
+
+## Expiration
+
+The `expiration` extension represents the time at which clients MUST consider
+this ClientInitKey invalid.  This time is represented as an absolute time,
+measured in seconds since the Unix epoch (1970-01-01T00:00:00Z).  If a client
+receives a ClientInitKey that contains an expiration extension at a time after
+its expiration time, then it MUST consider the ClientInitKey invalid and not use
+it for any further processing.
+
+~~~~~
+uint64 expiration;
+~~~~~
+
+Note that as an extension, it is not required that any given ClientInitKey have
+an expiration time.  In particular, applications that rely on "last resort"
+ClientInitKeys to ensure continued reachability may choose to omit the
+expiration extension from these keys, or give them much longer lifetimes than
+other ClientInitKeys.
+
 ## Tree Hashes
 
-To allow group members to verify that they agree on the
+To allow group members to verify that they agree on the public
 cryptographic state of the group, this section defines a scheme for
 generating a hash value that represents the contents of the group's
-ratchet tree and the members' credentials.
+ratchet tree and the members' ClientInitKeys.
 
 The hash of a tree is the hash of its root node, which we define
 recursively, starting with the leaves.  The hash of a leaf node is
@@ -987,23 +1086,19 @@ struct {
 } optional<T>;
 
 struct {
-    HPKEPublicKey public_key;
-    Credential credential;
-} LeafNodeInfo;
-
-struct {
-    uint8 hash_type = 0;
-    optional<LeafNodeInfo> info;
+    uint32 leaf_index;
+    optional<ClientInitKey> info;
 } LeafNodeHashInput;
 ~~~~~
 
-The `public_key` and `credential` fields represent the leaf public
-key and the credential for the member holding that leaf,
-respectively.  The `info` field is equal to the null optional value
-when the leaf is blank (i.e., no member occupies that leaf).
+The content within the leaf of a ratchet tree is composed of
+a `ClientInitKey` when the leaf is populated. The `info` field is
+equal to the null optional value when the leaf is blank (i.e., no
+member occupies that leaf).
 
-Likewise, the hash of a parent node (including the root) is the hash
-of a `ParentNodeHashInput` struct:
+The intermediate nodes contain less information, the hash of a parent
+node (including the root) is the hash of a `ParentNodeHashInput`
+struct:
 
 ~~~~~
 struct {
@@ -1012,7 +1107,7 @@ struct {
 } ParentNodeInfo;
 
 struct {
-    uint8 hash_type = 1;
+    uint32 node_index;
     optional<ParentNodeInfo> info;
     opaque left_hash<0..255>;
     opaque right_hash<0..255>;
@@ -1325,99 +1420,6 @@ the Group.
 
 It is RECOMMENDED for the application generating exported values
 to refresh those values after a group operation is processed.
-
-# Initialization Keys
-
-In order to facilitate asynchronous addition of clients to a
-group, it is possible to pre-publish initialization keys that
-provide some public information about a user. ClientInitKey
-messages provide information about a client that any existing
-member can use to add this client to the group asynchronously.
-
-A ClientInitKey object specifies a ciphersuite that the client
-supports, as well as providing a public key that others can use
-for key agreement. The client's identity key is intended to be
-stable throughout the lifetime of the group; there is no mechanism to
-change it.  Init keys are intended to be used only once and SHOULD NOT
-be reused except in case of last resort. (See {{init-key-reuse}}).
-Clients MAY generate and publish multiple ClientInitKey objects to
-support multiple ciphersuites.
-ClientInitKeys contain an identifier chosen by the client, which the
-client MUST ensure uniquely identifies a given ClientInitKey object
-among the set of ClientInitKeys created by this client.
-
-The value for init\_key MUST be a public key for the asymmetric
-encryption scheme defined by cipher\_suite. The whole structure
-is signed using the client's identity key. A ClientInitKey object
-with an invalid signature field MUST be considered malformed.
-The input to the signature computation comprises all of the fields
-except for the signature field.
-
-~~~~~
-enum {
-    mls10(0),
-    (255)
-} ProtocolVersion;
-
-enum {
-    invalid(0),
-    supported_versions(1),
-    supported_ciphersuites(2),
-    expiration(3),
-    (65535)
-} ExtensionType;
-
-struct {
-    ExtensionType extension_type;
-    opaque extension_data<0..2^16-1>;
-} Extension;
-
-struct {
-    ProtocolVersion supported_version;
-    opaque client_init_key_id<0..255>;
-    CipherSuite cipher_suite;
-    HPKEPublicKey init_key;
-    Credential credential;
-    Extension extensions<0..2^16-1>;
-    opaque signature<0..2^16-1>;
-} ClientInitKey;
-~~~~~
-
-ClientInitKey objects MUST contain at least two extensions, one of type
-`supported_versions` and one of type `supported_ciphersuites`.  These extensions
-allow MLS session establishment to be safe from downgrade attacks on these two
-parameters (as discussed in {{group-creation}}), while still only advertising
-one version / ciphersuite per ClientInitKey.
-
-## Supported Versions and Supported Ciphersuites
-
-The `supported_versions` extension contains a list of MLS versions that are
-supported by the client.  The `supported_ciphersuites` extension contains a list
-of MLS ciphersuites that are supported by the client.
-
-~~~~~
-ProtocolVersion supported_versions<0..255>;
-CipherSuite supported_ciphersuites<0..255>;
-~~~~~
-
-## Expiration
-
-The `expiration` extension represents the time at which clients MUST consider
-this ClientInitKey invalid.  This time is represented as an absolute time,
-measured in seconds since the Unix epoch (1970-01-01T00:00:00Z).  If a client
-receives a ClientInitKey that contains an expiration extension at a time after
-its expiration time, then it MUST consider the ClientInitKey invalid and not use
-it for any further processing.
-
-~~~~~
-uint64 expiration;
-~~~~~
-
-Note that as an extension, it is not required that any given ClientInitKey have
-an expiration time.  In particular, applications that rely on "last resort"
-ClientInitKeys to ensure continued reachability may choose to omit the
-expiration extension from these keys, or give them much longer lifetimes than
-other ClientInitKeys.
 
 # Message Framing
 
