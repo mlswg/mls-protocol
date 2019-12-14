@@ -425,7 +425,7 @@ their state and the new client can use to initialize its state.
 To enforce forward secrecy and post-compromise security of messages,
 each member periodically updates its leaf secret which represents
 its contribution to the group secret.  Any member of the
-group can send an Update at any time by generating a fresh leaf secret
+group can send an Update at any time by using a fresh ClientInitKey
 and sending an Commit message that describes how to update the
 group secret with that new information.  Once all members have
 processed this message, the group's secrets will be unknown to an
@@ -680,16 +680,22 @@ they receive the private keys for nodes, as described in
 
 ## Ratchet Tree Commits
 
-Nodes in a tree are always updated along the direct path from a
-leaf to the root.  The generator of the Commit chooses a random
-secret value "path_secret[0]", and generates a sequence of "path
-secrets", one for each node from the leaf to the root.  That is,
-path_secret[0] is used for the leaf, path_secret[1] for its parent,
-and so on.  At each step, the path secret is used to derive a new
-secret value for the corresponding node, from which the node's key
-pair is derived.
+When performing a Commit, the leaf ClientInitKey of the commiter and
+its direct path to the root are updated with new secret values.
+
+The generator of the Commit starts by using the HPKE secret key
+"leaf_hpke_secret_key" associated to the "init_key" of its new leaf
+CIK (See {{initialization-keys}}) to compute the "path_secret[0]"
+value and generates a sequence of "path secrets", one for each
+intermediate nodes between the leaf and the root.  That is,
+path_secret[0] is used for the node directly above the leaf,
+path_secret[1] for its parent, and so on. At each step, the path
+secret is used to derive a new secret value for the corresponding
+node, from which the node's key pair is derived.
 
 ~~~~~
+path_secret[0] = HKDF-Expand-Label(leaf_hpke_secret_key,
+                                   "path", "", Hash.Length)
 path_secret[n] = HKDF-Expand-Label(path_secret[n-1],
                                    "path", "", Hash.Length)
 node_secret[n] = HKDF-Expand-Label(path_secret[n],
@@ -709,9 +715,9 @@ For example, suppose there is a group with four members:
 A   B   C   D
 ~~~~~
 
-If the second participant (B) subsequently generates an Commit based on a
-secret X, then the sender would generate the following sequence of
-path secrets and node secrets:
+If participant (B) subsequently generates an Commit based on a secret
+"leaf_hpke_secret_key", then the sender would generate the following
+sequence of path secrets and node secrets:
 
 ~~~~~
     path_secret[2] ---> node_secret[2]
@@ -720,7 +726,10 @@ path secrets and node secrets:
     path_secret[1] ---> node_secret[1]
          ^
          |
-X = path_secret[0] ---> node_secret[0]
+    path_secret[0] ---> node_secret[0]
+         ^
+         |
+    leaf_hpke_secret_key
 ~~~~~
 
 After the Commit, the tree will have the following structure, where
@@ -735,6 +744,14 @@ above:
     A   ns[0] C   D
 ~~~~~
 
+[[OPEN ISSUE:
+The new path_secret[0] is now derived form the HPKE secret key of the
+leaf. The generation of that entropy might have been done a long time
+in the past. This might be a bad thing but we could also leverage it
+by doing an extraction with a new fresh ephemeral value such that it
+provides better security in certain compromise scenarii at the cost of
+the extract and storing an additionnal fresh secret.]]
+
 ## Synchronizing Views of the Tree
 
 The members of the group need to keep their views of the tree in
@@ -748,7 +765,7 @@ sender's.
 
 To perform an update for a path (a Commit), the sender broadcasts to the group
 the following information for each node in the direct path of the
-leaf, as well as the root:
+leaf, including the root:
 
 * The public key for the node
 * Zero or more encrypted copies of the path secret corresponding to
@@ -1200,11 +1217,11 @@ zero-length octet string.
 ## Direct Paths
 
 As described in {{ratchet-tree-commits}}, each MLS message needs to
-transmit node values along the direct path of a leaf.
-The path contains a public key for the leaf node, and a
-public key and encrypted secret value for intermediate nodes in the
-path.  In both cases, the path is ordered from the leaf to the root;
-each node MUST be the parent of its predecessor.
+transmit a ClientInitKey leaf and node values along its direct path.
+The path contains a public key and encrypted secret value for all
+intermediate nodes in the path above the leaf.  The path is ordered
+from the closest node to the leaf to the root; each node MUST be the
+parent of its predecessor.
 
 ~~~~~
 struct {
@@ -1222,12 +1239,10 @@ struct {
 } DirectPath;
 ~~~~~
 
-The length of the `encrypted_path_secret` vector MUST be zero for the first
-node in the path.  For the remaining elements in the vector, the
-number of ciphertexts in the `encrypted_path_secret` vector MUST be equal to
-the length of the resolution of the corresponding copath node.  Each
-ciphertext in the list is the encryption to the corresponding node
-in the resolution.
+The number of ciphertexts in the `encrypted_path_secret` vector MUST
+be equal to the length of the resolution of the corresponding copath
+node.  Each ciphertext in the list is the encryption to the
+corresponding node in the resolution.
 
 The HPKECiphertext values are computed as
 
@@ -1763,19 +1778,20 @@ leaf in the tree, for the second Add, the next empty leaf to the right, etc.
 
 ### Update
 
-An Update proposal requests that the sender's leaf node in the tree be updated
-with a new HPKE public key.
+An Update proposal is a similar mechanism to Add with the distinction
+that it is the sender's leaf ClientInitKey in the tree which would be
+updated with a new CIK.
 
 ~~~~~
 struct {
-    HPKEPublicKey leaf_key;
+    ClientInitKey init_key;
 } Update;
 ~~~~~
 
 A member of the group applies an Update message by taking the following steps:
 
-* Update the sender's leaf node by replacing the HPKE public key with the public
-  key in the Update proposal
+* Replace the sender's leaf ClientInitKey with the one contained in
+  the Update proposal
 
 * Blank the intermediate nodes along the path from the sender's leaf to the root
 
@@ -1956,7 +1972,7 @@ Commit.
 struct {
     HPKEPublicKey public_key;
     opaque unmerged_leaves<0..2^32-1>;
-    optional<Credential> credential;
+    optional<ClientInitKey> client_init_key;
 } RatchetNode;
 
 struct {
@@ -1993,16 +2009,16 @@ struct {
 } Welcome;
 ~~~~~
 
-In the description of the tree as a list of nodes, the `credential`
+In the description of the tree as a list of nodes, the `client_init_key`
 field for a node MUST be populated if and only if that node is a
-leaf in the tree (i.e., a node with an even index).
+leaf in the tree.
 
 On receiving a Welcome message, a client processes it using the following steps:
 
 * Identify an entry in the `key_packages` array where the `client_init_key_hash`
   value corresponds to one of this client's ClientInitKeys, using the hash
   indicated by the `cipher_suite` field.  If no such field exists, or if the
-  ciphersuite indicated in the  ClientInitKey does not match the one in the
+  ciphersuite indicated in the ClientInitKey does not match the one in the
   Welcome message, return an error.
 
 * Decrypt the `encrypted_key_package` using HPKE with the algorithms indicated
