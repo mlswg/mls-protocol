@@ -653,7 +653,7 @@ including the public keys for all nodes and the credentials
 associated with the leaf nodes.
 
 No participant in an MLS group has full knowledge of the secret
-state of the tree, i.e., private keys associated to
+state of the tree, i.e., private keys associated with
 the nodes.  Instead, each member is assigned to a leaf of the tree,
 which determines the set of secret state known to the member.  The
 credential stored at that leaf is one provided by the member.
@@ -684,14 +684,13 @@ When performing a Commit, the leaf ClientInitKey of the commiter and
 its direct path to the root are updated with new secret values.
 
 The generator of the Commit starts by using the HPKE secret key
-"leaf_hpke_secret_key" associated to the "init_key" of its new leaf
-CIK (See {{initialization-keys}}) to compute the "path_secret[0]"
-value and generates a sequence of "path secrets", one for each
-intermediate nodes between the leaf and the root.  That is,
-path_secret[0] is used for the node directly above the leaf,
-path_secret[1] for its parent, and so on. At each step, the path
-secret is used to derive a new secret value for the corresponding
-node, from which the node's key pair is derived.
+"leaf_hpke_secret_key" associated with the "init_key" of its new leaf
+ClientInitKey (see {{initialization-keys}}) to compute
+"path_secret[0]" and generate a sequence of "path secrets", one for
+each ancestor of its leaf.  That is, path_secret[0] is used for the
+node directly above the leaf, path_secret[1] for its parent, and so
+on. At each step, the path secret is used to derive a new secret value
+for the corresponding node, from which the node's key pair is derived.
 
 ~~~~~
 path_secret[0] = HKDF-Expand-Label(leaf_hpke_secret_key,
@@ -1049,7 +1048,7 @@ one version / ciphersuite per ClientInitKey.
 As the `ClientInitKey` is a structure which is stored in the Ratchet
 Tree and updated depending on the evolution of this tree, each
 modification of its content MUST be reflected by a change of its
-signature. This allow other members to control the validity of the CIK
+signature. This allow other members to control the validity of the ClientInitKey
 at any time and in particular in the case of a newcomer joining the group.
 
 ## Supported Versions and Supported Ciphersuites
@@ -1347,7 +1346,7 @@ having a full run of updates accross members is too expensive or in
 the case where the external group key establishment mechanism provides
 stronger security against classical or quantum adversaries.
 
-The security level associated to the PSK injected in the key schedule
+The security level associated with the PSK injected in the key schedule
 SHOULD match at least the security level of the ciphersuite in use in
 the group.
 
@@ -1780,7 +1779,7 @@ leaf in the tree, for the second Add, the next empty leaf to the right, etc.
 
 An Update proposal is a similar mechanism to Add with the distinction
 that it is the sender's leaf ClientInitKey in the tree which would be
-updated with a new CIK.
+updated with a new ClientInitKey.
 
 ~~~~~
 struct {
@@ -1919,7 +1918,7 @@ A member of the group applies a Commit message by taking the following steps:
      with the corresponding nodes in the path (see {{direct-paths}}).
 
    * The `commit_secret` is the value `path_secret[n+1]` derived from the
-     `path_secret[n]` value associated to the root node.
+     `path_secret[n]` value associated with the root node.
 
 5. Use the `commit_secret`, the provisional GroupContext, and the init secret from
    the previous epoch to compute the epoch secret and derived secrets for the
