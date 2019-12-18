@@ -423,32 +423,32 @@ and broadcast an Add message that the current group can use to update
 their state and the new client can use to initialize its state.
 
 To enforce forward secrecy and post-compromise security of messages,
-each member periodically updates its leaf secret which represents
-its contribution to the group secret.  Any member of the
-group can send an Update at any time by using a fresh ClientInitKey
-and sending an Commit message that describes how to update the
-group secret with that new information.  Once all members have
+each member periodically updates its leaf secret which represents its
+contribution to the group secret and its member information. Any
+member can update this information at any time by generating a fresh
+ClientInitKey and sending a Commit message. Once all members have
 processed this message, the group's secrets will be unknown to an
 attacker that had compromised the sender's prior leaf secret.
 
-It is left to the application to determine the interval of time between
-Update+Commit messages. This policy could require a change for each message, or
-it could require sending an update every week or more.
+It is left to the application to determine the interval of time
+between Commit messages. This policy could require a Commit with each
+message, or require sending an update regularly.
 
 ~~~~~
                                                           Group
 A              B     ...      Z          Directory        Channel
 |              |              |              |              |
-| Update(A)    |              |              |              |
+|              | Update(B)    |              |              |
+|              |------------------------------------------->|
 | Commit(Upd)  |              |              |              |
 |---------------------------------------------------------->|
 |              |              |              |              |
-|              |              |              | Update(A)    |
+|              |              |              | Update(B)    |
 |              |              |              | Commit(Upd)  |
 |<----------------------------------------------------------|
-|state.upd(A)  |<-------------------------------------------|
-|              |state.upd(A)  |<----------------------------|
-|              |              |state.upd(A)  |              |
+|state.upd(B)  |<-------------------------------------------|
+|              |state.upd(B)  |<----------------------------|
+|              |              |state.upd(B)  |              |
 |              |              |              |              |
 ~~~~~
 
@@ -681,16 +681,19 @@ they receive the private keys for nodes, as described in
 ## Ratchet Tree Commits
 
 When performing a Commit, the leaf ClientInitKey of the commiter and
-its direct path to the root are updated with new secret values.
+its direct path to the root are updated with new secret values.  The
+HPKE leaf public key within the ClientInitKey MUST be a freshly
+generated value to provide better Post-Compromise Secrecy.
+
 
 The generator of the Commit starts by using the HPKE secret key
-"leaf_hpke_secret_key" associated with the "init_key" of its new leaf
-ClientInitKey (see {{initialization-keys}}) to compute
-"path_secret[0]" and generate a sequence of "path secrets", one for
-each ancestor of its leaf.  That is, path_secret[0] is used for the
-node directly above the leaf, path_secret[1] for its parent, and so
-on. At each step, the path secret is used to derive a new secret value
-for the corresponding node, from which the node's key pair is derived.
+"leaf_hpke_secret_key" associated with the new leaf ClientInitKey (see
+{{initialization-keys}}) to compute "path_secret[0]" and generate a
+sequence of "path secrets", one for each ancestor of its leaf.  That
+is, path_secret[0] is used for the node directly above the leaf,
+path_secret[1] for its parent, and so on. At each step, the path
+secret is used to derive a new secret value for the corresponding
+node, from which the node's key pair is derived.
 
 ~~~~~
 path_secret[0] = HKDF-Expand-Label(leaf_hpke_secret_key,
@@ -714,9 +717,9 @@ For example, suppose there is a group with four members:
 A   B   C   D
 ~~~~~
 
-If participant (B) subsequently generates an Commit based on a secret
-"leaf_hpke_secret_key", then the sender would generate the following
-sequence of path secrets and node secrets:
+If member B subsequently generates an Commit based on a secret
+"leaf_hpke_secret_key", then it would generate the following sequence
+of path secrets and node secrets:
 
 ~~~~~
     path_secret[2] ---> node_secret[2]
@@ -736,20 +739,12 @@ After the Commit, the tree will have the following structure, where
 above:
 
 ~~~~~
-          ns[2]
+          ns[1]
          /     \
-     ns[1]      _
+     ns[0]      _
      /  \      / \
-    A   ns[0] C   D
+    A    B    C   D
 ~~~~~
-
-[[OPEN ISSUE:
-The new path_secret[0] is now derived form the HPKE secret key of the
-leaf. The generation of that entropy might have been done a long time
-in the past. This might be a bad thing but we could also leverage it
-by doing an extraction with a new fresh ephemeral value such that it
-provides better security in certain compromise scenarii at the cost of
-the extract and storing an additionnal fresh secret.]]
 
 ## Synchronizing Views of the Tree
 
@@ -970,17 +965,8 @@ opaque SignaturePublicKey<1..2^16-1>;
 ~~~~~
 
 Note that each new credential that has not already been validated
-by the application SHOULD be validated against the Authentication
+by the application MUST be validated against the Authentication
 Service.
-
-[[OPEN ISSUE: 1. SHOULD vs MUST.
-2. A client that wants to update its identity key
-can perform the operation UNDER THIS CONDITION by adding a new
-version of herself using a new credential signed under a new
-IdentityKey, then performing a remove of the old leaf. This is
-fine as long as the credential binds to the same identity for
-the application. If this verification is not met, there is no
-authentication guarantee at the application layer anyway.]]
 
 # Initialization Keys
 
@@ -1002,7 +988,7 @@ ClientInitKeys contain an identifier chosen by the client, which the
 client MUST ensure uniquely identifies a given ClientInitKey object
 among the set of ClientInitKeys created by this client.
 
-The value for init\_key MUST be a public key for the asymmetric
+The value for hpke\_init\_key MUST be a public key for the asymmetric
 encryption scheme defined by cipher\_suite. The whole structure
 is signed using the client's identity key. A ClientInitKey object
 with an invalid signature field MUST be considered malformed.
@@ -1032,7 +1018,7 @@ struct {
     ProtocolVersion supported_version;
     opaque client_init_key_id<0..255>;
     CipherSuite cipher_suite;
-    HPKEPublicKey init_key;
+    HPKEPublicKey hpke_init_key;
     Credential credential;
     Extension extensions<0..2^16-1>;
     opaque signature<0..2^16-1>;
@@ -1678,13 +1664,13 @@ The creator of a group MUST take the following steps to initialize the group:
 The recipient of a Welcome message processes it as described in
 {{welcoming-new-members}}.
 
-In principle, the above process could be streamlined by having the creator
-directly create a tree and choose a random value for first epoch's epoch secret.
-We follow the steps above because it removes unnecessary choices, by which, for
-example, bad randomness could be introduced.  The only choices the creator makes
-here are its own HPKE key and credential, the leaf secret from which the
-Commit is built, and the intermediate key pairs along the direct path to the
-root.
+In principle, the above process could be streamlined by having the
+creator directly create a tree and choose a random value for first
+epoch's epoch secret.  We follow the steps above because it removes
+unnecessary choices, by which, for example, bad randomness could be
+introduced.  The only choices the creator makes here are its own
+ClientInitKey, the leaf secret from which the Commit is built, and the
+intermediate key pairs along the direct path to the root.
 
 A new member receiving a Welcome message can recognize group creation if the
 number of entries in the `members` array is equal to the number of leaves in the
@@ -1752,7 +1738,7 @@ to the group.
 
 ~~~~~
 struct {
-    ClientInitKey init_key;
+    ClientInitKey client_init_key;
 } Add;
 ~~~~~
 
@@ -1783,7 +1769,7 @@ updated with a new ClientInitKey.
 
 ~~~~~
 struct {
-    ClientInitKey init_key;
+    ClientInitKey client_init_key;
 } Update;
 ~~~~~
 
@@ -1793,6 +1779,7 @@ A member of the group applies an Update message by taking the following steps:
   the Update proposal
 
 * Blank the intermediate nodes along the path from the sender's leaf to the root
+
 
 ### Remove
 
@@ -1860,6 +1847,9 @@ NOT combine Proposals sent within different epochs.  Despite these requirements,
 it is still possible for a valid Proposal not to be covered by a Commit, e.g.,
 because the sender of the Commit did not receive the Proposal.  In such cases,
 the sender of the proposal can retransmit the Proposal in the new epoch.
+In the case where a committer is processing Proposals where an Update
+proposal or a Remove proposal exists for herself, this proposal MUST
+be ignored and added to the list of discarded proposals in the Commit.
 
 Each proposal covered by the Commit is identified by a ProposalID structure.
 The `sender` field in this structure indicates the member of the group that sent
