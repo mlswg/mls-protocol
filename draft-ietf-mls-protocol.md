@@ -1081,9 +1081,15 @@ ratchet tree and the members' ClientInitKeys.
 The hash of a tree is the hash of its root node, which we define
 recursively, starting with the leaves.
 
+While hashes at the nodes are used to check the integrity of the
+subtrees, signatures are required to provide authentication and
+group agreement. Siganatures are especially important in the case of
+newcomers and MUST be verified when joining. All nodes in the tree
+MUST be signed to provide authentication and group agreement.
+
 Elements of the ratchet tree are called `RatchetNode` objects and
-contain optionally a ClientInitKey when at the leaves or an optional
-ParentNode above.
+contain optionally a `ClientInitKey` when at the leaves or an optional
+`ParentNode` above.
 
 ~~~~~
 struct {
@@ -1098,16 +1104,37 @@ enum { clientInitKey, parentNode } nodeType;
 
 struct {
     select(nodeType) {
-        case clientInitKey:  optional<ParentNode> node;
-        case parentNode:     optional<ClientInitKey> client_init_key;
+        case clientInitKey: optional<ParentNode> node;
+        case parentNode:    optional<ClientInitKey> client_init_key;
     }
 } RatchetNode;
+
+struct {
+    HPKEPublicKey public_key;
+    uint32_t unmerged_leaves<0..2^32-1>;
+} ParentNode;
 ~~~~~
 
-The content within the leaf of a ratchet tree is composed of
-`ClientInitKey` when the leaf is populated and is empty otherwise.
-The hash of a leaf node (a ClientInitKey) is the hash of a
-`LeafNodeHash` object:
+When computing the hash of a parent node AB the `ParentNodeHash`
+structure is used:
+
+~~~~~
+struct {
+    uint32 node_index;
+    optional<ParentNode> parent_node;
+    opaque left_hash<0..255>;
+    opaque right_hash<0..255>;
+    opaque signature<0..2^16-1>;
+} ParentNodeHash;
+~~~~~
+
+The `left_hash` and `right_hash` fields hold the hashes of the node's
+left (A) and right (B) children, respectively.  The signature within the
+`ParentNode` is computed over the its prefix within the serialized
+`ParentNodeHash` struct to cover all information about the sub-tree.
+
+To compute the hash of a leaf node is the hash of a `LeafNodeHash`
+object:
 
 ~~~~~
 struct {
@@ -1116,40 +1143,9 @@ struct {
 } LeafNodeHash;
 ~~~~~
 
-Note that unlike a ParentNode, a ClientInitKey contains a signature,
-hence, the intermediate nodes hash of a parent node (including the
-root) is computed according to the `ParentNodeHash` struct:
+Note that unlike a ParentNode, a ClientInitKey already contains a
+signature.
 
-~~~~~
-struct {
-    HPKEPublicKey public_key;
-    uint32_t unmerged_leaves<0..2^32-1>;
-} ParentNode;
-
-struct {
-    uint32 node_index;
-    optional<ParentNode> node;
-    opaque left_hash<0..255>;
-    opaque right_hash<0..255>;
-    opaque signature<0..2^16-1>;
-} ParentNodeHash;
-~~~~~
-
-The `left_hash` and `right_hash` fields hold the hashes of the node's
-left and right children, respectively.  The signature within the
-`ParentNode` is computed over the its serialized prefix which contains
-both the `public_key` and the list of unmerged leaves. The
-`public_key` field holds the hash of the public key stored at this
-node, represented as an `optional<HPKEPublicKey>` object, which is
-null if and only if the node is blank.
-
-While hashes at the nodes are used to check the integrity of the
-subtrees, the signatures are required to provide information to
-members regarding who has last updated a node. This information
-is especially important in the case of newcomers and the signatures
-in the nodes SHOULD be verified punctually, and especially by
-the newcomer to join the group. All nodes in the tree MUST be signed
-to provide authentication and group agreement.
 
 ## Group State
 
