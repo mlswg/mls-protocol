@@ -1124,6 +1124,7 @@ struct {
     optional<ParentNode> parent_node;
     opaque left_hash<0..255>;
     opaque right_hash<0..255>;
+    uint32 committer_index;
     opaque signature<0..2^16-1>;
 } ParentNodeHash;
 ~~~~~
@@ -1132,6 +1133,8 @@ The `left_hash` and `right_hash` fields hold the hashes of the node's
 left (A) and right (B) children, respectively.  The signature within the
 `ParentNode` is computed over the its prefix within the serialized
 `ParentNodeHash` struct to cover all information about the sub-tree.
+The `committer_index` is required for a member to determine the
+signing key needed to perform the signature verification.
 
 To compute the hash of a leaf node is the hash of a `LeafNodeHash`
 object:
