@@ -604,6 +604,7 @@ Each node in a ratchet tree contains up to four values:
 * An ordered list of leaf indices for "unmerged" leaves (see
   {{views}})
 * A credential (only for leaf nodes)
+* A signature over the content of the node
 
 The conditions under which each of these values must or must not be
 present are laid out in {{views}}.
@@ -764,6 +765,7 @@ leaf, including the root:
 * The public key for the node
 * Zero or more encrypted copies of the path secret corresponding to
   the node
+* A signature over the node content
 
 The path secret value for a given node is encrypted for the subtree
 corresponding to the parent's non-updated child, i.e., the child
@@ -1069,7 +1071,7 @@ ClientInitKeys to ensure continued reachability may choose to omit the
 expiration extension from these keys, or give them much longer lifetimes than
 other ClientInitKeys.
 
-## Tree Hashes
+## Tree Hashes and Signatures
 
 To allow group members to verify that they agree on the public
 cryptographic state of the group, this section defines a scheme for
@@ -1077,8 +1079,11 @@ generating a hash value that represents the contents of the group's
 ratchet tree and the members' ClientInitKeys.
 
 The hash of a tree is the hash of its root node, which we define
-recursively, starting with the leaves.  The hash of a leaf node is
-the hash of a `LeafNodeHashInput` object:
+recursively, starting with the leaves.
+
+Elements of the ratchet tree are called `RatchetNode` objects and
+contain optionally a ClientInitKey when at the leaves or an optional
+ParentNode above.
 
 ~~~~~
 struct {
@@ -1089,40 +1094,62 @@ struct {
     }
 } optional<T>;
 
+enum { clientInitKey, parentNode } nodeType;
+
 struct {
-    uint32 leaf_index;
-    optional<ClientInitKey> info;
-} LeafNodeHashInput;
+    select(nodeType) {
+        case clientInitKey:  optional<ParentNode> node;
+        case parentNode:     optional<ClientInitKey> client_init_key;
+    }
+} RatchetNode;
 ~~~~~
 
 The content within the leaf of a ratchet tree is composed of
-a `ClientInitKey` when the leaf is populated. The `info` field is
-equal to the null optional value when the leaf is blank (i.e., no
-member occupies that leaf).
+`ClientInitKey` when the leaf is populated and is empty otherwise.
+The hash of a leaf node (a ClientInitKey) is the hash of a
+`LeafNodeHash` object:
 
-The intermediate nodes contain less information, the hash of a parent
-node (including the root) is the hash of a `ParentNodeHashInput`
-struct:
+~~~~~
+struct {
+    uint32 leaf_index;
+    optional<ClientInitKey> client_init_key;
+} LeafNodeHash;
+~~~~~
+
+Note that unlike a ParentNode, a ClientInitKey contains a signature,
+hence, the intermediate nodes hash of a parent node (including the
+root) is computed according to the `ParentNodeHash` struct:
 
 ~~~~~
 struct {
     HPKEPublicKey public_key;
-    opaque unmerged_leaves<0..2^32-1>;
-} ParentNodeInfo;
+    uint32_t unmerged_leaves<0..2^32-1>;
+} ParentNode;
 
 struct {
     uint32 node_index;
-    optional<ParentNodeInfo> info;
+    optional<ParentNode> node;
     opaque left_hash<0..255>;
     opaque right_hash<0..255>;
-} ParentNodeHashInput;
+    opaque signature<0..2^16-1>;
+} ParentNodeHash;
 ~~~~~
 
-The `left_hash` and `right_hash` fields hold the hashes of the
-node's left and right children, respectively.  The `public_key`
-field holds the hash of the public key stored at this node,
-represented as an `optional<HPKEPublicKey>` object, which is null if
-and only if the node is blank.
+The `left_hash` and `right_hash` fields hold the hashes of the node's
+left and right children, respectively.  The signature within the
+`ParentNode` is computed over the its serialized prefix which contains
+both the `public_key` and the list of unmerged leaves. The
+`public_key` field holds the hash of the public key stored at this
+node, represented as an `optional<HPKEPublicKey>` object, which is
+null if and only if the node is blank.
+
+While hashes at the nodes are used to check the integrity of the
+subtrees, the signatures are required to provide information to
+members regarding who has last updated a node. This information
+is especially important in the case of newcomers and the signatures
+in the nodes SHOULD be verified punctually, and especially by
+the newcomer to join the group. All nodes in the tree MUST be signed
+to provide authentication and group agreement.
 
 ## Group State
 
@@ -1961,15 +1988,10 @@ Commit.
 
 ~~~~~
 struct {
-    HPKEPublicKey public_key;
-    opaque unmerged_leaves<0..2^32-1>;
-    optional<ClientInitKey> client_init_key;
-} RatchetNode;
-
-struct {
   // GroupContext inputs
   opaque group_id<0..255>;
   uint64 epoch;
+  opaque root_node_hash<0..255>;
   optional<RatchetNode> tree<1..2^32-1>;
   opaque confirmed_transcript_hash<0..255>;
 
