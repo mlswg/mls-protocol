@@ -697,14 +697,16 @@ node, from which the node's key pair is derived.
 
 ~~~~~
 path_secret[0] = HKDF-Expand-Label(leaf_hpke_secret_key,
-                                   "path", "", Hash.Length)
+                                   "path", thx, Hash.Length)
 path_secret[n] = HKDF-Expand-Label(path_secret[n-1],
-                                   "path", "", Hash.Length)
+                                   "path", thx, Hash.Length)
 node_secret[n] = HKDF-Expand-Label(path_secret[n],
-                                   "node", "", Hash.Length)
+                                   "node", thx, Hash.Length)
 node_priv[n], node_pub[n] = Derive-Key-Pair(node_secret[n])
 ~~~~~
 
+In this setting, `thx` represents the value of the `transcript_hash`
+for the current epoch of the tree.
 For example, suppose there is a group with four members:
 
 ~~~~~
@@ -1134,7 +1136,7 @@ struct {
     opaque group_id<0..255>;
     uint64 epoch;
     opaque tree_hash<0..255>;
-    opaque confirmed_transcript_hash<0..255>;
+    opaque transcript_hash<0..255>;
 } GroupContext;
 ~~~~~
 
@@ -1146,7 +1148,7 @@ The fields in this state have the following semantics:
 * The `tree_hash` field contains a commitment to the contents of the
   group's ratchet tree and the credentials for the members of the
   group, as described in {{tree-hashes}}.
-* The `confirmed_transcript_hash` field contains a running hash over
+* The `transcript_hash` field contains a running hash over
   the handshake messages that led to this state.
 
 When a new member is added to the group, an existing member of the
@@ -1163,7 +1165,7 @@ The following general rules apply:
   is processed
 * The `tree_hash` is updated to represent the current tree and
   credentials
-* The `confirmed_transcript_hash` is updated with the data for an
+* The `transcript_hash` is updated with the data for an
   MLSPlaintext message encoding a Commit message in two parts:
 
 ~~~~~
@@ -1181,16 +1183,12 @@ struct {
   opaque signature<0..2^16-1>;
 } MLSPlaintextCommitAuthData;
 
-confirmed_transcript_hash_[n] =
-    Hash(interim_transcript_hash_[n-1] ||
+transcript_hash_[n] =
+    Hash(transcript_hash_[n-1] ||
          MLSPlaintextCommitContent_[n]);
-
-interim_transcript_hash_[n] =
-    Hash(confirmed_transcript_hash_[n] ||
-         MLSPlaintextCommitAuthData_[n]);
 ~~~~~
 
-Thus the `confirmed_transcript_hash` field in a GroupContext object represents a
+Thus the `transcript_hash` field in a GroupContext object represents a
 transcript over the whole history of MLSPlaintext Commit messages, up to the
 confirmation field in the current MLSPlaintext message.  The confirmation and
 signature fields are then included in the transcript for the next epoch.  The
@@ -1198,7 +1196,7 @@ interim transcript hash is passed to new members in the WelcomeInfo struct, and
 enables existing members to incorporate a handshake message into the transcript
 without having to store the whole MLSPlaintextCommitAuthData structure.
 
-When a new group is created, the `interim_transcript_hash` field is set to the
+When a new group is created, the `transcript_hash` field is set to the
 zero-length octet string.
 
 ## Direct Paths
@@ -1260,14 +1258,14 @@ HKDF-Expand-Label(Secret, Label, Context, Length) =
 Where HkdfLabel is specified as:
 
 struct {
-  opaque group_context<0..255> = Hash(GroupContext_[n]);
-  uint16 length = Length;
-  opaque label<7..255> = "mls10 " + Label;
-  opaque context<0..2^32-1> = Context;
+    uint16 length = Length;
+    opaque label<7..255> = "mls10 " + Label;
+    opaque context<0..255> = Context;
 } HkdfLabel;
 
-Derive-Secret(Secret, Label) =
-    HKDF-Expand-Label(Secret, Label, "", Hash.length)
+Derive-Secret(Secret, Label, Transcript-Hash(Messages)) =
+    HKDF-Expand-Label(Secret, Label,
+                      Transcript-Hash(Messages), Hash.length)
 ~~~~~
 
 The Hash function used by HKDF is the ciphersuite hash algorithm.
@@ -1293,32 +1291,37 @@ proceeds as shown in the following diagram:
                      V
     PSK (or 0) -> HKDF-Extract = early_secret
                      |
-               Derive-Secret(., "derived", "")
+               Derive-Secret(., "derived", txh[n-1])
                      |
                      V
-commit_secret -> HKDF-Extract = epoch_secret
+commit_secret[n] -> HKDF-Extract = epoch_secret[n]
                      |
-                     +--> Derive-Secret(., "sender data", GroupContext_[n])
+                     +--> Derive-Secret(., "sender data", txh[n])
                      |    = sender_data_secret
                      |
-                     +--> Derive-Secret(., "handshake", GroupContext_[n])
+                     +--> Derive-Secret(., "handshake", txh[n])
                      |    = handshake_secret
                      |
-                     +--> Derive-Secret(., "app", GroupContext_[n])
+                     +--> Derive-Secret(., "app", txh[n])
                      |    = application_secret
                      |
-                     +--> Derive-Secret(., "exporter", GroupContext_[n])
+                     +--> Derive-Secret(., "exporter", txh[n])
                      |    = exporter_secret
                      |
-                     +--> Derive-Secret(., "confirm", GroupContext_[n])
+                     +--> Derive-Secret(., "confirm", txh[n])
                      |    = confirmation_key
                      |
                      V
-               Derive-Secret(., "init", GroupContext_[n])
+               Derive-Secret(., "init", txh[n])
                      |
                      V
                init_secret_[n]
 ~~~~~
+
+Here we denote txh[n] the `transcript_hash` for epoch N, which result
+from hashing the previous transcript hash (N-1) with the MLSCiphertext
+that lead to the current epoch_secret[n].
+
 
 ## Pre-Shared Keys
 
@@ -1555,8 +1558,7 @@ group and epoch.
 
 ~~~~~
 struct {
-    GroupContext context;
-
+    opaque transcript_hash<0..255>;
     opaque group_id<0..255>;
     uint64 epoch;
     uint32 sender;
@@ -1928,7 +1930,7 @@ the same state of the group:
 
 ~~~~~
 MLSPlaintext.confirmation =
-    HMAC(confirmation_key, GroupContext.confirmed_transcript_hash)
+    HMAC(confirmation_key, GroupContext.transcript_hash)
 ~~~~~
 
 HMAC {{!RFC2104}} uses the Hash algorithm for the ciphersuite in use.
@@ -1971,10 +1973,9 @@ struct {
   opaque group_id<0..255>;
   uint64 epoch;
   optional<RatchetNode> tree<1..2^32-1>;
-  opaque confirmed_transcript_hash<0..255>;
 
   // Inputs to the next round of the key schedule
-  opaque interim_transcript_hash<0..255>;
+  opaque transcript_hash<0..255>;
   opaque epoch_secret<0..255>;
 
   uint32 signer_index;
