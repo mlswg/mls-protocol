@@ -697,15 +697,15 @@ node, from which the node's key pair is derived.
 
 ~~~~~
 path_secret[0] = HKDF-Expand-Label(leaf_hpke_secret_key,
-                                   "path", thx, Hash.Length)
+                                   "path", txh, Hash.Length)
 path_secret[n] = HKDF-Expand-Label(path_secret[n-1],
-                                   "path", thx, Hash.Length)
+                                   "path", txh, Hash.Length)
 node_secret[n] = HKDF-Expand-Label(path_secret[n],
-                                   "node", thx, Hash.Length)
+                                   "node", txh, Hash.Length)
 node_priv[n], node_pub[n] = Derive-Key-Pair(node_secret[n])
 ~~~~~
 
-In this setting, `thx` represents the value of the `transcript_hash`
+In this setting, `txh` represents the value of the `transcript_hash`
 for the current epoch of the tree.
 For example, suppose there is a group with four members:
 
