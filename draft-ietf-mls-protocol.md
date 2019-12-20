@@ -717,7 +717,7 @@ For example, suppose there is a group with four members:
 A   B   C   D
 ~~~~~
 
-If member B subsequently generates an Commit based on a secret
+If member B subsequently generates a Commit based on a secret
 "leaf_hpke_secret_key", then it would generate the following sequence
 of path secrets and node secrets:
 
@@ -978,13 +978,15 @@ member can use to add this client to the group asynchronously.
 
 A ClientInitKey object specifies a ciphersuite that the client
 supports, as well as providing a public key that others can use
-for key agreement. The client's identity key is intended to be
-stable throughout the lifetime of the group; there is no mechanism to
-change it.  Init keys are intended to be used only once and SHOULD NOT
+for key agreement. The client's identity key can be updated
+throughout the lifetime of the group by sending a new ClientInitKey
+with a new identity; the new identity MUST be validated by the
+authentication service.
+ClientInitKeys are intended to be used only once and SHOULD NOT
 be reused except in case of last resort. (See {{init-key-reuse}}).
 Clients MAY generate and publish multiple ClientInitKey objects to
 support multiple ciphersuites.
-ClientInitKeys contain an identifier chosen by the client, which the
+ClientInitKeys contain an credential chosen by the client, which the
 client MUST ensure uniquely identifies a given ClientInitKey object
 among the set of ClientInitKeys created by this client.
 
