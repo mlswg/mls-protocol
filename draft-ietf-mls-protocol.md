@@ -2047,7 +2047,8 @@ On receiving a Welcome message, a client processes it using the following steps:
   represent the index of this node among the leaves in the tree, namely the
   index of the node in the `tree` array divided by two.
 
-* Construct a new group state using the information in the GroupInfo object.
+* Construct a new group state using the information in the GroupInfo
+  object and verify the integrity of the tree using the `root_node_hash`.
   The new member's position in the tree is `index`, as defined above.
 
 * Identify the lowest node at which the direct paths from `index` and
