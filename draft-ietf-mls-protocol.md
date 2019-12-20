@@ -423,32 +423,32 @@ and broadcast an Add message that the current group can use to update
 their state and the new client can use to initialize its state.
 
 To enforce forward secrecy and post-compromise security of messages,
-each member periodically updates its leaf secret which represents
-its contribution to the group secret.  Any member of the
-group can send an Update at any time by generating a fresh leaf secret
-and sending an Commit message that describes how to update the
-group secret with that new information.  Once all members have
+each member periodically updates its leaf secret which represents its
+contribution to the group secret and its member information. Any
+member can update this information at any time by generating a fresh
+ClientInitKey and sending a Commit message. Once all members have
 processed this message, the group's secrets will be unknown to an
 attacker that had compromised the sender's prior leaf secret.
 
-It is left to the application to determine the interval of time between
-Update+Commit messages. This policy could require a change for each message, or
-it could require sending an update every week or more.
+It is left to the application to determine the interval of time
+between Commit messages. This policy could require a Commit with each
+message, or require sending an update regularly.
 
 ~~~~~
                                                           Group
 A              B     ...      Z          Directory        Channel
 |              |              |              |              |
-| Update(A)    |              |              |              |
+|              | Update(B)    |              |              |
+|              |------------------------------------------->|
 | Commit(Upd)  |              |              |              |
 |---------------------------------------------------------->|
 |              |              |              |              |
-|              |              |              | Update(A)    |
+|              |              |              | Update(B)    |
 |              |              |              | Commit(Upd)  |
 |<----------------------------------------------------------|
-|state.upd(A)  |<-------------------------------------------|
-|              |state.upd(A)  |<----------------------------|
-|              |              |state.upd(A)  |              |
+|state.upd(B)  |<-------------------------------------------|
+|              |state.upd(B)  |<----------------------------|
+|              |              |state.upd(B)  |              |
 |              |              |              |              |
 ~~~~~
 
@@ -653,7 +653,7 @@ including the public keys for all nodes and the credentials
 associated with the leaf nodes.
 
 No participant in an MLS group has full knowledge of the secret
-state of the tree, i.e., private keys associated to
+state of the tree, i.e., private keys associated with
 the nodes.  Instead, each member is assigned to a leaf of the tree,
 which determines the set of secret state known to the member.  The
 credential stored at that leaf is one provided by the member.
@@ -680,16 +680,24 @@ they receive the private keys for nodes, as described in
 
 ## Ratchet Tree Commits
 
-Nodes in a tree are always updated along the direct path from a
-leaf to the root.  The generator of the Commit chooses a random
-secret value "path_secret[0]", and generates a sequence of "path
-secrets", one for each node from the leaf to the root.  That is,
-path_secret[0] is used for the leaf, path_secret[1] for its parent,
-and so on.  At each step, the path secret is used to derive a new
-secret value for the corresponding node, from which the node's key
-pair is derived.
+When performing a Commit, the leaf ClientInitKey of the commiter and
+its direct path to the root are updated with new secret values.  The
+HPKE leaf public key within the ClientInitKey MUST be a freshly
+generated value to provide better Post-Compromise Secrecy.
+
+
+The generator of the Commit starts by using the HPKE secret key
+"leaf_hpke_secret_key" associated with the new leaf ClientInitKey (see
+{{initialization-keys}}) to compute "path_secret[0]" and generate a
+sequence of "path secrets", one for each ancestor of its leaf.  That
+is, path_secret[0] is used for the node directly above the leaf,
+path_secret[1] for its parent, and so on. At each step, the path
+secret is used to derive a new secret value for the corresponding
+node, from which the node's key pair is derived.
 
 ~~~~~
+path_secret[0] = HKDF-Expand-Label(leaf_hpke_secret_key,
+                                   "path", "", Hash.Length)
 path_secret[n] = HKDF-Expand-Label(path_secret[n-1],
                                    "path", "", Hash.Length)
 node_secret[n] = HKDF-Expand-Label(path_secret[n],
@@ -709,9 +717,9 @@ For example, suppose there is a group with four members:
 A   B   C   D
 ~~~~~
 
-If the second participant (B) subsequently generates an Commit based on a
-secret X, then the sender would generate the following sequence of
-path secrets and node secrets:
+If member B subsequently generates a Commit based on a secret
+"leaf_hpke_secret_key", then it would generate the following sequence
+of path secrets and node secrets:
 
 ~~~~~
     path_secret[2] ---> node_secret[2]
@@ -720,7 +728,10 @@ path secrets and node secrets:
     path_secret[1] ---> node_secret[1]
          ^
          |
-X = path_secret[0] ---> node_secret[0]
+    path_secret[0] ---> node_secret[0]
+         ^
+         |
+    leaf_hpke_secret_key
 ~~~~~
 
 After the Commit, the tree will have the following structure, where
@@ -728,11 +739,11 @@ After the Commit, the tree will have the following structure, where
 above:
 
 ~~~~~
-          ns[2]
+          ns[1]
          /     \
-     ns[1]      _
+     ns[0]      _
      /  \      / \
-    A   ns[0] C   D
+    A    B    C   D
 ~~~~~
 
 ## Synchronizing Views of the Tree
@@ -748,7 +759,7 @@ sender's.
 
 To perform an update for a path (a Commit), the sender broadcasts to the group
 the following information for each node in the direct path of the
-leaf, as well as the root:
+leaf, including the root:
 
 * The public key for the node
 * Zero or more encrypted copies of the path secret corresponding to
@@ -954,24 +965,116 @@ opaque SignaturePublicKey<1..2^16-1>;
 ~~~~~
 
 Note that each new credential that has not already been validated
-by the application SHOULD be validated against the Authentication
+by the application MUST be validated against the Authentication
 Service.
 
-[[OPEN ISSUE: 1. SHOULD vs MUST.
-2. A client that wants to update its identity key
-can perform the operation UNDER THIS CONDITION by adding a new
-version of herself using a new credential signed under a new
-IdentityKey, then performing a remove of the old leaf. This is
-fine as long as the credential binds to the same identity for
-the application. If this verification is not met, there is no
-authentication guarantee at the application layer anyway.]]
+# Initialization Keys
+
+In order to facilitate asynchronous addition of clients to a
+group, it is possible to pre-publish initialization keys that
+provide some public information about a user. ClientInitKey
+structures provide information about a client that any existing
+member can use to add this client to the group asynchronously.
+
+A ClientInitKey object specifies a ciphersuite that the client
+supports, as well as providing a public key that others can use
+for key agreement. The client's identity key can be updated
+throughout the lifetime of the group by sending a new ClientInitKey
+with a new identity; the new identity MUST be validated by the
+authentication service.
+ClientInitKeys are intended to be used only once and SHOULD NOT
+be reused except in case of last resort. (See {{init-key-reuse}}).
+Clients MAY generate and publish multiple ClientInitKey objects to
+support multiple ciphersuites.
+ClientInitKeys contain an credential chosen by the client, which the
+client MUST ensure uniquely identifies a given ClientInitKey object
+among the set of ClientInitKeys created by this client.
+
+The value for hpke\_init\_key MUST be a public key for the asymmetric
+encryption scheme defined by cipher\_suite. The whole structure
+is signed using the client's identity key. A ClientInitKey object
+with an invalid signature field MUST be considered malformed.
+The input to the signature computation comprises all of the fields
+except for the signature field.
+
+~~~~~
+enum {
+    mls10(0),
+    (255)
+} ProtocolVersion;
+
+enum {
+    invalid(0),
+    supported_versions(1),
+    supported_ciphersuites(2),
+    expiration(3),
+    (65535)
+} ExtensionType;
+
+struct {
+    ExtensionType extension_type;
+    opaque extension_data<0..2^16-1>;
+} Extension;
+
+struct {
+    ProtocolVersion supported_version;
+    opaque client_init_key_id<0..255>;
+    CipherSuite cipher_suite;
+    HPKEPublicKey hpke_init_key;
+    Credential credential;
+    Extension extensions<0..2^16-1>;
+    opaque signature<0..2^16-1>;
+} ClientInitKey;
+~~~~~
+
+ClientInitKey objects MUST contain at least two extensions, one of type
+`supported_versions` and one of type `supported_ciphersuites`.  These extensions
+allow MLS session establishment to be safe from downgrade attacks on these two
+parameters (as discussed in {{group-creation}}), while still only advertising
+one version / ciphersuite per ClientInitKey.
+
+As the `ClientInitKey` is a structure which is stored in the Ratchet
+Tree and updated depending on the evolution of this tree, each
+modification of its content MUST be reflected by a change of its
+signature. This allow other members to control the validity of the ClientInitKey
+at any time and in particular in the case of a newcomer joining the group.
+
+## Supported Versions and Supported Ciphersuites
+
+The `supported_versions` extension contains a list of MLS versions that are
+supported by the client.  The `supported_ciphersuites` extension contains a list
+of MLS ciphersuites that are supported by the client.
+
+~~~~~
+ProtocolVersion supported_versions<0..255>;
+CipherSuite supported_ciphersuites<0..255>;
+~~~~~
+
+## Expiration
+
+The `expiration` extension represents the time at which clients MUST consider
+this ClientInitKey invalid.  This time is represented as an absolute time,
+measured in seconds since the Unix epoch (1970-01-01T00:00:00Z).  If a client
+receives a ClientInitKey that contains an expiration extension at a time after
+its expiration time, then it MUST consider the ClientInitKey invalid and not use
+it for any further processing.
+
+~~~~~
+uint64 expiration;
+~~~~~
+
+Note that as an extension, it is not required that any given ClientInitKey have
+an expiration time.  In particular, applications that rely on "last resort"
+ClientInitKeys to ensure continued reachability may choose to omit the
+expiration extension from these keys, or give them much longer lifetimes than
+other ClientInitKeys.
 
 ## Tree Hashes
 
-To allow group members to verify that they agree on the
+To allow group members to verify that they agree on the public
 cryptographic state of the group, this section defines a scheme for
 generating a hash value that represents the contents of the group's
-ratchet tree and the members' credentials.
+ratchet tree and the members' ClientInitKeys.
 
 The hash of a tree is the hash of its root node, which we define
 recursively, starting with the leaves.  The hash of a leaf node is
@@ -987,23 +1090,19 @@ struct {
 } optional<T>;
 
 struct {
-    HPKEPublicKey public_key;
-    Credential credential;
-} LeafNodeInfo;
-
-struct {
-    uint8 hash_type = 0;
-    optional<LeafNodeInfo> info;
+    uint32 leaf_index;
+    optional<ClientInitKey> info;
 } LeafNodeHashInput;
 ~~~~~
 
-The `public_key` and `credential` fields represent the leaf public
-key and the credential for the member holding that leaf,
-respectively.  The `info` field is equal to the null optional value
-when the leaf is blank (i.e., no member occupies that leaf).
+The content within the leaf of a ratchet tree is composed of
+a `ClientInitKey` when the leaf is populated. The `info` field is
+equal to the null optional value when the leaf is blank (i.e., no
+member occupies that leaf).
 
-Likewise, the hash of a parent node (including the root) is the hash
-of a `ParentNodeHashInput` struct:
+The intermediate nodes contain less information, the hash of a parent
+node (including the root) is the hash of a `ParentNodeHashInput`
+struct:
 
 ~~~~~
 struct {
@@ -1012,7 +1111,7 @@ struct {
 } ParentNodeInfo;
 
 struct {
-    uint8 hash_type = 1;
+    uint32 node_index;
     optional<ParentNodeInfo> info;
     opaque left_hash<0..255>;
     opaque right_hash<0..255>;
@@ -1105,11 +1204,11 @@ zero-length octet string.
 ## Direct Paths
 
 As described in {{ratchet-tree-commits}}, each MLS message needs to
-transmit node values along the direct path of a leaf.
-The path contains a public key for the leaf node, and a
-public key and encrypted secret value for intermediate nodes in the
-path.  In both cases, the path is ordered from the leaf to the root;
-each node MUST be the parent of its predecessor.
+transmit a ClientInitKey leaf and node values along its direct path.
+The path contains a public key and encrypted secret value for all
+intermediate nodes in the path above the leaf.  The path is ordered
+from the closest node to the leaf to the root; each node MUST be the
+parent of its predecessor.
 
 ~~~~~
 struct {
@@ -1127,12 +1226,10 @@ struct {
 } DirectPath;
 ~~~~~
 
-The length of the `encrypted_path_secret` vector MUST be zero for the first
-node in the path.  For the remaining elements in the vector, the
-number of ciphertexts in the `encrypted_path_secret` vector MUST be equal to
-the length of the resolution of the corresponding copath node.  Each
-ciphertext in the list is the encryption to the corresponding node
-in the resolution.
+The number of ciphertexts in the `encrypted_path_secret` vector MUST
+be equal to the length of the resolution of the corresponding copath
+node.  Each ciphertext in the list is the encryption to the
+corresponding node in the resolution.
 
 The HPKECiphertext values are computed as
 
@@ -1237,7 +1334,7 @@ having a full run of updates accross members is too expensive or in
 the case where the external group key establishment mechanism provides
 stronger security against classical or quantum adversaries.
 
-The security level associated to the PSK injected in the key schedule
+The security level associated with the PSK injected in the key schedule
 SHOULD match at least the security level of the ciphersuite in use in
 the group.
 
@@ -1325,99 +1422,6 @@ the Group.
 
 It is RECOMMENDED for the application generating exported values
 to refresh those values after a group operation is processed.
-
-# Initialization Keys
-
-In order to facilitate asynchronous addition of clients to a
-group, it is possible to pre-publish initialization keys that
-provide some public information about a user. ClientInitKey
-messages provide information about a client that any existing
-member can use to add this client to the group asynchronously.
-
-A ClientInitKey object specifies a ciphersuite that the client
-supports, as well as providing a public key that others can use
-for key agreement. The client's identity key is intended to be
-stable throughout the lifetime of the group; there is no mechanism to
-change it.  Init keys are intended to be used only once and SHOULD NOT
-be reused except in case of last resort. (See {{init-key-reuse}}).
-Clients MAY generate and publish multiple ClientInitKey objects to
-support multiple ciphersuites.
-ClientInitKeys contain an identifier chosen by the client, which the
-client MUST ensure uniquely identifies a given ClientInitKey object
-among the set of ClientInitKeys created by this client.
-
-The value for init\_key MUST be a public key for the asymmetric
-encryption scheme defined by cipher\_suite. The whole structure
-is signed using the client's identity key. A ClientInitKey object
-with an invalid signature field MUST be considered malformed.
-The input to the signature computation comprises all of the fields
-except for the signature field.
-
-~~~~~
-enum {
-    mls10(0),
-    (255)
-} ProtocolVersion;
-
-enum {
-    invalid(0),
-    supported_versions(1),
-    supported_ciphersuites(2),
-    expiration(3),
-    (65535)
-} ExtensionType;
-
-struct {
-    ExtensionType extension_type;
-    opaque extension_data<0..2^16-1>;
-} Extension;
-
-struct {
-    ProtocolVersion supported_version;
-    opaque client_init_key_id<0..255>;
-    CipherSuite cipher_suite;
-    HPKEPublicKey init_key;
-    Credential credential;
-    Extension extensions<0..2^16-1>;
-    opaque signature<0..2^16-1>;
-} ClientInitKey;
-~~~~~
-
-ClientInitKey objects MUST contain at least two extensions, one of type
-`supported_versions` and one of type `supported_ciphersuites`.  These extensions
-allow MLS session establishment to be safe from downgrade attacks on these two
-parameters (as discussed in {{group-creation}}), while still only advertising
-one version / ciphersuite per ClientInitKey.
-
-## Supported Versions and Supported Ciphersuites
-
-The `supported_versions` extension contains a list of MLS versions that are
-supported by the client.  The `supported_ciphersuites` extension contains a list
-of MLS ciphersuites that are supported by the client.
-
-~~~~~
-ProtocolVersion supported_versions<0..255>;
-CipherSuite supported_ciphersuites<0..255>;
-~~~~~
-
-## Expiration
-
-The `expiration` extension represents the time at which clients MUST consider
-this ClientInitKey invalid.  This time is represented as an absolute time,
-measured in seconds since the Unix epoch (1970-01-01T00:00:00Z).  If a client
-receives a ClientInitKey that contains an expiration extension at a time after
-its expiration time, then it MUST consider the ClientInitKey invalid and not use
-it for any further processing.
-
-~~~~~
-uint64 expiration;
-~~~~~
-
-Note that as an extension, it is not required that any given ClientInitKey have
-an expiration time.  In particular, applications that rely on "last resort"
-ClientInitKeys to ensure continued reachability may choose to omit the
-expiration extension from these keys, or give them much longer lifetimes than
-other ClientInitKeys.
 
 # Message Framing
 
@@ -1662,13 +1666,13 @@ The creator of a group MUST take the following steps to initialize the group:
 The recipient of a Welcome message processes it as described in
 {{welcoming-new-members}}.
 
-In principle, the above process could be streamlined by having the creator
-directly create a tree and choose a random value for first epoch's epoch secret.
-We follow the steps above because it removes unnecessary choices, by which, for
-example, bad randomness could be introduced.  The only choices the creator makes
-here are its own HPKE key and credential, the leaf secret from which the
-Commit is built, and the intermediate key pairs along the direct path to the
-root.
+In principle, the above process could be streamlined by having the
+creator directly create a tree and choose a random value for first
+epoch's epoch secret.  We follow the steps above because it removes
+unnecessary choices, by which, for example, bad randomness could be
+introduced.  The only choices the creator makes here are its own
+ClientInitKey, the leaf secret from which the Commit is built, and the
+intermediate key pairs along the direct path to the root.
 
 A new member receiving a Welcome message can recognize group creation if the
 number of entries in the `members` array is equal to the number of leaves in the
@@ -1736,7 +1740,7 @@ to the group.
 
 ~~~~~
 struct {
-    ClientInitKey init_key;
+    ClientInitKey client_init_key;
 } Add;
 ~~~~~
 
@@ -1761,21 +1765,23 @@ leaf in the tree, for the second Add, the next empty leaf to the right, etc.
 
 ### Update
 
-An Update proposal requests that the sender's leaf node in the tree be updated
-with a new HPKE public key.
+An Update proposal is a similar mechanism to Add with the distinction
+that it is the sender's leaf ClientInitKey in the tree which would be
+updated with a new ClientInitKey.
 
 ~~~~~
 struct {
-    HPKEPublicKey leaf_key;
+    ClientInitKey client_init_key;
 } Update;
 ~~~~~
 
 A member of the group applies an Update message by taking the following steps:
 
-* Update the sender's leaf node by replacing the HPKE public key with the public
-  key in the Update proposal
+* Replace the sender's leaf ClientInitKey with the one contained in
+  the Update proposal
 
 * Blank the intermediate nodes along the path from the sender's leaf to the root
+
 
 ### Remove
 
@@ -1843,6 +1849,9 @@ NOT combine Proposals sent within different epochs.  Despite these requirements,
 it is still possible for a valid Proposal not to be covered by a Commit, e.g.,
 because the sender of the Commit did not receive the Proposal.  In such cases,
 the sender of the proposal can retransmit the Proposal in the new epoch.
+In the case where a committer is processing Proposals where an Update
+proposal or a Remove proposal exists for herself, this proposal MUST
+be ignored and added to the list of discarded proposals in the Commit.
 
 Each proposal covered by the Commit is identified by a ProposalID structure.
 The `sender` field in this structure indicates the member of the group that sent
@@ -1901,7 +1910,7 @@ A member of the group applies a Commit message by taking the following steps:
      with the corresponding nodes in the path (see {{direct-paths}}).
 
    * The `commit_secret` is the value `path_secret[n+1]` derived from the
-     `path_secret[n]` value associated to the root node.
+     `path_secret[n]` value associated with the root node.
 
 5. Use the `commit_secret`, the provisional GroupContext, and the init secret from
    the previous epoch to compute the epoch secret and derived secrets for the
@@ -1954,7 +1963,7 @@ Commit.
 struct {
     HPKEPublicKey public_key;
     opaque unmerged_leaves<0..2^32-1>;
-    optional<Credential> credential;
+    optional<ClientInitKey> client_init_key;
 } RatchetNode;
 
 struct {
@@ -1991,16 +2000,16 @@ struct {
 } Welcome;
 ~~~~~
 
-In the description of the tree as a list of nodes, the `credential`
+In the description of the tree as a list of nodes, the `client_init_key`
 field for a node MUST be populated if and only if that node is a
-leaf in the tree (i.e., a node with an even index).
+leaf in the tree.
 
 On receiving a Welcome message, a client processes it using the following steps:
 
 * Identify an entry in the `key_packages` array where the `client_init_key_hash`
   value corresponds to one of this client's ClientInitKeys, using the hash
   indicated by the `cipher_suite` field.  If no such field exists, or if the
-  ciphersuite indicated in the  ClientInitKey does not match the one in the
+  ciphersuite indicated in the ClientInitKey does not match the one in the
   Welcome message, return an error.
 
 * Decrypt the `encrypted_key_package` using HPKE with the algorithms indicated
