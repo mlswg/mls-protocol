@@ -644,7 +644,7 @@ In this tree, we can see all of the above rules in play:
 Every node, regardless of whether the node is blank or populated, has
 a corresponding _hash_ that summarizes the contents of the subtree
 below that node.  The rules for computing these hashes are described
-in {{tree-hashes}}.
+in {{tree-hashes-and-signatures}}.
 
 ## Views of a Ratchet Tree {#views}
 
@@ -1171,7 +1171,7 @@ The fields in this state have the following semantics:
 * The `epoch` field represents the current version of the group key.
 * The `tree_hash` field contains a commitment to the contents of the
   group's ratchet tree and the credentials for the members of the
-  group, as described in {{tree-hashes}}.
+  group, as described in {{tree-hashes-and-signatures}}.
 * The `confirmed_transcript_hash` field contains a running hash over
   the handshake messages that led to this state.
 
@@ -1228,7 +1228,7 @@ zero-length octet string.
 
 ## Direct Paths
 
-As described in {{ratchet-tree-commits}}, each MLS message needs to
+As described in {{commit}}, each MLS Commit message needs to
 transmit a ClientInitKey leaf and node values along its direct path.
 The path contains a public key and encrypted secret value for all
 intermediate nodes in the path above the leaf.  The path is ordered
@@ -1487,7 +1487,7 @@ struct {
           opaque application_data<0..2^32-1>;
 
         case proposal:
-          Proposal proposals;
+          Proposal proposal;
 
         case commit:
           Commit commit;
@@ -1595,10 +1595,9 @@ struct {
           opaque application_data<0..2^32-1>;
 
         case proposal:
-          Proposal proposals<1..2^32-1>;
+          Proposal proposal;
 
         case commit:
-          Proposal proposals<1..2^32-1>;
           Commit commit;
           opaque confirmation<0..255>;
     }
@@ -1880,9 +1879,7 @@ In the case where a committer is processing Proposals where an Update
 proposal or a Remove proposal exists for herself, this proposal MUST
 be ignored and added to the list of discarded proposals in the Commit.
 
-Each proposal covered by the Commit is identified by a ProposalID structure.
-The `sender` field in this structure indicates the member of the group that sent
-the proposal (according to their index in the ratchet tree).  The `hash` field
+Each proposal covered by the Commit is identified by a ProposalID value, which
 contains the hash of the MLSPlaintext in which the Proposal was sent, using the
 hash function for the group's ciphersuite.
 
@@ -1921,7 +1918,7 @@ message at the same time, by taking the following steps:
 
 * Generate a provisional GroupContext object by applying the proposals
   referenced in the initial Commit object in the order provided, as described in
-  {{proposals}}.  Add proposals are applied left to right: Each Add proposal is
+  {{proposals}}. Add proposals are applied left to right: Each Add proposal is
   applied at the leftmost unoccupied leaf, or appended to the right edge of the
   tree if all leaves are occupied.
 
