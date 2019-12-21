@@ -1449,9 +1449,9 @@ struct {
     opaque group_id<0..255>;
     uint64 epoch;
     uint32 sender;
-    ContentType content_type;
     opaque authenticated_data<0..2^32-1>;
 
+    ContentType content_type;
     select (MLSPlaintext.content_type) {
         case application:
           opaque application_data<0..2^32-1>;
