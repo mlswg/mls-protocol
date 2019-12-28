@@ -828,6 +828,8 @@ The ciphersuites are defined in section {{MLS Ciphersuites}}.
 
 ### Notes on Diffie-Hellman groups
 
+Depending on the Diffie-Hellman group of the ciphersuite, different rules apply to private key derivation and public key verification.
+
 #### X25519
 
 Given an octet string X, the private key produced by the
@@ -2436,8 +2438,7 @@ and administered under a Specification Required policy {{!RFC8126}}.
 
 ## MLS Ciphersuites
 
-A cipher suite value defines a combinaison of a protocol version
-and of the set of cryptographic algorithms used for this version MLS.
+A ciphersuite is a combination of a protocol version and the set of cryptographic algorithms that should be used.
 
 Cipher suite names follow the naming convention:
 
