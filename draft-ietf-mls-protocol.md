@@ -1883,29 +1883,12 @@ group explicitly agrees on, e.g., as an extension to the GroupContext? ]]
 ## Commit
 
 A Commit message initiates a new epoch for the group, based on a collection of
-Proposals.  It instructs group members to update their representation of the
+Proposals. It instructs group members to update their representation of the
 state of the group by applying the proposals and advancing the key schedule.
-
-A group member that has observed one or more Proposal messages within an epoch
-MUST send a Commit message before sending application data.  This ensures, for
-example, that any members whose removal was proposed during the epoch are
-actually removed before any application information is transmitted.
-
-The sender of a Commit message MUST include in it all valid Proposals that the
-sender has received during the current epoch.  Invalid Proposals include, for
-example, Proposals with an invalid signature or Proposals that are semantically
-inconsistent, such as a Remove proposal for an unoccupied leaf. The Commit MUST
-NOT combine Proposals sent within different epochs.  Despite these requirements,
-it is still possible for a valid Proposal not to be covered by a Commit, for example,
-because the sender of the Commit did not receive the Proposal.  In such cases,
-the sender of the proposal can retransmit the Proposal in the new epoch.
-In the case where a committer is processing Proposals where an Update
-proposal or a Remove proposal exists for herself, this proposal MUST
-be ignored and added to the list of discarded proposals in the Commit.
 
 Each proposal covered by the Commit is identified by a ProposalID value, which
 contains the hash of the MLSPlaintext in which the Proposal was sent, using the
-hash function for the group's ciphersuite.
+hash function from the group's ciphersuite.
 
 ~~~~~
 opaque ProposalID<0..255>;
@@ -1914,18 +1897,29 @@ struct {
     ProposalID updates<0..2^16-1>;
     ProposalID removes<0..2^16-1>;
     ProposalID adds<0..2^16-1>;
-    ProposalID ignored<0..2^16-1>;
     DirectPath path;
 } Commit;
 ~~~~~
 
-The sender of a Commit message MUST include in it all proposals that it has
-received during the current epoch.  Proposals that recipients should implement
-are placed in the `updates`, `removes`, and `adds` vector, according to their
-type.  Proposals that should not be implemented are placed in the `ignored`
-vector.  For example, if two Update proposals are issued for the same leaf, then
-one of them (presumably the earlier one) should be ignored and the other
-(presumably the later) should be added to the `updates` vector.
+A group member that has observed one or more proposals within an epoch MUST send
+a Commit message before sending application data. This ensures, for example,
+that any members whose removal was proposed during the epoch are actually
+removed before any application data is transmitted.
+
+The sender of a Commit MUST include all valid proposals that it has received
+during the current epoch. Invalid proposals include, for example, proposals with
+an invalid signature or proposals that are semantically invalid, such as an Add
+when the sender does not have the application-level permission to add new users.
+If there are multiple proposals that apply to the same leaf, the committer
+chooses one and includes only that one in the Commit, considering the rest
+invalid. The committer MUST prefer any Remove received, or the most recent
+Update for the leaf if there are no Removes. If there are multiple Add proposals
+for the same client, the committer again chooses one to include and considers
+the rest invalid.
+
+The Commit MUST NOT combine proposals sent within different epochs. In the event
+that a valid proposal is omitted from the next Commit, the sender of the
+proposal SHOULD retransmit it in the new epoch.
 
 [[ OPEN ISSUE: This structure loses the welcome_info_hash, because new
 participants are no longer expected to have access to the Commit message adding
@@ -1936,8 +1930,8 @@ the next epoch change anyway. ]]
 A member of the group creates a Commit message and the corresponding Welcome
 message at the same time, by taking the following steps:
 
-* Construct an initial Commit object with `updates`, `removes`, `adds`, and
-  `ignored` fields populated from Proposals received during the current epoch,
+* Construct an initial Commit object with `updates`, `removes`, and `adds`
+  fields populated from Proposals received during the current epoch,
   and an empty `path` field.
 
 * Generate a provisional GroupContext object by applying the proposals
@@ -2188,18 +2182,16 @@ removes.
 Regardless of how messages are kept in sequence, implementations
 MUST only update their cryptographic state when valid Commit
 messages are received.
-Generation of handshake messages MUST be stateless, since the
-endpoint cannot know at that time whether the change implied by
-the handshake message will succeed or not.
+Generation of Commit messages MUST NOT modify a client's state, since the
+endpoint doesn't know at that time whether the changes implied by
+the Commit message will succeed or not.
 
 ## Server-Enforced Ordering
 
 With this approach, the delivery service ensures that incoming
 messages are added to an ordered queue and outgoing messages are
-dispatched in the same order. The server is trusted to resolve
-conflicts during race-conditions (when two members send a message
-at the same time), as the server doesn't have any additional
-knowledge thanks to the confidentiality of the messages.
+dispatched in the same order. The server is trusted to break ties
+when two members send a Commit message at the same time.
 
 Messages should have a counter field sent in clear-text that can
 be checked by the server and used for tie-breaking. The counter
