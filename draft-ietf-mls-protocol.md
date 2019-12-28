@@ -835,12 +835,39 @@ enum {
 opaque HPKEPublicKey<1..2^16-1>;
 ~~~~~
 
-### P-256, SHA-256, and AES-GCM-128
+### Curve25519, SHA-256, and AES-128-GCM
 
 This ciphersuite uses the following primitives:
 
 * Hash function: SHA-256
-* AEAD: AES-GCM-128
+* AEAD: AES-128-GCM
+
+When HPKE is used with this ciphersuite, it uses the following
+algorithms:
+
+* KEM: 0x0002 = DHKEM(Curve25519)
+* KDF: 0x0001 = HKDF-SHA256
+* AEAD: 0x0001 = AES-GCM-128
+
+Given an octet string X, the private key produced by the
+Derive-Key-Pair operation is SHA-256(X).  (Recall that any 32-octet
+string is a valid Curve25519 private key.)  The corresponding public
+key is X25519(SHA-256(X), 9).
+
+Implementations SHOULD use the approach
+specified in {{?RFC7748}} to calculate the Diffie-Hellman shared secret.
+Implementations MUST check whether the computed Diffie-Hellman shared
+secret is the all-zero value and abort if so, as described in
+Section 6 of {{RFC7748}}.  If implementers use an alternative
+implementation of these elliptic curves, they SHOULD perform the
+additional checks specified in Section 7 of {{RFC7748}}
+
+### P-256, SHA-256, and AES-128-GCM
+
+This ciphersuite uses the following primitives:
+
+* Hash function: SHA-256
+* AEAD: AES-128-GCM
 
 When HPKE is used with this ciphersuite, it uses the following
 algorithms:
@@ -878,33 +905,6 @@ the point at infinity (O), (2) verify that for Y = (x, y) both integers
 are in the correct interval, (3) ensure that (x, y) is a correct solution
 to the elliptic curve equation. For these curves, implementers do
 not need to verify membership in the correct subgroup.
-
-### Curve25519, SHA-256, and AES-GCM-128
-
-This ciphersuite uses the following primitives:
-
-* Hash function: SHA-256
-* AEAD: AES-GCM-128
-
-When HPKE is used with this ciphersuite, it uses the following
-algorithms:
-
-* KEM: 0x0002 = DHKEM(Curve25519)
-* KDF: 0x0001 = HKDF-SHA256
-* AEAD: 0x0001 = AES-GCM-128
-
-Given an octet string X, the private key produced by the
-Derive-Key-Pair operation is SHA-256(X).  (Recall that any 32-octet
-string is a valid Curve25519 private key.)  The corresponding public
-key is X25519(SHA-256(X), 9).
-
-Implementations SHOULD use the approach
-specified in {{?RFC7748}} to calculate the Diffie-Hellman shared secret.
-Implementations MUST check whether the computed Diffie-Hellman shared
-secret is the all-zero value and abort if so, as described in
-Section 6 of {{RFC7748}}.  If implementers use an alternative
-implementation of these elliptic curves, they SHOULD perform the
-additional checks specified in Section 7 of {{RFC7748}}
 
 ## Credentials
 
