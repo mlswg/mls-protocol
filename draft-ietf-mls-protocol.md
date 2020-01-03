@@ -1157,8 +1157,13 @@ summarizes the state of the group:
 
 ~~~~~
 struct {
+  uint64 sequence_number;
+  opaque commit_hash[8];
+} EpochID;
+
+struct {
     opaque group_id<0..255>;
-    uint64 epoch;
+    EpochID epoch;
     opaque tree_hash<0..255>;
     opaque confirmed_transcript_hash<0..255>;
 } GroupContext;
@@ -1180,13 +1185,14 @@ group provides the new member with a Welcome message.  The Welcome
 message provides the information the new member needs to initialize
 its GroupContext.
 
-Different changes to the group will have different effects on the group state.
-These effects are described in their respective subsections of {{proposals}}.
-The following general rules apply:
+Each Commit message causes one or more changes to the group, as described in
+{{proposals}}.  The following general rules apply:
 
 * The `group_id` field is constant
-* The `epoch` field increments by one for each Commit message that
-  is processed
+* The `epoch` field is updated in the following way:
+  * The `sequence_number` field is incremented by one
+  * The `commit_hash` field is set to the first 8 bytes of the hash of the
+    MLSPlaintext carrying the Commit message
 * The `tree_hash` is updated to represent the current tree and
   credentials
 * The `confirmed_transcript_hash` is updated with the data for an
@@ -1195,7 +1201,7 @@ The following general rules apply:
 ~~~~~
 struct {
   opaque group_id<0..255>;
-  uint64 epoch;
+  EpochID epoch;
   Sender sender;
   ContentType content_type = commit;
   Commit commit;
@@ -1224,7 +1230,8 @@ enables existing members to incorporate a handshake message into the transcript
 without having to store the whole MLSPlaintextCommitAuthData structure.
 
 When a new group is created, the `interim_transcript_hash` field is set to the
-zero-length octet string.
+zero-length octet string.  The first epoch value contains a zero sequence number
+and an all-zero commit hash.
 
 ## Direct Paths
 
@@ -1490,7 +1497,7 @@ struct {
 
 struct {
     opaque group_id<0..255>;
-    uint64 epoch;
+    EpochID epoch;
     Sender sender;
     opaque authenticated_data<0..2^32-1>;
 
@@ -1512,7 +1519,7 @@ struct {
 
 struct {
     opaque group_id<0..255>;
-    uint64 epoch;
+    EpochID epoch;
     ContentType content_type;
     opaque authenticated_data<0..2^32-1>;
     opaque sender_data_nonce<0..255>;
@@ -1573,7 +1580,7 @@ computation is its prefix in the MLSCiphertext, namely:
 ~~~~~
 struct {
     opaque group_id<0..255>;
-    uint64 epoch;
+    EpochID epoch;
     ContentType content_type;
     opaque authenticated_data<0..2^32-1>;
     opaque sender_data_nonce<0..255>;
@@ -1600,7 +1607,7 @@ struct {
     GroupContext context;
 
     opaque group_id<0..255>;
-    uint64 epoch;
+    EpochID epoch;
     uint32 sender;
     ContentType content_type;
     opaque authenticated_data<0..2^32-1>;
@@ -1654,7 +1661,7 @@ identify the key and nonce:
 ~~~~~
 struct {
     opaque group_id<0..255>;
-    uint64 epoch;
+    EpochID epoch;
     ContentType content_type;
     opaque authenticated_data<0..2^32-1>;
     opaque sender_data_nonce<0..255>;
@@ -1863,7 +1870,7 @@ accepted within a group, the members of the group MUST be provisioned by the
 application with a mapping between these IDs and authorized signing keys.  To
 ensure consistent handling of external proposals, the application MUST ensure
 that the members of a group have the same mapping and apply the same policies to
-external proposals. 
+external proposals.
 
 An external proposal MUST be sent as an MLSPlaintext
 object, since the sender will not have the keys necessary to construct an
@@ -2051,7 +2058,7 @@ Commit.
 struct {
   // GroupContext inputs
   opaque group_id<0..255>;
-  uint64 epoch;
+  EpochID epoch;
   opaque tree_hash<0..255>;
   optional<RatchetNode> tree<1..2^32-1>;
   opaque prior_confirmed_transcript_hash<0..255>;
