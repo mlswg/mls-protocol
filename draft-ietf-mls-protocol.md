@@ -1196,7 +1196,7 @@ The following general rules apply:
 struct {
   opaque group_id<0..255>;
   uint64 epoch;
-  uint32 sender;
+  Sender sender;
   ContentType content_type = commit;
   Commit commit;
 } MLSPlaintextCommitContent;
@@ -1475,10 +1475,23 @@ enum {
     (255)
 } ContentType;
 
+enum {
+    invalid(0),
+    member(1),
+    preconfigured(2),
+    new_member(3),
+    (255)
+} SenderType;
+
+struct {
+    SenderType sender_type;
+    uint32 sender;
+} Sender;
+
 struct {
     opaque group_id<0..255>;
     uint64 epoch;
-    uint32 sender;
+    Sender sender;
     opaque authenticated_data<0..2^32-1>;
 
     ContentType content_type;
@@ -1508,35 +1521,33 @@ struct {
 } MLSCiphertext;
 ~~~~~
 
-The remainder of this section describes how to compute the signature of
-an MLSPlaintext object and how to convert it to an MLSCiphertext object.
-The overall process is as follows:
+External sender types are sent as MLSPlaintext, see {{external-proposals}}
+for their use.
 
-* Gather the required metadata:
-  * Group ID
-  * Epoch
-  * Content Type
-  * Nonce
-  * Sender index
-  * Key generation
+The remainder of this section describes how to compute the signature of an
+MLSPlaintext object and how to convert it to an MLSCiphertext object for
+`member` sender types.  The steps are:
 
-* Sign the plaintext metadata -- the group ID, epoch, sender index, and
-  content type -- as well as the authenticated data and message content
+* Set group_id, epoch, content_type and authenticated_data fields from the
+  MLSPlaintext object directly
 
-* Randomly generate sender_data_nonce and encrypt the sender information
-  using it and the key derived from the sender_data_secret
+* Randomly generate the sender_data_nonce field
 
-* Encrypt the content using a content encryption key identified by
-  the metadata
+* Identify the key and key generation depending on the content type
 
-The group identifier, epoch, content_type and authenticated data fields
-are copied from the MLSPlaintext object directly.
-The content encryption process populates the ciphertext field of the
-MLSCiphertext object.  The metadata encryption step populates the
-encrypted_sender_data field.
+* Encrypt an MLSSenderData object for the encrypted_sender_data field from
+  MLSPlaintext and the key generation
 
-Decryption follows the same step in reverse: Decrypt the
-metadata, then the message and verify the content signature.
+* Generate and sign an MLSPlaintextSignatureInput object from the MLSPlaintext
+  object
+
+* Encrypt an MLSCiphertextContent for the ciphertext field using the key
+  identified, the signature, and MLSPlaintext object
+
+Decryption is done by decrypting the metadata, then the message, and then
+verifying the content signature.
+
+The following sections describe the encryption and signing processes in detail.
 
 ## Metadata Encryption
 
@@ -1551,6 +1562,10 @@ struct {
     uint32 generation;
 } MLSSenderData;
 ~~~~~
+
+MLSSenderData.sender is assumed to be a `member` sender type.  When constructing
+an MLSSenderData from a Sender object, the sender MUST verify Sender.sender_type
+is `member` and use Sender.sender for MLSSenderData.sender.
 
 The Additional Authenticated Data (AAD) for the SenderData ciphertext
 computation is its prefix in the MLSCiphertext, namely:
@@ -1831,27 +1846,28 @@ A member of the group applies a Remove message by taking the following steps:
 Add and Remove proposals can be constructed and sent to the group by a party
 that is outside the group.  For example, a Delivery Service might propose to
 remove a member of a group has been inactive for a long time, or propose adding
-a newly-hired staff member to a group representing a real-world team. Proposals
-originating outside the group are identified by having a `sender` value in the
-range 0xFFFFFF00 - 0xFFFFFFFF.
+a newly-hired staff member to a group representing a real-world team.  Proposals
+originating outside the group are identified by an `preconfigured` or
+`new_member` SenderType in MLSPlaintext.
 
-The specific value 0xFFFFFFFF is reserved for clients proposing that they
-themselves be added.  Proposals with types other than Add MUST NOT be sent with
-this sender index.  In such cases, the MLSPlaintext MUST be signed with the
-private key corresponding to the ClientInitKey in the Add message.  Recipients
-MUST verify that the MLSPlaintext carrying the Proposal message is validly
-signed with this key.
+The `new_member` SenderType is used for clients proposing that they themselves
+be added.  For this ID type the sender value MUST be zero.  Proposals with types
+other than Add MUST NOT be sent with this sender type.  In such cases, the
+MLSPlaintext MUST be signed with the private key corresponding to the
+ClientInitKey in the Add message.  Recipients MUST verify that the MLSPlaintext
+carrying the Proposal message is validly signed with this key.
 
-The remaining values 0xFFFFFF00 - 0xFFFFFFFE are reserved for signer that are
-pre-provisioned to the clients within a group.  If proposals with these sender
-IDs are to be accepted within a group, the members of the group MUST be
-provisioned by the application with a mapping between sender indices in this
-range and authorized signing keys.  To ensure consistent handling of external
-proposals, the application MUST ensure that the members of a group have the same
-mapping and apply the same policies to external proposals.
+The `preconfigured` SenderType is reserved for signers that are pre-provisioned
+to the clients within a group.  If proposals with these sender IDs are to be
+accepted within a group, the members of the group MUST be provisioned by the
+application with a mapping between these IDs and authorized signing keys.  To
+ensure consistent handling of external proposals, the application MUST ensure
+that the members of a group have the same mapping and apply the same policies to
+external proposals. 
 
-An external proposal MUST be sent as an MLSPlaintext object, since the sender
-will not have the keys necessary to construct an MLSCiphertext object.
+An external proposal MUST be sent as an MLSPlaintext
+object, since the sender will not have the keys necessary to construct an
+MLSCiphertext object.
 
 [[ TODO: Should recognized external signers be added to some object that the
 group explicitly agrees on, e.g., as an extension to the GroupContext? ]]
