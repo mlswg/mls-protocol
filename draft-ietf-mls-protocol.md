@@ -1197,6 +1197,7 @@ struct {
   opaque group_id<0..255>;
   uint64 epoch;
   Sender sender;
+  uint32 generation;
   ContentType content_type = commit;
   Commit commit;
 } MLSPlaintextCommitContent;
@@ -1472,6 +1473,7 @@ enum {
     application(1),
     proposal(2),
     commit(3),
+    ack(4)
     (255)
 } ContentType;
 
@@ -1492,6 +1494,7 @@ struct {
     opaque group_id<0..255>;
     uint64 epoch;
     Sender sender;
+    uint32 generation;
     opaque authenticated_data<0..2^32-1>;
 
     ContentType content_type;
@@ -1505,6 +1508,9 @@ struct {
         case commit:
           Commit commit;
           opaque confirmation<0..255>;
+
+        case ack:
+          Ack ack;
     }
 
     opaque signature<0..2^16-1>;
@@ -1601,7 +1607,8 @@ struct {
 
     opaque group_id<0..255>;
     uint64 epoch;
-    uint32 sender;
+    Sender sender;
+    uint32 generation;
     ContentType content_type;
     opaque authenticated_data<0..2^32-1>;
 
@@ -1863,7 +1870,7 @@ accepted within a group, the members of the group MUST be provisioned by the
 application with a mapping between these IDs and authorized signing keys.  To
 ensure consistent handling of external proposals, the application MUST ensure
 that the members of a group have the same mapping and apply the same policies to
-external proposals. 
+external proposals.
 
 An external proposal MUST be sent as an MLSPlaintext
 object, since the sender will not have the keys necessary to construct an
@@ -2135,6 +2142,44 @@ On receiving a Welcome message, a client processes it using the following steps:
 
 * Verify the confirmation MAC in the GroupInfo using the derived confirmation
   key and the `confirmed_transcript_hash` from the GroupInfo.
+
+# Acknowledgements
+
+Message transport can be unreliable, so it is sometimes useful for clients to
+acknowledge receipt of MLS messages.  The Ack message allows clients to report
+on what they have and have not received from a given sender in a given epoch.
+
+~~~~~
+struct {
+  uint64 epoch;
+  uint32 sender;
+  uint32 last_generation;
+  uint32 missing<0..2^16-1>;
+} Ack;
+~~~~~
+
+The `last_generation` field indicates the highest `generation` value from a
+message that the client has received from the specified sender, in the indicated
+epoch.  The `missing` values reflect any generation values between zero and
+`last_generation` that the client has not received.  In other words, the client
+sending an Ack message indicates that it has received messages with generation 0
+through `last_generation`, except for the `missing` values.
+
+Ack messages SHOULD be protected in the same way as Proposal and Commit
+messages.  If Proposal and Commit messages are being encrypted, then Ack
+messages should be too.  Ack messages are encrypted using the handshake key
+schedule for the latest epoch (see {{encryption-keys}}), just as a Proposal or
+Commit would be.
+
+Non-Ack messages MUST be processed before being acknowledged.  In particular,
+the acknowledgement of a Commit will be sent in the new epoch initiated by the
+Commit.  As a result, the `epoch` value in the Ack message will differ from the
+`epoch` value in the enclosing MLSPlaintext, since the Ack will be describing
+about the epoch before the epoch in which it was sent.
+
+The precise schedule of when Acks are sent is up to the application.  Clients
+SHOULD send Acks in response to Commit messages, so that other members of the
+group can delete old epochs that will no longer be used.
 
 # Sequencing of State Changes {#sequencing}
 
