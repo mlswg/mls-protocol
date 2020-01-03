@@ -1524,35 +1524,30 @@ struct {
 External sender types are sent as MLSPlaintext, see {{external-proposals}}
 for their use.
 
-The remainder of this section describes how to compute the signature of
-an MLSPlaintext object and how to convert it to an MLSCiphertext object
-for `member` sender types. The steps are:
+The remainder of this section describes how to compute the signature of an
+MLSPlaintext object and how to convert it to an MLSCiphertext object for
+`member` sender types.  The steps are:
 
-* Gather the required metadata:
-  * Group ID
-  * Epoch
-  * Content Type
-  * Nonce
-  * Sender index
-  * Key generation
+* Set group_id, epoch, content_type and authenticated_data fields from the
+  MLSPlaintext object directly
 
-* Sign the plaintext metadata -- the group ID, epoch, sender index, and
-  content type -- as well as the authenticated data and message content
+* Randomly generate the sender_data_nonce field
 
-* Randomly generate sender_data_nonce and encrypt the sender information
-  using it and the key derived from the sender_data_secret
+* Identify the key and key generation depending on the content type
 
-* Encrypt the content using a content encryption key identified by
-  the metadata
+* Encrypt an MLSSenderData object for the encrypted_sender_data field from
+  MLSPlaintext and the key generation
 
-The group identifier, epoch, content_type and authenticated data fields
-are copied from the MLSPlaintext object directly.
-The content encryption process populates the ciphertext field of the
-MLSCiphertext object.  The metadata encryption step populates the
-encrypted_sender_data field.
+* Generate and sign an MLSPlaintextSignatureInput object from the MLSPlaintext
+  object
 
-Decryption follows the same step in reverse: Decrypt the
-metadata, then the message and verify the content signature.
+* Encrypt an MLSCiphertextContent for the ciphertext field using the key
+  identified, the signature, and MLSPlaintext object
+
+Decryption is done by decrypting the metadata, then the message, and then
+verifying the content signature.
+
+The following sections describe the encryption and signing processes in detail.
 
 ## Metadata Encryption
 
@@ -1567,6 +1562,10 @@ struct {
     uint32 generation;
 } MLSSenderData;
 ~~~~~
+
+MLSSenderData.sender is assumed to be a `member` sender type.  When constructing
+an MLSSenderData from a Sender object, the sender MUST verify Sender.sender_type
+is `member` and use Sender.sender for MLSSenderData.sender.
 
 The Additional Authenticated Data (AAD) for the SenderData ciphertext
 computation is its prefix in the MLSCiphertext, namely:
