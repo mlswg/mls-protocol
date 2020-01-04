@@ -278,7 +278,8 @@ Initialization Key:
   each client, called their ClientInitKeys.
 
 Leaf Key:
-: The secret associated with the member's leaf key in the group's
+: An HPKE key pair that can be used to encrypt to a specific client,
+  so called because members' leaf keys are the leaves in the group's
   ratchet tree.
 
 Identity Key:
@@ -324,8 +325,10 @@ We describe the information stored by each client as _state_, which includes
 both public and private data. An initial state is set up by a group creator,
 which is a group containing only themself. The creator then sends _Add_
 proposals for each client in the initial set of members, followed by a _Commit_
-message which incorporates all of the _Adds_ into the group state. All the
-members of the group can then set up their own group state and derive a shared
+message which incorporates all of the _Adds_ into the group state. Finally, the
+group creator generates a _Welcome_ message corresponding to the Commit and
+sends this directly to all the new members, who can use the information
+it contains to set up their own group state and derive a shared
 secret. Members exchange messages for post-compromise security, to add new
 members, and to remove existing members. These messages produce new shared
 secrets which are causally linked to their predecessors, forming a logical
