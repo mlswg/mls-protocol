@@ -1083,7 +1083,7 @@ recursively, starting with the leaves.
 
 While hashes at the nodes are used to check the integrity of the
 subtrees, signatures are required to provide authentication and
-group agreement. Siganatures are especially important in the case of
+group agreement. Signatures are especially important in the case of
 newcomers and MUST be verified when joining. All nodes in the tree
 MUST be signed to provide authentication and group agreement.
 
@@ -1104,8 +1104,8 @@ enum { clientInitKey, parentNode } nodeType;
 
 struct {
     select(nodeType) {
-        case clientInitKey: optional<ParentNode> node;
-        case parentNode:    optional<ClientInitKey> client_init_key;
+        case clientInitKey: optional<ClientInitKey> client_init_key;
+        case parentNode:    optional<ParentNode> node;
     }
 } RatchetNode;
 
