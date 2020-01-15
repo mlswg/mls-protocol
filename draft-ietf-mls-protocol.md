@@ -264,8 +264,6 @@ Client:
   cryptographic keys it holds.  An application or user may use one client
   per device (keeping keys local to each device) or sync keys among
   a user's devices so that each user appears as a single client.
-  In the scenario where multiple devices share the cryptographic material
-  the client is referred to as a "virtual" client.
 
 Group:
 : A collection of clients with shared cryptographic state.
@@ -277,12 +275,12 @@ Member:
 Initialization Key:
 : A short-lived HPKE key pair used to introduce a new
   client to a group.  Initialization keys are published for
-  each client (ClientInitKey).
+  each client, called their ClientInitKeys.
 
 Leaf Key:
-: A secret that represents a member's contribution to the group secret
-  (so called because the members' leaf keys are the leaves in the
-  group's ratchet tree).
+: An HPKE key pair that can be used to encrypt to a specific client,
+  so called because members' leaf keys are the leaves in the group's
+  ratchet tree.
 
 Identity Key:
 : A long-lived signing key pair used to authenticate the sender of a
@@ -320,19 +318,21 @@ the MS provides the following services:
 The goal of this protocol is to allow a group of clients to exchange
 confidential and authenticated messages. It does so by deriving a sequence
 of secrets and keys known only to members. Those should be secret against an
-active network adversary and should have both forward and post-compromise
-secrecy with respect to compromise of a participant.
+active network adversary and should have both forward secrecy and
+post-compromise security with respect to compromise of any members.
 
-We describe the information stored by each client as a _state_, which
-includes both public and private data. An initial state, including an initial
-set of clients, is set up by a group creator using the _Init_ algorithm and
-based on information pre-published by clients. The creator sends the _Init_
-message to the clients, who can then set up their own group state and derive
-the same shared secret. Clients then exchange messages to produce new shared
-states which are causally linked to their predecessors, forming a logical
+We describe the information stored by each client as _state_, which includes
+both public and private data. An initial state is set up by a group creator,
+which is a group containing only themself. The creator then sends _Add_
+proposals for each client in the initial set of members, followed by a _Commit_
+message which incorporates all of the _Adds_ into the group state. Finally, the
+group creator generates a _Welcome_ message corresponding to the Commit and
+sends this directly to all the new members, who can use the information
+it contains to set up their own group state and derive a shared
+secret. Members exchange messages for post-compromise security, to add new
+members, and to remove existing members. These messages produce new shared
+secrets which are causally linked to their predecessors, forming a logical
 Directed Acyclic Graph (DAG) of states.
-Members can send _Commit_ messages for post-compromise secrecy and new clients
-can be added or existing members removed from the group.
 
 The protocol algorithms we specify here follow. Each algorithm specifies
 both (i) how a client performs the operation and (ii) how other clients
@@ -352,7 +352,7 @@ deployment cases, an application might gather several proposals before
 committing them all at once.
 
 Before the initialization of a group, clients publish ClientInitKey
-objects to a directory provided to the Messaging Service.
+objects to a directory provided by the Messaging Service.
 
 ~~~~~
                                                                Group
@@ -375,7 +375,7 @@ containing only itself and uses the ClientInitKeys to compute Welcome and Add
 messages to add B and C, in a sequence chosen by A.  The Welcome messages are
 sent directly to the new members (there is no need to send them to
 the group).
-The Add messages are broadcasted to the group, and processed in sequence
+The Add messages are broadcast to the group, and processed in sequence
 by B and C.  Messages received before a client has joined the
 group are ignored.  Only after A has received its Add messages
 back from the server does it update its state to reflect their addition.
@@ -418,21 +418,20 @@ A              B              C          Directory            Channel
 ~~~~~
 
 Subsequent additions of group members proceed in the same way.  Any
-member of the group can download an ClientInitKey for a new client
+member of the group can download a ClientInitKey for a new client
 and broadcast an Add message that the current group can use to update
-their state and the new client can use to initialize its state.
+their state and a Welcome message that the new client can use to
+initialize its state.
 
 To enforce forward secrecy and post-compromise security of messages,
-each member periodically updates its leaf secret which represents its
-contribution to the group secret and its member information. Any
-member can update this information at any time by generating a fresh
-ClientInitKey and sending a Commit message. Once all members have
-processed this message, the group's secrets will be unknown to an
+each member periodically updates their leaf secret and other metadata.
+Any member can update this information at any time by generating a fresh
+ClientInitKey and sending an Update message followed by a Commit message.
+Once all members have processed both, the group's secrets will be unknown to an
 attacker that had compromised the sender's prior leaf secret.
 
-It is left to the application to determine the interval of time
-between Commit messages. This policy could require a Commit with each
-message, or require sending an update regularly.
+It is left to the application to determine a policy for regularly sending
+Update messages.
 
 ~~~~~
                                                           Group
@@ -452,16 +451,14 @@ A              B     ...      Z          Directory        Channel
 |              |              |              |              |
 ~~~~~
 
-Members are removed from the group in a similar way, as a Commit
-is effectively removing the old leaf from the group.
-Any member of the group can generate a Remove proposal followed by a
-Commit message that adds new
-entropy to the group state that is known to all members except the
-removed member.  After other participants have processed this message,
-the group's secrets will be unknown to the removed participant.
+Members are removed from the group in a similar way.
+Any member of the group can send a Remove message followed by a
+Commit message, which adds new
+entropy to the group state that's known to all except the
+removed member.
 Note that this does not necessarily imply that any member
-is actually allowed to evict other members; groups can layer
-authentication-based access control policies on top of these
+is actually allowed to evict other members; groups can
+enforce access control policies on top of these
 basic mechanism.
 
 ~~~~~
@@ -514,11 +511,15 @@ any other full subtree, then it is _maximal_.
 A binary tree is _left-balanced_ if for every
 parent, either the parent is balanced, or the left subtree of that
 parent is the largest full subtree that could be constructed from
-the leaves present in the parent's own subtree.  Note
-that given a list of `n` items, there is a unique left-balanced
+the leaves present in the parent's own subtree.
+Given a list of `n` items, there is a unique left-balanced
 binary tree structure with these elements as leaves.  In such a
 left-balanced tree, the `k-th` leaf node refers to the `k-th` leaf
 node in the tree when counting from the left, starting from 0.
+
+(Note that left-balanced binary trees are the same structure that is
+used for the Merkle trees in the Certificate Transparency protocol
+{{?I-D.ietf-trans-rfc6962-bis}}.)
 
 The _direct path_ of a root is the empty list, and of any other node
 is the concatenation of that node with the direct path of its
@@ -548,7 +549,7 @@ A   B   C   D   E   F   G
 0 1 2 3 4 5 6 7 8 9 0 1 2
 ~~~~~
 
-Each node in the tree is assigned an _node index_, starting at zero and
+Each node in the tree is assigned a _node index_, starting at zero and
 running from left to right.  A node is a leaf node if and only if it
 has an even index.  The node indices for the nodes in the above tree
 are as follows:
@@ -566,10 +567,6 @@ are as follows:
 * 10 = F
 * 11 = EFG
 * 12 = G
-
-(Note that left-balanced binary trees are the same structure that is
-used for the Merkle trees in the Certificate Transparency protocol
-{{?I-D.ietf-trans-rfc6962-bis}}.)
 
 The leaves of the tree are indexed separately, using a _leaf index_,
 since the protocol messages only need to refer to leaves in the
@@ -591,15 +588,14 @@ node index.  The leaf indices in the above tree are as follows:
 A particular instance of a ratchet tree is based on the following
 cryptographic primitives, defined by the ciphersuite in use:
 
-* An HPKE ciphersuite, which specifies a Key Encapsulation Method
+* An HPKE ciphersuite, which specifies a Key Encapsulation Mechanism
   (KEM), an AEAD encryption scheme, and a hash function
 * A Derive-Key-Pair function that produces an asymmetric key pair
-  for the specified KEM from a symmetric secret, using the specified
-  hash function.
+  for the specified KEM from a symmetric secret
 
 Each node in a ratchet tree contains up to four values:
 
-* A private key (only within direct path, see below)
+* A private key (only within the member's direct path, see below)
 * A public key
 * An ordered list of leaf indices for "unmerged" leaves (see
   {{views}})
@@ -653,10 +649,9 @@ up-to-date view of the public state of the group's ratchet tree,
 including the public keys for all nodes and the credentials
 associated with the leaf nodes.
 
-No participant in an MLS group has full knowledge of the secret
-state of the tree, i.e., private keys associated with
-the nodes.  Instead, each member is assigned to a leaf of the tree,
-which determines the set of secret state known to the member.  The
+No participant in an MLS group knows the private key associated with
+every node in the tree. Instead, each member is assigned to a leaf of the tree,
+which determines the subset of private keys it knows. The
 credential stored at that leaf is one provided by the member.
 
 In particular, MLS maintains the members' views of the tree in such
@@ -664,10 +659,10 @@ a way as to maintain the _tree invariant_:
 
     The private key for a node in the tree is known to a member of
     the group only if that member's leaf is a descendant of
-    the node or equal to it.
+    the node.
 
-In other words, if a node is not blank, then it holds a key pair, and
-the private key of that key pair is known only to members holding
+In other words, if a node is not blank, then it holds a public key.
+The corresponding private key is known only to members occupying
 leaves below that node.
 
 The reverse implication is not true: A member may not know the private keys of
@@ -681,10 +676,10 @@ they receive the private keys for nodes, as described in
 
 ## Ratchet Tree Evolution
 
-When performing a Commit, the leaf ClientInitKey of the commiter and
+When performing a Commit, the leaf ClientInitKey of the committer and
 its direct path to the root are updated with new secret values.  The
 HPKE leaf public key within the ClientInitKey MUST be a freshly
-generated value to provide better Post-Compromise Secrecy.
+generated value to provide post-compromise security.
 
 
 The generator of the Commit starts by using the HPKE secret key
@@ -768,7 +763,7 @@ leaf, including the root:
 * A signature over the node content
 
 The path secret value for a given node is encrypted for the subtree
-corresponding to the parent's non-updated child, i.e., the child
+corresponding to the parent's non-updated child, that is, the child
 on the copath of the leaf node.
 There is one encrypted path secret for each public key in the resolution
 of the non-updated child.  In particular, for the leaf node, there
@@ -918,7 +913,7 @@ not need to verify membership in the correct subgroup.
 
 A member of a group authenticates the identities of other
 participants by means of credentials issued by some authentication
-system, e.g., a PKI.  Each type of credential MUST express the
+system, like a PKI.  Each type of credential MUST express the
 following data:
 
 * The public key of a signature key pair
@@ -1173,7 +1168,7 @@ The fields in this state have the following semantics:
   group's ratchet tree and the credentials for the members of the
   group, as described in {{tree-hashes-and-signatures}}.
 * The `confirmed_transcript_hash` field contains a running hash over
-  the handshake messages that led to this state.
+  the Commit messages that led to this state.
 
 When a new member is added to the group, an existing member of the
 group provides the new member with a Welcome message.  The Welcome
@@ -1220,7 +1215,7 @@ transcript over the whole history of MLSPlaintext Commit messages, up to the
 confirmation field in the current MLSPlaintext message.  The confirmation and
 signature fields are then included in the transcript for the next epoch.  The
 interim transcript hash is passed to new members in the WelcomeInfo struct, and
-enables existing members to incorporate a handshake message into the transcript
+enables existing members to incorporate a Commit message into the transcript
 without having to store the whole MLSPlaintextCommitAuthData structure.
 
 When a new group is created, the `interim_transcript_hash` field is set to the
@@ -1590,7 +1585,7 @@ MUST be less than the number of leaves in the tree.
 The signature field in an MLSPlaintext object is computed using the
 signing private key corresponding to the credential at the leaf in
 the tree indicated by the sender field.  The signature covers the
-plaintext metadata and message content, i.e., all fields of
+plaintext metadata and message content, which is all of
 MLSPlaintext except for the `signature` field.  The signature also covers the
 GroupContext for the current epoch, so that signatures are specific to a given
 group and epoch.
@@ -1891,7 +1886,7 @@ sender has received during the current epoch.  Invalid Proposals include, for
 example, Proposals with an invalid signature or Proposals that are semantically
 inconsistent, such as a Remove proposal for an unoccupied leaf. The Commit MUST
 NOT combine Proposals sent within different epochs.  Despite these requirements,
-it is still possible for a valid Proposal not to be covered by a Commit, e.g.,
+it is still possible for a valid Proposal not to be covered by a Commit, for example,
 because the sender of the Commit did not receive the Proposal.  In such cases,
 the sender of the proposal can retransmit the Proposal in the new epoch.
 In the case where a committer is processing Proposals where an Update
@@ -2110,7 +2105,7 @@ On receiving a Welcome message, a client processes it using the following steps:
   public key and algorithm are taken from the credential in the leaf node at
   position `signer_index`.  If this verification fails, return an error.
 
-* Identify a leaf in the `tree` array (i.e., an even-numbered node) whose
+* Identify a leaf in the `tree` array (any even-numbered node) whose
   `public_key` and `credential` fields are identical to the corresponding fields
   in the ClientInitKey.  If no such field exists, return an error.  Let `index`
   represent the index of this node among the leaves in the tree, namely the
@@ -2145,35 +2140,35 @@ On receiving a Welcome message, a client processes it using the following steps:
 regarding sequencing.  It would be good to have some more detailed
 discussion, and hopefully have a mechanism to deal with this issue. ]]
 
-Each handshake message is premised on a given starting state,
+Each Commit message is premised on a given starting state,
 indicated in its `prior_epoch` field.  If the changes implied by a
-handshake messages are made starting from a different state, the
+Commit messages are made starting from a different state, the
 results will be incorrect.
 
 This need for sequencing is not a problem as long as each time a
-group member sends a handshake message, it is based on the most
+group member sends a Commit message, it is based on the most
 current state of the group.  In practice, however, there is a risk
-that two members will generate handshake messages simultaneously,
+that two members will generate Commit messages simultaneously,
 based on the same state.
 
 When this happens, there is a need for the members of the group to
-deconflict the simultaneous handshake messages.  There are two
+deconflict the simultaneous Commit messages.  There are two
 general approaches:
 
 * Have the delivery service enforce a total order
 * Have a signal in the message that clients can use to break ties
 
-As long as handshake messages cannot be merged, there is a risk of
+As long as Commit messages cannot be merged, there is a risk of
 starvation.  In a sufficiently busy group, a given member may never
-be able to send a handshake message, because he always loses to other
+be able to send a Commit message, because he always loses to other
 members.  The degree to which this is a practical problem will depend
 on the dynamics of the application.
 
 It might be possible, because of the non-contributivity of intermediate
 nodes, that Commit messages could be applied one after the other
-without the Delivery Service having to reject any handshake message,
+without the Delivery Service having to reject any Commit message,
 which would make MLS more resilient regarding the concurrency of
-handshake messages.
+Commit messages.
 The Messaging system can decide to choose the order for applying
 the state changes. Note that there are certain cases (if no total
 ordering is applied by the Delivery Service) where the ordering is
@@ -2181,20 +2176,18 @@ important for security, ie. all updates must be executed before
 removes.
 
 Regardless of how messages are kept in sequence, implementations
-MUST only update their cryptographic state when valid handshake
+MUST only update their cryptographic state when valid Commit
 messages are received.
-Generation of handshake messages MUST be stateless, since the
-endpoint cannot know at that time whether the change implied by
-the handshake message will succeed or not.
+Generation of Commit messages MUST not modify a client's state, since the
+endpoint doesn't know at that time whether the changes implied by
+the Commit message will succeed or not.
 
 ## Server-Enforced Ordering
 
 With this approach, the delivery service ensures that incoming
 messages are added to an ordered queue and outgoing messages are
-dispatched in the same order. The server is trusted to resolve
-conflicts during race-conditions (when two members send a message
-at the same time), as the server doesn't have any additional
-knowledge thanks to the confidentiality of the messages.
+dispatched in the same order. The server is trusted to break ties
+when two members send a Commit message at the same time.
 
 Messages should have a counter field sent in clear-text that can
 be checked by the server and used for tie-breaking. The counter
@@ -2358,9 +2351,8 @@ as well as any secret in the AS Tree or one of the ratchets.
 
 As soon as a group member consumes a value they MUST immediately delete
 (all representations of) that value. This is crucial to ensuring
-Forward Secrecy for past messages. Members MAY keep unconsumed values around
-for some reasonable amount of time even if their generating secret was
-already consumed (e.g. due to out of order message delivery).
+forward secrecy for past messages. Members MAY keep unconsumed values around
+for some reasonable amount of time to handle out-of-order message delivery.
 
 For example, suppose a group member encrypts or (successfully) decrypts a
 message using the j-th key and nonce in the i-th ratchet. Then, for that
@@ -2395,8 +2387,8 @@ A0  B0  C0  D0 -+- KD0
 
 Then if a client uses key KD1 and nonce ND1 during epoch n then it must consume
 (at least) values G, F, D0, D1, KD1, ND1 as well as the `commit_secret` and
-init_secret used to derive G (i.e. the application_secret).  The
-client MAY retain (i.e., not consume) the values KD0 and ND0 to
+init_secret used to derive G (the application_secret).  The
+client MAY retain (not consume) the values KD0 and ND0 to
 allow for out-of-order delivery, and SHOULD retain D2 to allow for
 processing future messages.
 
