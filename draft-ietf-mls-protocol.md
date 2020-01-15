@@ -275,7 +275,7 @@ Member:
 Initialization Key:
 : A short-lived HPKE key pair used to introduce a new
   client to a group.  Initialization keys are published for
-  each client, called their ClientInitKeys.
+  each client and are called their ClientInitKeys.
 
 Leaf Key:
 : An HPKE key pair that can be used to encrypt to a specific client,
@@ -329,7 +329,7 @@ message which incorporates all of the _Adds_ into the group state. Finally, the
 group creator generates a _Welcome_ message corresponding to the Commit and
 sends this directly to all the new members, who can use the information
 it contains to set up their own group state and derive a shared
-secret. Members exchange messages for post-compromise security, to add new
+secret. Members exchange Commit messages for post-compromise security, to add new
 members, and to remove existing members. These messages produce new shared
 secrets which are causally linked to their predecessors, forming a logical
 Directed Acyclic Graph (DAG) of states.
@@ -424,14 +424,15 @@ their state and a Welcome message that the new client can use to
 initialize its state.
 
 To enforce forward secrecy and post-compromise security of messages,
-each member periodically updates their leaf secret and other metadata.
+each member periodically updates their leaf secret.
 Any member can update this information at any time by generating a fresh
 ClientInitKey and sending an Update message followed by a Commit message.
 Once all members have processed both, the group's secrets will be unknown to an
 attacker that had compromised the sender's prior leaf secret.
 
 It is left to the application to determine a policy for regularly sending
-Update messages.
+Update messages. This policy can be as strong as requiring an Update+Commit
+after each application message, or weaker, such as once every hour, day...
 
 ~~~~~
                                                           Group
@@ -452,10 +453,9 @@ A              B     ...      Z          Directory        Channel
 ~~~~~
 
 Members are removed from the group in a similar way.
-Any member of the group can send a Remove message followed by a
-Commit message, which adds new
-entropy to the group state that's known to all except the
-removed member.
+Any member of the group can send a Remove proposal followed by a
+Commit message, which adds new entropy to the group state
+that's known to all except the removed member.
 Note that this does not necessarily imply that any member
 is actually allowed to evict other members; groups can
 enforce access control policies on top of these
@@ -1168,7 +1168,7 @@ The fields in this state have the following semantics:
   group's ratchet tree and the credentials for the members of the
   group, as described in {{tree-hashes-and-signatures}}.
 * The `confirmed_transcript_hash` field contains a running hash over
-  the Commit messages that led to this state.
+  the messages that led to this state.
 
 When a new member is added to the group, an existing member of the
 group provides the new member with a Welcome message.  The Welcome
@@ -1861,7 +1861,7 @@ accepted within a group, the members of the group MUST be provisioned by the
 application with a mapping between these IDs and authorized signing keys.  To
 ensure consistent handling of external proposals, the application MUST ensure
 that the members of a group have the same mapping and apply the same policies to
-external proposals. 
+external proposals.
 
 An external proposal MUST be sent as an MLSPlaintext
 object, since the sender will not have the keys necessary to construct an
@@ -2105,7 +2105,7 @@ On receiving a Welcome message, a client processes it using the following steps:
   public key and algorithm are taken from the credential in the leaf node at
   position `signer_index`.  If this verification fails, return an error.
 
-* Identify a leaf in the `tree` array (any even-numbered node) whose
+* Identify a leaf in the `tree` array whose
   `public_key` and `credential` fields are identical to the corresponding fields
   in the ClientInitKey.  If no such field exists, return an error.  Let `index`
   represent the index of this node among the leaves in the tree, namely the
@@ -2178,16 +2178,18 @@ removes.
 Regardless of how messages are kept in sequence, implementations
 MUST only update their cryptographic state when valid Commit
 messages are received.
-Generation of Commit messages MUST not modify a client's state, since the
-endpoint doesn't know at that time whether the changes implied by
-the Commit message will succeed or not.
+Generation of handshake messages MUST be stateless, since the
+endpoint cannot know at that time whether the change implied by
+the handshake message will succeed or not.
 
 ## Server-Enforced Ordering
 
 With this approach, the delivery service ensures that incoming
 messages are added to an ordered queue and outgoing messages are
-dispatched in the same order. The server is trusted to break ties
-when two members send a Commit message at the same time.
+dispatched in the same order. The server is trusted to resolve
+conflicts during race-conditions (when two members send a message
+at the same time), as the server doesn't have any additional
+knowledge thanks to the confidentiality of the messages.
 
 Messages should have a counter field sent in clear-text that can
 be checked by the server and used for tie-breaking. The counter
