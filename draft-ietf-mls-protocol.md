@@ -1379,7 +1379,7 @@ As described in {{message-framing}}, MLS encrypts three different
 types of information:
 
 * Metadata (sender information)
-* Handshake messages (e.g., Proposal and Commit)
+* Handshake messages (Proposal and Commit)
 * Application messages
 
 The sender information used to look up the key for the content encryption
@@ -1406,7 +1406,7 @@ handshake_secret_[sender]_[0] =
     HKDF-Expand-Label(handshake_secret, "hs", [sender], nonce_length)
 ~~~~~
 
-The based secret of for each sender is used to initiate a symmetric hash ratchet
+The base secret of for each sender is used to initiate a symmetric hash ratchet
 which generates a sequence of keys and nonces. The sender uses the j-th
 key/nonce pair in the sequence to encrypt (using the AEAD) the j-th message they
 send during that epoch.  In particular, each key/nonce pair MUST NOT be used to
