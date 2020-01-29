@@ -1005,6 +1005,7 @@ enum {
     supported_versions(1),
     supported_ciphersuites(2),
     expiration(3),
+    key_id(4),
     (65535)
 } ExtensionType;
 
@@ -1014,8 +1015,7 @@ struct {
 } Extension;
 
 struct {
-    ProtocolVersion supported_version;
-    opaque client_init_key_id<0..255>;
+    ProtocolVersion version;
     CipherSuite cipher_suite;
     HPKEPublicKey hpke_init_key;
     Credential credential;
@@ -1065,6 +1065,16 @@ an expiration time.  In particular, applications that rely on "last resort"
 ClientInitKeys to ensure continued reachability may choose to omit the
 expiration extension from these keys, or give them much longer lifetimes than
 other ClientInitKeys.
+
+## ClientInitKey Identifiers
+
+Within MLS, a ClientInitKey is identified by its hash (see, e.g.,
+{{welcoming-new-members}}).  The `key_id` extension allows applications to add
+an explicit, application-defined identifier to a ClientInitKey.
+
+~~~~~
+opaque key_id<0..2^16-1>;
+~~~~~
 
 ## Tree Hashes and Signatures
 
