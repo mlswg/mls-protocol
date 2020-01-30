@@ -522,14 +522,15 @@ used for the Merkle trees in the Certificate Transparency protocol
 {{?I-D.ietf-trans-rfc6962-bis}}.)
 
 The _direct path_ of a root is the empty list, and of any other node
-is the concatenation of that node with the direct path of its
-parent. The _copath_ of a node is the list of siblings of nodes in its
+is the concatenation of that node's parent along with the parent's direct path.
+The _copath_ of a node is the node's sibling concatenated with the list of
+siblings of all the nodes in its
 direct path. The _frontier_ of a tree is the list of heads of the maximal
 full subtrees of the tree, ordered from left to right.
 
 For example, in the below tree:
 
-* The direct path of C is (C, CD, ABCD)
+* The direct path of C is (CD, ABCD, ABCDEFG)
 * The copath of C is (D, AB, EFG)
 * The frontier of the tree is (ABCD, EF, G)
 
@@ -765,8 +766,7 @@ The path secret value for a given node is encrypted for the subtree
 corresponding to the parent's non-updated child, that is, the child
 on the copath of the leaf node.
 There is one encrypted path secret for each public key in the resolution
-of the non-updated child.  In particular, for the leaf node, there
-are no encrypted secrets, since a leaf node has no children.
+of the non-updated child.
 
 The recipient of a path update processes it with the following steps:
 
