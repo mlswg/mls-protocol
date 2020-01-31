@@ -1331,6 +1331,9 @@ proceeds as shown in the following diagram:
                      V
 commit_secret -> HKDF-Extract = epoch_secret
                      |
+                     +--> HKDF-Expand(., "mls 1.0 welcome", Hash.length)
+                     |    = welcome_secret
+                     |
                      +--> Derive-Secret(., "sender data", GroupContext_[n])
                      |    = sender_data_secret
                      |
@@ -2075,7 +2078,7 @@ struct {
 } GroupInfo;
 
 struct {
-  opaque init_secret<1..255>;
+  opaque epoch_secret<1..255>;
 } KeyPackage;
 
 struct {
@@ -2106,9 +2109,15 @@ On receiving a Welcome message, a client processes it using the following steps:
 * Decrypt the `encrypted_key_package` using HPKE with the algorithms indicated
   by the ciphersuite and the HPKE private key corresponding to the ClientInitKey.
 
-* From the `init_secret` in the decrypted KeyPackage object, derive the
-  `group_info_secret`, `group_info_key`, and `group_info_nonce`.  Use the key
+* From the `epoch_secret` in the decrypted KeyPackage object, derive the
+  `welcome_secret`, `welcome_key`, and `welcome_nonce`.  Use the key
   and nonce to decrypt the `encrypted_group_info` field.
+
+~~~~~
+welcome_secret = HKDF-Expand(epoch_secret, "mls 1.0 welcome", Hash.length)
+welcome_nonce = HKDF-Expand(welcome_secret, "nonce", nonce_length)
+welcome_key = HKDF-Expand(welcome_secret, "key", key_length)
+~~~~~
 
 * Verify the signature on the GroupInfo object.  The signature input comprises
   all of the fields in the GroupInfo object except the signature field.  The
@@ -2134,8 +2143,7 @@ On receiving a Welcome message, a client processes it using the following steps:
    * The `commit_secret` is the value `path_secret[n+1]` derived from the
      `path_secret[n]` value associated to the root node.
 
-* Use the `init_secret` from the KeyPackage object together with the decrypted
-  `commit_secret` to generate the epoch secret and other derived secrets for the
+* Use the `epoch_secret` from the KeyPackage object to generate the epoch secret and other derived secrets for the
   current epoch.
 
 * Set the confirmed transcript hash in the new state to the value of the
