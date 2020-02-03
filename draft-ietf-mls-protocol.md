@@ -809,6 +809,7 @@ following primitives to be used in group key computations:
 * A hash function
 * A Diffie-Hellman finite-field group or elliptic curve group
 * An AEAD encryption algorithm {{!RFC5116}}
+* A signature algorithm
 
 The ciphersuite's Diffie-Hellman group is used to instantiate an HPKE
 {{!I-D.irtf-cfrg-hpke}} instance for the purpose of public-key encryption.
@@ -2446,6 +2447,8 @@ Cipher suite names follow the naming convention:
    CipherSuite MLS_LVL_KEM_AEAD_HASH_SIG = VALUE;
 ~~~
 
+Where VALUE is a 16bit unsigned integer.
+
 | Component | Contents |
 |:----------|:---------|
 | MLS       | The string "MLS" followed by the major and minor version, e.g. "MLS10" |
@@ -2457,14 +2460,14 @@ Cipher suite names follow the naming convention:
 
 This specification defines the following cipher suites for use with MLS 1.0.
 
-|          Description                                |    Value    |
-|:----------------------------------------------------|:------------|
-| MLS10_128_HPKEX25519_AES128GCM_SHA256_Ed25519       | {0x00,0x01} |
-| MLS10_128_HPKEP256_AES128GCM_SHA256_P256            | {0x00,0x02} |
-| MLS10_128_HPKEX25519_CHACHA20POLY1305_SHA256_Ed25519| {0x00,0x03} |
-| MLS10_256_HPKEX448_AES256GCM_SHA512_Ed448           | {0x00,0x04} |
-| MLS10_256_HPKEP521_AES256GCM_SHA512_P521            | {0x00,0x05} |
-| MLS10_256_HPKEX448_CHACHA20POLY1305_SHA512_Ed448    | {0x00,0x06} |
+|          Description                                  |    Value    |
+|:------------------------------------------------------|:------------|
+| MLS10_128_DHKEMX25519_AES128GCM_SHA256_Ed25519        | 0x0001 |
+| MLS10_128_DHKEMP256_AES128GCM_SHA256_P256             | 0x0002 |
+| MLS10_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519 | 0x0003 |
+| MLS10_256_DHKEMX448_AES256GCM_SHA512_Ed448            | 0x0004 |
+| MLS10_256_DHKEMP521_AES256GCM_SHA512_P521             | 0x0005 |
+| MLS10_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     | 0x0006 |
 
 The KEM/DEM constructions used for HPKE are defined by {{HPKE}}.
 The corresponding AEAD algorithms AEAD_AES_128_GCM and AEAD_AES_256_GCM, are
