@@ -825,7 +825,7 @@ information).
 opaque HPKEPublicKey<1..2^16-1>;
 ~~~~~
 
-The ciphersuites are defined in section {{MLS Ciphersuites}}.
+The ciphersuites are defined in section {{mls-ciphersuites}}.
 
 ### Notes on Diffie-Hellman groups
 
