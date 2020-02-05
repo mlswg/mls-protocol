@@ -2152,7 +2152,7 @@ welcome_key = HKDF-Expand(welcome_secret, "key", key_length)
 * Verify the confirmation MAC in the GroupInfo using the derived confirmation
   key and the `confirmed_transcript_hash` from the GroupInfo.
 
-# Extensibility and Invariants
+# Extensibility
 
 This protocol includes a mechanism for negotiating extension parameters similar
 to one in TLS {{RFC8446}}.  In TLS, extension negotiation is one-to-one.  The
@@ -2171,9 +2171,7 @@ places:
 In other words, clients advertise their capabilities in ClientInitKey
 extensions, the creator of the group expresses its choices for the group in
 Welcome extensions, and the GroupContext confirms that all members of the group
-have the same view of the group's extensions.  This document does not define any
-way for the parameters of the group to change once it has been created; such a
-behavior could be implemented as an extension.
+have the same view of the group's extensions.
 
 This extension mechanism is designed to allow for secure and forward-compatible
 negotiation of extensions.  For this to work, implementations MUST correctly
@@ -2186,6 +2184,12 @@ handle extensible fields:
 * A client initiating a group MUST ignore all unrecognized ciphersuites,
   extensions, and other parameters.  Otherwise, it may fail to interoperate with
   newer clients.
+
+* A client joining a group MUST populate the GroupContext extensions with
+  exactly the contents of the extensions field in the Welcome message.
+
+This document does not define any way for the parameters of the group to change
+once it has been created; such a behavior could be implemented as an extension.
 
 [[ OPEN ISSUE: Should we put bounds on what an extension can change?  For
 example, should we make an explicit guarantee that as long as you're speaking
