@@ -525,14 +525,12 @@ The _direct path_ of a root is the empty list, and of any other node
 is the concatenation of that node's parent along with the parent's direct path.
 The _copath_ of a node is the node's sibling concatenated with the list of
 siblings of all the nodes in its
-direct path. The _frontier_ of a tree is the list of heads of the maximal
-full subtrees of the tree, ordered from left to right.
+direct path.
 
 For example, in the below tree:
 
 * The direct path of C is (CD, ABCD, ABCDEFG)
 * The copath of C is (D, AB, EFG)
-* The frontier of the tree is (ABCD, EF, G)
 
 ~~~~~
             ABCDEFG
