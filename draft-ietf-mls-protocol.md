@@ -1683,7 +1683,7 @@ Before use in the encryption operation, the nonce is XORed with a fresh random
 value to guard against reuse.  Because the key schedule generates nonces
 deterministically, a client must keep persistent state as to where in the key
 schedule it is; if this persistent state is lost or corrupted, a client might
-reuse a generation that has already been used, in particular nonce reuse.
+reuse a generation that has already been used, causing reuse of a key/nonce pair.
 
 To avoid this situation, the sender of a message MUST generate a fresh random
 4-byte "reuse guard" value and XOR it with the first four bytes of the nonce
