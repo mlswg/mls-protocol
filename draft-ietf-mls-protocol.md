@@ -1900,6 +1900,8 @@ struct {
     ProposalID updates<0..2^16-1>;
     ProposalID removes<0..2^16-1>;
     ProposalID adds<0..2^16-1>;
+
+    ClientInitKey client_init_key;
     DirectPath path;
 } Commit;
 ~~~~~
@@ -1934,8 +1936,8 @@ A member of the group creates a Commit message and the corresponding Welcome
 message at the same time, by taking the following steps:
 
 * Construct an initial Commit object with `updates`, `removes`, and `adds`
-  fields populated from Proposals received during the current epoch,
-  and an empty `path` field.
+  fields populated from Proposals received during the current epoch, and empty
+  `client_init_key` and `path` fields.
 
 * Generate a provisional GroupContext object by applying the proposals
   referenced in the initial Commit object in the order provided, as described in
@@ -1958,6 +1960,10 @@ message at the same time, by taking the following steps:
 
    * The `commit_secret` is the value `path_secret[n+1]` derived from the
      `path_secret[n]` value associated to the root node.
+
+* Generate a new ClientInitKey for the Committer's own leaf. Store it in the
+  ratchet tree and assign it to the `client_init_key` field in the Commit
+  object.
 
 * Construct an MLSPlaintext object containing the Commit object.  Use the
   `commit_secret` to advance the key schedule and compute the `confirmation`
