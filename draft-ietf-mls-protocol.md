@@ -1584,12 +1584,17 @@ object of the following form:
 struct {
     uint32 sender;
     uint32 generation;
+    opaque reuse_guard[4];
 } MLSSenderData;
 ~~~~~
 
 MLSSenderData.sender is assumed to be a `member` sender type.  When constructing
 an MLSSenderData from a Sender object, the sender MUST verify Sender.sender_type
 is `member` and use Sender.sender for MLSSenderData.sender.
+
+The `reuse_guard` field contains a fresh random value used to avoid nonce reuse
+in the case of state loss or corruption, as described in
+{{content-signing-and-encryption}}.
 
 The Additional Authenticated Data (AAD) for the SenderData ciphertext
 computation is its prefix in the MLSCiphertext, namely:
@@ -1673,6 +1678,33 @@ content type of the message.  The sender chooses the handshake key for a
 handshake message or an unused generation from its (per-sender)
 application key chain for the current epoch, according to the type
 of message being encrypted.
+
+Before use in the encryption operation, the nonce is XORed with a fresh random
+value to guard against reuse.  Because the key schedule generates nonces
+deterministically, a client must keep persistent state as to where in the key
+schedule it is; if this persistent state is lost or corrupted, a client might
+reuse a generation that has already been used, in particular nonce reuse.
+
+To avoid this situation, the sender of a message MUST generate a fresh random
+4-byte "reuse guard" value and XOR it with the first four bytes of the nonce
+from the key schedule before using the nonce for encryption.  The sender MUST
+include the reuse guard in the `reuse_guard` field of the sender data object, so
+that the recipient of the message can use it to compute the nonce to be used for
+decryption.
+
+~~~~~
++-+-+-+-+---------...---+
+|   Key Schedule Nonce  |
++-+-+-+-+---------...---+
+           XOR
++-+-+-+-+---------...---+
+| Guard |       0       |
++-+-+-+-+---------...---+
+           ===
++-+-+-+-+---------...---+
+| Encrypt/Decrypt Nonce |
++-+-+-+-+---------...---+
+~~~~~
 
 The Additional Authenticated Data (AAD) input to the encryption
 contains an object of the following form, with the values used to
