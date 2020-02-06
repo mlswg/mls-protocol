@@ -264,8 +264,6 @@ Client:
   cryptographic keys it holds.  An application or user may use one client
   per device (keeping keys local to each device) or sync keys among
   a user's devices so that each user appears as a single client.
-  In the scenario where multiple devices share the cryptographic material
-  the client is referred to as a "virtual" client.
 
 Group:
 : A collection of clients with shared cryptographic state.
@@ -277,12 +275,12 @@ Member:
 Initialization Key:
 : A short-lived HPKE key pair used to introduce a new
   client to a group.  Initialization keys are published for
-  each client (ClientInitKey).
+  each client and are called their ClientInitKeys.
 
 Leaf Key:
-: A secret that represents a member's contribution to the group secret
-  (so called because the members' leaf keys are the leaves in the
-  group's ratchet tree).
+: An HPKE key pair that can be used to encrypt to a specific client,
+  so called because members' leaf keys are the leaves in the group's
+  ratchet tree.
 
 Identity Key:
 : A long-lived signing key pair used to authenticate the sender of a
@@ -320,19 +318,21 @@ the MS provides the following services:
 The goal of this protocol is to allow a group of clients to exchange
 confidential and authenticated messages. It does so by deriving a sequence
 of secrets and keys known only to members. Those should be secret against an
-active network adversary and should have both forward and post-compromise
-secrecy with respect to compromise of a participant.
+active network adversary and should have both forward secrecy and
+post-compromise security with respect to compromise of any members.
 
-We describe the information stored by each client as a _state_, which
-includes both public and private data. An initial state, including an initial
-set of clients, is set up by a group creator using the _Init_ algorithm and
-based on information pre-published by clients. The creator sends the _Init_
-message to the clients, who can then set up their own group state and derive
-the same shared secret. Clients then exchange messages to produce new shared
-states which are causally linked to their predecessors, forming a logical
+We describe the information stored by each client as _state_, which includes
+both public and private data. An initial state is set up by a group creator,
+which is a group containing only themself. The creator then sends _Add_
+proposals for each client in the initial set of members, followed by a _Commit_
+message which incorporates all of the _Adds_ into the group state. Finally, the
+group creator generates a _Welcome_ message corresponding to the Commit and
+sends this directly to all the new members, who can use the information
+it contains to set up their own group state and derive a shared
+secret. Members exchange Commit messages for post-compromise security, to add new
+members, and to remove existing members. These messages produce new shared
+secrets which are causally linked to their predecessors, forming a logical
 Directed Acyclic Graph (DAG) of states.
-Members can send _Commit_ messages for post-compromise secrecy and new clients
-can be added or existing members removed from the group.
 
 The protocol algorithms we specify here follow. Each algorithm specifies
 both (i) how a client performs the operation and (ii) how other clients
@@ -352,7 +352,7 @@ deployment cases, an application might gather several proposals before
 committing them all at once.
 
 Before the initialization of a group, clients publish ClientInitKey
-objects to a directory provided to the Messaging Service.
+objects to a directory provided by the Messaging Service.
 
 ~~~~~
                                                                Group
@@ -375,7 +375,7 @@ containing only itself and uses the ClientInitKeys to compute Welcome and Add
 messages to add B and C, in a sequence chosen by A.  The Welcome messages are
 sent directly to the new members (there is no need to send them to
 the group).
-The Add messages are broadcasted to the group, and processed in sequence
+The Add messages are broadcast to the group, and processed in sequence
 by B and C.  Messages received before a client has joined the
 group are ignored.  Only after A has received its Add messages
 back from the server does it update its state to reflect their addition.
@@ -418,50 +418,47 @@ A              B              C          Directory            Channel
 ~~~~~
 
 Subsequent additions of group members proceed in the same way.  Any
-member of the group can download an ClientInitKey for a new client
+member of the group can download a ClientInitKey for a new client
 and broadcast an Add message that the current group can use to update
-their state and the new client can use to initialize its state.
+their state and a Welcome message that the new client can use to
+initialize its state.
 
 To enforce forward secrecy and post-compromise security of messages,
-each member periodically updates its leaf secret which represents
-its contribution to the group secret.  Any member of the
-group can send an Update at any time by generating a fresh leaf secret
-and sending an Commit message that describes how to update the
-group secret with that new information.  Once all members have
-processed this message, the group's secrets will be unknown to an
+each member periodically updates their leaf secret.
+Any member can update this information at any time by generating a fresh
+ClientInitKey and sending an Update message followed by a Commit message.
+Once all members have processed both, the group's secrets will be unknown to an
 attacker that had compromised the sender's prior leaf secret.
 
-It is left to the application to determine the interval of time between
-Update+Commit messages. This policy could require a change for each message, or
-it could require sending an update every week or more.
+It is left to the application to determine a policy for regularly sending
+Update messages. This policy can be as strong as requiring an Update+Commit
+after each application message, or weaker, such as once every hour, day...
 
 ~~~~~
                                                           Group
 A              B     ...      Z          Directory        Channel
 |              |              |              |              |
-| Update(A)    |              |              |              |
+|              | Update(B)    |              |              |
+|              |------------------------------------------->|
 | Commit(Upd)  |              |              |              |
 |---------------------------------------------------------->|
 |              |              |              |              |
-|              |              |              | Update(A)    |
+|              |              |              | Update(B)    |
 |              |              |              | Commit(Upd)  |
 |<----------------------------------------------------------|
-|state.upd(A)  |<-------------------------------------------|
-|              |state.upd(A)  |<----------------------------|
-|              |              |state.upd(A)  |              |
+|state.upd(B)  |<-------------------------------------------|
+|              |state.upd(B)  |<----------------------------|
+|              |              |state.upd(B)  |              |
 |              |              |              |              |
 ~~~~~
 
-Members are removed from the group in a similar way, as a Commit
-is effectively removing the old leaf from the group.
-Any member of the group can generate a Remove proposal followed by a
-Commit message that adds new
-entropy to the group state that is known to all members except the
-removed member.  After other participants have processed this message,
-the group's secrets will be unknown to the removed participant.
+Members are removed from the group in a similar way.
+Any member of the group can send a Remove proposal followed by a
+Commit message, which adds new entropy to the group state
+that's known to all except the removed member.
 Note that this does not necessarily imply that any member
-is actually allowed to evict other members; groups can layer
-authentication-based access control policies on top of these
+is actually allowed to evict other members; groups can
+enforce access control policies on top of these
 basic mechanism.
 
 ~~~~~
@@ -514,21 +511,26 @@ any other full subtree, then it is _maximal_.
 A binary tree is _left-balanced_ if for every
 parent, either the parent is balanced, or the left subtree of that
 parent is the largest full subtree that could be constructed from
-the leaves present in the parent's own subtree.  Note
-that given a list of `n` items, there is a unique left-balanced
+the leaves present in the parent's own subtree.
+Given a list of `n` items, there is a unique left-balanced
 binary tree structure with these elements as leaves.  In such a
 left-balanced tree, the `k-th` leaf node refers to the `k-th` leaf
 node in the tree when counting from the left, starting from 0.
 
+(Note that left-balanced binary trees are the same structure that is
+used for the Merkle trees in the Certificate Transparency protocol
+{{?I-D.ietf-trans-rfc6962-bis}}.)
+
 The _direct path_ of a root is the empty list, and of any other node
-is the concatenation of that node with the direct path of its
-parent. The _copath_ of a node is the list of siblings of nodes in its
+is the concatenation of that node's parent along with the parent's direct path.
+The _copath_ of a node is the node's sibling concatenated with the list of
+siblings of all the nodes in its
 direct path. The _frontier_ of a tree is the list of heads of the maximal
 full subtrees of the tree, ordered from left to right.
 
 For example, in the below tree:
 
-* The direct path of C is (C, CD, ABCD)
+* The direct path of C is (CD, ABCD, ABCDEFG)
 * The copath of C is (D, AB, EFG)
 * The frontier of the tree is (ABCD, EF, G)
 
@@ -548,7 +550,7 @@ A   B   C   D   E   F   G
 0 1 2 3 4 5 6 7 8 9 0 1 2
 ~~~~~
 
-Each node in the tree is assigned an _node index_, starting at zero and
+Each node in the tree is assigned a _node index_, starting at zero and
 running from left to right.  A node is a leaf node if and only if it
 has an even index.  The node indices for the nodes in the above tree
 are as follows:
@@ -566,10 +568,6 @@ are as follows:
 * 10 = F
 * 11 = EFG
 * 12 = G
-
-(Note that left-balanced binary trees are the same structure that is
-used for the Merkle trees in the Certificate Transparency protocol
-{{?I-D.ietf-trans-rfc6962-bis}}.)
 
 The leaves of the tree are indexed separately, using a _leaf index_,
 since the protocol messages only need to refer to leaves in the
@@ -591,19 +589,19 @@ node index.  The leaf indices in the above tree are as follows:
 A particular instance of a ratchet tree is based on the following
 cryptographic primitives, defined by the ciphersuite in use:
 
-* An HPKE ciphersuite, which specifies a Key Encapsulation Method
+* An HPKE ciphersuite, which specifies a Key Encapsulation Mechanism
   (KEM), an AEAD encryption scheme, and a hash function
 * A Derive-Key-Pair function that produces an asymmetric key pair
-  for the specified KEM from a symmetric secret, using the specified
-  hash function.
+  for the specified KEM from a symmetric secret
 
-Each node in a ratchet tree contains up to four values:
+Each node in a ratchet tree contains up to five values:
 
-* A private key (only within direct path, see below)
+* A private key (only within the member's direct path, see below)
 * A public key
 * An ordered list of leaf indices for "unmerged" leaves (see
   {{views}})
 * A credential (only for leaf nodes)
+* A hash of the node's parent, as of the last time the node was changed.
 
 The conditions under which each of these values must or must not be
 present are laid out in {{views}}.
@@ -652,10 +650,9 @@ up-to-date view of the public state of the group's ratchet tree,
 including the public keys for all nodes and the credentials
 associated with the leaf nodes.
 
-No participant in an MLS group has full knowledge of the secret
-state of the tree, i.e., private keys associated to
-the nodes.  Instead, each member is assigned to a leaf of the tree,
-which determines the set of secret state known to the member.  The
+No participant in an MLS group knows the private key associated with
+every node in the tree. Instead, each member is assigned to a leaf of the tree,
+which determines the subset of private keys it knows. The
 credential stored at that leaf is one provided by the member.
 
 In particular, MLS maintains the members' views of the tree in such
@@ -663,10 +660,10 @@ a way as to maintain the _tree invariant_:
 
     The private key for a node in the tree is known to a member of
     the group only if that member's leaf is a descendant of
-    the node or equal to it.
+    the node.
 
-In other words, if a node is not blank, then it holds a key pair, and
-the private key of that key pair is known only to members holding
+In other words, if a node is not blank, then it holds a public key.
+The corresponding private key is known only to members occupying
 leaves below that node.
 
 The reverse implication is not true: A member may not know the private keys of
@@ -676,20 +673,28 @@ as well as the public keys of all the unmerged leaves below it.  A leaf is
 unmerged when it is first added, because the process of adding the leaf does not
 give it access to all of the nodes above it in the tree.  Leaves are "merged" as
 they receive the private keys for nodes, as described in
-{{ratchet-tree-updates}}.
+{{ratchet-tree-evolution}}.
 
-## Ratchet Tree Commits
+## Ratchet Tree Evolution
 
-Nodes in a tree are always updated along the direct path from a
-leaf to the root.  The generator of the Commit chooses a random
-secret value "path_secret[0]", and generates a sequence of "path
-secrets", one for each node from the leaf to the root.  That is,
-path_secret[0] is used for the leaf, path_secret[1] for its parent,
-and so on.  At each step, the path secret is used to derive a new
-secret value for the corresponding node, from which the node's key
-pair is derived.
+When performing a Commit, the leaf ClientInitKey of the committer and
+its direct path to the root are updated with new secret values.  The
+HPKE leaf public key within the ClientInitKey MUST be a freshly
+generated value to provide post-compromise security.
+
+
+The generator of the Commit starts by using the HPKE secret key
+"leaf_hpke_secret_key" associated with the new leaf ClientInitKey (see
+{{initialization-keys}}) to compute "path_secret[0]" and generate a
+sequence of "path secrets", one for each ancestor of its leaf.  That
+is, path_secret[0] is used for the node directly above the leaf,
+path_secret[1] for its parent, and so on. At each step, the path
+secret is used to derive a new secret value for the corresponding
+node, from which the node's key pair is derived.
 
 ~~~~~
+path_secret[0] = HKDF-Expand-Label(leaf_hpke_secret_key,
+                                   "path", "", Hash.Length)
 path_secret[n] = HKDF-Expand-Label(path_secret[n-1],
                                    "path", "", Hash.Length)
 node_secret[n] = HKDF-Expand-Label(path_secret[n],
@@ -709,9 +714,9 @@ For example, suppose there is a group with four members:
 A   B   C   D
 ~~~~~
 
-If the second participant (B) subsequently generates an Commit based on a
-secret X, then the sender would generate the following sequence of
-path secrets and node secrets:
+If member B subsequently generates a Commit based on a secret
+"leaf_hpke_secret_key", then it would generate the following sequence
+of path secrets and node secrets:
 
 ~~~~~
     path_secret[2] ---> node_secret[2]
@@ -720,7 +725,10 @@ path secrets and node secrets:
     path_secret[1] ---> node_secret[1]
          ^
          |
-X = path_secret[0] ---> node_secret[0]
+    path_secret[0] ---> node_secret[0]
+         ^
+         |
+    leaf_hpke_secret_key
 ~~~~~
 
 After the Commit, the tree will have the following structure, where
@@ -728,11 +736,11 @@ After the Commit, the tree will have the following structure, where
 above:
 
 ~~~~~
-          ns[2]
+          ns[1]
          /     \
-     ns[1]      _
+     ns[0]      _
      /  \      / \
-    A   ns[0] C   D
+    A    B    C   D
 ~~~~~
 
 ## Synchronizing Views of the Tree
@@ -748,18 +756,17 @@ sender's.
 
 To perform an update for a path (a Commit), the sender broadcasts to the group
 the following information for each node in the direct path of the
-leaf, as well as the root:
+leaf, including the root:
 
 * The public key for the node
 * Zero or more encrypted copies of the path secret corresponding to
   the node
 
 The path secret value for a given node is encrypted for the subtree
-corresponding to the parent's non-updated child, i.e., the child
+corresponding to the parent's non-updated child, that is, the child
 on the copath of the leaf node.
 There is one encrypted path secret for each public key in the resolution
-of the non-updated child.  In particular, for the leaf node, there
-are no encrypted secrets, since a leaf node has no children.
+of the non-updated child.
 
 The recipient of a path update processes it with the following steps:
 
@@ -775,13 +782,16 @@ The recipient of a path update processes it with the following steps:
    * The recipient SHOULD verify that the received public keys agree
      with the public keys derived from the new node_secret values.
 2. Merge the updated path secrets into the tree.
-   * Replace the public keys for nodes on the direct path with the
-     received public keys.
+   * For all updated nodes,
+     * Replace the public key for each node with the received public key.
+     * Set the list of unmerged leaves to the empty list.
+     * Store the updated hash of the node's parent (represented as a ParentNode
+       struct), going from root to leaf, so that each hash incorporates all the
+       nodes above it. The root node always has a zero-length hash for this
+       value.
    * For nodes where an updated path secret was computed in step 1,
      compute the corresponding node secret and node key pair and
      replace the values stored at the node with the computed values.
-   * For all updated nodes, set the list of unmerged leaves to the
-     empty list.
 
 For example, in order to communicate the example update described in
 the previous section, the sender would transmit the following
@@ -897,7 +907,7 @@ not need to verify membership in the correct subgroup.
 
 A member of a group authenticates the identities of other
 participants by means of credentials issued by some authentication
-system, e.g., a PKI.  Each type of credential MUST express the
+system, like a PKI.  Each type of credential MUST express the
 following data:
 
 * The public key of a signature key pair
@@ -946,76 +956,212 @@ opaque SignaturePublicKey<1..2^16-1>;
 ~~~~~
 
 Note that each new credential that has not already been validated
-by the application SHOULD be validated against the Authentication
+by the application MUST be validated against the Authentication
 Service.
 
-[[OPEN ISSUE: 1. SHOULD vs MUST.
-2. A client that wants to update its identity key
-can perform the operation UNDER THIS CONDITION by adding a new
-version of herself using a new credential signed under a new
-IdentityKey, then performing a remove of the old leaf. This is
-fine as long as the credential binds to the same identity for
-the application. If this verification is not met, there is no
-authentication guarantee at the application layer anyway.]]
+# Initialization Keys
+
+In order to facilitate asynchronous addition of clients to a
+group, it is possible to pre-publish initialization keys that
+provide some public information about a user. ClientInitKey
+structures provide information about a client that any existing
+member can use to add this client to the group asynchronously.
+
+A ClientInitKey object specifies a ciphersuite that the client
+supports, as well as providing a public key that others can use
+for key agreement. The client's identity key can be updated
+throughout the lifetime of the group by sending a new ClientInitKey
+with a new identity; the new identity MUST be validated by the
+authentication service.
+ClientInitKeys are intended to be used only once and SHOULD NOT
+be reused except in case of last resort. (See {{init-key-reuse}}).
+Clients MAY generate and publish multiple ClientInitKey objects to
+support multiple ciphersuites.
+ClientInitKeys contain an credential chosen by the client, which the
+client MUST ensure uniquely identifies a given ClientInitKey object
+among the set of ClientInitKeys created by this client.
+
+The value for hpke\_init\_key MUST be a public key for the asymmetric
+encryption scheme defined by cipher\_suite. The whole structure
+is signed using the client's identity key. A ClientInitKey object
+with an invalid signature field MUST be considered malformed.
+The input to the signature computation comprises all of the fields
+except for the signature field.
+
+~~~~~
+enum {
+    mls10(0),
+    (255)
+} ProtocolVersion;
+
+enum {
+    invalid(0),
+    supported_versions(1),
+    supported_ciphersuites(2),
+    expiration(3),
+    key_id(4),
+    parent_hash(5),
+    (65535)
+} ExtensionType;
+
+struct {
+    ExtensionType extension_type;
+    opaque extension_data<0..2^16-1>;
+} Extension;
+
+struct {
+    ProtocolVersion version;
+    CipherSuite cipher_suite;
+    HPKEPublicKey hpke_init_key;
+    Credential credential;
+    Extension extensions<0..2^16-1>;
+    opaque signature<0..2^16-1>;
+} ClientInitKey;
+~~~~~
+
+ClientInitKey objects MUST contain at least two extensions, one of type
+`supported_versions` and one of type `supported_ciphersuites`.  These extensions
+allow MLS session establishment to be safe from downgrade attacks on these two
+parameters (as discussed in {{group-creation}}), while still only advertising
+one version / ciphersuite per ClientInitKey.
+
+As the `ClientInitKey` is a structure which is stored in the Ratchet
+Tree and updated depending on the evolution of this tree, each
+modification of its content MUST be reflected by a change of its
+signature. This allow other members to control the validity of the ClientInitKey
+at any time and in particular in the case of a newcomer joining the group.
+
+## Supported Versions and Supported Ciphersuites
+
+The `supported_versions` extension contains a list of MLS versions that are
+supported by the client.  The `supported_ciphersuites` extension contains a list
+of MLS ciphersuites that are supported by the client.
+
+~~~~~
+ProtocolVersion supported_versions<0..255>;
+CipherSuite supported_ciphersuites<0..255>;
+~~~~~
+
+## Expiration
+
+The `expiration` extension represents the time at which clients MUST consider
+this ClientInitKey invalid.  This time is represented as an absolute time,
+measured in seconds since the Unix epoch (1970-01-01T00:00:00Z).  If a client
+receives a ClientInitKey that contains an expiration extension at a time after
+its expiration time, then it MUST consider the ClientInitKey invalid and not use
+it for any further processing.
+
+~~~~~
+uint64 expiration;
+~~~~~
+
+Note that as an extension, it is not required that any given ClientInitKey have
+an expiration time.  In particular, applications that rely on "last resort"
+ClientInitKeys to ensure continued reachability may choose to omit the
+expiration extension from these keys, or give them much longer lifetimes than
+other ClientInitKeys.
+
+## ClientInitKey Identifiers
+
+Within MLS, a ClientInitKey is identified by its hash (see, e.g.,
+{{welcoming-new-members}}).  The `key_id` extension allows applications to add
+an explicit, application-defined identifier to a ClientInitKey.
+
+~~~~~
+opaque key_id<0..2^16-1>;
+~~~~~
+
+## Parent Hash
+
+The `parent_hash` extension serves to bind a ClientInitKey to all the nodes
+above it in the group's ratchet tree. This enforces the tree invariant, meaning
+that malicious members can't lie about the state of the ratchet tree when they
+send Welcome messages to new members.
+
+~~~~~
+opaque parent_hash<0..255>;
+~~~~~
+
+This extension MUST be present in all Updates that are sent as part of a Commit
+message. If the extension is present, clients MUST verify that `parent_hash`
+matches the hash of the leaf's parent node when represented as a ParentNode
+struct.
+
+[[ OPEN ISSUE: This scheme, in which the tree hash covers the parent hash, is
+designed to allow for more deniable deployments, since a signature by a member
+covers only its direct path. The other possible scheme, in which the parent hash
+covers the tree hash, provides better group agreement properties, since a
+member's signature covers the entire membership of the trees it is in. Further
+discussion is needed to determine whether the benefits to deniability justify
+the harm to group agreement properties, or whether there are alternative
+approaches to deniability that could be compatible with the other approach. ]]
 
 ## Tree Hashes
 
-To allow group members to verify that they agree on the
+To allow group members to verify that they agree on the public
 cryptographic state of the group, this section defines a scheme for
 generating a hash value that represents the contents of the group's
-ratchet tree and the members' credentials.
+ratchet tree and the members' ClientInitKeys.
 
 The hash of a tree is the hash of its root node, which we define
-recursively, starting with the leaves.  The hash of a leaf node is
-the hash of a `LeafNodeHashInput` object:
+recursively, starting with the leaves.
+
+Elements of the ratchet tree are called `Node` objects and
+contain optionally a `ClientInitKey` when at the leaves or an optional
+`ParentNode` above.
 
 ~~~~~
 struct {
     uint8 present;
-    switch (present) {
+    select (present) {
         case 0: struct{};
         case 1: T value;
     }
 } optional<T>;
 
+enum {
+    leaf(0),
+    parent(1),
+    (255)
+} NodeType;
+
+struct {
+    NodeType node_type;
+    select (Node.node_type) {
+        case leaf:   optional<ClientInitKey> client_init_key;
+        case parent: optional<ParentNode> node;
+    };
+} Node;
+
 struct {
     HPKEPublicKey public_key;
-    Credential credential;
-} LeafNodeInfo;
-
-struct {
-    uint8 hash_type = 0;
-    optional<LeafNodeInfo> info;
-} LeafNodeHashInput;
+    uint32_t unmerged_leaves<0..2^32-1>;
+    opaque parent_hash<0..255>;
+} ParentNode;
 ~~~~~
 
-The `public_key` and `credential` fields represent the leaf public
-key and the credential for the member holding that leaf,
-respectively.  The `info` field is equal to the null optional value
-when the leaf is blank (i.e., no member occupies that leaf).
-
-Likewise, the hash of a parent node (including the root) is the hash
-of a `ParentNodeHashInput` struct:
+When computing the hash of a parent node AB the `ParentNodeHashInput`
+structure is used:
 
 ~~~~~
 struct {
-    HPKEPublicKey public_key;
-    opaque unmerged_leaves<0..2^32-1>;
-} ParentNodeInfo;
-
-struct {
-    uint8 hash_type = 1;
-    optional<ParentNodeInfo> info;
+    uint32 node_index;
+    optional<ParentNode> parent_node;
     opaque left_hash<0..255>;
     opaque right_hash<0..255>;
 } ParentNodeHashInput;
 ~~~~~
 
-The `left_hash` and `right_hash` fields hold the hashes of the
-node's left and right children, respectively.  The `public_key`
-field holds the hash of the public key stored at this node,
-represented as an `optional<HPKEPublicKey>` object, which is null if
-and only if the node is blank.
+The `left_hash` and `right_hash` fields hold the hashes of the node's
+left (A) and right (B) children, respectively. To compute the hash of
+a leaf node is the hash of a `LeafNodeHashInput` object:
+
+~~~~~
+struct {
+    uint32 leaf_index;
+    optional<ClientInitKey> client_init_key;
+} LeafNodeHashInput;
+~~~~~
 
 ## Group State
 
@@ -1040,7 +1186,7 @@ The fields in this state have the following semantics:
   group's ratchet tree and the credentials for the members of the
   group, as described in {{tree-hashes}}.
 * The `confirmed_transcript_hash` field contains a running hash over
-  the handshake messages that led to this state.
+  the messages that led to this state.
 
 When a new member is added to the group, an existing member of the
 group provides the new member with a Welcome message.  The Welcome
@@ -1063,9 +1209,8 @@ The following general rules apply:
 struct {
   opaque group_id<0..255>;
   uint64 epoch;
-  uint32 sender;
+  Sender sender;
   ContentType content_type = commit;
-  Proposal proposals<0..2^32-1>;
   Commit commit;
 } MLSPlaintextCommitContent;
 
@@ -1088,7 +1233,7 @@ transcript over the whole history of MLSPlaintext Commit messages, up to the
 confirmation field in the current MLSPlaintext message.  The confirmation and
 signature fields are then included in the transcript for the next epoch.  The
 interim transcript hash is passed to new members in the WelcomeInfo struct, and
-enables existing members to incorporate a handshake message into the transcript
+enables existing members to incorporate a Commit message into the transcript
 without having to store the whole MLSPlaintextCommitAuthData structure.
 
 When a new group is created, the `interim_transcript_hash` field is set to the
@@ -1096,12 +1241,12 @@ zero-length octet string.
 
 ## Direct Paths
 
-As described in {{ratchet-tree-commits}}, each MLS message needs to
-transmit node values along the direct path of a leaf.
-The path contains a public key for the leaf node, and a
-public key and encrypted secret value for intermediate nodes in the
-path.  In both cases, the path is ordered from the leaf to the root;
-each node MUST be the parent of its predecessor.
+As described in {{commit}}, each MLS Commit message needs to
+transmit a ClientInitKey leaf and node values along its direct path.
+The path contains a public key and encrypted secret value for all
+intermediate nodes in the path above the leaf.  The path is ordered
+from the closest node to the leaf to the root; each node MUST be the
+parent of its predecessor.
 
 ~~~~~
 struct {
@@ -1119,12 +1264,10 @@ struct {
 } DirectPath;
 ~~~~~
 
-The length of the `encrypted_path_secret` vector MUST be zero for the first
-node in the path.  For the remaining elements in the vector, the
-number of ciphertexts in the `encrypted_path_secret` vector MUST be equal to
-the length of the resolution of the corresponding copath node.  Each
-ciphertext in the list is the encryption to the corresponding node
-in the resolution.
+The number of ciphertexts in the `encrypted_path_secret` vector MUST
+be equal to the length of the resolution of the corresponding copath
+node.  Each ciphertext in the list is the encryption to the
+corresponding node in the resolution.
 
 The HPKECiphertext values are computed as
 
@@ -1185,6 +1328,9 @@ proceeds as shown in the following diagram:
 ~~~~~
                init_secret_[n-1] (or 0)
                      |
+                     +--> Derive-Secret(. "group info", "")
+                     |    = group_info_secret
+                     |
                      V
     PSK (or 0) -> HKDF-Extract = early_secret
                      |
@@ -1192,6 +1338,9 @@ proceeds as shown in the following diagram:
                      |
                      V
 commit_secret -> HKDF-Extract = epoch_secret
+                     |
+                     +--> HKDF-Expand(., "mls 1.0 welcome", Hash.length)
+                     |    = welcome_secret
                      |
                      +--> Derive-Secret(., "sender data", GroupContext_[n])
                      |    = sender_data_secret
@@ -1229,7 +1378,7 @@ having a full run of updates accross members is too expensive or in
 the case where the external group key establishment mechanism provides
 stronger security against classical or quantum adversaries.
 
-The security level associated to the PSK injected in the key schedule
+The security level associated with the PSK injected in the key schedule
 SHOULD match at least the security level of the ciphersuite in use in
 the group.
 
@@ -1318,99 +1467,6 @@ the Group.
 It is RECOMMENDED for the application generating exported values
 to refresh those values after a group operation is processed.
 
-# Initialization Keys
-
-In order to facilitate asynchronous addition of clients to a
-group, it is possible to pre-publish initialization keys that
-provide some public information about a user. ClientInitKey
-messages provide information about a client that any existing
-member can use to add this client to the group asynchronously.
-
-A ClientInitKey object specifies a ciphersuite that the client
-supports, as well as providing a public key that others can use
-for key agreement. The client's identity key is intended to be
-stable throughout the lifetime of the group; there is no mechanism to
-change it.  Init keys are intended to be used only once and SHOULD NOT
-be reused except in case of last resort. (See {{init-key-reuse}}).
-Clients MAY generate and publish multiple ClientInitKey objects to
-support multiple ciphersuites.
-ClientInitKeys contain an identifier chosen by the client, which the
-client MUST ensure uniquely identifies a given ClientInitKey object
-among the set of ClientInitKeys created by this client.
-
-The value for init\_key MUST be a public key for the asymmetric
-encryption scheme defined by cipher\_suite. The whole structure
-is signed using the client's identity key. A ClientInitKey object
-with an invalid signature field MUST be considered malformed.
-The input to the signature computation comprises all of the fields
-except for the signature field.
-
-~~~~~
-enum {
-    mls10(0),
-    (255)
-} ProtocolVersion;
-
-enum {
-    invalid(0),
-    supported_versions(1),
-    supported_ciphersuites(2),
-    expiration(3),
-    (65535)
-} ExtensionType;
-
-struct {
-    ExtensionType extension_type;
-    opaque extension_data<0..2^16-1>;
-} Extension;
-
-struct {
-    ProtocolVersion supported_version;
-    opaque client_init_key_id<0..255>;
-    CipherSuite cipher_suite;
-    HPKEPublicKey init_key;
-    Credential credential;
-    Extension extensions<0..2^16-1>;
-    opaque signature<0..2^16-1>;
-} ClientInitKey;
-~~~~~
-
-ClientInitKey objects MUST contain at least two extensions, one of type
-`supported_versions` and one of type `supported_ciphersuites`.  These extensions
-allow MLS session establishment to be safe from downgrade attacks on these two
-parameters (as discussed in {{group-creation}}), while still only advertising
-one version / ciphersuite per ClientInitKey.
-
-## Supported Versions and Supported Ciphersuites
-
-The `supported_versions` extension contains a list of MLS versions that are
-supported by the client.  The `supported_ciphersuites` extension contains a list
-of MLS ciphersuites that are supported by the client.
-
-~~~~~
-ProtocolVersion supported_versions<0..255>;
-CipherSuite supported_ciphersuites<0..255>;
-~~~~~
-
-## Expiration
-
-The `expiration` extension represents the time at which clients MUST consider
-this ClientInitKey invalid.  This time is represented as an absolute time,
-measured in seconds since the Unix epoch (1970-01-01T00:00:00Z).  If a client
-receives a ClientInitKey that contains an expiration extension at a time after
-its expiration time, then it MUST consider the ClientInitKey invalid and not use
-it for any further processing.
-
-~~~~~
-uint64 expiration;
-~~~~~
-
-Note that as an extension, it is not required that any given ClientInitKey have
-an expiration time.  In particular, applications that rely on "last resort"
-ClientInitKeys to ensure continued reachability may choose to omit the
-expiration extension from these keys, or give them much longer lifetimes than
-other ClientInitKeys.
-
 # Message Framing
 
 Handshake and application messages use a common framing structure.
@@ -1435,22 +1491,34 @@ enum {
     (255)
 } ContentType;
 
+enum {
+    invalid(0),
+    member(1),
+    preconfigured(2),
+    new_member(3),
+    (255)
+} SenderType;
+
+struct {
+    SenderType sender_type;
+    uint32 sender;
+} Sender;
+
 struct {
     opaque group_id<0..255>;
     uint64 epoch;
-    uint32 sender;
-    ContentType content_type;
+    Sender sender;
     opaque authenticated_data<0..2^32-1>;
 
+    ContentType content_type;
     select (MLSPlaintext.content_type) {
         case application:
           opaque application_data<0..2^32-1>;
 
         case proposal:
-          Proposal proposals<1..2^32-1>;
+          Proposal proposal;
 
         case commit:
-          Proposal proposals<1..2^32-1>;
           Commit commit;
           opaque confirmation<0..255>;
     }
@@ -1469,35 +1537,33 @@ struct {
 } MLSCiphertext;
 ~~~~~
 
-The remainder of this section describes how to compute the signature of
-an MLSPlaintext object and how to convert it to an MLSCiphertext object.
-The overall process is as follows:
+External sender types are sent as MLSPlaintext, see {{external-proposals}}
+for their use.
 
-* Gather the required metadata:
-  * Group ID
-  * Epoch
-  * Content Type
-  * Nonce
-  * Sender index
-  * Key generation
+The remainder of this section describes how to compute the signature of an
+MLSPlaintext object and how to convert it to an MLSCiphertext object for
+`member` sender types.  The steps are:
 
-* Sign the plaintext metadata -- the group ID, epoch, sender index, and
-  content type -- as well as the authenticated data and message content
+* Set group_id, epoch, content_type and authenticated_data fields from the
+  MLSPlaintext object directly
 
-* Randomly generate sender_data_nonce and encrypt the sender information
-  using it and the key derived from the sender_data_secret
+* Randomly generate the sender_data_nonce field
 
-* Encrypt the content using a content encryption key identified by
-  the metadata
+* Identify the key and key generation depending on the content type
 
-The group identifier, epoch, content_type and authenticated data fields
-are copied from the MLSPlaintext object directly.
-The content encryption process populates the ciphertext field of the
-MLSCiphertext object.  The metadata encryption step populates the
-encrypted_sender_data field.
+* Encrypt an MLSSenderData object for the encrypted_sender_data field from
+  MLSPlaintext and the key generation
 
-Decryption follows the same step in reverse: Decrypt the
-metadata, then the message and verify the content signature.
+* Generate and sign an MLSPlaintextSignatureInput object from the MLSPlaintext
+  object
+
+* Encrypt an MLSCiphertextContent for the ciphertext field using the key
+  identified, the signature, and MLSPlaintext object
+
+Decryption is done by decrypting the metadata, then the message, and then
+verifying the content signature.
+
+The following sections describe the encryption and signing processes in detail.
 
 ## Metadata Encryption
 
@@ -1512,6 +1578,10 @@ struct {
     uint32 generation;
 } MLSSenderData;
 ~~~~~
+
+MLSSenderData.sender is assumed to be a `member` sender type.  When constructing
+an MLSSenderData from a Sender object, the sender MUST verify Sender.sender_type
+is `member` and use Sender.sender for MLSSenderData.sender.
 
 The Additional Authenticated Data (AAD) for the SenderData ciphertext
 computation is its prefix in the MLSCiphertext, namely:
@@ -1536,7 +1606,7 @@ MUST be less than the number of leaves in the tree.
 The signature field in an MLSPlaintext object is computed using the
 signing private key corresponding to the credential at the leaf in
 the tree indicated by the sender field.  The signature covers the
-plaintext metadata and message content, i.e., all fields of
+plaintext metadata and message content, which is all of
 MLSPlaintext except for the `signature` field.  The signature also covers the
 GroupContext for the current epoch, so that signatures are specific to a given
 group and epoch.
@@ -1556,10 +1626,9 @@ struct {
           opaque application_data<0..2^32-1>;
 
         case proposal:
-          Proposal proposals<1..2^32-1>;
+          Proposal proposal;
 
         case commit:
-          Proposal proposals<1..2^32-1>;
           Commit commit;
           opaque confirmation<0..255>;
     }
@@ -1575,12 +1644,15 @@ are encoded in the following form:
 ~~~~~
 struct {
     select (MLSCiphertext.content_type) {
-        case handshake:
-            GroupOperation operation;
-            opaque confirmation<0..255>;
-
         case application:
-            opaque application_data<0..2^32-1>;
+          opaque application_data<0..2^32-1>;
+
+        case proposal:
+          Proposal proposal;
+
+        case commit:
+          Commit commit;
+          opaque confirmation<0..255>;
     }
 
     opaque signature<0..2^16-1>;
@@ -1654,13 +1726,13 @@ The creator of a group MUST take the following steps to initialize the group:
 The recipient of a Welcome message processes it as described in
 {{welcoming-new-members}}.
 
-In principle, the above process could be streamlined by having the creator
-directly create a tree and choose a random value for first epoch's epoch secret.
-We follow the steps above because it removes unnecessary choices, by which, for
-example, bad randomness could be introduced.  The only choices the creator makes
-here are its own HPKE key and credential, the leaf secret from which the
-Commit is built, and the intermediate key pairs along the direct path to the
-root.
+In principle, the above process could be streamlined by having the
+creator directly create a tree and choose a random value for first
+epoch's epoch secret.  We follow the steps above because it removes
+unnecessary choices, by which, for example, bad randomness could be
+introduced.  The only choices the creator makes here are its own
+ClientInitKey, the leaf secret from which the Commit is built, and the
+intermediate key pairs along the direct path to the root.
 
 A new member receiving a Welcome message can recognize group creation if the
 number of entries in the `members` array is equal to the number of leaves in the
@@ -1728,7 +1800,7 @@ to the group.
 
 ~~~~~
 struct {
-    ClientInitKey init_key;
+    ClientInitKey client_init_key;
 } Add;
 ~~~~~
 
@@ -1753,21 +1825,23 @@ leaf in the tree, for the second Add, the next empty leaf to the right, etc.
 
 ### Update
 
-An Update proposal requests that the sender's leaf node in the tree be updated
-with a new HPKE public key.
+An Update proposal is a similar mechanism to Add with the distinction
+that it is the sender's leaf ClientInitKey in the tree which would be
+updated with a new ClientInitKey.
 
 ~~~~~
 struct {
-    HPKEPublicKey leaf_key;
+    ClientInitKey client_init_key;
 } Update;
 ~~~~~
 
 A member of the group applies an Update message by taking the following steps:
 
-* Update the sender's leaf node by replacing the HPKE public key with the public
-  key in the Update proposal
+* Replace the sender's leaf ClientInitKey with the one contained in
+  the Update proposal
 
 * Blank the intermediate nodes along the path from the sender's leaf to the root
+
 
 ### Remove
 
@@ -1791,27 +1865,28 @@ A member of the group applies a Remove message by taking the following steps:
 Add and Remove proposals can be constructed and sent to the group by a party
 that is outside the group.  For example, a Delivery Service might propose to
 remove a member of a group has been inactive for a long time, or propose adding
-a newly-hired staff member to a group representing a real-world team. Proposals
-originating outside the group are identified by having a `sender` value in the
-range 0xFFFFFF00 - 0xFFFFFFFF.
+a newly-hired staff member to a group representing a real-world team.  Proposals
+originating outside the group are identified by an `preconfigured` or
+`new_member` SenderType in MLSPlaintext.
 
-The specific value 0xFFFFFFFF is reserved for clients proposing that they
-themselves be added.  Proposals with types other than Add MUST NOT be sent with
-this sender index.  In such cases, the MLSPlaintext MUST be signed with the
-private key corresponding to the ClientInitKey in the Add message.  Recipients
-MUST verify that the MLSPlaintext carrying the Proposal message is validly
-signed with this key.
+The `new_member` SenderType is used for clients proposing that they themselves
+be added.  For this ID type the sender value MUST be zero.  Proposals with types
+other than Add MUST NOT be sent with this sender type.  In such cases, the
+MLSPlaintext MUST be signed with the private key corresponding to the
+ClientInitKey in the Add message.  Recipients MUST verify that the MLSPlaintext
+carrying the Proposal message is validly signed with this key.
 
-The remaining values 0xFFFFFF00 - 0xFFFFFFFE are reserved for signer that are
-pre-provisioned to the clients within a group.  If proposals with these sender
-IDs are to be accepted within a group, the members of the group MUST be
-provisioned by the application with a mapping between sender indices in this
-range and authorized signing keys.  To ensure consistent handling of external
-proposals, the application MUST ensure that the members of a group have the same
-mapping and apply the same policies to external proposals.
+The `preconfigured` SenderType is reserved for signers that are pre-provisioned
+to the clients within a group.  If proposals with these sender IDs are to be
+accepted within a group, the members of the group MUST be provisioned by the
+application with a mapping between these IDs and authorized signing keys.  To
+ensure consistent handling of external proposals, the application MUST ensure
+that the members of a group have the same mapping and apply the same policies to
+external proposals.
 
-An external proposal MUST be sent as an MLSPlaintext object, since the sender
-will not have the keys necessary to construct an MLSCiphertext object.
+An external proposal MUST be sent as an MLSPlaintext
+object, since the sender will not have the keys necessary to construct an
+MLSCiphertext object.
 
 [[ TODO: Should recognized external signers be added to some object that the
 group explicitly agrees on, e.g., as an extension to the GroupContext? ]]
@@ -1819,51 +1894,45 @@ group explicitly agrees on, e.g., as an extension to the GroupContext? ]]
 ## Commit
 
 A Commit message initiates a new epoch for the group, based on a collection of
-Proposals.  It instructs group members to update their representation of the
+Proposals. It instructs group members to update their representation of the
 state of the group by applying the proposals and advancing the key schedule.
 
-A group member that has observed one or more Proposal messages within an epoch
-MUST send a Commit message before sending application data.  This ensures, for
-example, that any members whose removal was proposed during the epoch are
-actually removed before any application information is transmitted.
-
-The sender of a Commit message MUST include in it all valid Proposals that the
-sender has received during the current epoch.  Invalid Proposals include, for
-example, Proposals with an invalid signature or Proposals that are semantically
-inconsistent, such as a Remove proposal for an unoccupied leaf. The Commit MUST
-NOT combine Proposals sent within different epochs.  Despite these requirements,
-it is still possible for a valid Proposal not to be covered by a Commit, e.g.,
-because the sender of the Commit did not receive the Proposal.  In such cases,
-the sender of the proposal can retransmit the Proposal in the new epoch.
-
-Each proposal covered by the Commit is identified by a ProposalID structure.
-The `sender` field in this structure indicates the member of the group that sent
-the proposal (according to their index in the ratchet tree).  The `hash` field
+Each proposal covered by the Commit is identified by a ProposalID value, which
 contains the hash of the MLSPlaintext in which the Proposal was sent, using the
-hash function for the group's ciphersuite.
+hash function from the group's ciphersuite.
 
 ~~~~~
-struct {
-    uint32 sender;
-    opaque hash<0..255>;
-} ProposalID;
+opaque ProposalID<0..255>;
 
 struct {
     ProposalID updates<0..2^16-1>;
     ProposalID removes<0..2^16-1>;
     ProposalID adds<0..2^16-1>;
-    ProposalID ignored<0..2^16-1>;
+
+    ClientInitKey client_init_key;
     DirectPath path;
 } Commit;
 ~~~~~
 
-The sender of a Commit message MUST include in it all proposals that it has
-received during the current epoch.  Proposals that recipients should implement
-are placed in the `updates`, `removes`, and `adds` vector, according to their
-type.  Proposals that should not be implemented are placed in the `ignored`
-vector.  For example, if two Update proposals are issued for the same leaf, then
-one of them (presumably the earlier one) should be ignored and the other
-(presumably the later) should be added to the `updates` vector.
+A group member that has observed one or more proposals within an epoch MUST send
+a Commit message before sending application data. This ensures, for example,
+that any members whose removal was proposed during the epoch are actually
+removed before any application data is transmitted.
+
+The sender of a Commit MUST include all valid proposals that it has received
+during the current epoch. Invalid proposals include, for example, proposals with
+an invalid signature or proposals that are semantically invalid, such as an Add
+when the sender does not have the application-level permission to add new users.
+If there are multiple proposals that apply to the same leaf, the committer
+chooses one and includes only that one in the Commit, considering the rest
+invalid. The committer MUST prefer any Remove received, or the most recent
+Update for the leaf if there are no Removes. If there are multiple Add proposals
+for the same client, the committer again chooses one to include and considers
+the rest invalid.
+
+The Commit MUST NOT combine proposals sent within different epochs. In the event
+that a valid proposal is omitted from the next Commit, the sender of the
+proposal SHOULD retransmit it in the new epoch.
 
 [[ OPEN ISSUE: This structure loses the welcome_info_hash, because new
 participants are no longer expected to have access to the Commit message adding
@@ -1871,40 +1940,101 @@ them to the group.  It might be we need to re-introduce this assumption, though
 it seems like the information confirmed by the welcome_info_hash is confirmed at
 the next epoch change anyway. ]]
 
+A member of the group creates a Commit message and the corresponding Welcome
+message at the same time, by taking the following steps:
+
+* Construct an initial Commit object with `updates`, `removes`, and `adds`
+  fields populated from Proposals received during the current epoch, and empty
+  `client_init_key` and `path` fields.
+
+* Generate a provisional GroupContext object by applying the proposals
+  referenced in the initial Commit object in the order provided, as described in
+  {{proposals}}. Add proposals are applied left to right: Each Add proposal is
+  applied at the leftmost unoccupied leaf, or appended to the right edge of the
+  tree if all leaves are occupied.
+
+* Create a DirectPath using the new tree (which includes any new members).  The
+  GroupContext for this operation uses the `group_id`, `epoch`, `tree`, and
+  `prior_confirmed_transcript_hash` values in the initial GroupInfo object.
+
+   * Assign this DirectPath to the `path` fields in the Commit and GroupInfo objects.
+
+   * Apply the DirectPath to the tree, as described in
+     {{synchronizing-views-of-the-tree}}. Define `commit_secret` as the value
+     `path_secret[n+1]` derived from the `path_secret[n]` value assigned to
+     the root node.
+
+* Generate a new ClientInitKey for the Committer's own leaf, with a
+  `parent_hash` extension. Store it in the ratchet tree and assign it to the
+  `client_init_key` field in the Commit object.
+
+* Construct an MLSPlaintext object containing the Commit object.  Use the
+  `commit_secret` to advance the key schedule and compute the `confirmation`
+  value in the MLSPlaintext.  Sign the MLSPlaintext using the current epoch's
+  GroupContext as context.
+
+* Update the tree in the provisional state by applying the direct path
+
+* Construct a GroupInfo reflecting the new state:
+  * Group ID, epoch, tree, confirmed transcript hash, and interim transcript
+    hash from the new state
+  * The confirmation from the MLSPlaintext object
+  * Sign the GroupInfo using the member's private signing key
+  * Encrypt the GroupInfo using the key and nonce derived from the `epoch_secret`
+    for the new epoch (see {{welcoming-new-members}})
+
+* For each new member in the group:
+  * Identify the lowest common ancestor in the tree of the new member's
+    leaf node and the member sending the Commit
+  * Compute the path secret corresponding to the commonn ancestor node
+  * Compute an EncryptedKeyPackage object that encapsulates the `init_secret`
+    for the current epoch and the path secret for the common ancestor.
+
+* Construct a Welcome message from the encrypted GroupInfo object and the
+  encrypted key packages.
+
 A member of the group applies a Commit message by taking the following steps:
 
-1. Verify that the `epoch` field of the enclosing MLSPlaintext message is equal
-   to the `epoch` field of the current GroupContext object
+* Verify that the `epoch` field of the enclosing MLSPlaintext message is equal
+  to the `epoch` field of the current GroupContext object
 
-2. Verify that the signature on the MLSPlaintext message verifies using the
-   public key from the credential stored at the leaf in the tree indicated by
-   the `sender` field.
+* Verify that the signature on the MLSPlaintext message verifies using the
+  public key from the credential stored at the leaf in the tree indicated by
+  the `sender` field.
 
-3. Generate a provisional GroupContext object by applying the proposals
-   referenced in the commit object in the order provided, as described in
-   {{proposals}}.  Add proposals are applied left to right: Each Add proposal is
-   applied at the leftmost unoccupied leaf, or appended to the right edge of the
-   tree if all leaves are occupied.
+* Generate a provisional GroupContext object by applying the proposals
+  referenced in the commit object in the order provided, as described in
+  {{proposals}}.  Add proposals are applied left to right: Each Add proposal is
+  applied at the leftmost unoccupied leaf, or appended to the right edge of the
+  tree if all leaves are occupied.
 
-4. Process the `path` value to update the ratchet tree referenced by the
-   provisional GroupContext and generate the `commit_secret`:
+* Process the `path` value using the ratchet tree the provisional GroupContext,
+  to update the ratchet tree and generate the `commit_secret`:
 
-   * Update the ratchet tree by replacing nodes in the direct path of the sender
-     with the corresponding nodes in the path (see {{direct-paths}}).
+  * Apply the DirectPath to the tree, as described in
+    {{synchronizing-views-of-the-tree}}, and store `client_init_key` at the
+    Committer's leaf.
 
-   * The `commit_secret` is the value `path_secret[n+1]` derived from the
-     `path_secret[n]` value associated to the root node.
+  * Verify that the ClientInitKey has a `parent_hash`
+    extension and that its value matches the new parent of the sender's leaf
+    node.
 
-5. Use the `commit_secret`, the provisional GroupContext, and the init secret from
-   the previous epoch to compute the epoch secret and derived secrets for the
-   new epoch.
+  * Define `commit_secret` as the value `path_secret[n+1]` derived from the
+    `path_secret[n]` value assigned to the root node.
 
-6. Use the `confirmation_key` for the new epoch to compute the confirmation MAC
-   for this message, as described below, and verify that it is the same as the
-   `confirmation` field in the MLSPlaintext object.
+* Update the new GroupContexts confirmed and interim transcript hashes using the
+  new Commit.
 
-7. If the above checks are successful, consider the updated GroupContext object
-   as the current state of the group.
+* Use the `commit_secret`, the provisional GroupContext, and the init secret from
+  the previous epoch to compute the epoch secret and derived secrets for the
+  new epoch.
+
+* Use the `confirmation_key` for the new epoch to compute the confirmation MAC
+  for this message, as described below, and verify that it is the same as the
+  `confirmation` field in the MLSPlaintext object.
+
+* If the above checks are successful, consider the updated GroupContext object
+  as the current state of the group.
 
 The confirmation value confirms that the members of the group have arrived at
 the same state of the group:
@@ -1944,29 +2074,19 @@ Commit.
 
 ~~~~~
 struct {
-    HPKEPublicKey public_key;
-    opaque unmerged_leaves<0..2^32-1>;
-    optional<Credential> credential;
-} RatchetNode;
-
-struct {
-  // GroupContext inputs
   opaque group_id<0..255>;
   uint64 epoch;
-  optional<RatchetNode> tree<1..2^32-1>;
+  optional<Node> tree<1..2^32-1>;
   opaque confirmed_transcript_hash<0..255>;
-
-  // Inputs to the next round of the key schedule
   opaque interim_transcript_hash<0..255>;
-  opaque epoch_secret<0..255>;
 
+  opaque confirmation<0..255>
   uint32 signer_index;
   opaque signature<0..2^16-1>;
 } GroupInfo;
 
 struct {
-  opaque group_info_key<1..255>;
-  opaque group_info_nonce<1..255>;
+  opaque epoch_secret<1..255>;
   opaque path_secret<1..255>;
 } KeyPackage;
 
@@ -1978,47 +2098,82 @@ struct {
 struct {
   ProtocolVersion version = mls10;
   CipherSuite cipher_suite;
-  EncryptedKeyPackage key_packages<1..V>;
-  opaque encrypted_group_info;
+  EncryptedKeyPackage key_packages<0..2^32-1>;
+  opaque encrypted_group_info<1..2^32-1>;
 } Welcome;
 ~~~~~
 
-In the description of the tree as a list of nodes, the `credential`
+In the description of the tree as a list of nodes, the `client_init_key`
 field for a node MUST be populated if and only if that node is a
-leaf in the tree (i.e., a node with an even index).
+leaf in the tree.
 
 On receiving a Welcome message, a client processes it using the following steps:
 
 * Identify an entry in the `key_packages` array where the `client_init_key_hash`
   value corresponds to one of this client's ClientInitKeys, using the hash
   indicated by the `cipher_suite` field.  If no such field exists, or if the
-  ciphersuite indicated in the  ClientInitKey does not match the one in the
+  ciphersuite indicated in the ClientInitKey does not match the one in the
   Welcome message, return an error.
 
 * Decrypt the `encrypted_key_package` using HPKE with the algorithms indicated
-  by the ciphersuite and the HPKE public key in the ClientInitKey.
+  by the ciphersuite and the HPKE private key corresponding to the ClientInitKey.
 
-* Decrypt the `encrypted_group_info` field using the key and nonce in the
-  decrypted KeyPackage object.
+* From the `epoch_secret` in the decrypted KeyPackage object, derive the
+  `welcome_secret`, `welcome_key`, and `welcome_nonce`.  Use the key
+  and nonce to decrypt the `encrypted_group_info` field.
+
+~~~~~
+welcome_secret = HKDF-Expand(epoch_secret, "mls 1.0 welcome", Hash.length)
+welcome_nonce = HKDF-Expand(welcome_secret, "nonce", nonce_length)
+welcome_key = HKDF-Expand(welcome_secret, "key", key_length)
+~~~~~
 
 * Verify the signature on the GroupInfo object.  The signature input comprises
   all of the fields in the GroupInfo object except the signature field.  The
   public key and algorithm are taken from the credential in the leaf node at
   position `signer_index`.  If this verification fails, return an error.
 
-* Identify a leaf in the `tree` array (i.e., an even-numbered node) whose
+* Verify the integrity of the ratchet tree.
+
+  * For each non-empty parent node, verify that exactly one of the node's
+    children are non-empty and have the hash of this node set as their
+    `parent_hash` value (if the child is another parent) or has a `parent_hash`
+    extension in the ClientInitKey containing the same value (if the child is a
+    leaf).
+
+  * For each non-empty leaf node, verify the signature on the ClientInitKey.
+
+* Identify a leaf in the `tree` array (any even-numbered node) whose
   `public_key` and `credential` fields are identical to the corresponding fields
   in the ClientInitKey.  If no such field exists, return an error.  Let `index`
   represent the index of this node among the leaves in the tree, namely the
   index of the node in the `tree` array divided by two.
 
 * Construct a new group state using the information in the GroupInfo object.
-  The new member's position in the tree is `index`, as defined above.
+  The new member's position in the tree is `index`, as defined above.  In
+  particular, the confirmed transcript hash for the new state is the
+  `prior_confirmed_transcript_hash` in the GroupInfo object.
 
-* Identify the lowest node at which the direct paths from `index` and
-  `signer_index` overlap.  Set private keys for that node and its parents up to
-  the root of the tree, using the `path_secret` from the KeyPackage and
-  following the algorithm in {{ratchet-tree-commits}} to move up the tree.
+    * Update the leaf at index `index` with the private key corresponding to the
+      public key in the node.
+
+    * Identify the lowest common ancestor of the leaves at `index` and at
+      `GroupInfo.signer_index`.  Set the private key for this node to the
+      private key derived from the `path_secret` in the KeyPackage object.
+
+    * For each parent of the common ancestor, up to the root of the tree, derive
+      a new path secret and set the private key for the node to the private key
+      derived from the path secret.  The private key MUST be the private key
+      that correspondns to the public key in the node.
+
+* Use the `epoch_secret` from the KeyPackage object to generate the epoch secret
+  and other derived secrets for the current epoch.
+
+* Set the confirmed transcript hash in the new state to the value of the
+  `confirmed_transcript_hash` in the GroupInfo.
+
+* Verify the confirmation MAC in the GroupInfo using the derived confirmation
+  key and the `confirmed_transcript_hash` from the GroupInfo.
 
 # Sequencing of State Changes {#sequencing}
 
@@ -2026,35 +2181,35 @@ On receiving a Welcome message, a client processes it using the following steps:
 regarding sequencing.  It would be good to have some more detailed
 discussion, and hopefully have a mechanism to deal with this issue. ]]
 
-Each handshake message is premised on a given starting state,
+Each Commit message is premised on a given starting state,
 indicated in its `prior_epoch` field.  If the changes implied by a
-handshake messages are made starting from a different state, the
+Commit messages are made starting from a different state, the
 results will be incorrect.
 
 This need for sequencing is not a problem as long as each time a
-group member sends a handshake message, it is based on the most
+group member sends a Commit message, it is based on the most
 current state of the group.  In practice, however, there is a risk
-that two members will generate handshake messages simultaneously,
+that two members will generate Commit messages simultaneously,
 based on the same state.
 
 When this happens, there is a need for the members of the group to
-deconflict the simultaneous handshake messages.  There are two
+deconflict the simultaneous Commit messages.  There are two
 general approaches:
 
 * Have the delivery service enforce a total order
 * Have a signal in the message that clients can use to break ties
 
-As long as handshake messages cannot be merged, there is a risk of
+As long as Commit messages cannot be merged, there is a risk of
 starvation.  In a sufficiently busy group, a given member may never
-be able to send a handshake message, because he always loses to other
+be able to send a Commit message, because he always loses to other
 members.  The degree to which this is a practical problem will depend
 on the dynamics of the application.
 
 It might be possible, because of the non-contributivity of intermediate
 nodes, that Commit messages could be applied one after the other
-without the Delivery Service having to reject any handshake message,
+without the Delivery Service having to reject any Commit message,
 which would make MLS more resilient regarding the concurrency of
-handshake messages.
+Commit messages.
 The Messaging system can decide to choose the order for applying
 the state changes. Note that there are certain cases (if no total
 ordering is applied by the Delivery Service) where the ordering is
@@ -2062,20 +2217,18 @@ important for security, ie. all updates must be executed before
 removes.
 
 Regardless of how messages are kept in sequence, implementations
-MUST only update their cryptographic state when valid handshake
+MUST only update their cryptographic state when valid Commit
 messages are received.
-Generation of handshake messages MUST be stateless, since the
-endpoint cannot know at that time whether the change implied by
-the handshake message will succeed or not.
+Generation of Commit messages MUST NOT modify a client's state, since the
+endpoint doesn't know at that time whether the changes implied by
+the Commit message will succeed or not.
 
 ## Server-Enforced Ordering
 
 With this approach, the delivery service ensures that incoming
 messages are added to an ordered queue and outgoing messages are
-dispatched in the same order. The server is trusted to resolve
-conflicts during race-conditions (when two members send a message
-at the same time), as the server doesn't have any additional
-knowledge thanks to the confidentiality of the messages.
+dispatched in the same order. The server is trusted to break ties
+when two members send a Commit message at the same time.
 
 Messages should have a counter field sent in clear-text that can
 be checked by the server and used for tie-breaking. The counter
@@ -2239,9 +2392,8 @@ as well as any secret in the AS Tree or one of the ratchets.
 
 As soon as a group member consumes a value they MUST immediately delete
 (all representations of) that value. This is crucial to ensuring
-Forward Secrecy for past messages. Members MAY keep unconsumed values around
-for some reasonable amount of time even if their generating secret was
-already consumed (e.g. due to out of order message delivery).
+forward secrecy for past messages. Members MAY keep unconsumed values around
+for some reasonable amount of time to handle out-of-order message delivery.
 
 For example, suppose a group member encrypts or (successfully) decrypts a
 message using the j-th key and nonce in the i-th ratchet. Then, for that
@@ -2276,8 +2428,8 @@ A0  B0  C0  D0 -+- KD0
 
 Then if a client uses key KD1 and nonce ND1 during epoch n then it must consume
 (at least) values G, F, D0, D1, KD1, ND1 as well as the `commit_secret` and
-init_secret used to derive G (i.e. the application_secret).  The
-client MAY retain (i.e., not consume) the values KD0 and ND0 to
+init_secret used to derive G (the application_secret).  The
+client MAY retain (not consume) the values KD0 and ND0 to
 allow for out-of-order delivery, and SHOULD retain D2 to allow for
 processing future messages.
 
@@ -2659,37 +2811,13 @@ def copath(x, n):
 
     return [sibling(y, n) for y in d]
 
-# Frontier is the list of full subtrees, from left to right.  A
-# balanced binary tree with n leaves has a full subtree for every
-# power of two where n has a bit set, with the largest subtrees
-# furthest to the left.  For example, a tree with 11 leaves has full
-# subtrees of size 8, 2, and 1.
-def frontier(n):
-    st = [1 << k for k in range(log2(n) + 1) if n & (1 << k) != 0]
-    st = reversed(st)
-
-    base = 0
-    f = []
-    for size in st:
-        f.append(root(size) + base)
-        base += 2*size
-    return f
-
-# Leaves are in even-numbered nodes
-def leaves(n):
-    return [2*i for i in range(n)]
-
-# The resolution of a node is the collection of non-blank
-# descendants of this node.  Here the tree is represented by a list
-# of nodes, where blank nodes are represented by None
-def resolve(tree, x, n):
-    if tree[x] != None:
-        return [x]
-
-    if level(x) == 0:
-        return []
-
-    L = resolve(tree, left(x), n)
-    R = resolve(tree, right(x, n), n)
-    return L + R
+# The common ancestor of two leaves is the lowest node that is in the
+# lowest-level node that is in the direct paths of both leaves.
+def common_ancestor(x, y):
+    xn, yn = x, y
+    k = 0
+    while xn != yn:
+       xn, yn = xn >> 1, yn >> 1
+       k += 1
+    return (xn << k) + (1 << (k-1)) - 1
 ~~~~~
