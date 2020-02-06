@@ -684,7 +684,7 @@ generated value to provide post-compromise security.
 
 
 The generator of the Commit starts by using the HPKE secret key
-"leaf_hpke_secret_key" associated with the new leaf ClientInitKey (see
+"leaf_hpke_secret" associated with the new leaf ClientInitKey (see
 {{initialization-keys}}) to compute "path_secret[0]" and generate a
 sequence of "path secrets", one for each ancestor of its leaf.  That
 is, path_secret[0] is used for the node directly above the leaf,
@@ -693,13 +693,11 @@ secret is used to derive a new secret value for the corresponding
 node, from which the node's key pair is derived.
 
 ~~~~~
-path_secret[0] = HKDF-Expand-Label(leaf_hpke_secret_key,
+path_secret[0] = HKDF-Expand-Label(leaf_hpke_secret,
                                    "path", "", Hash.Length)
 path_secret[n] = HKDF-Expand-Label(path_secret[n-1],
                                    "path", "", Hash.Length)
-node_secret[n] = HKDF-Expand-Label(path_secret[n],
-                                   "node", "", Hash.Length)
-node_priv[n], node_pub[n] = Derive-Key-Pair(node_secret[n])
+node_priv[n], node_pub[n] = Derive-Key-Pair(path_secret[n])
 ~~~~~
 
 For example, suppose there is a group with four members:
@@ -715,30 +713,27 @@ A   B   C   D
 ~~~~~
 
 If member B subsequently generates a Commit based on a secret
-"leaf_hpke_secret_key", then it would generate the following sequence
-of path secrets and node secrets:
+"leaf_hpke_secret", then it would generate the following sequence
+of path secrets:
 
 ~~~~~
-    path_secret[2] ---> node_secret[2]
+    path_secret[1] --> node_priv[1], node_pub[1]
          ^
          |
-    path_secret[1] ---> node_secret[1]
+    path_secret[0] --> node_priv[0], node_pub[0]
          ^
          |
-    path_secret[0] ---> node_secret[0]
-         ^
-         |
-    leaf_hpke_secret_key
+   leaf_hpke_secret
 ~~~~~
 
 After the Commit, the tree will have the following structure, where
-"ns[i]" represents the node_secret values generated as described
+"np[i]" represents the node_priv values generated as described
 above:
 
 ~~~~~
-          ns[1]
+          np[1]
          /     \
-     ns[0]      _
+     np[0]      _
      /  \      / \
     A    B    C   D
 ~~~~~
@@ -780,7 +775,7 @@ The recipient of a path update processes it with the following steps:
    * Derive path secrets for ancestors of that node using the
      algorithm described above.
    * The recipient SHOULD verify that the received public keys agree
-     with the public keys derived from the new node_secret values.
+     with the public keys derived from the new path_secret values.
 2. Merge the updated path secrets into the tree.
    * For all updated nodes,
      * Replace the public key for each node with the received public key.
@@ -790,8 +785,8 @@ The recipient of a path update processes it with the following steps:
        nodes above it. The root node always has a zero-length hash for this
        value.
    * For nodes where an updated path secret was computed in step 1,
-     compute the corresponding node secret and node key pair and
-     replace the values stored at the node with the computed values.
+     compute the corresponding node key pair and replace the values
+     stored at the node with the computed values.
 
 For example, in order to communicate the example update described in
 the previous section, the sender would transmit the following
@@ -837,48 +832,43 @@ opaque HPKEPublicKey<1..2^16-1>;
 
 The ciphersuites are defined in section {{mls-ciphersuites}}.
 
-### Notes on Diffie-Hellman groups
+Depending on the Diffie-Hellman group of the ciphersuite, different rules apply
+to private key derivation and public key verification.   For all ciphersuites
+defined in this document, the Derive-Key-Pair function begins by deriving a "key
+pair secret" of appropriate length, then converting it to a private key in the
+required group.  The ciphersuite specifies the required length and the
+conversion.
 
-Depending on the Diffie-Hellman group of the ciphersuite, different rules apply to private key derivation and public key verification.
+~~~~~
+key_pair_secret = HKDF-Expand-Label(path_secret, "key pair",
+                                    "", KeyPairSecretLength)
+~~~~~
 
-#### X25519
+### X25519 and X448
 
-Given an octet string X, the private key produced by the
-Derive-Key-Pair operation is SHA-256(X) (Recall that any 32-octet
-string is a valid X25519 private key). The corresponding public
+For X25519, the key pair secret is 32 octets long.  No conversion is required,
+since any 32-octet string is a valid X25519 private key.  The corresponding public
 key is X25519(SHA-256(X), 9).
 
-Implementations SHOULD use the approach
-specified in {{?RFC7748}} to calculate the Diffie-Hellman shared secret.
-Implementations MUST check whether the computed Diffie-Hellman shared
-secret is the all-zero value and abort if so, as described in
-Section 6 of {{RFC7748}}.  If implementers use an alternative
-implementation of these elliptic curves, they SHOULD perform the
-additional checks specified in Section 7 of {{RFC7748}}
+For X448, the key pair secret is 56 octets long.  No conversion is required,
+since any 56-octet string is a valid X448 private key.  The corresponding public
+key is X448(SHA-256(X), 5).
 
-#### X448
+Implementations MUST use the approach specified in {{?RFC7748}} to calculate
+the Diffie-Hellman shared secret.  Implementations MUST check whether the
+computed Diffie-Hellman shared secret is the all-zero value and abort if so, as
+described in Section 6 of {{RFC7748}}.  If implementers use an alternative
+implementation of these elliptic curves, they MUST perform the additional
+checks specified in Section 7 of {{RFC7748}}
 
-Given an octet string X, the private key produced by the
-Derive-Key-Pair operation is SHA-512(X) truncated to 448 bits (Recall that any 56-octet
-string is a valid X448 private key). The corresponding public
-key is X448(SHA-512(X), 5).
+#### P-256 and P-521
 
-Implementations SHOULD use the approach
-specified in {{?RFC7748}} to calculate the Diffie-Hellman shared secret.
-Implementations MUST check whether the computed Diffie-Hellman shared
-secret is the all-zero value and abort if so, as described in
-Section 6 of {{RFC7748}}.  If implementers use an alternative
-implementation of these elliptic curves, they SHOULD perform the
-additional checks specified in Section 7 of {{RFC7748}}
+For P-256, the key pair secret is 32 octets long.  For P-521, the key pair
+secret is 65 octets long.  In either case, the private key derived from a key
+pair secret is computed by interpreting the key pair secret as a big-endian
+integer.
 
-#### P-256
-
-Given an octet string X, the private key produced by the
-Derive-Key-Pair operation is SHA-256(X), interpreted as a big-endian
-integer.  The corresponding public key is the result of multiplying
-the standard P-256 base point by this integer.
-
-P-256 ECDH calculations (including parameter
+ECDH calculations for these curves (including parameter
 and key generation as well as the shared secret calculation) are
 performed according to {{IEEE1363}} using the ECKAS-DH1 scheme with the identity
 map as key derivation function (KDF), so that the shared secret is the
@@ -2621,13 +2611,13 @@ This specification defines the following cipher suites for use with MLS 1.0.
 | MLS10_256_DHKEMP521_AES256GCM_SHA512_P521             | 0x0005 |
 | MLS10_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     | 0x0006 |
 
-The KEM/DEM constructions used for HPKE are defined by {{HPKE}}.
+The KEM/DEM constructions used for HPKE are defined by {{!I-D.irtf-cfrg-hpke}}.
 The corresponding AEAD algorithms AEAD_AES_128_GCM and AEAD_AES_256_GCM, are
-defined in {{RFC5116}}. AEAD_CHACHA20_POLY1305 is defined
-in {{RFC7539}}. The corresponding hash algorithms are defined in {{!SHS}}.
+defined in {{!RFC5116}}. AEAD_CHACHA20_POLY1305 is defined
+in {{!RFC7539}}. The corresponding hash algorithms are defined in {{!SHS=DOI.10.6028/NIST.FIPS.180-4}}.
 
 The mandatory-to-implement ciphersuite for MLS 1.0 is
-`MLS10\_128\_HPKE25519\_AES128GCM\_SHA256\_Ed25519` which is using
+`MLS10\_128\_DHKEMX25519\_AES128GCM\_SHA256\_Ed25519` which is using
 Curve25519, HKDF over SHA2-256 and AES-128-GCM for HPKE,
 and AES-128-GCM with Ed25519 for symmetric encryption and
 signatures.
