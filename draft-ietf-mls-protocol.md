@@ -1961,13 +1961,6 @@ message at the same time, by taking the following steps:
   applied at the leftmost unoccupied leaf, or appended to the right edge of the
   tree if all leaves are occupied.
 
-* Create an initial, partial GroupInfo object reflecting the following values:
-  * Group ID: The group ID for the group
-  * Epoch: The epoch ID for the next epoch
-  * Tree: The group's ratchet tree after the commit has been applied
-  * Prior confirmed transcript hash: The confirmed transcript hash for the
-    current state of the group (not the provisional state)
-
 * Create a DirectPath using the new tree (which includes any new members).  The
   GroupContext for this operation uses the `group_id`, `epoch`, `tree`, and
   `prior_confirmed_transcript_hash` values in the initial GroupInfo object.
@@ -1988,19 +1981,25 @@ message at the same time, by taking the following steps:
   value in the MLSPlaintext.  Sign the MLSPlaintext using the current epoch's
   GroupContext as context.
 
-* Complete the GroupInfo by populating the following fields:
-  * Confirmed transcript hash: The confirmed transcript hash including the
-    current Commit object
-  * Interim transcript hash: The interim transcript hash including the current
-    Commit object
-  * Confirmation: The confirmation from the MLSPlaintext
-  * Sign the GroupInfo using the member's private signing key
-  * Encrypt the GroupInfo using the key and nonce derived from the `init_secret`
-    for the current epoch (see {{welcoming-new-members}})
+* Update the tree in the provisional state by applying the direct path
 
-* For each new member in the group, compute an EncryptedKeyPackage object that
-  encapsulates the `init_secret` for the current epoch.  Construct a Welcome
-  message from the encrypted GroupInfo object and the encrypted key packages.
+* Construct a GroupInfo reflecting the new state:
+  * Group ID, epoch, tree, confirmed transcript hash, and interim transcript
+    hash from the new state
+  * The confirmation from the MLSPlaintext object
+  * Sign the GroupInfo using the member's private signing key
+  * Encrypt the GroupInfo using the key and nonce derived from the `epoch_secret`
+    for the new epoch (see {{welcoming-new-members}})
+
+* For each new member in the group:
+  * Identify the lowest common ancestor in the tree of the new member's
+    leaf node and the member sending the Commit
+  * Compute the path secret corresponding to the commonn ancestor node
+  * Compute an EncryptedKeyPackage object that encapsulates the `init_secret`
+    for the current epoch and the path secret for the common ancestor.
+
+* Construct a Welcome message from the encrypted GroupInfo object and the
+  encrypted key packages.
 
 A member of the group applies a Commit message by taking the following steps:
 
@@ -2083,24 +2082,20 @@ Commit.
 
 ~~~~~
 struct {
-  // GroupContext inputs
   opaque group_id<0..255>;
   uint64 epoch;
   optional<Node> tree<1..2^32-1>;
-  opaque prior_confirmed_transcript_hash<0..255>;
-
   opaque confirmed_transcript_hash<0..255>;
   opaque interim_transcript_hash<0..255>;
 
-  DirectPath path;
   opaque confirmation<0..255>
-
   uint32 signer_index;
   opaque signature<0..2^16-1>;
 } GroupInfo;
 
 struct {
   opaque epoch_secret<1..255>;
+  opaque path_secret<1..255>;
 } KeyPackage;
 
 struct {
@@ -2167,16 +2162,20 @@ welcome_key = HKDF-Expand(welcome_secret, "key", key_length)
   particular, the confirmed transcript hash for the new state is the
   `prior_confirmed_transcript_hash` in the GroupInfo object.
 
-* Process the `path` field in the GroupInfo to update the new group state:
+    * Update the leaf at index `index` with the private key corresponding to the
+      public key in the node.
 
-  * Apply the DirectPath to the tree, as described in
-    {{synchronizing-views-of-the-tree}}.
+    * Identify the lowest common ancestor of the leaves at `index` and at
+      `GroupInfo.signer_index`.  Set the private key for this node to the
+      private key derived from the `path_secret` in the KeyPackage object.
 
-  * Define `commit_secret` as the value `path_secret[n+1]` derived from the
-    `path_secret[n]` value assigned to the root node.
+    * For each parent of the common ancestor, up to the root of the tree, derive
+      a new path secret and set the private key for the node to the private key
+      derived from the path secret.  The private key MUST be the private key
+      that correspondns to the public key in the node.
 
-* Use the `epoch_secret` from the KeyPackage object to generate the epoch secret and other derived secrets for the
-  current epoch.
+* Use the `epoch_secret` from the KeyPackage object to generate the epoch secret
+  and other derived secrets for the current epoch.
 
 * Set the confirmed transcript hash in the new state to the value of the
   `confirmed_transcript_hash` in the GroupInfo.
@@ -2797,37 +2796,13 @@ def copath(x, n):
 
     return [sibling(y, n) for y in d]
 
-# Frontier is the list of full subtrees, from left to right.  A
-# balanced binary tree with n leaves has a full subtree for every
-# power of two where n has a bit set, with the largest subtrees
-# furthest to the left.  For example, a tree with 11 leaves has full
-# subtrees of size 8, 2, and 1.
-def frontier(n):
-    st = [1 << k for k in range(log2(n) + 1) if n & (1 << k) != 0]
-    st = reversed(st)
-
-    base = 0
-    f = []
-    for size in st:
-        f.append(root(size) + base)
-        base += 2*size
-    return f
-
-# Leaves are in even-numbered nodes
-def leaves(n):
-    return [2*i for i in range(n)]
-
-# The resolution of a node is the collection of non-blank
-# descendants of this node.  Here the tree is represented by a list
-# of nodes, where blank nodes are represented by None
-def resolve(tree, x, n):
-    if tree[x] != None:
-        return [x]
-
-    if level(x) == 0:
-        return []
-
-    L = resolve(tree, left(x), n)
-    R = resolve(tree, right(x, n), n)
-    return L + R
+# The common ancestor of two leaves is the lowest node that is in the
+# lowest-level node that is in the direct paths of both leaves.
+def common_ancestor(x, y):
+    xn, yn = x, y
+    k = 0
+    while xn != yn:
+       xn, yn = xn >> 1, yn >> 1
+       k += 1
+    return (xn << k) + (1 << (k-1)) - 1
 ~~~~~
