@@ -1994,7 +1994,7 @@ message at the same time, by taking the following steps:
 * For each new member in the group:
   * Identify the lowest common ancestor in the tree of the new member's
     leaf node and the member sending the Commit
-  * Compute the path secret corresponding to the commonn ancestor node
+  * Compute the path secret corresponding to the common ancestor node
   * Compute an EncryptedKeyPackage object that encapsulates the `init_secret`
     for the current epoch and the path secret for the common ancestor.
 
@@ -2172,7 +2172,7 @@ welcome_key = HKDF-Expand(welcome_secret, "key", key_length)
     * For each parent of the common ancestor, up to the root of the tree, derive
       a new path secret and set the private key for the node to the private key
       derived from the path secret.  The private key MUST be the private key
-      that correspondns to the public key in the node.
+      that corresponds to the public key in the node.
 
 * Use the `epoch_secret` from the KeyPackage object to generate the epoch secret
   and other derived secrets for the current epoch.
@@ -2562,7 +2562,7 @@ particular member of the group. This property is provided by digital
 signatures on the messages under identity keys.
 
 [[ OPEN ISSUE: Signatures under the identity keys, while simple, have
-the side-effect of preclude deniability. We may wish to allow other
+the side-effect of precluding deniability. We may wish to allow other
 options, such as (ii) a key chained off of the identity key,
 or (iii) some other key obtained through a different manner, such
 as a pairwise channel that provides deniability for the message
