@@ -2562,7 +2562,7 @@ particular member of the group. This property is provided by digital
 signatures on the messages under identity keys.
 
 [[ OPEN ISSUE: Signatures under the identity keys, while simple, have
-the side-effect of preclude deniability. We may wish to allow other
+the side-effect of precluding deniability. We may wish to allow other
 options, such as (ii) a key chained off of the identity key,
 or (iii) some other key obtained through a different manner, such
 as a pairwise channel that provides deniability for the message
