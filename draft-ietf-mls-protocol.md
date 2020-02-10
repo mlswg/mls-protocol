@@ -1994,7 +1994,7 @@ message at the same time, by taking the following steps:
 * For each new member in the group:
   * Identify the lowest common ancestor in the tree of the new member's
     leaf node and the member sending the Commit
-  * Compute the path secret corresponding to the commonn ancestor node
+  * Compute the path secret corresponding to the common ancestor node
   * Compute an EncryptedKeyPackage object that encapsulates the `init_secret`
     for the current epoch and the path secret for the common ancestor.
 
