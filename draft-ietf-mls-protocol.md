@@ -821,6 +821,8 @@ are opaque values in a format defined by the underlying Diffie-Hellman
 protocol (see the Ciphersuites section of the HPKE specification for more
 information).
 
+The signature algorithm specified in the ciphersuite is the mandatory algorithm to be used for the signatutes in MLSPlaintext and the tree signatures. It can be different from the signature algorithm specified in credential fielf of ClientInitKeys.
+
 ~~~~~
 opaque HPKEPublicKey<1..2^16-1>;
 ~~~~~
@@ -2447,7 +2449,9 @@ Cipher suite names follow the naming convention:
    CipherSuite MLS_LVL_KEM_AEAD_HASH_SIG = VALUE;
 ~~~
 
-Where VALUE is a 16bit unsigned integer.
+Where VALUE is a is represented as two 8bit octets:
+
+uint8 CipherSuite[2];
 
 | Component | Contents |
 |:----------|:---------|
@@ -2462,12 +2466,12 @@ This specification defines the following cipher suites for use with MLS 1.0.
 
 |          Description                                  |    Value    |
 |:------------------------------------------------------|:------------|
-| MLS10_128_DHKEMX25519_AES128GCM_SHA256_Ed25519        | 0x0001 |
-| MLS10_128_DHKEMP256_AES128GCM_SHA256_P256             | 0x0002 |
-| MLS10_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519 | 0x0003 |
-| MLS10_256_DHKEMX448_AES256GCM_SHA512_Ed448            | 0x0004 |
-| MLS10_256_DHKEMP521_AES256GCM_SHA512_P521             | 0x0005 |
-| MLS10_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     | 0x0006 |
+| MLS10_128_DHKEMX25519_AES128GCM_SHA256_Ed25519        | { 0x00,0x01 } |
+| MLS10_128_DHKEMP256_AES128GCM_SHA256_P256             | { 0x00,0x02 } |
+| MLS10_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519 | { 0x00,0x03 } |
+| MLS10_256_DHKEMX448_AES256GCM_SHA512_Ed448            | { 0x00,0x04 } |
+| MLS10_256_DHKEMP521_AES256GCM_SHA512_P521             | { 0x00,0x05 } |
+| MLS10_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     | { 0x00,0x06 } |
 
 The KEM/DEM constructions used for HPKE are defined by {{HPKE}}.
 The corresponding AEAD algorithms AEAD_AES_128_GCM and AEAD_AES_256_GCM, are
@@ -2479,6 +2483,8 @@ The mandatory-to-implement ciphersuite for MLS 1.0 is
 Curve25519, HKDF over SHA2-256 and AES-128-GCM for HPKE,
 and AES-128-GCM with Ed25519 for symmetric encryption and
 signatures.
+
+Values with the first byte 255 (decimal) are reserved for Private Use.
 
 New cipher suite values are assigned by IANA as described in
 {{iana-considerations}}.
