@@ -2478,6 +2478,9 @@ The corresponding AEAD algorithms AEAD_AES_128_GCM and AEAD_AES_256_GCM, are
 defined in {{RFC5116}}. AEAD_CHACHA20_POLY1305 is defined
 in {{RFC7539}}. The corresponding hash algorithms are defined in {{!SHS}}.
 
+It is advisable to keep the number of ciphersuites low to increase the chances clients can interoperate in a federated environment, therefore the ciphersuites only inlcude modern, yet well-established algorithms.
+Depending on their requirements, clients can choose between two security levels (roughly 128 bit and 256bit). Within the security levels clients can choose between faster X25519/X448 curves and FIPS 140-2 compliant curves for Diffie-Hellman key negotiations. Additionally clients that run predominantly on mobile processors can choose ChaCha20Poly1305 over AES-GCM for performance reasons. Since ChaCha20Poly1305 is not listed by FIPS 140-2 it is not paired with FIPS 140-2 compliant curves. The security level of symmetric encryption algorithms and hash functions is paired with the security level of the curves.
+
 The mandatory-to-implement ciphersuite for MLS 1.0 is
 `MLS10\_128\_HPKE25519\_AES128GCM\_SHA256\_Ed25519` which is using
 Curve25519, HKDF over SHA2-256 and AES-128-GCM for HPKE,
