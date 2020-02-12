@@ -1301,16 +1301,16 @@ defined below:
 
 ~~~~~
 HKDF-Expand-Label(Secret, Label, Context, Length) =
-    HKDF-Expand(Secret, HkdfLabel, Length)
+    HKDF-Expand(Secret, HKDFLabel, Length)
 
-Where HkdfLabel is specified as:
+Where HKDFLabel is specified as:
 
 struct {
   opaque group_context<0..255> = Hash(GroupContext_[n]);
   uint16 length = Length;
   opaque label<7..255> = "mls10 " + Label;
   opaque context<0..2^32-1> = Context;
-} HkdfLabel;
+} HKDFLabel;
 
 Derive-Secret(Secret, Label) =
     HKDF-Expand-Label(Secret, Label, "", Hash.length)
