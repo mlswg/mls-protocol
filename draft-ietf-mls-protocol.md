@@ -1575,10 +1575,9 @@ The following sections describe the encryption and signing processes in detail.
 
 ## Metadata Encryption
 
-The "sender data" used to look up the key for the content encryption is
-encrypted under AEAD using the `sender_data_key` from the keyschedule and the
-random `sender_data_nonce` noted above.  Implementations MUST generate a fresh
-random `sender_data_nonce` for each encryption operation. It is encoded as an
+The "sender data" used to look up the key for the content encryption
+is encrypted under AEAD using the MLSCiphertext sender_data_nonce and
+the sender_data_key from the keyschedule. It is encoded as an
 object of the following form:
 
 ~~~~~
