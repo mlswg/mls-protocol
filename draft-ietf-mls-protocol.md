@@ -2430,16 +2430,16 @@ Initialization keys are intended to be used only once and then
 deleted. Reuse of init keys can lead to replay attacks.
 
 
-# IANA Considerations {#iana-considerations}
+# IANA Considerations
 
 This document requests the creation of the following new IANA
-registries: MLS Ciphersuites {{ciphersuites}}. All of these
+registries: MLS Ciphersuites ({{mls-ciphersuites}}). All of these
 registries should be under a heading of "Message Layer Security",
 and assignments are made via the Specification Required policy
 {{!RFC8126}}. See {{de}} for additional information about the
 MLS Designated Experts (DEs).
 
-## MLS Ciphersuites {#ciphersuites}
+## MLS Ciphersuites
 
 A ciphersuite is a combination of a protocol version and the set of cryptographic algorithms that should be used.
 
@@ -2451,7 +2451,9 @@ Ciphersuite names follow the naming convention:
 
 Where VALUE is represented as two 8bit octets:
 
+~~~
 uint8 CipherSuite[2];
+~~~
 
 | Component | Contents |
 |:----------|:---------|
@@ -2492,7 +2494,7 @@ Values with the first byte 255 (decimal) are reserved for Private Use.
 New ciphersuite values are assigned by IANA as described in
 {{iana-considerations}}.
 
-## MLS Designature Expert Pool {#de}
+## MLS Designated Expert Pool {#de}
 
 [[ OPEN ISSUE: pick DE mailing address.
 Maybe mls-des@ or mls-de-pool. ]]
