@@ -1562,7 +1562,7 @@ MLSPlaintext object and how to convert it to an MLSCiphertext object for
 * Encrypt an MLSSenderData object for the encrypted_sender_data field from
   MLSPlaintext and the key generation
 
-* Generate and sign an MLSPlaintextSignatureInput object from the MLSPlaintext
+* Generate and sign an MLSPlaintextTBS object from the MLSPlaintext
   object
 
 * Encrypt an MLSCiphertextContent for the ciphertext field using the key
@@ -1630,11 +1630,11 @@ struct {
 
     opaque group_id<0..255>;
     uint64 epoch;
-    uint32 sender;
-    ContentType content_type;
+    Sender sender;
     opaque authenticated_data<0..2^32-1>;
 
-    select (MLSPlaintext.content_type) {
+    ContentType content_type;
+    select (MLSPlaintextTBS.content_type) {
         case application:
           opaque application_data<0..2^32-1>;
 
@@ -1645,7 +1645,7 @@ struct {
           Commit commit;
           opaque confirmation<0..255>;
     }
-} MLSPlaintextSignatureInput;
+} MLSPlaintextTBS;
 ~~~~~
 
 The ciphertext field of the MLSCiphertext object is produced by
