@@ -1580,8 +1580,7 @@ struct {
     uint64 epoch;
     ContentType content_type;
     opaque authenticated_data<0..2^32-1>;
-    opaque sender_data_nonce<0..255>;
-} MLSCiphertextSenderDataAAD;
+} MLSSenderDataAAD;
 ~~~~~
 
 When parsing a SenderData struct as part of message decryption, the
