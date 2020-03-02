@@ -1365,9 +1365,6 @@ commit_secret -> HKDF-Extract = epoch_secret
                      +--> Derive-Secret(., "recovery", GroupContext_[n])
                      |    = recovery_secret
                      |
-                     +--> Derive-Secret(., "entity auth", GroupContext_[n])
-                     |    = authentication_secret
-                     |
                      +--> Derive-Secret(., "confirm", GroupContext_[n])
                      |    = confirmation_key
                      |
