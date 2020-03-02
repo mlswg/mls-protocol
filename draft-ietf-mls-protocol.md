@@ -1482,8 +1482,18 @@ It is RECOMMENDED for the application generating exported values
 to refresh those values after a group operation is processed.
 
 ## Recovery Keys
+The main MLS key schedule provides a `recovery_secret` which can be 
+used by an application for branching of the current group. 
 
-## Exporters
+Branching MAY consist of recovery and re-initialization of the current 
+group, in which case the recovery_secret may be used as a PSK. 
+Branching MAY alternatively be used as to split off a sub-group from the 
+current members, whereby the recovery_secret may be used as a 
+PSK for the new group. Recovery keys are distinguished from exporter 
+keys in that they have specific use inside the MLS layer, whereas the use 
+of exporter secrets may be decided by an application. 
+
+## Authentication Keys
 
 
 # Message Framing
