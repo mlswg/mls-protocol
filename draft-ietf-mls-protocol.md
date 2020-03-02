@@ -1365,7 +1365,7 @@ commit_secret -> HKDF-Extract = epoch_secret
                      +--> Derive-Secret(., "recovery", GroupContext_[n])
                      |    = recovery_secret
                      |
-                     +--> Derive-Secreet(., "entity auth", GroupContext_[n])
+                     +--> Derive-Secret(., "entity auth", GroupContext_[n])
                      |    = authentication_secret
                      |
                      +--> Derive-Secret(., "confirm", GroupContext_[n])
@@ -1493,7 +1493,23 @@ PSK for the new group. Recovery keys are distinguished from exporter
 keys in that they have specific use inside the MLS layer, whereas the use 
 of exporter secrets may be decided by an application. 
 
-## Authentication Keys
+~~~~~
+MLS-Recovery(Label, Context, key_length) =
+       HKDF-Expand-Label(Derive-Secret(recovery_secret, Label),
+                         "recovery", Hash(Context), key_length)
+~~~~~
+
+The context used for the derivation of the `recovery_secret` MAY be
+empty while each application SHOULD provide a unique label as an input
+of the HKDF-Expand-Label for each use case. This is to prevent two
+recovery outputs from being generated with the same values and used
+for different functionalities such as a PSK to recover the entire group 
+and a PSK to initiate a subgroup branch.
+
+The recovery values are bound to the Group epoch from which the
+`recovery_secret` is derived, and thus reflects a particular state of
+the Group. Hence a group can be recovered based on a PSK from
+any epoch.
 
 
 # Message Framing
