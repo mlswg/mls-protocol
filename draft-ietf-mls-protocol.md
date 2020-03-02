@@ -1365,6 +1365,9 @@ commit_secret -> HKDF-Extract = epoch_secret
                      +--> Derive-Secret(., "recovery", GroupContext_[n])
                      |    = recovery_secret
                      |
+                     +--> Derive-Secret(., "stateauth", GroupContext_[n])
+                     |    = authentication_secret
+                     |
                      +--> Derive-Secret(., "confirm", GroupContext_[n])
                      |    = confirmation_key
                      |
@@ -1480,18 +1483,20 @@ to refresh those values after a group operation is processed.
 
 ## Recovery Keys
 The main MLS key schedule provides a `recovery_secret` which can be 
-used by an application for branching of the current group. 
+used for branching of the current group. 
 
-Branching MAY consist of recovery and re-initialization of the current 
+Branching can consist of recovery and re-initialization of the current 
 group, in which case the recovery_secret may be used as a PSK. 
-Branching MAY alternatively be used as to split off a sub-group from the 
+Branching can alternatively be used as to split off a sub-group from the 
 current members, whereby the recovery_secret may be used as a 
-PSK for the new group. Recovery keys are distinguished from exporter 
-keys in that they have specific use inside the MLS layer, whereas the use 
-of exporter secrets may be decided by an application. 
+PSK for the new group. 
+
+Recovery keys are distinguished from exporter keys in that they have 
+specific use inside the MLS layer, whereas the use of exporter secrets 
+may be decided by an application. 
 
 ~~~~~
-MLS-Recovery(Label, Context, key_length) =
+recovery_key(Label, Context, key_length) =
        HKDF-Expand-Label(Derive-Secret(recovery_secret, Label),
                          "recovery", Hash(Context), key_length)
 ~~~~~
@@ -1508,6 +1513,9 @@ The recovery values are bound to the Group epoch from which the
 the Group. Hence a group can be recovered based on a PSK from
 any epoch.
 
+## State Authentication Keys
+The main MLS key schedule provides a per-epoch `authentication_secret` 
+which MAY be used for authenticating the current group state. 
 
 # Message Framing
 
