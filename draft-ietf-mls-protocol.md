@@ -1362,6 +1362,9 @@ commit_secret -> HKDF-Extract = epoch_secret
                      +--> Derive-Secret(., "exporter", GroupContext_[n])
                      |    = exporter_secret
                      |
+                     +--> Derive-Secret(., "recovery", GroupContext_[n])
+                     |    = recovery_secret
+                     |
                      +--> Derive-Secret(., "confirm", GroupContext_[n])
                      |    = confirmation_key
                      |
@@ -1474,6 +1477,37 @@ the Group.
 
 It is RECOMMENDED for the application generating exported values
 to refresh those values after a group operation is processed.
+
+## Recovery Keys
+The main MLS key schedule provides a `recovery_secret` which can be 
+used by an application for branching of the current group. 
+
+Branching MAY consist of recovery and re-initialization of the current 
+group, in which case the recovery_secret may be used as a PSK. 
+Branching MAY alternatively be used as to split off a sub-group from the 
+current members, whereby the recovery_secret may be used as a 
+PSK for the new group. Recovery keys are distinguished from exporter 
+keys in that they have specific use inside the MLS layer, whereas the use 
+of exporter secrets may be decided by an application. 
+
+~~~~~
+MLS-Recovery(Label, Context, key_length) =
+       HKDF-Expand-Label(Derive-Secret(recovery_secret, Label),
+                         "recovery", Hash(Context), key_length)
+~~~~~
+
+The context used for the derivation of the `recovery_secret` MAY be
+empty while each application SHOULD provide a unique label as an input
+of the HKDF-Expand-Label for each use case. This is to prevent two
+recovery outputs from being generated with the same values and used
+for different functionalities such as a PSK to recover the entire group 
+and a PSK to initiate a subgroup branch.
+
+The recovery values are bound to the Group epoch from which the
+`recovery_secret` is derived, and thus reflects a particular state of
+the Group. Hence a group can be recovered based on a PSK from
+any epoch.
+
 
 # Message Framing
 
