@@ -1362,6 +1362,12 @@ commit_secret -> HKDF-Extract = epoch_secret
                      +--> Derive-Secret(., "exporter", GroupContext_[n])
                      |    = exporter_secret
                      |
+                     +--> Derive-Secret(., "recovery", GroupContext_[n])
+                     |    = recovery_secret
+                     |
+                     +--> Derive-Secreet(., "entity auth", GroupContext_[n])
+                     |    = authentication_secret
+                     |
                      +--> Derive-Secret(., "confirm", GroupContext_[n])
                      |    = confirmation_key
                      |
@@ -1474,6 +1480,11 @@ the Group.
 
 It is RECOMMENDED for the application generating exported values
 to refresh those values after a group operation is processed.
+
+## Recovery Keys
+
+## Exporters
+
 
 # Message Framing
 
