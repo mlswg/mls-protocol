@@ -261,9 +261,7 @@ capitals, as shown here.
 Client:
 : An agent that uses this protocol to establish shared cryptographic
   state with other clients.  A client is defined by the
-  cryptographic keys it holds.  An application or user may use one client
-  per device (keeping keys local to each device) or sync keys among
-  a user's devices so that each user appears as a single client.
+  cryptographic keys it holds.
 
 Group:
 : A collection of clients with shared cryptographic state.
@@ -1215,25 +1213,25 @@ The following general rules apply:
 
 ~~~~~
 struct {
-  opaque group_id<0..255>;
-  uint64 epoch;
-  Sender sender;
-  ContentType content_type = commit;
-  Commit commit;
+    opaque group_id<0..255>;
+    uint64 epoch;
+    Sender sender;
+    ContentType content_type = commit;
+    Commit commit;
 } MLSPlaintextCommitContent;
 
 struct {
-  opaque confirmation<0..255>;
-  opaque signature<0..2^16-1>;
+    opaque confirmation<0..255>;
+    opaque signature<0..2^16-1>;
 } MLSPlaintextCommitAuthData;
 
 confirmed_transcript_hash_[n] =
     Hash(interim_transcript_hash_[n-1] ||
-         MLSPlaintextCommitContent_[n]);
+        MLSPlaintextCommitContent_[n]);
 
 interim_transcript_hash_[n] =
     Hash(confirmed_transcript_hash_[n] ||
-         MLSPlaintextCommitAuthData_[n]);
+        MLSPlaintextCommitAuthData_[n]);
 ~~~~~
 
 Thus the `confirmed_transcript_hash` field in a GroupContext object represents a
@@ -1306,10 +1304,10 @@ HKDF-Expand-Label(Secret, Label, Context, Length) =
 Where HKDFLabel is specified as:
 
 struct {
-  opaque group_context<0..255> = Hash(GroupContext_[n]);
-  uint16 length = Length;
-  opaque label<7..255> = "mls10 " + Label;
-  opaque context<0..2^32-1> = Context;
+    opaque group_context<0..255> = Hash(GroupContext_[n]);
+    uint16 length = Length;
+    opaque label<7..255> = "mls10 " + Label;
+    opaque context<0..2^32-1> = Context;
 } HKDFLabel;
 
 Derive-Secret(Secret, Label) =
@@ -1335,9 +1333,6 @@ proceeds as shown in the following diagram:
 
 ~~~~~
                init_secret_[n-1] (or 0)
-                     |
-                     +--> Derive-Secret(. "group info", "")
-                     |    = group_info_secret
                      |
                      V
     PSK (or 0) -> HKDF-Extract = early_secret
@@ -2677,6 +2672,10 @@ this RFC. ]]
 * Albert Kwon \\
   MIT \\
   kwonal@mit.edu
+
+* Brendan McMillion \\
+  Cloudflare \\
+  brendan@cloudflare.com
 
 * Eric Rescorla \\
   Mozilla \\
