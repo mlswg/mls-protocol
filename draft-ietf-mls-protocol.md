@@ -862,7 +862,7 @@ checks specified in Section 7 of {{RFC7748}}
 #### P-256 and P-521
 
 For P-256, the key pair secret is 32 octets long.  For P-521, the key pair
-secret is 65 octets long.  In either case, the private key derived from a key
+secret is 66 octets long.  In either case, the private key derived from a key
 pair secret is computed by interpreting the key pair secret as a big-endian
 integer.
 
