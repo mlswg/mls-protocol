@@ -2227,14 +2227,14 @@ welcome_key = HKDF-Expand(welcome_secret, "key", key_length)
 # Extensibility
 
 This protocol includes a mechanism for negotiating extension parameters similar
-to one in TLS {{RFC8446}}.  In TLS, extension negotiation is one-to-one.  The
-client offers extensions in its ClientHello message, and the server expersses
+to the one in TLS {{RFC8446}}.  In TLS, extension negotiation is one-to-one: The
+client offers extensions in its ClientHello message, and the server expresses
 its choices for the session with extensions in its ServerHello and
 EncryptedExtensions messages.  In MLS, extensions appear in the following
 places:
 
 * In ClientInitKeys, to describe client capabilities and aspects of their
-  particiation in the group (once in the ratchet tree)
+  participation in the group (once in the ratchet tree)
 * In the Welcome message, to tell new members of a group what parameters are
   being used by the group
 * In the GroupContext object, to ensure that all members of the group have the
@@ -2257,8 +2257,22 @@ handle extensible fields:
   extensions, and other parameters.  Otherwise, it may fail to interoperate with
   newer clients.
 
+* A client adding a new member to a group MUST verify that the ClientInitKey
+  for the new member contains extensions that are consistent with the group's
+  extensions.  For each extension in the GroupContext, the ClientInitKey MUST
+  have an extension of the same type, and the contents of the extensionn MUST be
+  consistent with the value of the extension in the GroupContext, according to
+  the semantics of the specific extension.
+
 * A client joining a group MUST populate the GroupContext extensions with
-  exactly the contents of the extensions field in the Welcome message.
+  exactly the contents of the extensions field in the Welcome message.  If any
+  extension is unrecognized (i.e., not contained in the corresponding
+  ClientInitKey), then the client MUST reject the Welcome message and not join
+  the group.
+
+Note that the latter two requirements mean that all MLS extensions are
+mandatory, in the sense that an extension in use by the group MUST be supported
+by all members of the group.
 
 This document does not define any way for the parameters of the group to change
 once it has been created; such a behavior could be implemented as an extension.
