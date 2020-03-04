@@ -1398,52 +1398,64 @@ As described in {{message-framing}}, MLS encrypts three different
 types of information:
 
 * Metadata (sender information)
-* Proposal and Commit messages
+* Handshake messages (Proposal and Commit)
 * Application messages
 
 The sender information used to look up the key for the content encryption
-is encrypted under AEAD using a random nonce and the sender_data_key
-which is derived from the sender_data_secret as follows:
+is encrypted under AEAD using a random nonce and the `sender_data_key`
+which is derived from the `sender_data_secret` as follows:
 
 ~~~~~
 sender_data_key =
     HKDF-Expand-Label(sender_data_secret, "sd key", "", key_length)
 ~~~~~
 
-Each handshake message is encrypted using a key and a nonce derived
-from the handshake_secret for a specific sender to prevent two senders
-to perform in the following way:
+For handshake and application messages, a sequence of keys is derived via a
+"sender ratchet".  Each sender has their own sender ratchet, and each step along
+the ratchet is called a "generation".
+
+A sender ratchet starts from a per-sender base secret.  For application keys,
+the base secret is derived as described in {{astree}}.  For handshake keys, base
+secrets are derived directly from the `handshake_secret`.
 
 ~~~~~
-handshake_nonce_[sender] =
-    HKDF-Expand-Label(handshake_secret, "hs nonce", [sender], nonce_length)
+application_secret_[sender]_[0] = astree_node_[N]_secret
 
-handshake_key_[sender] =
-    HKDF-Expand-Label(handshake_secret, "hs key", [sender], key_length)
+handshake_secret_[sender]_[0] =
+    HKDF-Expand-Label(handshake_secret, "hs", [sender], nonce_length)
 ~~~~~
 
-Here the value [sender] represents the index of the member that will
-use this key to send, encoded as a uint32.  Each sender maintains two "generation"
-counters, one for application messages and one for handshake messages.  These
-counters are incremented by one each time the sender sends a message.
+The base secret of for each sender is used to initiate a symmetric hash ratchet
+which generates a sequence of keys and nonces. The sender uses the j-th
+key/nonce pair in the sequence to encrypt (using the AEAD) the j-th message they
+send during that epoch.  In particular, each key/nonce pair MUST NOT be used to
+encrypt more than one message.
 
-For application messages, a chain of keys is derived for each sender
-in a similar fashion. This allows forward secrecy at the level of
-application messages within and out of an epoch.
-A step in this chain (the second subscript) is called a "generation".
-The details of application key derivation are described in the
-{{astree}} section below.
-
-For handshake messages (Proposals and Commits), the same key is used for all
-messages, but the nonce is updated according to the generation of the message:
+Keys, nonces and secrets of ratchets are derived using
+Derive-App-Secret. The context in a given call consists of the index
+of the sender's leaf in the ratchet tree and the current position in
+the ratchet.  In particular, the index of the sender's leaf in the
+ratchet tree is the same as the index of the leaf in the AS Tree
+used to initialize the sender's ratchet.
 
 ~~~~~
-handshake_nonce_[sender]_[generation] = handshake_nonce_[sender]
-                                        XOR encode_big_endian(generation)
+ratchet_secret_[N]_[j]
+      |
+      +--> Derive-App-Secret(., "nonce", N, j, AEAD.nonce_length)
+      |    = ratchet_nonce_[N]_[j]
+      |
+      +--> Derive-App-Secret(., "key", N, j, AEAD.key_length)
+      |    = ratchet_key_[N]_[j]
+      |
+      V
+Derive-App-Secret(., "secret", N, j, Hash.length)
+= ratchet_secret_[N]_[j+1]
 ~~~~~
 
-where `encode_big_endian()` encodes the generation in a big-endian integer of
-the same size as the base handshake nonce.
+Here, AEAD.nonce\_length and AEAD.key\_length denote the lengths
+in bytes of the nonce and key for the AEAD scheme defined by
+the ciphersuite.  "ratchet" should be understood to mean "handshake" or
+"application" depending on the context.
 
 ## Exporters
 
@@ -2371,47 +2383,9 @@ astree_node_[N]_secret
 Note that fixing concrete values for GroupContext_[n] and application_secret
 completely defines all secrets in the AS Tree.
 
-## Sender Ratchets
-
-The secret of a leaf in the AS Tree is used to initiate a symmetric hash
-ratchet which generates a sequence of keys and nonces. The group member
-assigned to that leaf uses the j-th key/nonce pair in the sequence to
-encrypt (using the AEAD) the j-th message they send during that epoch.
-In particular, each key/nonce pair MUST NOT be used to encrypt more
-than one message.
-
-More precisely, the initial secret of the ratchet for the group
-member assigned to the leaf with node index N is simply the secret of
-that leaf.
-
-~~~~
-application_[N]_[0]_secret = astree_node_[N]_secret
-~~~~
-
-Keys, nonces and secrets of ratchets are derived using
-Derive-App-Secret. The context in a given call consists of the index
-of the sender's leaf in the ratchet tree and the current position in
-the ratchet.  In particular, the index of the sender's leaf in the
-ratchet tree is the same as the index of the leaf in the AS Tree
-used to initialize the sender's ratchet.
-
-~~~~
-application_[N]_[j]_secret
-      |
-      +--> Derive-App-Secret(., "app-nonce", N, j, AEAD.nonce_length)
-      |    = application_[N]_[j]_nonce
-      |
-      +--> Derive-App-Secret(., "app-key", N, j, AEAD.key_length)
-      |    = application_[N]_[j]_key
-      |
-      V
-Derive-App-Secret(., "app-secret", N, j, Hash.length)
-= application_[N]_[j+1]_secret
-~~~~
-
-Here, AEAD.nonce\_length and AEAD.key\_length denote the lengths
-in bytes of the nonce and key for the AEAD scheme defined by
-the ciphersuite.
+The secret in the leaf of the AS tree is used to initiate a symmetric hash
+ratchet, from which a sequence of single-use keys and nonces are derived, as
+described in {{encryption-keys}}.
 
 ## Deletion Schedule
 
