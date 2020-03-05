@@ -1071,7 +1071,7 @@ It is RECOMMENDED to rotate last resort keys at a pace chosen by the
 application even though they can have much longer lifetimes than other
 ClientInitKeys.
 
-This extension MUST be always present in an MLS ClientInitKey.
+This extension MUST always be present in a ClientInitKey.
 
 ## Tree Hashes
 
