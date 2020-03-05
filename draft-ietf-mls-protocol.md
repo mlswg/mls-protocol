@@ -521,14 +521,12 @@ The _direct path_ of a root is the empty list, and of any other node
 is the concatenation of that node's parent along with the parent's direct path.
 The _copath_ of a node is the node's sibling concatenated with the list of
 siblings of all the nodes in its
-direct path. The _frontier_ of a tree is the list of heads of the maximal
-full subtrees of the tree, ordered from left to right.
+direct path.
 
 For example, in the below tree:
 
 * The direct path of C is (CD, ABCD, ABCDEFG)
 * The copath of C is (D, AB, EFG)
-* The frontier of the tree is (ABCD, EF, G)
 
 ~~~~~
             ABCDEFG
@@ -680,7 +678,7 @@ generated value to provide post-compromise security.
 
 
 The generator of the Commit starts by using the HPKE secret key
-"leaf_hpke_secret_key" associated with the new leaf ClientInitKey (see
+"leaf_hpke_secret" associated with the new leaf ClientInitKey (see
 {{initialization-keys}}) to compute "path_secret[0]" and generate a
 sequence of "path secrets", one for each ancestor of its leaf.  That
 is, path_secret[0] is used for the node directly above the leaf,
@@ -689,13 +687,11 @@ secret is used to derive a new secret value for the corresponding
 node, from which the node's key pair is derived.
 
 ~~~~~
-path_secret[0] = HKDF-Expand-Label(leaf_hpke_secret_key,
+path_secret[0] = HKDF-Expand-Label(leaf_hpke_secret,
                                    "path", "", Hash.Length)
 path_secret[n] = HKDF-Expand-Label(path_secret[n-1],
                                    "path", "", Hash.Length)
-node_secret[n] = HKDF-Expand-Label(path_secret[n],
-                                   "node", "", Hash.Length)
-node_priv[n], node_pub[n] = Derive-Key-Pair(node_secret[n])
+node_priv[n], node_pub[n] = Derive-Key-Pair(path_secret[n])
 ~~~~~
 
 For example, suppose there is a group with four members:
@@ -711,27 +707,28 @@ A   B   C   D
 ~~~~~
 
 If member B subsequently generates a Commit based on a secret
-"leaf_hpke_secret_key", then it would generate the following sequence
-of path secrets and node secrets:
+"leaf_hpke_secret", then it would generate the following sequence
+of path secrets:
 
 ~~~~~
-    path_secret[1] ---> node_secret[1]
+
+    path_secret[1] --> node_priv[1], node_pub[1]
          ^
          |
-    path_secret[0] ---> node_secret[0]
+    path_secret[0] --> node_priv[0], node_pub[0]
          ^
          |
-    leaf_hpke_secret_key
+   leaf_hpke_secret
 ~~~~~
 
 After the Commit, the tree will have the following structure, where
-"ns[i]" represents the node_secret values generated as described
+"np[i]" represents the node_priv values generated as described
 above:
 
 ~~~~~
-          ns[1]
+          np[1]
          /     \
-     ns[0]      _
+     np[0]      _
      /  \      / \
     A    B    C   D
 ~~~~~
@@ -773,7 +770,7 @@ The recipient of a path update processes it with the following steps:
    * Derive path secrets for ancestors of that node using the
      algorithm described above.
    * The recipient SHOULD verify that the received public keys agree
-     with the public keys derived from the new node_secret values.
+     with the public keys derived from the new path_secret values.
 2. Merge the updated path secrets into the tree.
    * For all updated nodes,
      * Replace the public key for each node with the received public key.
@@ -783,8 +780,8 @@ The recipient of a path update processes it with the following steps:
        nodes above it. The root node always has a zero-length hash for this
        value.
    * For nodes where an updated path secret was computed in step 1,
-     compute the corresponding node secret and node key pair and
-     replace the values stored at the node with the computed values.
+     compute the corresponding node key pair and replace the values
+     stored at the node with the computed values.
 
 For example, in order to communicate the example update described in
 the previous section, the sender would transmit the following
@@ -811,6 +808,7 @@ following primitives to be used in group key computations:
 * A hash function
 * A Diffie-Hellman finite-field group or elliptic curve group
 * An AEAD encryption algorithm {{!RFC5116}}
+* A signature algorithm
 
 The ciphersuite's Diffie-Hellman group is used to instantiate an HPKE
 {{!I-D.irtf-cfrg-hpke}} instance for the purpose of public-key encryption.
@@ -820,65 +818,55 @@ strings with length Hash.length to HPKE key pairs.
 Ciphersuites are represented with the CipherSuite type. HPKE public keys
 are opaque values in a format defined by the underlying Diffie-Hellman
 protocol (see the Ciphersuites section of the HPKE specification for more
-information):
+information).
+
+The signature algorithm specified in the ciphersuite is the mandatory algorithm 
+to be used for the signatutes in MLSPlaintext and the tree signatures. It can be
+different from the signature algorithm specified in credential field of ClientInitKeys.
 
 ~~~~~
-enum {
-    P256_SHA256_AES128GCM(0x0000),
-    X25519_SHA256_AES128GCM(0x0001),
-    (0xFFFF)
-} CipherSuite;
-
 opaque HPKEPublicKey<1..2^16-1>;
 ~~~~~
 
-### Curve25519, SHA-256, and AES-128-GCM
+The ciphersuites are defined in section {{mls-ciphersuites}}.
 
-This ciphersuite uses the following primitives:
+Depending on the Diffie-Hellman group of the ciphersuite, different rules apply
+to private key derivation and public key verification.   For all ciphersuites
+defined in this document, the Derive-Key-Pair function begins by deriving a "key
+pair secret" of appropriate length, then converting it to a private key in the
+required group.  The ciphersuite specifies the required length and the
+conversion.
 
-* Hash function: SHA-256
-* AEAD: AES-128-GCM
+~~~~~
+key_pair_secret = HKDF-Expand-Label(path_secret, "key pair",
+                                    "", KeyPairSecretLength)
+~~~~~
 
-When HPKE is used with this ciphersuite, it uses the following
-algorithms:
+### X25519 and X448
 
-* KEM: 0x0002 = DHKEM(Curve25519)
-* KDF: 0x0001 = HKDF-SHA256
-* AEAD: 0x0001 = AES-GCM-128
-
-Given an octet string X, the private key produced by the
-Derive-Key-Pair operation is SHA-256(X).  (Recall that any 32-octet
-string is a valid Curve25519 private key.)  The corresponding public
+For X25519, the key pair secret is 32 octets long.  No conversion is required,
+since any 32-octet string is a valid X25519 private key.  The corresponding public
 key is X25519(SHA-256(X), 9).
 
-Implementations SHOULD use the approach
-specified in {{?RFC7748}} to calculate the Diffie-Hellman shared secret.
-Implementations MUST check whether the computed Diffie-Hellman shared
-secret is the all-zero value and abort if so, as described in
-Section 6 of {{RFC7748}}.  If implementers use an alternative
-implementation of these elliptic curves, they SHOULD perform the
-additional checks specified in Section 7 of {{RFC7748}}
+For X448, the key pair secret is 56 octets long.  No conversion is required,
+since any 56-octet string is a valid X448 private key.  The corresponding public
+key is X448(SHA-256(X), 5).
 
-### P-256, SHA-256, and AES-128-GCM
+Implementations MUST use the approach specified in {{?RFC7748}} to calculate
+the Diffie-Hellman shared secret.  Implementations MUST check whether the
+computed Diffie-Hellman shared secret is the all-zero value and abort if so, as
+described in Section 6 of {{RFC7748}}.  If implementers use an alternative
+implementation of these elliptic curves, they MUST perform the additional
+checks specified in Section 7 of {{RFC7748}}
 
-This ciphersuite uses the following primitives:
+#### P-256 and P-521
 
-* Hash function: SHA-256
-* AEAD: AES-128-GCM
+For P-256, the key pair secret is 32 octets long.  For P-521, the key pair
+secret is 66 octets long.  In either case, the private key derived from a key
+pair secret is computed by interpreting the key pair secret as a big-endian
+integer.
 
-When HPKE is used with this ciphersuite, it uses the following
-algorithms:
-
-* KEM: 0x0001 = DHKEM(P-256)
-* KDF: 0x0001 = HKDF-SHA256
-* AEAD: 0x0001 = AES-GCM-128
-
-Given an octet string X, the private key produced by the
-Derive-Key-Pair operation is SHA-256(X), interpreted as a big-endian
-integer.  The corresponding public key is the result of multiplying
-the standard P-256 base point by this integer.
-
-P-256 ECDH calculations (including parameter
+ECDH calculations for these curves (including parameter
 and key generation as well as the shared secret calculation) are
 performed according to {{IEEE1363}} using the ECKAS-DH1 scheme with the identity
 map as key derivation function (KDF), so that the shared secret is the
@@ -1392,52 +1380,64 @@ As described in {{message-framing}}, MLS encrypts three different
 types of information:
 
 * Metadata (sender information)
-* Proposal and Commit messages
+* Handshake messages (Proposal and Commit)
 * Application messages
 
 The sender information used to look up the key for the content encryption
-is encrypted under AEAD using a random nonce and the sender_data_key
-which is derived from the sender_data_secret as follows:
+is encrypted under AEAD using a random nonce and the `sender_data_key`
+which is derived from the `sender_data_secret` as follows:
 
 ~~~~~
 sender_data_key =
     HKDF-Expand-Label(sender_data_secret, "sd key", "", key_length)
 ~~~~~
 
-Each handshake message is encrypted using a key and a nonce derived
-from the handshake_secret for a specific sender to prevent two senders
-to perform in the following way:
+For handshake and application messages, a sequence of keys is derived via a
+"sender ratchet".  Each sender has their own sender ratchet, and each step along
+the ratchet is called a "generation".
+
+A sender ratchet starts from a per-sender base secret.  For application keys,
+the base secret is derived as described in {{astree}}.  For handshake keys, base
+secrets are derived directly from the `handshake_secret`.
 
 ~~~~~
-handshake_nonce_[sender] =
-    HKDF-Expand-Label(handshake_secret, "hs nonce", [sender], nonce_length)
+application_secret_[sender]_[0] = astree_node_[N]_secret
 
-handshake_key_[sender] =
-    HKDF-Expand-Label(handshake_secret, "hs key", [sender], key_length)
+handshake_secret_[sender]_[0] =
+    HKDF-Expand-Label(handshake_secret, "hs", [sender], nonce_length)
 ~~~~~
 
-Here the value [sender] represents the index of the member that will
-use this key to send, encoded as a uint32.  Each sender maintains two "generation"
-counters, one for application messages and one for handshake messages.  These
-counters are incremented by one each time the sender sends a message.
+The base secret of for each sender is used to initiate a symmetric hash ratchet
+which generates a sequence of keys and nonces. The sender uses the j-th
+key/nonce pair in the sequence to encrypt (using the AEAD) the j-th message they
+send during that epoch.  In particular, each key/nonce pair MUST NOT be used to
+encrypt more than one message.
 
-For application messages, a chain of keys is derived for each sender
-in a similar fashion. This allows forward secrecy at the level of
-application messages within and out of an epoch.
-A step in this chain (the second subscript) is called a "generation".
-The details of application key derivation are described in the
-{{astree}} section below.
-
-For handshake messages (Proposals and Commits), the same key is used for all
-messages, but the nonce is updated according to the generation of the message:
+Keys, nonces and secrets of ratchets are derived using
+Derive-App-Secret. The context in a given call consists of the index
+of the sender's leaf in the ratchet tree and the current position in
+the ratchet.  In particular, the index of the sender's leaf in the
+ratchet tree is the same as the index of the leaf in the AS Tree
+used to initialize the sender's ratchet.
 
 ~~~~~
-handshake_nonce_[sender]_[generation] = handshake_nonce_[sender]
-                                        XOR encode_big_endian(generation)
+ratchet_secret_[N]_[j]
+      |
+      +--> Derive-App-Secret(., "nonce", N, j, AEAD.nonce_length)
+      |    = ratchet_nonce_[N]_[j]
+      |
+      +--> Derive-App-Secret(., "key", N, j, AEAD.key_length)
+      |    = ratchet_key_[N]_[j]
+      |
+      V
+Derive-App-Secret(., "secret", N, j, Hash.length)
+= ratchet_secret_[N]_[j+1]
 ~~~~~
 
-where `encode_big_endian()` encodes the generation in a big-endian integer of
-the same size as the base handshake nonce.
+Here, AEAD.nonce\_length and AEAD.key\_length denote the lengths
+in bytes of the nonce and key for the AEAD scheme defined by
+the ciphersuite.  "ratchet" should be understood to mean "handshake" or
+"application" depending on the context.
 
 ## Exporters
 
@@ -1551,7 +1551,7 @@ MLSPlaintext object and how to convert it to an MLSCiphertext object for
 * Encrypt an MLSSenderData object for the encrypted_sender_data field from
   MLSPlaintext and the key generation
 
-* Generate and sign an MLSPlaintextSignatureInput object from the MLSPlaintext
+* Generate and sign an MLSPlaintextTBS object from the MLSPlaintext
   object
 
 * Encrypt an MLSCiphertextContent for the ciphertext field using the key
@@ -1619,11 +1619,11 @@ struct {
 
     opaque group_id<0..255>;
     uint64 epoch;
-    uint32 sender;
-    ContentType content_type;
+    Sender sender;
     opaque authenticated_data<0..2^32-1>;
 
-    select (MLSPlaintext.content_type) {
+    ContentType content_type;
+    select (MLSPlaintextTBS.content_type) {
         case application:
           opaque application_data<0..2^32-1>;
 
@@ -1634,7 +1634,7 @@ struct {
           Commit commit;
           opaque confirmation<0..255>;
     }
-} MLSPlaintextSignatureInput;
+} MLSPlaintextTBS;
 ~~~~~
 
 The ciphertext field of the MLSCiphertext object is produced by
@@ -2365,47 +2365,9 @@ astree_node_[N]_secret
 Note that fixing concrete values for GroupContext_[n] and application_secret
 completely defines all secrets in the AS Tree.
 
-## Sender Ratchets
-
-The secret of a leaf in the AS Tree is used to initiate a symmetric hash
-ratchet which generates a sequence of keys and nonces. The group member
-assigned to that leaf uses the j-th key/nonce pair in the sequence to
-encrypt (using the AEAD) the j-th message they send during that epoch.
-In particular, each key/nonce pair MUST NOT be used to encrypt more
-than one message.
-
-More precisely, the initial secret of the ratchet for the group
-member assigned to the leaf with node index N is simply the secret of
-that leaf.
-
-~~~~
-application_[N]_[0]_secret = astree_node_[N]_secret
-~~~~
-
-Keys, nonces and secrets of ratchets are derived using
-Derive-App-Secret. The context in a given call consists of the index
-of the sender's leaf in the ratchet tree and the current position in
-the ratchet.  In particular, the index of the sender's leaf in the
-ratchet tree is the same as the index of the leaf in the AS Tree
-used to initialize the sender's ratchet.
-
-~~~~
-application_[N]_[j]_secret
-      |
-      +--> Derive-App-Secret(., "app-nonce", N, j, AEAD.nonce_length)
-      |    = application_[N]_[j]_nonce
-      |
-      +--> Derive-App-Secret(., "app-key", N, j, AEAD.key_length)
-      |    = application_[N]_[j]_key
-      |
-      V
-Derive-App-Secret(., "app-secret", N, j, Hash.length)
-= application_[N]_[j+1]_secret
-~~~~
-
-Here, AEAD.nonce\_length and AEAD.key\_length denote the lengths
-in bytes of the nonce and key for the AEAD scheme defined by
-the ciphersuite.
+The secret in the leaf of the AS tree is used to initiate a symmetric hash
+ratchet, from which a sequence of single-use keys and nonces are derived, as
+described in {{encryption-keys}}.
 
 ## Deletion Schedule
 
@@ -2611,35 +2573,108 @@ deleted. Reuse of init keys can lead to replay attacks.
 
 # IANA Considerations
 
-This document requests the creation of the following new IANA registries:
-
-* MLS Ciphersuites
-
-All of these registries should be under a heading of "Message Layer Security",
-and administered under a Specification Required policy {{!RFC8126}}.
+This document requests the creation of the following new IANA
+registries: MLS Ciphersuites ({{mls-ciphersuites}}). All of these
+registries should be under a heading of "Message Layer Security",
+and assignments are made via the Specification Required policy
+{{!RFC8126}}. See {{de}} for additional information about the
+MLS Designated Experts (DEs).
 
 ## MLS Ciphersuites
 
-The "MLS Ciphersuites" registry lists identifiers for suites of cryptographic
-algorithms defined for use with MLS.  These are two-byte values, so the maximum
-possible value is 0xFFFF = 65535.  Values in the range 0xF000 - 0xFFFF are
-reserved for vendor-internal usage.
+A ciphersuite is a combination of a protocol version and the set of cryptographic algorithms that should be used.
 
-Template:
+Ciphersuite names follow the naming convention:
 
-* Value: The two-byte identifier for the ciphersuite
-* Name: The name of the ciphersuite
-* Reference: Where this algorithm is defined
+~~~
+   CipherSuite MLS_LVL_KEM_AEAD_HASH_SIG = VALUE;
+~~~
 
-The initial contents for this registry are as follows:
+Where VALUE is represented as two 8bit octets:
 
-| Value  | Name                    | Reference |
-|:-------|:------------------------|:----------|
-| 0x0000 | P256_SHA256_AES128GCM   | RFC XXXX  |
-| 0x0001 | X25519_SHA256_AES128GCM | RFC XXXX  |
+~~~
+uint8 CipherSuite[2];
+~~~
 
-[[ Note to RFC Editor: Please replace "XXXX" above with the number assigned to
-this RFC. ]]
+| Component | Contents |
+|:----------|:---------|
+| MLS       | The string "MLS" followed by the major and minor version, e.g. "MLS10" |
+| LVL       | The security level |
+| KEM       | The KEM algorithm used for HPKE in TreeKEM group operations |
+| AEAD      | The AEAD algorithm used for HPKE and message protection |
+| HASH      | The hash algorithm used for HPKE and the MLS KDF |
+| SIG       | The Signature algorithm used for message authentication |
+
+This specification defines the following ciphersuites for use with MLS 1.0.
+
+|          Description                                  |    Value    |
+|:------------------------------------------------------|:------------|
+| MLS10_128_DHKEMX25519_AES128GCM_SHA256_Ed25519        | { 0x00,0x01 } |
+| MLS10_128_DHKEMP256_AES128GCM_SHA256_P256             | { 0x00,0x02 } |
+| MLS10_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519 | { 0x00,0x03 } |
+| MLS10_256_DHKEMX448_AES256GCM_SHA512_Ed448            | { 0x00,0x04 } |
+| MLS10_256_DHKEMP521_AES256GCM_SHA512_P521             | { 0x00,0x05 } |
+| MLS10_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     | { 0x00,0x06 } |
+
+The KEM/DEM constructions used for HPKE are defined by {{HPKE}}.
+The corresponding AEAD algorithms AEAD_AES_128_GCM and AEAD_AES_256_GCM, are
+defined in {{RFC5116}}. AEAD_CHACHA20_POLY1305 is defined
+in {{RFC7539}}. The corresponding hash algorithms are defined in {{!SHS}}.
+
+It is advisable to keep the number of ciphersuites low to increase the chances clients can interoperate in a federated environment, therefore the ciphersuites only inlcude modern, yet well-established algorithms.
+Depending on their requirements, clients can choose between two security levels (roughly 128-bit and 256-bit). Within the security levels clients can choose between faster X25519/X448 curves and FIPS 140-2 compliant curves for Diffie-Hellman key negotiations. Additionally clients that run predominantly on mobile processors can choose ChaCha20Poly1305 over AES-GCM for performance reasons. Since ChaCha20Poly1305 is not listed by FIPS 140-2 it is not paired with FIPS 140-2 compliant curves. The security level of symmetric encryption algorithms and hash functions is paired with the security level of the curves.
+
+The mandatory-to-implement ciphersuite for MLS 1.0 is
+`MLS10\_128\_HPKE25519\_AES128GCM\_SHA256\_Ed25519` which uses
+Curve25519, HKDF over SHA2-256 and AES-128-GCM for HPKE,
+and AES-128-GCM with Ed25519 for symmetric encryption and
+signatures.
+
+Values with the first byte 255 (decimal) are reserved for Private Use.
+
+New ciphersuite values are assigned by IANA as described in
+{{iana-considerations}}.
+
+## MLS Designated Expert Pool {#de}
+
+[[ OPEN ISSUE: pick DE mailing address.
+Maybe mls-des@ or mls-de-pool. ]]
+
+Specification Required {{RFC8126}} registry requests are registered
+after a three-week review period on the MLS DEs' mailing list:
+<TBD@ietf.org>, on the advice of one or more of the MLS DEs. However,
+to allow for the allocation of values prior to publication, the MLS
+DEs may approve registration once they are satisfied that such a
+specification will be published.
+
+Registration requests sent to the MLS DEs mailing list for review
+SHOULD use an appropriate subject (e.g., "Request to register value
+in MLS Bar registry").
+
+Within the review period, the MLS DEs will either approve or deny
+the registration request, communicating this decision to the MLS DEs
+mailing list and IANA. Denials SHOULD include an explanation and, if
+applicable, suggestions as to how to make the request successful.
+Registration requests that are undetermined for a period longer than
+21 days can be brought to the IESG's attention for resolution using
+the <iesg@ietf.org> mailing list.
+
+Criteria that SHOULD be applied by the MLS DEs includes determining
+whether the proposed registration duplicates existing functionality,
+whether it is likely to be of general applicability or useful only
+for a single application, and whether the registration description
+is clear. For example, the MLS DEs will apply the ciphersuite-related
+advisory found in {{ciphersuites}}.
+
+IANA MUST only accept registry updates from the MLS DEs and SHOULD
+direct all requests for registration to the MLS DEs' mailing list.
+
+It is suggested that multiple MLS DEs be appointed who are able to
+represent the perspectives of different applications using this
+specification, in order to enable broadly informed review of
+registration decisions. In cases where a registration decision could
+be perceived as creating a conflict of interest for a particular
+MLS DE, that MLS DE SHOULD defer to the judgment of the other MLS DEs.
 
 # Contributors
 
