@@ -2260,7 +2260,7 @@ handle extensible fields:
 * A client adding a new member to a group MUST verify that the ClientInitKey
   for the new member contains extensions that are consistent with the group's
   extensions.  For each extension in the GroupContext, the ClientInitKey MUST
-  have an extension of the same type, and the contents of the extensionn MUST be
+  have an extension of the same type, and the contents of the extension MUST be
   consistent with the value of the extension in the GroupContext, according to
   the semantics of the specific extension.
 
