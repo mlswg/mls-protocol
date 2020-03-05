@@ -1050,7 +1050,7 @@ ProtocolVersion supported_versions<0..255>;
 CipherSuite supported_ciphersuites<0..255>;
 ~~~~~
 
-These extensions MUST be always present in an MLS ClientInitKey.
+These extensions MUST be always present in a ClientInitKey.
 
 ## Expiration
 
