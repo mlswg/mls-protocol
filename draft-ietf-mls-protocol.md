@@ -1030,6 +1030,8 @@ ProtocolVersion supported_versions<0..255>;
 CipherSuite supported_ciphersuites<0..255>;
 ~~~~~
 
+These extensions MUST be always present in a ClientInitKey.
+
 ## Expiration
 
 The `expiration` extension represents the time at which clients MUST consider
@@ -1043,11 +1045,13 @@ it for any further processing.
 uint64 expiration;
 ~~~~~
 
-Note that as an extension, it is not required that any given ClientInitKey have
-an expiration time.  In particular, applications that rely on "last resort"
-ClientInitKeys to ensure continued reachability may choose to omit the
-expiration extension from these keys, or give them much longer lifetimes than
-other ClientInitKeys.
+Applications that rely on "last resort" ClientInitKeys MAY set the
+expiration to its maximum value even though this is NOT RECOMMENDED.
+It is RECOMMENDED to rotate last resort keys at a pace chosen by the
+application even though they can have much longer lifetimes than other
+ClientInitKeys.
+
+This extension MUST always be present in a ClientInitKey.
 
 ## ClientInitKey Identifiers
 
