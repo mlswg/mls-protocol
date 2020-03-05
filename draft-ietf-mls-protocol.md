@@ -2432,26 +2432,28 @@ deleted. Reuse of init keys can lead to replay attacks.
 
 # IANA Considerations
 
-This document requests the creation of the following new IANA registries:
-
-* MLS Ciphersuites
-
-All of these registries should be under a heading of "Message Layer Security",
-and administered under a Specification Required policy {{!RFC8126}}.
+This document requests the creation of the following new IANA
+registries: MLS Ciphersuites ({{mls-ciphersuites}}). All of these
+registries should be under a heading of "Message Layer Security",
+and assignments are made via the Specification Required policy
+{{!RFC8126}}. See {{de}} for additional information about the
+MLS Designated Experts (DEs).
 
 ## MLS Ciphersuites
 
 A ciphersuite is a combination of a protocol version and the set of cryptographic algorithms that should be used.
 
-Cipher suite names follow the naming convention:
+Ciphersuite names follow the naming convention:
 
 ~~~
    CipherSuite MLS_LVL_KEM_AEAD_HASH_SIG = VALUE;
 ~~~
 
-Where VALUE is a is represented as two 8bit octets:
+Where VALUE is represented as two 8bit octets:
 
+~~~
 uint8 CipherSuite[2];
+~~~
 
 | Component | Contents |
 |:----------|:---------|
@@ -2462,7 +2464,7 @@ uint8 CipherSuite[2];
 | HASH      | The hash algorithm used for HPKE and the MLS KDF |
 | SIG       | The Signature algorithm used for message authentication |
 
-This specification defines the following cipher suites for use with MLS 1.0.
+This specification defines the following ciphersuites for use with MLS 1.0.
 
 |          Description                                  |    Value    |
 |:------------------------------------------------------|:------------|
@@ -2479,18 +2481,59 @@ defined in {{RFC5116}}. AEAD_CHACHA20_POLY1305 is defined
 in {{RFC7539}}. The corresponding hash algorithms are defined in {{!SHS}}.
 
 It is advisable to keep the number of ciphersuites low to increase the chances clients can interoperate in a federated environment, therefore the ciphersuites only inlcude modern, yet well-established algorithms.
-Depending on their requirements, clients can choose between two security levels (roughly 128 bit and 256bit). Within the security levels clients can choose between faster X25519/X448 curves and FIPS 140-2 compliant curves for Diffie-Hellman key negotiations. Additionally clients that run predominantly on mobile processors can choose ChaCha20Poly1305 over AES-GCM for performance reasons. Since ChaCha20Poly1305 is not listed by FIPS 140-2 it is not paired with FIPS 140-2 compliant curves. The security level of symmetric encryption algorithms and hash functions is paired with the security level of the curves.
+Depending on their requirements, clients can choose between two security levels (roughly 128-bit and 256-bit). Within the security levels clients can choose between faster X25519/X448 curves and FIPS 140-2 compliant curves for Diffie-Hellman key negotiations. Additionally clients that run predominantly on mobile processors can choose ChaCha20Poly1305 over AES-GCM for performance reasons. Since ChaCha20Poly1305 is not listed by FIPS 140-2 it is not paired with FIPS 140-2 compliant curves. The security level of symmetric encryption algorithms and hash functions is paired with the security level of the curves.
 
 The mandatory-to-implement ciphersuite for MLS 1.0 is
-`MLS10\_128\_HPKE25519\_AES128GCM\_SHA256\_Ed25519` which is using
+`MLS10\_128\_HPKE25519\_AES128GCM\_SHA256\_Ed25519` which uses
 Curve25519, HKDF over SHA2-256 and AES-128-GCM for HPKE,
 and AES-128-GCM with Ed25519 for symmetric encryption and
 signatures.
 
 Values with the first byte 255 (decimal) are reserved for Private Use.
 
-New cipher suite values are assigned by IANA as described in
+New ciphersuite values are assigned by IANA as described in
 {{iana-considerations}}.
+
+## MLS Designated Expert Pool {#de}
+
+[[ OPEN ISSUE: pick DE mailing address.
+Maybe mls-des@ or mls-de-pool. ]]
+
+Specification Required {{RFC8126}} registry requests are registered
+after a three-week review period on the MLS DEs' mailing list:
+<TBD@ietf.org>, on the advice of one or more of the MLS DEs. However,
+to allow for the allocation of values prior to publication, the MLS
+DEs may approve registration once they are satisfied that such a
+specification will be published.
+
+Registration requests sent to the MLS DEs mailing list for review
+SHOULD use an appropriate subject (e.g., "Request to register value
+in MLS Bar registry").
+
+Within the review period, the MLS DEs will either approve or deny
+the registration request, communicating this decision to the MLS DEs
+mailing list and IANA. Denials SHOULD include an explanation and, if
+applicable, suggestions as to how to make the request successful.
+Registration requests that are undetermined for a period longer than
+21 days can be brought to the IESG's attention for resolution using
+the <iesg@ietf.org> mailing list.
+
+Criteria that SHOULD be applied by the MLS DEs includes determining
+whether the proposed registration duplicates existing functionality,
+whether it is likely to be of general applicability or useful only
+for a single application, and whether the registration description
+is clear. For example, the MLS DEs will apply the ciphersuite-related
+advisory found in {{ciphersuites}}.
+
+IANA MUST only accept registry updates from the MLS DEs and SHOULD
+direct all requests for registration to the MLS DEs' mailing list.
+
+It is suggested that multiple MLS DEs be appointed who are able to
+represent the perspectives of different applications using this
+specification, in order to enable broadly informed review of
+registration decisions. In cases where a registration decision could
+be perceived as creating a conflict of interest for a particular
+MLS DE, that MLS DE SHOULD defer to the judgment of the other MLS DEs.
 
 # Contributors
 
