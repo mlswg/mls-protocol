@@ -1166,6 +1166,7 @@ struct {
     uint64 epoch;
     opaque tree_hash<0..255>;
     opaque confirmed_transcript_hash<0..255>;
+    Extensions extensions<0..2^16-1>;
 } GroupContext;
 ~~~~~
 
@@ -2112,6 +2113,7 @@ struct {
   optional<Node> tree<1..2^32-1>;
   opaque confirmed_transcript_hash<0..255>;
   opaque interim_transcript_hash<0..255>;
+  Extensions extensions<0..2^16-1>;
 
   opaque confirmation<0..255>
   uint32 signer_index;
@@ -2207,6 +2209,67 @@ welcome_key = HKDF-Expand(welcome_secret, "key", key_length)
 
 * Verify the confirmation MAC in the GroupInfo using the derived confirmation
   key and the `confirmed_transcript_hash` from the GroupInfo.
+
+# Extensibility
+
+This protocol includes a mechanism for negotiating extension parameters similar
+to the one in TLS {{RFC8446}}.  In TLS, extension negotiation is one-to-one: The
+client offers extensions in its ClientHello message, and the server expresses
+its choices for the session with extensions in its ServerHello and
+EncryptedExtensions messages.  In MLS, extensions appear in the following
+places:
+
+* In ClientInitKeys, to describe client capabilities and aspects of their
+  participation in the group (once in the ratchet tree)
+* In the Welcome message, to tell new members of a group what parameters are
+  being used by the group
+* In the GroupContext object, to ensure that all members of the group have the
+  same view of the parameters in use
+
+In other words, clients advertise their capabilities in ClientInitKey
+extensions, the creator of the group expresses its choices for the group in
+Welcome extensions, and the GroupContext confirms that all members of the group
+have the same view of the group's extensions.
+
+This extension mechanism is designed to allow for secure and forward-compatible
+negotiation of extensions.  For this to work, implementations MUST correctly
+handle extensible fields:
+
+* A client that posts a ClientInitKey MUST support all parameters advertised in
+  it.  Otherwise, another client might fail to interoperate by selecting one of
+  those parameters.
+
+* A client initiating a group MUST ignore all unrecognized ciphersuites,
+  extensions, and other parameters.  Otherwise, it may fail to interoperate with
+  newer clients.
+
+* A client adding a new member to a group MUST verify that the ClientInitKey
+  for the new member contains extensions that are consistent with the group's
+  extensions.  For each extension in the GroupContext, the ClientInitKey MUST
+  have an extension of the same type, and the contents of the extension MUST be
+  consistent with the value of the extension in the GroupContext, according to
+  the semantics of the specific extension.
+
+* A client joining a group MUST populate the GroupContext extensions with
+  exactly the contents of the extensions field in the Welcome message.  If any
+  extension is unrecognized (i.e., not contained in the corresponding
+  ClientInitKey), then the client MUST reject the Welcome message and not join
+  the group.
+
+Note that the latter two requirements mean that all MLS extensions are
+mandatory, in the sense that an extension in use by the group MUST be supported
+by all members of the group.
+
+This document does not define any way for the parameters of the group to change
+once it has been created; such a behavior could be implemented as an extension.
+
+[[ OPEN ISSUE: Should we put bounds on what an extension can change?  For
+example, should we make an explicit guarantee that as long as you're speaking
+MLS 1.0, the format of the ClientInitKey will remain the same?  (Analogous to
+the TLS invariant with regard to ClientHello.)  If we are explicit that
+effectively arbitrary changes can be made to protocol behavior with the consent
+of the members, we will need to note that some such changes can undermine the
+security of the protocol. ]]
 
 # Sequencing of State Changes {#sequencing}
 
