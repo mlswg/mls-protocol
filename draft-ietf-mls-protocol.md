@@ -261,9 +261,7 @@ capitals, as shown here.
 Client:
 : An agent that uses this protocol to establish shared cryptographic
   state with other clients.  A client is defined by the
-  cryptographic keys it holds.  An application or user may use one client
-  per device (keeping keys local to each device) or sync keys among
-  a user's devices so that each user appears as a single client.
+  cryptographic keys it holds.
 
 Group:
 : A collection of clients with shared cryptographic state.
@@ -824,6 +822,10 @@ are opaque values in a format defined by the underlying Diffie-Hellman
 protocol (see the Ciphersuites section of the HPKE specification for more
 information).
 
+The signature algorithm specified in the ciphersuite is the mandatory algorithm 
+to be used for the signatutes in MLSPlaintext and the tree signatures. It can be
+different from the signature algorithm specified in credential field of ClientInitKeys.
+
 ~~~~~
 opaque HPKEPublicKey<1..2^16-1>;
 ~~~~~
@@ -1195,25 +1197,25 @@ The following general rules apply:
 
 ~~~~~
 struct {
-  opaque group_id<0..255>;
-  uint64 epoch;
-  Sender sender;
-  ContentType content_type = commit;
-  Commit commit;
+    opaque group_id<0..255>;
+    uint64 epoch;
+    Sender sender;
+    ContentType content_type = commit;
+    Commit commit;
 } MLSPlaintextCommitContent;
 
 struct {
-  opaque confirmation<0..255>;
-  opaque signature<0..2^16-1>;
+    opaque confirmation<0..255>;
+    opaque signature<0..2^16-1>;
 } MLSPlaintextCommitAuthData;
 
 confirmed_transcript_hash_[n] =
     Hash(interim_transcript_hash_[n-1] ||
-         MLSPlaintextCommitContent_[n]);
+        MLSPlaintextCommitContent_[n]);
 
 interim_transcript_hash_[n] =
     Hash(confirmed_transcript_hash_[n] ||
-         MLSPlaintextCommitAuthData_[n]);
+        MLSPlaintextCommitAuthData_[n]);
 ~~~~~
 
 Thus the `confirmed_transcript_hash` field in a GroupContext object represents a
@@ -1281,16 +1283,16 @@ defined below:
 
 ~~~~~
 HKDF-Expand-Label(Secret, Label, Context, Length) =
-    HKDF-Expand(Secret, HkdfLabel, Length)
+    HKDF-Expand(Secret, HKDFLabel, Length)
 
-Where HkdfLabel is specified as:
+Where HKDFLabel is specified as:
 
 struct {
-  opaque group_context<0..255> = Hash(GroupContext_[n]);
-  uint16 length = Length;
-  opaque label<7..255> = "mls10 " + Label;
-  opaque context<0..2^32-1> = Context;
-} HkdfLabel;
+    opaque group_context<0..255> = Hash(GroupContext_[n]);
+    uint16 length = Length;
+    opaque label<7..255> = "mls10 " + Label;
+    opaque context<0..2^32-1> = Context;
+} HKDFLabel;
 
 Derive-Secret(Secret, Label) =
     HKDF-Expand-Label(Secret, Label, "", Hash.length)
@@ -1315,9 +1317,6 @@ proceeds as shown in the following diagram:
 
 ~~~~~
                init_secret_[n-1] (or 0)
-                     |
-                     +--> Derive-Secret(. "group info", "")
-                     |    = group_info_secret
                      |
                      V
     PSK (or 0) -> HKDF-Extract = early_secret
@@ -1383,52 +1382,64 @@ As described in {{message-framing}}, MLS encrypts three different
 types of information:
 
 * Metadata (sender information)
-* Proposal and Commit messages
+* Handshake messages (Proposal and Commit)
 * Application messages
 
 The sender information used to look up the key for the content encryption
-is encrypted under AEAD using a random nonce and the sender_data_key
-which is derived from the sender_data_secret as follows:
+is encrypted under AEAD using a random nonce and the `sender_data_key`
+which is derived from the `sender_data_secret` as follows:
 
 ~~~~~
 sender_data_key =
     HKDF-Expand-Label(sender_data_secret, "sd key", "", key_length)
 ~~~~~
 
-Each handshake message is encrypted using a key and a nonce derived
-from the handshake_secret for a specific sender to prevent two senders
-to perform in the following way:
+For handshake and application messages, a sequence of keys is derived via a
+"sender ratchet".  Each sender has their own sender ratchet, and each step along
+the ratchet is called a "generation".
+
+A sender ratchet starts from a per-sender base secret.  For application keys,
+the base secret is derived as described in {{astree}}.  For handshake keys, base
+secrets are derived directly from the `handshake_secret`.
 
 ~~~~~
-handshake_nonce_[sender] =
-    HKDF-Expand-Label(handshake_secret, "hs nonce", [sender], nonce_length)
+application_secret_[sender]_[0] = astree_node_[N]_secret
 
-handshake_key_[sender] =
-    HKDF-Expand-Label(handshake_secret, "hs key", [sender], key_length)
+handshake_secret_[sender]_[0] =
+    HKDF-Expand-Label(handshake_secret, "hs", [sender], nonce_length)
 ~~~~~
 
-Here the value [sender] represents the index of the member that will
-use this key to send, encoded as a uint32.  Each sender maintains two "generation"
-counters, one for application messages and one for handshake messages.  These
-counters are incremented by one each time the sender sends a message.
+The base secret of for each sender is used to initiate a symmetric hash ratchet
+which generates a sequence of keys and nonces. The sender uses the j-th
+key/nonce pair in the sequence to encrypt (using the AEAD) the j-th message they
+send during that epoch.  In particular, each key/nonce pair MUST NOT be used to
+encrypt more than one message.
 
-For application messages, a chain of keys is derived for each sender
-in a similar fashion. This allows forward secrecy at the level of
-application messages within and out of an epoch.
-A step in this chain (the second subscript) is called a "generation".
-The details of application key derivation are described in the
-{{astree}} section below.
-
-For handshake messages (Proposals and Commits), the same key is used for all
-messages, but the nonce is updated according to the generation of the message:
+Keys, nonces and secrets of ratchets are derived using
+Derive-App-Secret. The context in a given call consists of the index
+of the sender's leaf in the ratchet tree and the current position in
+the ratchet.  In particular, the index of the sender's leaf in the
+ratchet tree is the same as the index of the leaf in the AS Tree
+used to initialize the sender's ratchet.
 
 ~~~~~
-handshake_nonce_[sender]_[generation] = handshake_nonce_[sender]
-                                        XOR encode_big_endian(generation)
+ratchet_secret_[N]_[j]
+      |
+      +--> Derive-App-Secret(., "nonce", N, j, AEAD.nonce_length)
+      |    = ratchet_nonce_[N]_[j]
+      |
+      +--> Derive-App-Secret(., "key", N, j, AEAD.key_length)
+      |    = ratchet_key_[N]_[j]
+      |
+      V
+Derive-App-Secret(., "secret", N, j, Hash.length)
+= ratchet_secret_[N]_[j+1]
 ~~~~~
 
-where `encode_big_endian()` encodes the generation in a big-endian integer of
-the same size as the base handshake nonce.
+Here, AEAD.nonce\_length and AEAD.key\_length denote the lengths
+in bytes of the nonce and key for the AEAD scheme defined by
+the ciphersuite.  "ratchet" should be understood to mean "handshake" or
+"application" depending on the context.
 
 ## Exporters
 
@@ -1542,7 +1553,7 @@ MLSPlaintext object and how to convert it to an MLSCiphertext object for
 * Encrypt an MLSSenderData object for the encrypted_sender_data field from
   MLSPlaintext and the key generation
 
-* Generate and sign an MLSPlaintextSignatureInput object from the MLSPlaintext
+* Generate and sign an MLSPlaintextTBS object from the MLSPlaintext
   object
 
 * Encrypt an MLSCiphertextContent for the ciphertext field using the key
@@ -1564,12 +1575,17 @@ object of the following form:
 struct {
     uint32 sender;
     uint32 generation;
+    opaque reuse_guard[4];
 } MLSSenderData;
 ~~~~~
 
 MLSSenderData.sender is assumed to be a `member` sender type.  When constructing
 an MLSSenderData from a Sender object, the sender MUST verify Sender.sender_type
 is `member` and use Sender.sender for MLSSenderData.sender.
+
+The `reuse_guard` field contains a fresh random value used to avoid nonce reuse
+in the case of state loss or corruption, as described in
+{{content-signing-and-encryption}}.
 
 The Additional Authenticated Data (AAD) for the SenderData ciphertext
 computation is its prefix in the MLSCiphertext, namely:
@@ -1605,11 +1621,11 @@ struct {
 
     opaque group_id<0..255>;
     uint64 epoch;
-    uint32 sender;
-    ContentType content_type;
+    Sender sender;
     opaque authenticated_data<0..2^32-1>;
 
-    select (MLSPlaintext.content_type) {
+    ContentType content_type;
+    select (MLSPlaintextTBS.content_type) {
         case application:
           opaque application_data<0..2^32-1>;
 
@@ -1620,7 +1636,7 @@ struct {
           Commit commit;
           opaque confirmation<0..255>;
     }
-} MLSPlaintextSignatureInput;
+} MLSPlaintextTBS;
 ~~~~~
 
 The ciphertext field of the MLSCiphertext object is produced by
@@ -1653,6 +1669,33 @@ content type of the message.  The sender chooses the handshake key for a
 handshake message or an unused generation from its (per-sender)
 application key chain for the current epoch, according to the type
 of message being encrypted.
+
+Before use in the encryption operation, the nonce is XORed with a fresh random
+value to guard against reuse.  Because the key schedule generates nonces
+deterministically, a client must keep persistent state as to where in the key
+schedule it is; if this persistent state is lost or corrupted, a client might
+reuse a generation that has already been used, causing reuse of a key/nonce pair.
+
+To avoid this situation, the sender of a message MUST generate a fresh random
+4-byte "reuse guard" value and XOR it with the first four bytes of the nonce
+from the key schedule before using the nonce for encryption.  The sender MUST
+include the reuse guard in the `reuse_guard` field of the sender data object, so
+that the recipient of the message can use it to compute the nonce to be used for
+decryption.
+
+~~~~~
++-+-+-+-+---------...---+
+|   Key Schedule Nonce  |
++-+-+-+-+---------...---+
+           XOR
++-+-+-+-+---------...---+
+| Guard |       0       |
++-+-+-+-+---------...---+
+           ===
++-+-+-+-+---------...---+
+| Encrypt/Decrypt Nonce |
++-+-+-+-+---------...---+
+~~~~~
 
 The Additional Authenticated Data (AAD) input to the encryption
 contains an object of the following form, with the values used to
@@ -1974,7 +2017,7 @@ message at the same time, by taking the following steps:
 * For each new member in the group:
   * Identify the lowest common ancestor in the tree of the new member's
     leaf node and the member sending the Commit
-  * Compute the path secret corresponding to the commonn ancestor node
+  * Compute the path secret corresponding to the common ancestor node
   * Compute an EncryptedKeyPackage object that encapsulates the `init_secret`
     for the current epoch and the path secret for the common ancestor.
 
@@ -2152,7 +2195,7 @@ welcome_key = HKDF-Expand(welcome_secret, "key", key_length)
     * For each parent of the common ancestor, up to the root of the tree, derive
       a new path secret and set the private key for the node to the private key
       derived from the path secret.  The private key MUST be the private key
-      that correspondns to the public key in the node.
+      that corresponds to the public key in the node.
 
 * Use the `epoch_secret` from the KeyPackage object to generate the epoch secret
   and other derived secrets for the current epoch.
@@ -2324,47 +2367,9 @@ astree_node_[N]_secret
 Note that fixing concrete values for GroupContext_[n] and application_secret
 completely defines all secrets in the AS Tree.
 
-## Sender Ratchets
-
-The secret of a leaf in the AS Tree is used to initiate a symmetric hash
-ratchet which generates a sequence of keys and nonces. The group member
-assigned to that leaf uses the j-th key/nonce pair in the sequence to
-encrypt (using the AEAD) the j-th message they send during that epoch.
-In particular, each key/nonce pair MUST NOT be used to encrypt more
-than one message.
-
-More precisely, the initial secret of the ratchet for the group
-member assigned to the leaf with node index N is simply the secret of
-that leaf.
-
-~~~~
-application_[N]_[0]_secret = astree_node_[N]_secret
-~~~~
-
-Keys, nonces and secrets of ratchets are derived using
-Derive-App-Secret. The context in a given call consists of the index
-of the sender's leaf in the ratchet tree and the current position in
-the ratchet.  In particular, the index of the sender's leaf in the
-ratchet tree is the same as the index of the leaf in the AS Tree
-used to initialize the sender's ratchet.
-
-~~~~
-application_[N]_[j]_secret
-      |
-      +--> Derive-App-Secret(., "app-nonce", N, j, AEAD.nonce_length)
-      |    = application_[N]_[j]_nonce
-      |
-      +--> Derive-App-Secret(., "app-key", N, j, AEAD.key_length)
-      |    = application_[N]_[j]_key
-      |
-      V
-Derive-App-Secret(., "app-secret", N, j, Hash.length)
-= application_[N]_[j+1]_secret
-~~~~
-
-Here, AEAD.nonce\_length and AEAD.key\_length denote the lengths
-in bytes of the nonce and key for the AEAD scheme defined by
-the ciphersuite.
+The secret in the leaf of the AS tree is used to initiate a symmetric hash
+ratchet, from which a sequence of single-use keys and nonces are derived, as
+described in {{encryption-keys}}.
 
 ## Deletion Schedule
 
@@ -2542,7 +2547,7 @@ particular member of the group. This property is provided by digital
 signatures on the messages under identity keys.
 
 [[ OPEN ISSUE: Signatures under the identity keys, while simple, have
-the side-effect of preclude deniability. We may wish to allow other
+the side-effect of precluding deniability. We may wish to allow other
 options, such as (ii) a key chained off of the identity key,
 or (iii) some other key obtained through a different manner, such
 as a pairwise channel that provides deniability for the message
@@ -2570,24 +2575,28 @@ deleted. Reuse of init keys can lead to replay attacks.
 
 # IANA Considerations
 
-This document requests the creation of the following new IANA registries:
-
-* MLS Ciphersuites
-
-All of these registries should be under a heading of "Message Layer Security",
-and administered under a Specification Required policy {{!RFC8126}}.
+This document requests the creation of the following new IANA
+registries: MLS Ciphersuites ({{mls-ciphersuites}}). All of these
+registries should be under a heading of "Message Layer Security",
+and assignments are made via the Specification Required policy
+{{!RFC8126}}. See {{de}} for additional information about the
+MLS Designated Experts (DEs).
 
 ## MLS Ciphersuites
 
 A ciphersuite is a combination of a protocol version and the set of cryptographic algorithms that should be used.
 
-Cipher suite names follow the naming convention:
+Ciphersuite names follow the naming convention:
 
 ~~~
    CipherSuite MLS_LVL_KEM_AEAD_HASH_SIG = VALUE;
 ~~~
 
-Where VALUE is a 16bit unsigned integer.
+Where VALUE is represented as two 8bit octets:
+
+~~~
+uint8 CipherSuite[2];
+~~~
 
 | Component | Contents |
 |:----------|:---------|
@@ -2598,30 +2607,76 @@ Where VALUE is a 16bit unsigned integer.
 | HASH      | The hash algorithm used for HPKE and the MLS KDF |
 | SIG       | The Signature algorithm used for message authentication |
 
-This specification defines the following cipher suites for use with MLS 1.0.
+This specification defines the following ciphersuites for use with MLS 1.0.
 
 |          Description                                  |    Value    |
 |:------------------------------------------------------|:------------|
-| MLS10_128_DHKEMX25519_AES128GCM_SHA256_Ed25519        | 0x0001 |
-| MLS10_128_DHKEMP256_AES128GCM_SHA256_P256             | 0x0002 |
-| MLS10_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519 | 0x0003 |
-| MLS10_256_DHKEMX448_AES256GCM_SHA512_Ed448            | 0x0004 |
-| MLS10_256_DHKEMP521_AES256GCM_SHA512_P521             | 0x0005 |
-| MLS10_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     | 0x0006 |
+| MLS10_128_DHKEMX25519_AES128GCM_SHA256_Ed25519        | { 0x00,0x01 } |
+| MLS10_128_DHKEMP256_AES128GCM_SHA256_P256             | { 0x00,0x02 } |
+| MLS10_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519 | { 0x00,0x03 } |
+| MLS10_256_DHKEMX448_AES256GCM_SHA512_Ed448            | { 0x00,0x04 } |
+| MLS10_256_DHKEMP521_AES256GCM_SHA512_P521             | { 0x00,0x05 } |
+| MLS10_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     | { 0x00,0x06 } |
 
-The KEM/DEM constructions used for HPKE are defined by {{!I-D.irtf-cfrg-hpke}}.
+The KEM/DEM constructions used for HPKE are defined by {{HPKE}}.
 The corresponding AEAD algorithms AEAD_AES_128_GCM and AEAD_AES_256_GCM, are
-defined in {{!RFC5116}}. AEAD_CHACHA20_POLY1305 is defined
-in {{!RFC7539}}. The corresponding hash algorithms are defined in {{!SHS=DOI.10.6028/NIST.FIPS.180-4}}.
+defined in {{RFC5116}}. AEAD_CHACHA20_POLY1305 is defined
+in {{RFC7539}}. The corresponding hash algorithms are defined in {{!SHS}}.
+
+It is advisable to keep the number of ciphersuites low to increase the chances clients can interoperate in a federated environment, therefore the ciphersuites only inlcude modern, yet well-established algorithms.
+Depending on their requirements, clients can choose between two security levels (roughly 128-bit and 256-bit). Within the security levels clients can choose between faster X25519/X448 curves and FIPS 140-2 compliant curves for Diffie-Hellman key negotiations. Additionally clients that run predominantly on mobile processors can choose ChaCha20Poly1305 over AES-GCM for performance reasons. Since ChaCha20Poly1305 is not listed by FIPS 140-2 it is not paired with FIPS 140-2 compliant curves. The security level of symmetric encryption algorithms and hash functions is paired with the security level of the curves.
 
 The mandatory-to-implement ciphersuite for MLS 1.0 is
-`MLS10\_128\_DHKEMX25519\_AES128GCM\_SHA256\_Ed25519` which is using
+`MLS10\_128\_HPKE25519\_AES128GCM\_SHA256\_Ed25519` which uses
 Curve25519, HKDF over SHA2-256 and AES-128-GCM for HPKE,
 and AES-128-GCM with Ed25519 for symmetric encryption and
 signatures.
 
-New cipher suite values are assigned by IANA as described in
+Values with the first byte 255 (decimal) are reserved for Private Use.
+
+New ciphersuite values are assigned by IANA as described in
 {{iana-considerations}}.
+
+## MLS Designated Expert Pool {#de}
+
+[[ OPEN ISSUE: pick DE mailing address.
+Maybe mls-des@ or mls-de-pool. ]]
+
+Specification Required {{RFC8126}} registry requests are registered
+after a three-week review period on the MLS DEs' mailing list:
+<TBD@ietf.org>, on the advice of one or more of the MLS DEs. However,
+to allow for the allocation of values prior to publication, the MLS
+DEs may approve registration once they are satisfied that such a
+specification will be published.
+
+Registration requests sent to the MLS DEs mailing list for review
+SHOULD use an appropriate subject (e.g., "Request to register value
+in MLS Bar registry").
+
+Within the review period, the MLS DEs will either approve or deny
+the registration request, communicating this decision to the MLS DEs
+mailing list and IANA. Denials SHOULD include an explanation and, if
+applicable, suggestions as to how to make the request successful.
+Registration requests that are undetermined for a period longer than
+21 days can be brought to the IESG's attention for resolution using
+the <iesg@ietf.org> mailing list.
+
+Criteria that SHOULD be applied by the MLS DEs includes determining
+whether the proposed registration duplicates existing functionality,
+whether it is likely to be of general applicability or useful only
+for a single application, and whether the registration description
+is clear. For example, the MLS DEs will apply the ciphersuite-related
+advisory found in {{ciphersuites}}.
+
+IANA MUST only accept registry updates from the MLS DEs and SHOULD
+direct all requests for registration to the MLS DEs' mailing list.
+
+It is suggested that multiple MLS DEs be appointed who are able to
+represent the perspectives of different applications using this
+specification, in order to enable broadly informed review of
+registration decisions. In cases where a registration decision could
+be perceived as creating a conflict of interest for a particular
+MLS DE, that MLS DE SHOULD defer to the judgment of the other MLS DEs.
 
 # Contributors
 
@@ -2648,6 +2703,10 @@ New cipher suite values are assigned by IANA as described in
 * Albert Kwon \\
   MIT \\
   kwonal@mit.edu
+
+* Brendan McMillion \\
+  Cloudflare \\
+  brendan@cloudflare.com
 
 * Eric Rescorla \\
   Mozilla \\
