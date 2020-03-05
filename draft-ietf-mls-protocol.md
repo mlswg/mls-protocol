@@ -298,9 +298,7 @@ as described in [I-D.ietf-mls-architecture].  In particular, we assume
 the MS provides the following services:
 
 * A long-term identity key provider which allows clients to authenticate
-  protocol messages in a group. These keys MUST be kept for the lifetime of the
-  group as there is no mechanism in the protocol for changing a client's
-  identity key.
+  protocol messages in a group.
 
 * A broadcast channel, for each group, which will relay a message to all members
   of a group.  For the most part, we assume that this channel delivers messages
@@ -713,6 +711,7 @@ If member B subsequently generates a Commit based on a secret
 of path secrets:
 
 ~~~~~
+
     path_secret[1] --> node_priv[1], node_pub[1]
          ^
          |
@@ -737,7 +736,7 @@ above:
 ## Synchronizing Views of the Tree
 
 The members of the group need to keep their views of the tree in
-sync and up to date.  When a client proposes a change to the tree
+sync and up to date.  When a client commits a change to the tree
 (e.g., to add or remove a member), it transmits a handshake message
 containing a set of public
 values for intermediate nodes in the direct path of a leaf. The
@@ -790,9 +789,8 @@ values:
 
 | Public Key | Ciphertext(s)                    |
 |:-----------|:---------------------------------|
-| pk(ns[2])  | E(pk(C), ps[2]), E(pk(D), ps[2]) |
-| pk(ns[1])  | E(pk(A), ps[1])                  |
-| pk(ns[0])  |                                  |
+| pk(ns[1])  | E(pk(C), ps[1]), E(pk(D), ps[1]) |
+| pk(ns[0])  | E(pk(A), ps[0])                  |
 
 In this table, the value pk(X) represents the public key
 derived from the node secret X.  The value E(K, S) represents
@@ -967,7 +965,7 @@ ClientInitKeys are intended to be used only once and SHOULD NOT
 be reused except in case of last resort. (See {{init-key-reuse}}).
 Clients MAY generate and publish multiple ClientInitKey objects to
 support multiple ciphersuites.
-ClientInitKeys contain an credential chosen by the client, which the
+ClientInitKeys contain a public key chosen by the client, which the
 client MUST ensure uniquely identifies a given ClientInitKey object
 among the set of ClientInitKeys created by this client.
 
@@ -1097,8 +1095,8 @@ The hash of a tree is the hash of its root node, which we define
 recursively, starting with the leaves.
 
 Elements of the ratchet tree are called `Node` objects and
-contain optionally a `ClientInitKey` when at the leaves or an optional
-`ParentNode` above.
+the leaves contain an optional `ClientInitKey`, while the parents contain
+an optional `ParentNode`.
 
 ~~~~~
 struct {
@@ -1130,7 +1128,7 @@ struct {
 } ParentNode;
 ~~~~~
 
-When computing the hash of a parent node AB the `ParentNodeHashInput`
+When computing the hash of a parent node, the `ParentNodeHashInput`
 structure is used:
 
 ~~~~~
@@ -1143,8 +1141,8 @@ struct {
 ~~~~~
 
 The `left_hash` and `right_hash` fields hold the hashes of the node's
-left (A) and right (B) children, respectively. To compute the hash of
-a leaf node is the hash of a `LeafNodeHashInput` object:
+left and right children, respectively. When computing the hash of
+a leaf node, the hash of a `LeafNodeHashInput` object is used:
 
 ~~~~~
 struct {
@@ -1358,10 +1356,10 @@ shared group secrets can inject those in the MLS key schedule to seed
 the MLS group secrets computations by this external entropy.
 
 At any epoch, including the initial state, an application can decide
-to synchronize the injection of a PSK in the MLS key schedule.
+to synchronize the injection of a PSK into the MLS key schedule.
 
 This mechanism can be used to improve security in the cases where
-having a full run of updates accross members is too expensive or in
+having a full run of updates across members is too expensive or in
 the case where the external group key establishment mechanism provides
 stronger security against classical or quantum adversaries.
 
