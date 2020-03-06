@@ -172,6 +172,7 @@ draft-09
 
 - Add extensions to GroupContext and flesh out the extensibility story (\*)
 
+- Rename ClientInitKey to KeyPackage
 
 draft-08
 
