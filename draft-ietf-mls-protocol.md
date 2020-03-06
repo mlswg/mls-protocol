@@ -854,13 +854,15 @@ are opaque values in a format defined by the underlying Diffie-Hellman
 protocol (see the Ciphersuites section of the HPKE specification for more
 information).
 
-The signature algorithm specified in the ciphersuite is the mandatory algorithm
-to be used for the signatutes in MLSPlaintext and the tree signatures. It can be
-different from the signature algorithm specified in credential field of ClientInitKeys.
-
 ~~~~~
 opaque HPKEPublicKey<1..2^16-1>;
 ~~~~~
+
+The signature algorithm specified in the ciphersuite is the mandatory algorithm
+to be used for signatures in MLSPlaintext and the tree signatures.  It MUST be
+the same as the signature algorithm specified in the credential field of the
+ClientInitKey objects in the leaves of the tree (including the ClientInitKeys
+used to add new members).
 
 The ciphersuites are defined in section {{mls-ciphersuites}}.
 
