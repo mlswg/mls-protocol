@@ -304,15 +304,11 @@ Member:
 : A client that is included in the shared state of a group, hence
   has access to the group's secrets.
 
-Initialization Key:
-: A short-lived HPKE key pair used to introduce a new
-  client to a group.  Initialization keys are published for
-  each client and are called their ClientInitKeys.
-
-Leaf Key:
-: An HPKE key pair that can be used to encrypt to a specific client,
-  so called because members' leaf keys are the leaves in the group's
-  ratchet tree.
+Key Package:
+: A signed object describing a clients identity and capabilities, and including
+  an HPKE public key that can be used to encrypt to that client.  Key packages
+  are used to introduce new members to a group and to represent the client's
+  contribution to the group once added.
 
 Identity Key:
 : A long-lived signing key pair used to authenticate the sender of a
@@ -339,8 +335,8 @@ the MS provides the following services:
   in the same order to all participants.  (See {{sequencing}} for further
   considerations.)
 
-* A directory to which clients can publish initialization keys and download
-  initialization keys for other participants.
+* A directory to which clients can publish key packages and download
+  key packages for other participants.
 
 
 # Protocol Overview
@@ -381,27 +377,27 @@ section, we show each proposal being committed immediately, but in more advanced
 deployment cases, an application might gather several proposals before
 committing them all at once.
 
-Before the initialization of a group, clients publish ClientInitKey
+Before the initialization of a group, clients publish KeyPackage
 objects to a directory provided by the Messaging Service.
 
 ~~~~~
                                                                Group
 A                B                C            Directory       Channel
 |                |                |                |              |
-| ClientInitKeyA |                |                |              |
+| KeyPackageA    |                |                |              |
 |------------------------------------------------->|              |
 |                |                |                |              |
-|                | ClientInitKeyB |                |              |
+|                | KeyPackageB    |                |              |
 |                |-------------------------------->|              |
 |                |                |                |              |
-|                |                | ClientInitKeyC |              |
+|                |                | KeyPackageC    |              |
 |                |                |--------------->|              |
 |                |                |                |              |
 ~~~~~
 
 When a client A wants to establish a group with B and C, it
-first downloads ClientInitKeys for B and C.  It then initializes a group state
-containing only itself and uses the ClientInitKeys to compute Welcome and Add
+first downloads KeyPackages for B and C.  It then initializes a group state
+containing only itself and uses the KeyPackages to compute Welcome and Add
 messages to add B and C, in a sequence chosen by A.  The Welcome messages are
 sent directly to the new members (there is no need to send them to
 the group).
@@ -415,7 +411,7 @@ back from the server does it update its state to reflect their addition.
                                                                Group
 A              B              C          Directory            Channel
 |              |              |              |                   |
-|         ClientInitKeyB, ClientInitKeyC     |                   |
+|         KeyPackageB, KeyPackageC           |                   |
 |<-------------------------------------------|                   |
 |state.init()  |              |              |                   |
 |              |              |              |                   |
@@ -448,7 +444,7 @@ A              B              C          Directory            Channel
 ~~~~~
 
 Subsequent additions of group members proceed in the same way.  Any
-member of the group can download a ClientInitKey for a new client
+member of the group can download a KeyPackage for a new client
 and broadcast an Add message that the current group can use to update
 their state and a Welcome message that the new client can use to
 initialize its state.
@@ -456,7 +452,7 @@ initialize its state.
 To enforce forward secrecy and post-compromise security of messages,
 each member periodically updates their leaf secret.
 Any member can update this information at any time by generating a fresh
-ClientInitKey and sending an Update message followed by a Commit message.
+KeyPackage and sending an Update message followed by a Commit message.
 Once all members have processed both, the group's secrets will be unknown to an
 attacker that had compromised the sender's prior leaf secret.
 
@@ -705,15 +701,15 @@ they receive the private keys for nodes, as described in
 
 ## Ratchet Tree Evolution
 
-When performing a Commit, the leaf ClientInitKey of the committer and
+When performing a Commit, the leaf KeyPackage of the committer and
 its direct path to the root are updated with new secret values.  The
-HPKE leaf public key within the ClientInitKey MUST be a freshly
+HPKE leaf public key within the KeyPackage MUST be a freshly
 generated value to provide post-compromise security.
 
 
 The generator of the Commit starts by using the HPKE secret key
-"leaf_hpke_secret" associated with the new leaf ClientInitKey (see
-{{initialization-keys}}) to compute "path_secret[0]" and generate a
+"leaf_hpke_secret" associated with the new leaf KeyPackage (see
+{{key-packages}}) to compute "path_secret[0]" and generate a
 sequence of "path secrets", one for each ancestor of its leaf.  That
 is, path_secret[0] is used for the node directly above the leaf,
 path_secret[1] for its parent, and so on. At each step, the path
@@ -856,7 +852,7 @@ information).
 
 The signature algorithm specified in the ciphersuite is the mandatory algorithm
 to be used for the signatutes in MLSPlaintext and the tree signatures. It can be
-different from the signature algorithm specified in credential field of ClientInitKeys.
+different from the signature algorithm specified in credential field of KeyPackages.
 
 ~~~~~
 opaque HPKEPublicKey<1..2^16-1>;
@@ -981,31 +977,32 @@ Note that each new credential that has not already been validated
 by the application MUST be validated against the Authentication
 Service.
 
-# Initialization Keys
+# Key Packages
 
 In order to facilitate asynchronous addition of clients to a
-group, it is possible to pre-publish initialization keys that
-provide some public information about a user. ClientInitKey
+group, it is possible to pre-publish key packages that
+provide some public information about a user. KeyPackage
 structures provide information about a client that any existing
 member can use to add this client to the group asynchronously.
 
-A ClientInitKey object specifies a ciphersuite that the client
+A KeyPackage object specifies a ciphersuite that the client
 supports, as well as providing a public key that others can use
 for key agreement. The client's identity key can be updated
-throughout the lifetime of the group by sending a new ClientInitKey
+throughout the lifetime of the group by sending a new KeyPackage
 with a new identity; the new identity MUST be validated by the
 authentication service.
-ClientInitKeys are intended to be used only once and SHOULD NOT
-be reused except in case of last resort. (See {{init-key-reuse}}).
-Clients MAY generate and publish multiple ClientInitKey objects to
+
+KeyPackages are intended to be used only once and SHOULD NOT
+be reused except in case of last resort. (See {{reuse-of-key-packages}}).
+Clients MAY generate and publish multiple KeyPackage objects to
 support multiple ciphersuites.
-ClientInitKeys contain a public key chosen by the client, which the
-client MUST ensure uniquely identifies a given ClientInitKey object
-among the set of ClientInitKeys created by this client.
+KeyPackages contain a public key chosen by the client, which the
+client MUST ensure uniquely identifies a given KeyPackage object
+among the set of KeyPackages created by this client.
 
 The value for hpke\_init\_key MUST be a public key for the asymmetric
 encryption scheme defined by cipher\_suite. The whole structure
-is signed using the client's identity key. A ClientInitKey object
+is signed using the client's identity key. A KeyPackage object
 with an invalid signature field MUST be considered malformed.
 The input to the signature computation comprises all of the fields
 except for the signature field.
@@ -1038,19 +1035,19 @@ struct {
     Credential credential;
     Extension extensions<0..2^16-1>;
     opaque signature<0..2^16-1>;
-} ClientInitKey;
+} KeyPackage;
 ~~~~~
 
-ClientInitKey objects MUST contain at least two extensions, one of type
+KeyPackage objects MUST contain at least two extensions, one of type
 `supported_versions` and one of type `supported_ciphersuites`.  These extensions
 allow MLS session establishment to be safe from downgrade attacks on these two
 parameters (as discussed in {{group-creation}}), while still only advertising
-one version / ciphersuite per ClientInitKey.
+one version / ciphersuite per KeyPackage.
 
-As the `ClientInitKey` is a structure which is stored in the Ratchet
+As the `KeyPackage` is a structure which is stored in the Ratchet
 Tree and updated depending on the evolution of this tree, each
 modification of its content MUST be reflected by a change of its
-signature. This allow other members to control the validity of the ClientInitKey
+signature. This allow other members to control the validity of the KeyPackage
 at any time and in particular in the case of a newcomer joining the group.
 
 ## Supported Versions and Supported Ciphersuites
@@ -1064,34 +1061,34 @@ ProtocolVersion supported_versions<0..255>;
 CipherSuite supported_ciphersuites<0..255>;
 ~~~~~
 
-These extensions MUST be always present in a ClientInitKey.
+These extensions MUST be always present in a KeyPackage.
 
 ## Expiration
 
 The `expiration` extension represents the time at which clients MUST consider
-this ClientInitKey invalid.  This time is represented as an absolute time,
+this KeyPackage invalid.  This time is represented as an absolute time,
 measured in seconds since the Unix epoch (1970-01-01T00:00:00Z).  If a client
-receives a ClientInitKey that contains an expiration extension at a time after
-its expiration time, then it MUST consider the ClientInitKey invalid and not use
+receives a KeyPackage that contains an expiration extension at a time after
+its expiration time, then it MUST consider the KeyPackage invalid and not use
 it for any further processing.
 
 ~~~~~
 uint64 expiration;
 ~~~~~
 
-Applications that rely on "last resort" ClientInitKeys MAY set the
+Applications that rely on "last resort" KeyPackages MAY set the
 expiration to its maximum value even though this is NOT RECOMMENDED.
 It is RECOMMENDED to rotate last resort keys at a pace chosen by the
 application even though they can have much longer lifetimes than other
-ClientInitKeys.
+KeyPackages.
 
-This extension MUST always be present in a ClientInitKey.
+This extension MUST always be present in a KeyPackage.
 
-## ClientInitKey Identifiers
+## KeyPackage Identifiers
 
-Within MLS, a ClientInitKey is identified by its hash (see, e.g.,
+Within MLS, a KeyPackage is identified by its hash (see, e.g.,
 {{welcoming-new-members}}).  The `key_id` extension allows applications to add
-an explicit, application-defined identifier to a ClientInitKey.
+an explicit, application-defined identifier to a KeyPackage.
 
 ~~~~~
 opaque key_id<0..2^16-1>;
@@ -1099,7 +1096,7 @@ opaque key_id<0..2^16-1>;
 
 ## Parent Hash
 
-The `parent_hash` extension serves to bind a ClientInitKey to all the nodes
+The `parent_hash` extension serves to bind a KeyPackage to all the nodes
 above it in the group's ratchet tree. This enforces the tree invariant, meaning
 that malicious members can't lie about the state of the ratchet tree when they
 send Welcome messages to new members.
@@ -1127,13 +1124,13 @@ approaches to deniability that could be compatible with the other approach. ]]
 To allow group members to verify that they agree on the public
 cryptographic state of the group, this section defines a scheme for
 generating a hash value that represents the contents of the group's
-ratchet tree and the members' ClientInitKeys.
+ratchet tree and the members' KeyPackages.
 
 The hash of a tree is the hash of its root node, which we define
 recursively, starting with the leaves.
 
 Elements of the ratchet tree are called `Node` objects and
-the leaves contain an optional `ClientInitKey`, while the parents contain
+the leaves contain an optional `KeyPackage`, while the parents contain
 an optional `ParentNode`.
 
 ~~~~~
@@ -1154,7 +1151,7 @@ enum {
 struct {
     NodeType node_type;
     select (Node.node_type) {
-        case leaf:   optional<ClientInitKey> client_init_key;
+        case leaf:   optional<KeyPackage> key_package;
         case parent: optional<ParentNode> node;
     };
 } Node;
@@ -1185,7 +1182,7 @@ a leaf node, the hash of a `LeafNodeHashInput` object is used:
 ~~~~~
 struct {
     uint32 leaf_index;
-    optional<ClientInitKey> client_init_key;
+    optional<KeyPackage> key_package;
 } LeafNodeHashInput;
 ~~~~~
 
@@ -1269,7 +1266,7 @@ zero-length octet string.
 ## Direct Paths
 
 As described in {{commit}}, each MLS Commit message needs to
-transmit a ClientInitKey leaf and node values along its direct path.
+transmit a KeyPackage leaf and node values along its direct path.
 The path contains a public key and encrypted secret value for all
 intermediate nodes in the path above the leaf.  The path is ordered
 from the closest node to the leaf to the root; each node MUST be the
@@ -1763,10 +1760,10 @@ and {{welcoming-new-members}}.
 
 The creator of a group MUST take the following steps to initialize the group:
 
-* Fetch ClientInitKeys for the members to be added, and selects a version and
+* Fetch KeyPackages for the members to be added, and selects a version and
   ciphersuite according to the capabilities of the members.  To protect against
   downgrade attacks, the creator MUST use the `supported_versions` and
-  `supported_ciphersuites` fields in these ClientInitKeys to verify that the
+  `supported_ciphersuites` fields in these KeyPackages to verify that the
   chosen version and ciphersuite is the best option supported by all members.
 
 * Initialize a one-member group with the following initial values (where "0"
@@ -1780,7 +1777,7 @@ The creator of a group MUST take the following steps to initialize the group:
   * Interim transcript hash: 0
   * Init secret: 0
 
-* For each member, construct an Add proposal from the ClientInitKey for that
+* For each member, construct an Add proposal from the KeyPackage for that
   member (see {{add}})
 
 * Construct a Commit message that commits all of the Add proposals, in any order
@@ -1799,7 +1796,7 @@ creator directly create a tree and choose a random value for first
 epoch's epoch secret.  We follow the steps above because it removes
 unnecessary choices, by which, for example, bad randomness could be
 introduced.  The only choices the creator makes here are its own
-ClientInitKey, the leaf secret from which the Commit is built, and the
+KeyPackage, the leaf secret from which the Commit is built, and the
 intermediate key pairs along the direct path to the root.
 
 A new member receiving a Welcome message can recognize group creation if the
@@ -1863,12 +1860,12 @@ retrieved using a ProposalID in a later Commit message.
 
 ### Add
 
-An Add proposal requests that a client with a specified ClientInitKey be added
+An Add proposal requests that a client with a specified KeyPackage be added
 to the group.
 
 ~~~~~
 struct {
-    ClientInitKey client_init_key;
+    KeyPackage key_package;
 } Add;
 ~~~~~
 
@@ -1888,24 +1885,24 @@ leaf in the tree, for the second Add, the next empty leaf to the right, etc.
   `index` to the root, add `index` to the `unmerged_leaves` list for the node.
 
 * Set the leaf node in the tree at position `index` to a new node containing the
-  public key from the ClientInitKey in the Add, as well as the credential under
-  which the ClientInitKey was signed
+  public key from the KeyPackage in the Add, as well as the credential under
+  which the KeyPackage was signed
 
 ### Update
 
 An Update proposal is a similar mechanism to Add with the distinction
-that it is the sender's leaf ClientInitKey in the tree which would be
-updated with a new ClientInitKey.
+that it is the sender's leaf KeyPackage in the tree which would be
+updated with a new KeyPackage.
 
 ~~~~~
 struct {
-    ClientInitKey client_init_key;
+    KeyPackage key_package;
 } Update;
 ~~~~~
 
 A member of the group applies an Update message by taking the following steps:
 
-* Replace the sender's leaf ClientInitKey with the one contained in
+* Replace the sender's leaf KeyPackage with the one contained in
   the Update proposal
 
 * Blank the intermediate nodes along the path from the sender's leaf to the root
@@ -1941,7 +1938,7 @@ The `new_member` SenderType is used for clients proposing that they themselves
 be added.  For this ID type the sender value MUST be zero.  Proposals with types
 other than Add MUST NOT be sent with this sender type.  In such cases, the
 MLSPlaintext MUST be signed with the private key corresponding to the
-ClientInitKey in the Add message.  Recipients MUST verify that the MLSPlaintext
+KeyPackage in the Add message.  Recipients MUST verify that the MLSPlaintext
 carrying the Proposal message is validly signed with this key.
 
 The `preconfigured` SenderType is reserved for signers that are pre-provisioned
@@ -1977,7 +1974,7 @@ struct {
     ProposalID removes<0..2^16-1>;
     ProposalID adds<0..2^16-1>;
 
-    ClientInitKey client_init_key;
+    KeyPackage key_package;
     DirectPath path;
 } Commit;
 ~~~~~
@@ -2013,7 +2010,7 @@ message at the same time, by taking the following steps:
 
 * Construct an initial Commit object with `updates`, `removes`, and `adds`
   fields populated from Proposals received during the current epoch, and empty
-  `client_init_key` and `path` fields.
+  `key_package` and `path` fields.
 
 * Generate a provisional GroupContext object by applying the proposals
   referenced in the initial Commit object in the order provided, as described in
@@ -2032,9 +2029,9 @@ message at the same time, by taking the following steps:
      `path_secret[n+1]` derived from the `path_secret[n]` value assigned to
      the root node.
 
-* Generate a new ClientInitKey for the Committer's own leaf, with a
+* Generate a new KeyPackage for the Committer's own leaf, with a
   `parent_hash` extension. Store it in the ratchet tree and assign it to the
-  `client_init_key` field in the Commit object.
+  `key_package` field in the Commit object.
 
 * Construct an MLSPlaintext object containing the Commit object.  Use the
   `commit_secret` to advance the key schedule and compute the `confirmation`
@@ -2055,11 +2052,11 @@ message at the same time, by taking the following steps:
   * Identify the lowest common ancestor in the tree of the new member's
     leaf node and the member sending the Commit
   * Compute the path secret corresponding to the common ancestor node
-  * Compute an EncryptedKeyPackage object that encapsulates the `init_secret`
+  * Compute an EncryptedGroupSecrets object that encapsulates the `init_secret`
     for the current epoch and the path secret for the common ancestor.
 
 * Construct a Welcome message from the encrypted GroupInfo object and the
-  encrypted key packages.
+  encrypted group secrets.
 
 A member of the group applies a Commit message by taking the following steps:
 
@@ -2080,10 +2077,10 @@ A member of the group applies a Commit message by taking the following steps:
   to update the ratchet tree and generate the `commit_secret`:
 
   * Apply the DirectPath to the tree, as described in
-    {{synchronizing-views-of-the-tree}}, and store `client_init_key` at the
+    {{synchronizing-views-of-the-tree}}, and store `key_package` at the
     Committer's leaf.
 
-  * Verify that the ClientInitKey has a `parent_hash`
+  * Verify that the KeyPackage has a `parent_hash`
     extension and that its value matches the new parent of the sender's leaf
     node.
 
@@ -2157,37 +2154,37 @@ struct {
 struct {
   opaque epoch_secret<1..255>;
   opaque path_secret<1..255>;
-} KeyPackage;
+} GroupSecrets;
 
 struct {
-  opaque client_init_key_hash<1..255>;
-  HPKECiphertext encrypted_key_package;
-} EncryptedKeyPackage;
+  opaque key_package_hash<1..255>;
+  HPKECiphertext encrypted_group_secrets;
+} EncryptedGroupSecrets;
 
 struct {
   ProtocolVersion version = mls10;
   CipherSuite cipher_suite;
-  EncryptedKeyPackage key_packages<0..2^32-1>;
+  EncryptedGroupSecrets secrets<0..2^32-1>;
   opaque encrypted_group_info<1..2^32-1>;
 } Welcome;
 ~~~~~
 
-In the description of the tree as a list of nodes, the `client_init_key`
+In the description of the tree as a list of nodes, the `key_package`
 field for a node MUST be populated if and only if that node is a
 leaf in the tree.
 
 On receiving a Welcome message, a client processes it using the following steps:
 
-* Identify an entry in the `key_packages` array where the `client_init_key_hash`
-  value corresponds to one of this client's ClientInitKeys, using the hash
+* Identify an entry in the `secrets` array where the `key_package_hash`
+  value corresponds to one of this client's KeyPackages, using the hash
   indicated by the `cipher_suite` field.  If no such field exists, or if the
-  ciphersuite indicated in the ClientInitKey does not match the one in the
+  ciphersuite indicated in the KeyPackage does not match the one in the
   Welcome message, return an error.
 
-* Decrypt the `encrypted_key_package` using HPKE with the algorithms indicated
-  by the ciphersuite and the HPKE private key corresponding to the ClientInitKey.
+* Decrypt the `encrypted_group_secrets` using HPKE with the algorithms indicated
+  by the ciphersuite and the HPKE private key corresponding to the GroupSecrets.
 
-* From the `epoch_secret` in the decrypted KeyPackage object, derive the
+* From the `epoch_secret` in the decrypted GroupSecrets object, derive the
   `welcome_secret`, `welcome_key`, and `welcome_nonce`.  Use the key
   and nonce to decrypt the `encrypted_group_info` field.
 
@@ -2207,16 +2204,16 @@ welcome_key = HKDF-Expand(welcome_secret, "key", key_length)
   * For each non-empty parent node, verify that exactly one of the node's
     children are non-empty and have the hash of this node set as their
     `parent_hash` value (if the child is another parent) or has a `parent_hash`
-    extension in the ClientInitKey containing the same value (if the child is a
+    extension in the KeyPackage containing the same value (if the child is a
     leaf).
 
-  * For each non-empty leaf node, verify the signature on the ClientInitKey.
+  * For each non-empty leaf node, verify the signature on the KeyPackage.
 
 * Identify a leaf in the `tree` array (any even-numbered node) whose
-  `public_key` and `credential` fields are identical to the corresponding fields
-  in the ClientInitKey.  If no such field exists, return an error.  Let `index`
-  represent the index of this node among the leaves in the tree, namely the
-  index of the node in the `tree` array divided by two.
+  `key_package` field is identical to the the KeyPackage.  If no such field
+  exists, return an error.  Let `index` represent the index of this node among
+  the leaves in the tree, namely the index of the node in the `tree` array
+  divided by two.
 
 * Construct a new group state using the information in the GroupInfo object.
   The new member's position in the tree is `index`, as defined above.  In
@@ -2253,14 +2250,14 @@ its choices for the session with extensions in its ServerHello and
 EncryptedExtensions messages.  In MLS, extensions appear in the following
 places:
 
-* In ClientInitKeys, to describe client capabilities and aspects of their
+* In KeyPackages, to describe client capabilities and aspects of their
   participation in the group (once in the ratchet tree)
 * In the Welcome message, to tell new members of a group what parameters are
   being used by the group
 * In the GroupContext object, to ensure that all members of the group have the
   same view of the parameters in use
 
-In other words, clients advertise their capabilities in ClientInitKey
+In other words, clients advertise their capabilities in KeyPackage
 extensions, the creator of the group expresses its choices for the group in
 Welcome extensions, and the GroupContext confirms that all members of the group
 have the same view of the group's extensions.
@@ -2269,7 +2266,7 @@ This extension mechanism is designed to allow for secure and forward-compatible
 negotiation of extensions.  For this to work, implementations MUST correctly
 handle extensible fields:
 
-* A client that posts a ClientInitKey MUST support all parameters advertised in
+* A client that posts a KeyPackage MUST support all parameters advertised in
   it.  Otherwise, another client might fail to interoperate by selecting one of
   those parameters.
 
@@ -2277,9 +2274,9 @@ handle extensible fields:
   extensions, and other parameters.  Otherwise, it may fail to interoperate with
   newer clients.
 
-* A client adding a new member to a group MUST verify that the ClientInitKey
+* A client adding a new member to a group MUST verify that the KeyPackage
   for the new member contains extensions that are consistent with the group's
-  extensions.  For each extension in the GroupContext, the ClientInitKey MUST
+  extensions.  For each extension in the GroupContext, the KeyPackage MUST
   have an extension of the same type, and the contents of the extension MUST be
   consistent with the value of the extension in the GroupContext, according to
   the semantics of the specific extension.
@@ -2287,7 +2284,7 @@ handle extensible fields:
 * A client joining a group MUST populate the GroupContext extensions with
   exactly the contents of the extensions field in the Welcome message.  If any
   extension is unrecognized (i.e., not contained in the corresponding
-  ClientInitKey), then the client MUST reject the Welcome message and not join
+  KeyPackage), then the client MUST reject the Welcome message and not join
   the group.
 
 Note that the latter two requirements mean that all MLS extensions are
@@ -2299,7 +2296,7 @@ once it has been created; such a behavior could be implemented as an extension.
 
 [[ OPEN ISSUE: Should we put bounds on what an extension can change?  For
 example, should we make an explicit guarantee that as long as you're speaking
-MLS 1.0, the format of the ClientInitKey will remain the same?  (Analogous to
+MLS 1.0, the format of the KeyPackage will remain the same?  (Analogous to
 the TLS invariant with regard to ClientHello.)  If we are explicit that
 effectively arbitrary changes can be made to protocol behavior with the consent
 of the members, we will need to note that some such changes can undermine the
@@ -2664,13 +2661,18 @@ derived secrets.
 
 In the case where the client could have been compromised (device
 loss...), the client SHOULD signal the delivery service to expire
-all the previous ClientInitKeys and publish fresh ones for PCS.
+all the previous KeyPackages and publish fresh ones for PCS.
 
-## Init Key Reuse
+## Reuse of Key Packages
 
-Initialization keys are intended to be used only once and then
-deleted. Reuse of init keys can lead to replay attacks.
+Key packages published for purposes of adding members to groups are intended to
+be used only once.  That is, once a key package has been used to introduce the
+corresponding client to a group, it SHOULD be deleted from the key package
+publication system.  Reuse of key packages can lead to replay attacks.
 
+An application MAY allow for reuse of a "last resort" key package in order to
+prevent the exhaustion of available key packages leading to a denial of service
+condition in which the affected client cannot be added to new groups.
 
 # IANA Considerations
 
