@@ -44,13 +44,20 @@ author:
 
 normative:
   X962:
-       title: "Public Key Cryptography For The Financial Services Industry: The Elliptic Curve Digital Signature Algorithm (ECDSA)"
-       date: 1998
-       author:
-         org: ANSI
-       seriesinfo:
-         ANSI: X9.62
+    title: "Public Key Cryptography For The Financial Services Industry: The Elliptic Curve Digital Signature Algorithm (ECDSA)"
+    date: 1998
+    author:
+      org: ANSI
+    seriesinfo:
+      ANSI: X9.62
+
   IEEE1363: DOI.10.1109/IEEESTD.2009.4773330
+
+  SHS:
+    title: "TODO"
+    date: 1990
+    author:
+      org: NIST
 
 
 informative:
@@ -138,6 +145,40 @@ shared keys with costs that scale as the log of the group size.
 ##  Change Log
 
 RFC EDITOR PLEASE DELETE THIS SECTION.
+
+draft-09
+
+- Remove blanking of nodes on Add (\*)
+
+- Change epoch numbers to uint64 (\*)
+
+- Add PSK inputs (\*)
+
+- Add key schedule exporter (\*)
+
+- Sign the updated direct path on Commit, using "parent hashes" and one
+  signature per leaf (\*)
+
+- Use structured types for external senders (\*)
+
+- Redesign Welcome to include confirmation and use derived keys (\*)
+
+- Remove ignored proposals (\*)
+
+- Always include an Update with a Commit (\*)
+
+- Add per-message entropy to guard against nonce reuse (\*)
+
+- Use the same hash ratchet construct for both application and handshake keys (\*)
+
+- Add more ciphersuites
+
+- Use HKDF to derive key pairs (\*)
+
+- Mandate expiration of ClientInitKeys (\*)
+
+- Add extensions to GroupContext and flesh out the extensibility story (\*)
+
 
 draft-08
 
@@ -820,7 +861,7 @@ are opaque values in a format defined by the underlying Diffie-Hellman
 protocol (see the Ciphersuites section of the HPKE specification for more
 information).
 
-The signature algorithm specified in the ciphersuite is the mandatory algorithm 
+The signature algorithm specified in the ciphersuite is the mandatory algorithm
 to be used for the signatutes in MLSPlaintext and the tree signatures. It can be
 different from the signature algorithm specified in credential field of ClientInitKeys.
 
@@ -2683,10 +2724,10 @@ This specification defines the following ciphersuites for use with MLS 1.0.
 | MLS10_256_DHKEMP521_AES256GCM_SHA512_P521             | { 0x00,0x05 } |
 | MLS10_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     | { 0x00,0x06 } |
 
-The KEM/DEM constructions used for HPKE are defined by {{HPKE}}.
+The KEM/DEM constructions used for HPKE are defined by {{!I-D.irtf-cfrg-hpke}}.
 The corresponding AEAD algorithms AEAD_AES_128_GCM and AEAD_AES_256_GCM, are
 defined in {{RFC5116}}. AEAD_CHACHA20_POLY1305 is defined
-in {{RFC7539}}. The corresponding hash algorithms are defined in {{!SHS}}.
+in {{!RFC7539}}. The corresponding hash algorithms are defined in {{SHS}}.
 
 It is advisable to keep the number of ciphersuites low to increase the chances clients can interoperate in a federated environment, therefore the ciphersuites only inlcude modern, yet well-established algorithms.
 Depending on their requirements, clients can choose between two security levels (roughly 128-bit and 256-bit). Within the security levels clients can choose between faster X25519/X448 curves and FIPS 140-2 compliant curves for Diffie-Hellman key negotiations. Additionally clients that run predominantly on mobile processors can choose ChaCha20Poly1305 over AES-GCM for performance reasons. Since ChaCha20Poly1305 is not listed by FIPS 140-2 it is not paired with FIPS 140-2 compliant curves. The security level of symmetric encryption algorithms and hash functions is paired with the security level of the curves.
