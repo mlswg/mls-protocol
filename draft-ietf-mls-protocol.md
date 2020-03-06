@@ -1504,6 +1504,12 @@ There are three ways in which a group can be branched:
 
 For each of these use-cases a PSK needs to be derived from a group.
 
+~~~~~
+MLS-Recovery(Label, Context, key_length) =
+       HKDF-Expand-Label(Derive-Secret(recovery_secret, Label),
+                         "recovery", Hash(Context), key_length)
+~~~~~
+
 ### Re-Initialization and Recovery {#re-initialization}
 
 ~~~~~
