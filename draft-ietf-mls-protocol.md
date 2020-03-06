@@ -306,9 +306,11 @@ Member:
 
 Key Package:
 : A signed object describing a clients identity and capabilities, and including
-  an HPKE public key that can be used to encrypt to that client.  Key packages
-  are used to introduce new members to a group and to represent the client's
-  contribution to the group once added.
+  an HPKE public key that can be used to encrypt to that client.
+
+Initialization Key (InitKey):
+: A key package that is prepublished by a client, which other clients can use to
+  introduce the client to a new group.
 
 Identity Key:
 : A long-lived signing key pair used to authenticate the sender of a
@@ -377,8 +379,8 @@ section, we show each proposal being committed immediately, but in more advanced
 deployment cases, an application might gather several proposals before
 committing them all at once.
 
-Before the initialization of a group, clients publish KeyPackage
-objects to a directory provided by the Messaging Service.
+Before the initialization of a group, clients publish InitKeys (as KeyPackage
+objects) to a directory provided by the Messaging Service.
 
 ~~~~~
                                                                Group
@@ -706,7 +708,6 @@ its direct path to the root are updated with new secret values.  The
 HPKE leaf public key within the KeyPackage MUST be a freshly
 generated value to provide post-compromise security.
 
-
 The generator of the Commit starts by using the HPKE secret key
 "leaf_hpke_secret" associated with the new leaf KeyPackage (see
 {{key-packages}}) to compute "path_secret[0]" and generate a
@@ -994,10 +995,11 @@ throughout the lifetime of the group by sending a new KeyPackage
 with a new identity; the new identity MUST be validated by the
 authentication service.
 
-KeyPackages are intended to be used only once and SHOULD NOT
-be reused except in case of last resort. (See {{reuse-of-key-packages}}).
-Clients MAY generate and publish multiple KeyPackage objects to
+When used as InitKeys, KeyPackages are intended to be used only once and SHOULD NOT
+be reused except in case of last resort. (See {{initkey-reuse}}).
+Clients MAY generate and publish multiple InitKeys to
 support multiple ciphersuites.
+
 KeyPackages contain a public key chosen by the client, which the
 client MUST ensure uniquely identifies a given KeyPackage object
 among the set of KeyPackages created by this client.
@@ -2665,16 +2667,16 @@ In the case where the client could have been compromised (device
 loss...), the client SHOULD signal the delivery service to expire
 all the previous KeyPackages and publish fresh ones for PCS.
 
-## Reuse of Key Packages
+## InitKey Reuse
 
-Key packages published for purposes of adding members to groups are intended to
-be used only once.  That is, once a key package has been used to introduce the
-corresponding client to a group, it SHOULD be deleted from the key package
-publication system.  Reuse of key packages can lead to replay attacks.
+InitKeys are intended to be used only once.  That is, once an InitKey has been
+used to introduce the corresponding client to a group, it SHOULD be deleted from
+the InitKey publication system.  Reuse of InitKeys can lead to replay attacks.
 
-An application MAY allow for reuse of a "last resort" key package in order to
-prevent the exhaustion of available key packages leading to a denial of service
-condition in which the affected client cannot be added to new groups.
+An application MAY allow for reuse of a "last resort" InitKey in order to
+prevent denial of service attacks.  Since an InitKey is needed to add a client
+to a new group, an attacker could prevent a client being added to new groups by
+exhausting all available InitKeys.
 
 # IANA Considerations
 
