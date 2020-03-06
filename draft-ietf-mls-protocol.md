@@ -50,15 +50,8 @@ normative:
       org: ANSI
     seriesinfo:
       ANSI: X9.62
-
   IEEE1363: DOI.10.1109/IEEESTD.2009.4773330
-
-  SHS:
-    title: "TODO"
-    date: 1990
-    author:
-      org: NIST
-
+  SHS: DOI.10.6028/NIST.FIPS.180-4
 
 informative:
   art:
