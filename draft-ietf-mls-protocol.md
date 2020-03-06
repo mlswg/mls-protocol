@@ -1340,12 +1340,12 @@ proceeds as shown in the following diagram:
                      |    = group_info_secret
                      |
                      V
-    PSK (or 0) -> HKDF-Extract = early_secret
+commit_secret -> HKDF-Extract = epoch_secret
                      |
                Derive-Secret(., "derived", "")
                      |
                      V
-commit_secret -> HKDF-Extract = epoch_secret
+    PSK (or 0) -> HKDF-Extract = intermediate_secret
                      |
                      +--> HKDF-Expand(., "mls 1.0 welcome", Hash.length)
                      |    = welcome_secret
@@ -1399,6 +1399,15 @@ a Commit message.
 
 [[OPEN ISSUE: We have to decide if we want an external coordination
 via the application of a Handshake proposal.]]
+
+### Groups Reboots
+
+If during the lifetime of the group a change in the fixed group parameters
+becomes necessary, e.g., if the ciphersuite used by the group is deprecated,
+
+### Sub-Groups
+
+PSKs can also be used to create a sub-group from
 
 ## Encryption Keys
 
@@ -1479,28 +1488,66 @@ It is RECOMMENDED for the application generating exported values
 to refresh those values after a group operation is processed.
 
 ## Recovery Keys
-The main MLS key schedule provides a `recovery_secret` which can be 
-used by an application for branching of the current group. 
+The main MLS key schedule provides a `recovery_secret` which can be
+used by an application for branching of the current group.
 
-Branching MAY consist of recovery and re-initialization of the current 
-group, in which case the recovery_secret may be used as a PSK. 
-Branching MAY alternatively be used as to split off a sub-group from the 
-current members, whereby the recovery_secret may be used as a 
-PSK for the new group. Recovery keys are distinguished from exporter 
-keys in that they have specific use inside the MLS layer, whereas the use 
-of exporter secrets may be decided by an application. 
+The application SHOULD specify an upper limit to determine for how many past
+epochs the `recovery_secret` should be stored.
+
+There are three ways in which a group can be branched:
+
+1. To re-initialize a group with different parameters
+
+2. To recover a group after it has broken down
+
+3. To create a sub-group of an existing group
+
+For each of these use-cases a PSK needs to be derived from a group.
+
+### Re-Initialization and Recovery {#re-initialization}
 
 ~~~~~
-MLS-Recovery(Label, Context, key_length) =
-       HKDF-Expand-Label(Derive-Secret(recovery_secret, Label),
-                         "recovery", Hash(Context), key_length)
+
+enum {
+  group-internal(0),
+  mls-internal(1),
+  external(2),
+  (255)
+} PSKType;
+
+struct {
+  PSKType psktype;
+  select (psktype) {
+    case group-internal:
+      uint64 psk_epoch;
+    case mls-internal:
+      opaque psk_group_id<0..255>;
+      uint64 psk_epoch;
+    case external:
+      opaque psk_id<0..255>;
+  }
+} PSKId
+
 ~~~~~
+
+To re-initialize or recover a group G, a member of the group creates a new group
+G' with the same set of members as G and includes a PSKId in the Welcome
+message that indicates the group id and the epoch from which the PSK should be
+derived.
+
+MAY consist of recovery and re-initialization of the current
+group, in which case the `recovery_secret` MUST be used as a PSK.
+Branching MAY alternatively be used as to split off a sub-group from the
+current members, whereby the recovery_secret may be used as a
+PSK for the new group. Recovery keys are distinguished from exporter
+keys in that they have specific use inside the MLS layer, whereas the use
+of exporter secrets may be decided by an application.
 
 The context used for the derivation of the `recovery_secret` MAY be
 empty while each application SHOULD provide a unique label as an input
 of the HKDF-Expand-Label for each use case. This is to prevent two
 recovery outputs from being generated with the same values and used
-for different functionalities such as a PSK to recover the entire group 
+for different functionalities such as a PSK to recover the entire group
 and a PSK to initiate a subgroup branch.
 
 The recovery values are bound to the Group epoch from which the
@@ -1727,17 +1774,17 @@ that the recipient of the message can use it to compute the nonce to be used for
 decryption.
 
 ~~~~~
-+-+-+-+-+---------...---+
++-|-|-|-|---------...---+
 |   Key Schedule Nonce  |
-+-+-+-+-+---------...---+
++-|-|-|-|---------...---+
            XOR
-+-+-+-+-+---------...---+
++-|-|-|-|---------...---+
 | Guard |       0       |
-+-+-+-+-+---------...---+
++-|-|-|-|---------...---+
            ===
-+-+-+-+-+---------...---+
++-|-|-|-|---------...---+
 | Encrypt/Decrypt Nonce |
-+-+-+-+-+---------...---+
++-|-|-|-|---------...---+
 ~~~~~
 
 The Additional Authenticated Data (AAD) input to the encryption
@@ -2064,8 +2111,8 @@ message at the same time, by taking the following steps:
   * Compute an EncryptedKeyPackage object that encapsulates the `init_secret`
     for the current epoch and the path secret for the common ancestor.
 
-* Construct a Welcome message from the encrypted GroupInfo object and the
-  encrypted key packages.
+* Construct a Welcome message from the encrypted GroupInfo object, the
+  encrypted key packages and, optionally, a PSK.
 
 A member of the group applies a Commit message by taking the following steps:
 
@@ -2146,6 +2193,12 @@ committer and the new member.  This allows the new member to compute private
 keys for nodes in its direct path that are being reset by the corresponding
 Commit.
 
+If the sender of the Welcome message wants the receiving member to include a PSK
+into the derivation of the `epoch_secret`, they can add a field indicating which
+PSK to use. A PSK MUST be included if the welcome message is sent in the context
+of a group re-initialization or recovery and it SHOULD be included if the
+welcome message is sent to create a sub-group of an existing group.
+
 ~~~~~
 struct {
   opaque group_id<0..255>;
@@ -2162,6 +2215,7 @@ struct {
 struct {
   opaque epoch_secret<1..255>;
   opaque path_secret<1..255>;
+  optional<PSKId> psk;
 } KeyPackage;
 
 struct {
@@ -2185,16 +2239,21 @@ On receiving a Welcome message, a client processes it using the following steps:
 
 * Identify an entry in the `key_packages` array where the `client_init_key_hash`
   value corresponds to one of this client's ClientInitKeys, using the hash
-  indicated by the `cipher_suite` field.  If no such field exists, or if the
+  indicated by the `cipher_suite` field. If no such field exists, or if the
   ciphersuite indicated in the ClientInitKey does not match the one in the
   Welcome message, return an error.
 
 * Decrypt the `encrypted_key_package` using HPKE with the algorithms indicated
-  by the ciphersuite and the HPKE private key corresponding to the ClientInitKey.
+  by the ciphersuite and the HPKE private key corresponding to the
+  ClientInitKey. If a PSKId is part of the KeyPackage and the client is not in
+  possession of the corresponding PSK, return an error.
 
 * From the `epoch_secret` in the decrypted KeyPackage object, derive the
-  `welcome_secret`, `welcome_key`, and `welcome_nonce`.  Use the key
-  and nonce to decrypt the `encrypted_group_info` field.
+  `intermediate_secret`. If there is a PSKId in the psk field, derive the PSK
+  referred by the `psk` field as described in {{re-initialization}}, otherwise
+  use 0 instead. Afterwards, derive the `welcome_secret`, `welcome_key`, and
+  `welcome_nonce`. Use the key and nonce to decrypt the `encrypted_group_info`
+  field.
 
 ~~~~~
 welcome_secret = HKDF-Expand(epoch_secret, "mls 1.0 welcome", Hash.length)
@@ -2489,11 +2548,11 @@ participant D:
     /     \
    E       F
   / \     / \
-A0  B0  C0  D0 -+- KD0
+A0  B0  C0  D0 -|- KD0
             |   |
             |   +- ND0
             |
-            D1 -+- KD1
+            D1 -|- KD1
             |   |
             |   +- ND1
             |
