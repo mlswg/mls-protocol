@@ -1502,7 +1502,8 @@ There are three ways in which a group can be branched:
 
 3. To create a sub-group of an existing group
 
-For each of these use-cases a PSK needs to be derived from a group.
+For each of these use-cases a PSK needs to be derived from an existing group as follows,
+using a unique PSK id as label.
 
 ~~~~~
 MLS-Recovery(Label, Context, key_length) =
@@ -1510,56 +1511,6 @@ MLS-Recovery(Label, Context, key_length) =
                          "recovery", Hash(Context), key_length)
 ~~~~~
 
-### Re-Initialization and Recovery {#re-initialization}
-
-~~~~~
-
-enum {
-  group-internal(0),
-  mls-internal(1),
-  external(2),
-  (255)
-} PSKType;
-
-struct {
-  PSKType psktype;
-  select (psktype) {
-    case group-internal:
-      uint64 psk_epoch;
-    case mls-internal:
-      opaque psk_group_id<0..255>;
-      uint64 psk_epoch;
-    case external:
-      opaque psk_id<0..255>;
-  }
-} PSKId
-
-~~~~~
-
-To re-initialize or recover a group G, a member of the group creates a new group
-G' with the same set of members as G and includes a PSKId in the Welcome
-message that indicates the group id and the epoch from which the PSK should be
-derived.
-
-MAY consist of recovery and re-initialization of the current
-group, in which case the `recovery_secret` MUST be used as a PSK.
-Branching MAY alternatively be used as to split off a sub-group from the
-current members, whereby the recovery_secret may be used as a
-PSK for the new group. Recovery keys are distinguished from exporter
-keys in that they have specific use inside the MLS layer, whereas the use
-of exporter secrets may be decided by an application.
-
-The context used for the derivation of the `recovery_secret` MAY be
-empty while each application SHOULD provide a unique label as an input
-of the HKDF-Expand-Label for each use case. This is to prevent two
-recovery outputs from being generated with the same values and used
-for different functionalities such as a PSK to recover the entire group
-and a PSK to initiate a subgroup branch.
-
-The recovery values are bound to the Group epoch from which the
-`recovery_secret` is derived, and thus reflects a particular state of
-the Group. Hence a group can be recovered based on a PSK from
-any epoch.
 
 
 # Message Framing
@@ -1868,6 +1819,66 @@ is a newly created group, and if so, SHOULD verify that the above process was
 followed by reconstructing the Add and Commit messages and verifying that the
 resulting transcript hashes and epoch secret match those found in the Welcome
 message.
+
+### Re-Initialization and Recovery {#re-initialization}
+
+If a client wants to re-initialize or recover a group, they MUST include a PSKId
+in the Welcome message using the `psktype` "group-internal", as well as an epoch
+within the number of epochs for which a `recovery_secret` is kept. The PSK can
+then be derived as specified in {{key schedule}}.
+
+The client receiving the Welcome message MUST then derive the same PSK and
+include it into the derivation of the `intermediate_secret`.
+
+Using a `recovery_secret` allows the newly created group to "inherit" the
+security level of the original group.
+
+TODO: Be specific here about how to use PSK id and epoch as label exactly.
+
+TODO: Write a proposal/message for group re-initialization and link to it from here.
+
+~~~~~
+
+enum {
+  group-internal(0),
+  mls-internal(1),
+  external(2),
+  (255)
+} PSKType;
+
+struct {
+  PSKType psktype;
+  select (psktype) {
+    case group-internal:
+      opaque psk_id<0..255>;
+      uint64 psk_epoch;
+    case mls-internal:
+      opaque psk_id<0..255>;
+      opaque psk_group_id<0..255>;
+      uint64 psk_epoch;
+    case external:
+      opaque psk_id<0..255>;
+  }
+} PSKId
+
+~~~~~
+
+### Sub-group Branching
+
+If a client wants to create a subgroup of an existing group, they MAY choose to
+include a `PSKId` in the welcome message choosing the `psktype` "mls-internal",
+as well as the `group_id` of the group from which a subgroup is branched, as
+well as an epoch within the number of epochs for which a `recovery_secret` is
+kept.
+
+TODO: Motivate those options (re-initialization, recovery and branching),
+although I think we should only hint at the reason why one might want to do this
+and then go into details in the architecture document.
+
+TODO: Not sure the specification of how and when to do
+recovery/re-initialization/branching is at the right place. Right now it's split
+up between the Key Schedule, Group Creation and the description of Welcome
+messages.
 
 # Group Evolution
 
