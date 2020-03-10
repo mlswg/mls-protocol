@@ -1163,7 +1163,7 @@ struct {
 
 struct {
     HPKEPublicKey public_key;
-    uint32_t unmerged_leaves<0..2^32-1>;
+    uint32 unmerged_leaves<0..2^32-1>;
     opaque parent_hash<0..255>;
 } ParentNode;
 ~~~~~
@@ -1448,7 +1448,7 @@ handshake_secret_[sender]_[0] =
     HKDF-Expand-Label(handshake_secret, "hs", [sender], nonce_length)
 ~~~~~
 
-The base secret of for each sender is used to initiate a symmetric hash ratchet
+The base secret for each sender is used to initiate a symmetric hash ratchet
 which generates a sequence of keys and nonces. The sender uses the j-th
 key/nonce pair in the sequence to encrypt (using the AEAD) the j-th message they
 send during that epoch.  In particular, each key/nonce pair MUST NOT be used to
@@ -2683,7 +2683,7 @@ exhausting all available InitKeys.
 
 This document requests the creation of the following new IANA
 registries: MLS Ciphersuites ({{mls-ciphersuites}}). All of these
-registries should be under a heading of "Message Layer Security",
+registries should be under a heading of "Messaging Layer Security",
 and assignments are made via the Specification Required policy
 {{!RFC8126}}. See {{de}} for additional information about the
 MLS Designated Experts (DEs).
