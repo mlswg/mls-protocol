@@ -1173,7 +1173,7 @@ structure is used:
 
 ~~~~~
 struct {
-    uint32 node_index;
+    NodeType node_type = parent;
     optional<ParentNode> parent_node;
     opaque left_hash<0..255>;
     opaque right_hash<0..255>;
@@ -1186,7 +1186,7 @@ a leaf node, the hash of a `LeafNodeHashInput` object is used:
 
 ~~~~~
 struct {
-    uint32 leaf_index;
+    NodeType node_type = leaf;
     optional<KeyPackage> key_package;
 } LeafNodeHashInput;
 ~~~~~
