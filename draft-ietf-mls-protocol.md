@@ -1202,7 +1202,7 @@ struct {
     uint64 epoch;
     opaque tree_hash<0..255>;
     opaque confirmed_transcript_hash<0..255>;
-    Extensions extensions<0..2^16-1>;
+    Extension extensions<0..2^16-1>;
 } GroupContext;
 ~~~~~
 
@@ -2149,8 +2149,7 @@ struct {
   optional<Node> tree<1..2^32-1>;
   opaque confirmed_transcript_hash<0..255>;
   opaque interim_transcript_hash<0..255>;
-  Extensions extensions<0..2^16-1>;
-
+  Extension extensions<0..2^16-1>;
   opaque confirmation<0..255>
   uint32 signer_index;
   opaque signature<0..2^16-1>;
