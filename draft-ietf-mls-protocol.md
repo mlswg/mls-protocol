@@ -2229,14 +2229,14 @@ welcome_key = HKDF-Expand(welcome_secret, "key", key_length)
 
     * Identify the lowest common ancestor of the leaves at `index` and at
       `GroupInfo.signer_index`.  Set the private key for this node to the
-      private key derived from the `path_secret` in the KeyPackage object.
+      private key derived from the `path_secret` in the GroupSecrets object.
 
     * For each parent of the common ancestor, up to the root of the tree, derive
       a new path secret and set the private key for the node to the private key
       derived from the path secret.  The private key MUST be the private key
       that corresponds to the public key in the node.
 
-* Use the `epoch_secret` from the KeyPackage object to generate the epoch secret
+* Use the `epoch_secret` from the GroupSecrets object to generate the epoch secret
   and other derived secrets for the current epoch.
 
 * Set the confirmed transcript hash in the new state to the value of the
