@@ -2236,7 +2236,7 @@ welcome_key = HKDF-Expand(welcome_secret, "key", key_length)
       derived from the path secret.  The private key MUST be the private key
       that corresponds to the public key in the node.
 
-* Use the `epoch_secret` from the KeyPackage object to generate the epoch secret
+* Use the `epoch_secret` from the GroupSecrets object to generate the epoch secret
   and other derived secrets for the current epoch.
 
 * Set the confirmed transcript hash in the new state to the value of the
