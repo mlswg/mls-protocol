@@ -554,8 +554,7 @@ used for the Merkle trees in the Certificate Transparency protocol
 The _direct path_ of a root is the empty list, and of any other node
 is the concatenation of that node's parent along with the parent's direct path.
 The _copath_ of a node is the node's sibling concatenated with the list of
-siblings of all the nodes in its
-direct path.
+siblings of all the nodes in its direct path, excluding the root.
 
 For example, in the below tree:
 
@@ -2822,7 +2821,7 @@ MLS DE, that MLS DE SHOULD defer to the judgment of the other MLS DEs.
 One benefit of using left-balanced trees is that they admit a simple
 flat array representation.  In this representation, leaf nodes are
 even-numbered nodes, with the n-th leaf at 2\*n.  Intermediate nodes
-are held in odd-numbered nodes.  For example, a 11-element tree has
+are held in odd-numbered nodes.  For example, an 11-element tree has
 the following structure:
 
 ~~~~~
@@ -2849,7 +2848,7 @@ necessary for MLS.  Test vectors can be derived from the diagram
 above.
 
 ~~~~~
-# The largest power of 2 less than n.  Equivalent to:
+# The exponent of the largest power of 2 less than x. Equivalent to:
 #   int(math.floor(math.log(x, 2)))
 def log2(x):
     if x == 0:
@@ -2860,9 +2859,9 @@ def log2(x):
         k += 1
     return k-1
 
-# The level of a node in the tree.  Leaves are level 0, their
-# parents are level 1, etc.  If a node's children are at different
-# level, then its level is the max level of its children plus one.
+# The level of a node in the tree. Leaves are level 0, their parents are
+# level 1, etc. If a node's children are at different levels, then its
+# level is the max level of its children plus one.
 def level(x):
     if x & 0x01 == 0:
         return 0
@@ -2872,89 +2871,110 @@ def level(x):
         k += 1
     return k
 
-# The number of nodes needed to represent a tree with n leaves
+# The number of nodes needed to represent a tree with n leaves.
 def node_width(n):
-    return 2*(n - 1) + 1
+    if n == 0:
+        return 0
+    else:
+        return 2*(n - 1) + 1
 
-# The index of the root node of a tree with n leaves
+# The index of the root node of a tree with n leaves.
 def root(n):
     w = node_width(n)
     return (1 << log2(w)) - 1
 
-# The left child of an intermediate node.  Note that because the
-# tree is left-balanced, there is no dependency on the size of the
-# tree.  The child of a leaf node is itself.
+# The left child of an intermediate node. Note that because the tree is
+# left-balanced, there is no dependency on the size of the tree.
 def left(x):
     k = level(x)
     if k == 0:
-        return x
+        raise Exception('leaf node has no children')
 
     return x ^ (0x01 << (k - 1))
 
-# The right child of an intermediate node.  Depends on the size of
-# the tree because the straightforward calculation can take you
-# beyond the edge of the tree.  The child of a leaf node is itself.
+# The right child of an intermediate node. Depends on the number of
+# leaves because the straightforward calculation can take you beyond the
+# edge of the tree.
 def right(x, n):
     k = level(x)
     if k == 0:
-        return x
+        raise Exception('leaf node has no children')
 
     r = x ^ (0x03 << (k - 1))
     while r >= node_width(n):
         r = left(r)
     return r
 
-# The immediate parent of a node.  May be beyond the right edge of
-# the tree.
+# The immediate parent of a node. May be beyond the right edge of the
+# tree.
 def parent_step(x):
     k = level(x)
     b = (x >> (k + 1)) & 0x01
     return (x | (1 << k)) ^ (b << (k + 1))
 
-# The parent of a node.  As with the right child calculation, have
-# to walk back until the parent is within the range of the tree.
+# The parent of a node. As with the right child calculation, we have to
+# walk back until the parent is within the range of the tree.
 def parent(x, n):
     if x == root(n):
-        return x
+        raise Exception('root node has no parent')
 
     p = parent_step(x)
     while p >= node_width(n):
         p = parent_step(p)
     return p
 
-# The other child of the node's parent.  Root's sibling is itself.
+# The other child of the node's parent.
 def sibling(x, n):
     p = parent(x, n)
     if x < p:
         return right(p, n)
-    elif x > p:
+    else:
         return left(p)
 
-    return p
-
-# The direct path of a node, ordered from the root
-# down, not including the root or the terminal node
+# The direct path of a node, ordered from leaf to root.
 def direct_path(x, n):
-    d = []
-    p = parent(x, n)
     r = root(n)
-    while p != r:
-        d.append(p)
-        p = parent(p, n)
+    if x == r:
+        return []
+
+    d = []
+    while x != r:
+        x = parent(x, n)
+        d.append(x)
     return d
 
-# The copath of the node is the siblings of the nodes on its direct
-# path (including the node itself)
+# The copath of a node, ordered from leaf to root.
 def copath(x, n):
-    d = dirpath(x, n)
-    if x != sibling(x, n):
-        d.append(x)
+    if x == root(n):
+        return []
 
+    d = direct_path(x, n)
+    d.insert(0, x)
+    d.pop()
     return [sibling(y, n) for y in d]
 
-# The common ancestor of two leaves is the lowest node that is in the
-# lowest-level node that is in the direct paths of both leaves.
-def common_ancestor(x, y):
+# The common ancestor of two nodes is the lowest node that is in the
+# direct paths of both leaves.
+def common_ancestor_semantic(x, y, n):
+    dx = set([x]) | set(direct_path(x, n))
+    dy = set([y]) | set(direct_path(y, n))
+    dxy = dx & dy
+    if len(dxy) == 0:
+        raise Exception('failed to find common ancestor')
+
+    return min(dxy, key=level)
+
+# The common ancestor of two nodes is the lowest node that is in the
+# direct paths of both leaves.
+def common_ancestor_direct(x, y, _):
+    # Handle cases where one is an ancestor of the other
+    lx, ly = level(x)+1, level(y)+1
+    if (lx <= ly) and (x>>ly == y>>ly):
+      return y
+    elif (ly <= lx) and (x>>lx == y>>lx):
+      return x
+
+    # Handle other cases
     xn, yn = x, y
     k = 0
     while xn != yn:
