@@ -326,9 +326,9 @@ describe the structure of protocol messages.
 
 # Basic Assumptions
 
-This protocol is designed to execute in the context of a Messaging Service (MS)
+This protocol is designed to execute in the context of a Service Provider (SP)
 as described in [I-D.ietf-mls-architecture].  In particular, we assume
-the MS provides the following services:
+the SP provides the following services:
 
 * A long-term identity key provider which allows clients to authenticate
   protocol messages in a group.
@@ -381,7 +381,7 @@ deployment cases, an application might gather several proposals before
 committing them all at once.
 
 Before the initialization of a group, clients publish InitKeys (as KeyPackage
-objects) to a directory provided by the Messaging Service.
+objects) to a directory provided by the Service Provider.
 
 ~~~~~
                                                                Group
