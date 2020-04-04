@@ -1494,38 +1494,30 @@ to refresh those values after a group operation is processed.
 The main MLS key schedule provides a `recovery_secret` which can be 
 used for branching of the current group. 
 
-Branching can consist of recovery and re-initialization of the current 
-group, in which case the recovery_secret may be used as a PSK. 
-Branching can alternatively be used as to split off a sub-group from the 
-current members, whereby the recovery_secret may be used as a 
-PSK for the new group. 
-
-Recovery keys are distinguished from exporter keys in that they have 
-specific use inside the MLS layer, whereas the use of exporter secrets 
-may be decided by an application. 
-
-The main MLS key schedule provides a `recovery_secret` which can be
-used by an application for branching of the current group.
-
 The application SHOULD specify an upper limit to determine for how 
-many past epochs the `recovery_secret` should be stored.
+many past epochs the `recovery_secret` should be stored. 
 
 There are three ways in which a group can be branched:
 
-1. To re-initialize a group with different parameters
+1. To re-initialize a group with different parameters.
 
-2. To recover a group after it has broken down
+2. To recover a group after it has broken down.
 
-3. To create a sub-group of an existing group
+3. To create a sub-group of an existing group.
 
 For each of these use-cases a PSK needs to be derived from an 
-existing group as follows, using a unique PSK id as label.
+existing group as follows, using a unique PSK ID as a label.
 
 ~~~~~
 recovery_key(Label, Context, key_length) =
        HKDF-Expand-Label(Derive-Secret(recovery_secret, Label),
                          "recovery", Hash(Context), key_length)
 ~~~~~
+
+[[TODO: include nonce in recovery key derivation]]
+Recovery keys are distinguished from exporter keys in that they have 
+specific use inside the MLS protocol, whereas the use of exporter secrets 
+may be decided by an application. 
 
 ## State Authentication Keys
 The main MLS key schedule provides a per-epoch `authentication_secret` 
