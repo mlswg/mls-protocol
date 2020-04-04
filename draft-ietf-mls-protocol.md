@@ -1491,7 +1491,6 @@ It is RECOMMENDED for the application generating exported values
 to refresh those values after a group operation is processed.
 
 ## Recovery Keys
-<<<<<<< HEAD
 The main MLS key schedule provides a `recovery_secret` which can be 
 used for branching of the current group. 
 
@@ -1504,12 +1503,12 @@ PSK for the new group.
 Recovery keys are distinguished from exporter keys in that they have 
 specific use inside the MLS layer, whereas the use of exporter secrets 
 may be decided by an application. 
-=======
+
 The main MLS key schedule provides a `recovery_secret` which can be
 used by an application for branching of the current group.
 
-The application SHOULD specify an upper limit to determine for how many past
-epochs the `recovery_secret` should be stored.
+The application SHOULD specify an upper limit to determine for how 
+many past epochs the `recovery_secret` should be stored.
 
 There are three ways in which a group can be branched:
 
@@ -1519,16 +1518,14 @@ There are three ways in which a group can be branched:
 
 3. To create a sub-group of an existing group
 
-For each of these use-cases a PSK needs to be derived from an existing group as follows,
-using a unique PSK id as label.
->>>>>>> afb1719ada36a1bd052f85dd592aa5cc47285381
+For each of these use-cases a PSK needs to be derived from an 
+existing group as follows, using a unique PSK id as label.
 
 ~~~~~
 recovery_key(Label, Context, key_length) =
        HKDF-Expand-Label(Derive-Secret(recovery_secret, Label),
                          "recovery", Hash(Context), key_length)
 ~~~~~
-
 
 ## State Authentication Keys
 The main MLS key schedule provides a per-epoch `authentication_secret` 
