@@ -1832,9 +1832,9 @@ message.
 
 ### Re-Initialization and Recovery {#re-initialization}
 
-If a client wants to re-initialize or recover a group, they MUST include a PSKId
-in the Welcome message using the `psktype` "group-internal", as well as an epoch
-within the number of epochs for which a `recovery_secret` is kept. The PSK can
+If a client wants to re-initialize or recover a group, they MUST include a PSK ID
+in the Welcome message using the `psktype` "group-internal", as well as a valid 
+epoch number within the list of maintained `recovery_secret` secrets. The PSK can
 then be derived as specified in {{key schedule}}.
 
 The client receiving the Welcome message MUST then derive the same PSK and
@@ -1843,7 +1843,9 @@ include it into the derivation of the `intermediate_secret`.
 Using a `recovery_secret` allows the newly created group to "inherit" the
 security level of the original group.
 
-TODO: Be specific here about how to use PSK id and epoch as label exactly.
+TODO: Be specific here about how to use PSK ID and epoch as label exactly.
+
+[[TODO: Include nonce in computation]]
 
 TODO: Write a proposal/message for group re-initialization and link to it from here.
 
