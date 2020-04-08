@@ -1388,17 +1388,22 @@ At any epoch, including the initial state, an application can decide
 to synchronize the injection of a PSK in the MLS key schedule.
 
 This mechanism can be used to improve security in the cases where
-having a full run of updates accross members is too expensive or in
+having a full run of updates across members is too expensive or in
 the case where the external group key establishment mechanism provides
 stronger security against classical or quantum adversaries.
 
 The security level associated with the PSK injected in the key schedule
 SHOULD match at least the security level of the ciphersuite in use in
 the group.
+[[TODO: Define "security level", and what it means to match the security
+level of the ciphersuite used in the group.]]
 
 Note that, as a PSK may have a different lifetime than an update, it
-does not necessarily provide the same FS or PCS guarantees than
+does not necessarily provide the same FS or PCS guarantees of
 a Commit message.
+[[TODO: Clarify lifetime vs security level mandated above. E.g. if the
+PSK security expires before the next update (shorter PSK lifetime than
+update), does that constitute a weaker security level]]
 
 [[OPEN ISSUE: We have to decide if we want an external coordination
 via the application of a Handshake proposal.]]
