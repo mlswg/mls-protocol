@@ -1408,14 +1408,13 @@ update), does that constitute a weaker security level]]
 [[OPEN ISSUE: We have to decide if we want an external coordination
 via the application of a Handshake proposal.]]
 
-### Groups Reboots
+A PSK may also be used to reboot a group based on existing state if, 
+during the lifetime of the group, a change in the fixed group parameters
+becomes necessary, e.g. if the ciphersuite used by the group is deprecated.
 
-If during the lifetime of the group a change in the fixed group parameters
-becomes necessary, e.g., if the ciphersuite used by the group is deprecated,
-
-### Sub-Groups
-
-PSKs can also be used to create a sub-group from
+A PSK may also be used to bootstrap a sub-group of the current group.
+This applies if a subset of current group members wish to branch based on
+the current group state.
 
 ## Encryption Keys
 
@@ -1523,6 +1522,12 @@ recovery_key(Label, Context, key_length) =
 Recovery keys are distinguished from exporter keys in that they have 
 specific use inside the MLS protocol, whereas the use of exporter secrets 
 may be decided by an application. 
+
+### Groups Reboots
+
+
+### Sub-Groups
+
 
 ## State Authentication Keys
 The main MLS key schedule provides a per-epoch `authentication_secret` 
