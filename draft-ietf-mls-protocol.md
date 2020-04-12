@@ -1518,6 +1518,7 @@ struct {
   opaque group_id<0..255>;
   uint64 epoch;
 } Label;
+[[TODO: not sure that we want label derivation here]]
 
 
 Recovery keys are distinguished from exporter keys in that they have 
@@ -1525,6 +1526,7 @@ specific use inside the MLS protocol, whereas the use of exporter secrets
 may be decided by an application. 
 
 ## State Authentication Keys
+
 The main MLS key schedule provides a per-epoch `authentication_secret` 
 which MAY be used for authenticating the current group state. 
 
@@ -1835,6 +1837,22 @@ followed by reconstructing the Add and Commit messages and verifying that the
 resulting transcript hashes and epoch secret match those found in the Welcome
 message.
 
+## Group Creation from existing PSK
+
+Group creation may be tied to an already existing group structure, consisting of 
+a recovery of an existing group, re-initialization of an existing group, or branching 
+of a sub-group. 
+
+Recovery of an existing group may be used, for example, to reset the group to a 
+prior state following a de-synchronization, for example. In such cases a PSK 
+derived at a previous epoch may be used to bootstrap the group state.
+
+Re-initialization of an existing group may be used, for example, to re-start the 
+group based on the current group state but under a different ciphersuite.
+
+Branching may be used to bootstrap a new group consisting of a subset of 
+current group members, based on the current group state. 
+
 ### Re-Initialization and Recovery {#re-initialization}
 
 If a client wants to re-initialize or recover a group, they MUST include a PSK ID
@@ -1890,10 +1908,6 @@ include a `PSKId` in the welcome message choosing the `psktype` "mls-internal",
 as well as the `group_id` of the group from which a subgroup is branched, as
 well as an epoch within the number of epochs for which a `recovery_secret` is
 kept.
-
-TODO: Motivate those options (re-initialization, recovery and branching),
-although I think we should only hint at the reason why one might want to do this
-and then go into details in the architecture document.
 
 TODO: Not sure the specification of how and when to do
 recovery/re-initialization/branching is at the right place. Right now it's split
