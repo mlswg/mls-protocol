@@ -1518,6 +1518,14 @@ recovery_key(Label, Context, key_length) =
                          "recovery", Hash(Context), key_length)
 ~~~~~
 
+Where Label is specified as:
+
+struct {
+  opaque recovery_nonce<0..255>;
+  uint16 length = Length;
+  opaque context<0..2^32-1> = Context;
+} Label;
+
 [[TODO: include nonce in recovery key derivation]]
 Recovery keys are distinguished from exporter keys in that they have 
 specific use inside the MLS protocol, whereas the use of exporter secrets 
@@ -1862,26 +1870,25 @@ TODO: Write a proposal/message for group re-initialization and link to it from h
 ~~~~~
 
 enum {
-  group-internal(0),
-  mls-internal(1),
-  external(2),
+  mls-internal(0),
+  external(1),
   (255)
 } PSKType;
 
 struct {
   PSKType psktype;
   select (psktype) {
-    case group-internal:
-      opaque psk_id<0..255>;
-      uint64 psk_epoch;
+      
     case mls-internal:
       opaque psk_id<0..255>;
       opaque psk_group_id<0..255>;
       uint64 psk_epoch;
+      
     case external:
       opaque psk_id<0..255>;
   }
 } PSKId
+
 
 ~~~~~
 
