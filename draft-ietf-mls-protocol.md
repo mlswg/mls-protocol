@@ -1525,6 +1525,8 @@ struct {
   opaque group_id<0..255>;
   uint64 epoch;
 } Label;
+[[TODO: no nonce?]]
+
 
 Recovery keys are distinguished from exporter keys in that they have 
 specific use inside the MLS protocol, whereas the use of exporter secrets 
@@ -1856,8 +1858,6 @@ security level of the original group.
 
 TODO: Be specific here about how to use PSK ID and epoch as label exactly.
 
-[[TODO: Include nonce in computation]]
-
 TODO: Write a proposal/message for group re-initialization and link to it from here.
 
 ~~~~~
@@ -1880,7 +1880,9 @@ struct {
     case external:
       opaque psk_id<0..255>;
   }
+  opaque recovery_nonce<0..255>;
 } PSKId
+
 
 
 ~~~~~
