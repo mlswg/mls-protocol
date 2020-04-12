@@ -1522,20 +1522,13 @@ Where Label is specified as:
 
 struct {
   opaque recovery_nonce<0..255>;
-  uint16 length = Length;
-  opaque context<0..2^32-1> = Context;
+  opaque group_id<0..255>;
+  uint64 epoch;
 } Label;
 
-[[TODO: include nonce in recovery key derivation]]
 Recovery keys are distinguished from exporter keys in that they have 
 specific use inside the MLS protocol, whereas the use of exporter secrets 
 may be decided by an application. 
-
-### Groups Reboots
-
-
-### Sub-Groups
-
 
 ## State Authentication Keys
 The main MLS key schedule provides a per-epoch `authentication_secret` 
