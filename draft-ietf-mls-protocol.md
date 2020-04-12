@@ -1512,20 +1512,12 @@ There are three ways in which a group can be branched:
 For each of these use-cases a PSK needs to be derived from an 
 existing group as follows, using a unique PSK ID as a label.
 
-~~~~~
-recovery_key(Label, Context, key_length) =
-       HKDF-Expand-Label(Derive-Secret(recovery_secret, Label),
-                         "recovery", Hash(Context), key_length)
-~~~~~
-
 Where Label is specified as:
 
 struct {
-  opaque recovery_nonce<0..255>;
   opaque group_id<0..255>;
   uint64 epoch;
 } Label;
-[[TODO: no nonce?]]
 
 
 Recovery keys are distinguished from exporter keys in that they have 
@@ -1856,8 +1848,6 @@ include it into the derivation of the `intermediate_secret`.
 Using a `recovery_secret` allows the newly created group to "inherit" the
 security level of the original group.
 
-TODO: Be specific here about how to use PSK ID and epoch as label exactly.
-
 TODO: Write a proposal/message for group re-initialization and link to it from here.
 
 ~~~~~
@@ -1883,6 +1873,12 @@ struct {
   opaque recovery_nonce<0..255>;
 } PSKId
 
+
+~~~~~
+recovery_key(PSKId, Context, key_length) =
+       HKDF-Expand-Label(Derive-Secret(recovery_secret, PSKId),
+                         "recovery", Hash(Context), key_length)
+~~~~~
 
 
 ~~~~~
