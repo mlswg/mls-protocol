@@ -1408,7 +1408,7 @@ update), does that constitute a weaker security level]]
 [[OPEN ISSUE: We have to decide if we want an external coordination
 via the application of a Handshake proposal.]]
 
-A PSK may also be used to reboot a group based on existing state if, 
+A PSK may also be used to reboot a group based on existing state if,
 during the lifetime of the group, a change in the fixed group parameters
 becomes necessary, e.g. if the ciphersuite used by the group is deprecated.
 
@@ -1495,21 +1495,21 @@ It is RECOMMENDED for the application generating exported values
 to refresh those values after a group operation is processed.
 
 ## Recovery Keys
-The main MLS key schedule provides a `recovery_secret` which can be 
-used for branching of the current group. 
+The main MLS key schedule provides a `recovery_secret` which can be
+used for branching of the current group.
 
-The application SHOULD specify an upper limit to determine for how 
-many past epochs the `recovery_secret` should be stored. 
+The application SHOULD specify an upper limit to determine for how
+many past epochs the `recovery_secret` should be stored.
 
 There are three ways in which a group can be branched:
 
-1. To re-initialize a group with different parameters.
+1. To re-initialize the group with different parameters.
 
-2. To recover a group after it has broken down.
+2. To recover the group after it has broken down.
 
 3. To create a sub-group of an existing group.
 
-For each of these use-cases a PSK needs to be derived from an 
+For each of these use-cases a PSK needs to be derived from an
 existing group as follows, using a unique PSK ID as a label.
 
 Where Label is specified as:
@@ -1521,14 +1521,14 @@ struct {
 [[TODO: not sure that we want label derivation here]]
 
 
-Recovery keys are distinguished from exporter keys in that they have 
-specific use inside the MLS protocol, whereas the use of exporter secrets 
-may be decided by an application. 
+Recovery keys are distinguished from exporter keys in that they have
+specific use inside the MLS protocol, whereas the use of exporter secrets
+may be decided by an application.
 
 ## State Authentication Keys
 
-The main MLS key schedule provides a per-epoch `authentication_secret` 
-which MAY be used for authenticating the current group state. 
+The main MLS key schedule provides a per-epoch `authentication_secret`
+which MAY be used for authenticating the current group state.
 
 # Message Framing
 
@@ -1839,19 +1839,19 @@ message.
 
 ## Group Creation from existing PSK
 
-Group creation may be tied to an already existing group structure, consisting of 
-a recovery of an existing group, re-initialization of an existing group, or branching 
-of a sub-group. 
+Group creation may be tied to an already existing group structure, consisting of
+a recovery of an existing group, re-initialization of an existing group, or branching
+of a sub-group.
 
-Recovery of an existing group may be used, for example, to reset the group to a 
-prior state following a de-synchronization, for example. In such cases a PSK 
-derived at a previous epoch may be used to bootstrap the group state.
+Recovery of an existing group may be used, for example, to reset the group to a
+prior state following a de-synchronization. In such cases a PSK derived at a
+previous epoch may be used to bootstrap the group state.
 
-Re-initialization of an existing group may be used, for example, to re-start the 
+Re-initialization of an existing group may be used, for example, to re-start the
 group based on the current group state but under a different ciphersuite.
 
-Branching may be used to bootstrap a new group consisting of a subset of 
-current group members, based on the current group state. 
+Branching may be used to bootstrap a new group consisting of a subset of
+current group members, based on the current group state.
 
 ### Re-Initialization and Recovery {#re-initialization}
 
@@ -1879,12 +1879,12 @@ enum {
 struct {
   PSKType psktype;
   select (psktype) {
-      
+
     case mls-internal:
       opaque psk_id<0..255>;
       opaque psk_group_id<0..255>;
       uint64 psk_epoch;
-      
+
     case external:
       opaque psk_id<0..255>;
   }
