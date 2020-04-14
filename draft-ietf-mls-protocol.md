@@ -1855,21 +1855,14 @@ current group members, based on the current group state.
 
 ### Re-Initialization and Recovery {#re-initialization}
 
-If a client wants to re-initialize or recover a group, they MUST include a PSK ID
-in the Welcome message using the `psktype` "group-internal", as well as a valid 
-epoch number within the list of maintained `recovery_secret` secrets. The PSK can
-then be derived as specified in {{key schedule}}.
-
-The client receiving the Welcome message MUST then derive the same PSK and
-include it into the derivation of the `intermediate_secret`.
-
-Using a `recovery_secret` allows the newly created group to "inherit" the
-security level of the original group.
-
-TODO: Write a proposal/message for group re-initialization and link to it from here.
+If a client wants to re-initialize or recover a group, they MUST include a
+`PSKId` in the Welcome message of the new group using the `psktype`
+"mls-internal", as well as a valid epoch number within the list of maintained
+`recovery_secret` secrets and the group ID of the group they want to
+re-initialize. They also must include a nonce to avoid key re-use.
+[[TODO: How to derive the nonce? From the recovery secret?]]
 
 ~~~~~
-
 enum {
   mls-internal(0),
   external(1),
@@ -1890,16 +1883,37 @@ struct {
   }
   opaque recovery_nonce<0..255>;
 } PSKId
+~~~~~
+[[TODO: I think `psk_id` and `recovery_nonce` are redundant.]]
 
+In addition to the steps above, the client that creates the group has to derive
+the `recovery_key` to as follows and include it as a PSK when deriving the
+intermediate secret for the epoch in which the new members are to be added. We
+use `recovery_secret(group_id, epoch)` to denote the `recovery_secret` belonging
+to group `group_id` and epoch `epoch`. Additionally, we use `generation =
+"recovery"` to denote that the intent is to recover a group and `generation =
+"re-initialization"` do denote that the intent is to re-initialize a group.
 
 ~~~~~
-recovery_key(PSKId, Context, key_length) =
-       HKDF-Expand-Label(Derive-Secret(recovery_secret, PSKId),
-                         "recovery", Hash(Context), key_length)
+recovery_key =
+       HKDF-Expand-Label(recovery_secret(psk_group_id, psk_epoch),
+                         generation, Hash(psktype || psk_id || recovery_nonce),
+                         key_length)
 ~~~~~
 
+The client receiving the Welcome message MUST then derive the same PSK and
+include it into the derivation of the `intermediate_secret`.
 
-~~~~~
+If a party wants to re-initialize the group, they SHOULD send a Re-Init proposal
+as described in {{link here}} to the group, proposing the re-initialization and
+specifying the group ID of the new group.
+[[TODO: Make sure we're using the correct terminology here. The group could be
+re-initialized by any member of the server (or anyone else who can send
+proposals).]]
+
+Using a `recovery_secret` allows the newly created group to "inherit" the
+security level of the original group.
+
 
 ### Sub-group Branching
 
@@ -1907,12 +1921,9 @@ If a client wants to create a subgroup of an existing group, they MAY choose to
 include a `PSKId` in the welcome message choosing the `psktype` "mls-internal",
 as well as the `group_id` of the group from which a subgroup is branched, as
 well as an epoch within the number of epochs for which a `recovery_secret` is
-kept.
+kept. The key is derived in the same way as described in {{re-initialization}},
+except that `generation = "sub-group"` is used.
 
-TODO: Not sure the specification of how and when to do
-recovery/re-initialization/branching is at the right place. Right now it's split
-up between the Key Schedule, Group Creation and the description of Welcome
-messages.
 
 # Group Evolution
 
@@ -2032,6 +2043,24 @@ A member of the group applies a Remove message by taking the following steps:
 
 * Blank the intermediate nodes along the path from the removed leaf to the root
 
+### Re-Initialize
+
+A Re-Initialize proposal requests that the group be re-initialized, for example
+in order to change the ciphersuite of the group.
+
+~~~~~
+struct {
+  opaque re-init_nonce<0..255>;
+} Re-Init;
+~~~~~
+
+The purpose of this proposal is to communicate the request for re-initialization
+to all members and to include the procedure into the transcript.
+
+[[TODO: Should we include associated data that can be handled by the application
+layer? We also need to make sure that when processing a commit that includes a proposal to re-initialize, the data is passed on to the application layer, so a policy decision can be made.]]
+[[TODO: Should we bind the PSK used for re-initialization to the re-init nonce?]]
+
 ### External Proposals
 
 Add and Remove proposals can be constructed and sent to the group by a party
@@ -2080,6 +2109,7 @@ struct {
     ProposalID updates<0..2^16-1>;
     ProposalID removes<0..2^16-1>;
     ProposalID adds<0..2^16-1>;
+    ProposalID re-initializes<0..2^16-1>;
 
     ClientInitKey client_init_key;
     DirectPath path;
@@ -2100,7 +2130,8 @@ chooses one and includes only that one in the Commit, considering the rest
 invalid. The committer MUST prefer any Remove received, or the most recent
 Update for the leaf if there are no Removes. If there are multiple Add proposals
 for the same client, the committer again chooses one to include and considers
-the rest invalid.
+the rest invalid. Similarly, if there are multiple proposals to re-initialize
+the group, the client chooses one and includes it in the group.
 
 The Commit MUST NOT combine proposals sent within different epochs. In the event
 that a valid proposal is omitted from the next Commit, the sender of the
@@ -2350,8 +2381,8 @@ welcome_key = HKDF-Expand(welcome_secret, "key", key_length)
       derived from the path secret.  The private key MUST be the private key
       that corresponds to the public key in the node.
 
-* Use the `epoch_secret` from the KeyPackage object to generate the epoch secret
-  and other derived secrets for the current epoch.
+* Use the `intermediate_secret` to derive the other secrets for the current
+  epoch as described in the key schedule.
 
 * Set the confirmed transcript hash in the new state to the value of the
   `confirmed_transcript_hash` in the GroupInfo.
