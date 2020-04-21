@@ -1022,7 +1022,7 @@ enum {
     invalid(0),
     supported_versions(1),
     supported_ciphersuites(2),
-    expiration(3),
+    lifetime(3),
     key_id(4),
     parent_hash(5),
     (65535)
@@ -1068,24 +1068,22 @@ CipherSuite supported_ciphersuites<0..255>;
 
 These extensions MUST be always present in a KeyPackage.
 
-## Expiration
+## Lifetime
 
-The `expiration` extension represents the time at which clients MUST consider
-this KeyPackage invalid.  This time is represented as an absolute time,
-measured in seconds since the Unix epoch (1970-01-01T00:00:00Z).  If a client
-receives a KeyPackage that contains an expiration extension at a time after
-its expiration time, then it MUST consider the KeyPackage invalid and not use
-it for any further processing.
+The `lifetime` extension represents the times between which clients will
+consider a KeyPackage invalid.  This time is represented as an absolute time,
+measured in seconds since the Unix epoch (1970-01-01T00:00:00Z). A client MUST
+NOT use the data in a KeyPackage for any processing before the `not_before`
+date, or after the `not_after` date.
 
 ~~~~~
-uint64 expiration;
+uint64 not_before;
+uint64 not_after;
 ~~~~~
 
-Applications that rely on "last resort" KeyPackages MAY set the
-expiration to its maximum value even though this is NOT RECOMMENDED.
-It is RECOMMENDED to rotate last resort keys at a pace chosen by the
-application even though they can have much longer lifetimes than other
-KeyPackages.
+Applications MUST define a maximum total lifetime that is acceptable for a
+KeyPackage, and reject any KeyPackage where the total lifetime is longer than
+this duration.
 
 This extension MUST always be present in a KeyPackage.
 
