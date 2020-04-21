@@ -893,7 +893,7 @@ described in Section 6 of {{RFC7748}}.  If implementers use an alternative
 implementation of these elliptic curves, they MUST perform the additional
 checks specified in Section 7 of {{RFC7748}}
 
-#### P-256 and P-521
+### P-256 and P-521
 
 For P-256, the key pair secret is 32 octets long.  For P-521, the key pair
 secret is 66 octets long.  In either case, the private key derived from a key
