@@ -1259,7 +1259,7 @@ Thus the `confirmed_transcript_hash` field in a GroupContext object represents a
 transcript over the whole history of MLSPlaintext Commit messages, up to the
 confirmation field in the current MLSPlaintext message.  The confirmation and
 signature fields are then included in the transcript for the next epoch.  The
-interim transcript hash is passed to new members in the WelcomeInfo struct, and
+interim transcript hash is passed to new members in the GroupInfo struct, and
 enables existing members to incorporate a Commit message into the transcript
 without having to store the whole MLSPlaintextCommitAuthData structure.
 
