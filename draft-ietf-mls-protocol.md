@@ -2022,10 +2022,10 @@ message at the same time, by taking the following steps:
   tree if all leaves are occupied.
 
 * Create a DirectPath using the new tree (which includes any new members).  The
-  GroupContext for this operation uses the `group_id`, `epoch`, `tree`, and
-  `prior_confirmed_transcript_hash` values in the initial GroupInfo object.
+  GroupContext for this operation uses the `group_id`, `epoch`, `tree_hash`, and
+  `confirmed_transcript_hash` values in the initial GroupContext object.
 
-   * Assign this DirectPath to the `path` fields in the Commit and GroupInfo objects.
+   * Assign this DirectPath to the `path` fields in the Commit.
 
    * Apply the DirectPath to the tree, as described in
      {{synchronizing-views-of-the-tree}}. Define `commit_secret` as the value
