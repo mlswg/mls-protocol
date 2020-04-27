@@ -1259,7 +1259,7 @@ Thus the `confirmed_transcript_hash` field in a GroupContext object represents a
 transcript over the whole history of MLSPlaintext Commit messages, up to the
 confirmation field in the current MLSPlaintext message.  The confirmation and
 signature fields are then included in the transcript for the next epoch.  The
-interim transcript hash is passed to new members in the WelcomeInfo struct, and
+interim transcript hash is passed to new members in the GroupInfo struct, and
 enables existing members to incorporate a Commit message into the transcript
 without having to store the whole MLSPlaintextCommitAuthData structure.
 
@@ -2022,10 +2022,10 @@ message at the same time, by taking the following steps:
   tree if all leaves are occupied.
 
 * Create a DirectPath using the new tree (which includes any new members).  The
-  GroupContext for this operation uses the `group_id`, `epoch`, `tree`, and
-  `prior_confirmed_transcript_hash` values in the initial GroupInfo object.
+  GroupContext for this operation uses the `group_id`, `epoch`, `tree_hash`, and
+  `confirmed_transcript_hash` values in the initial GroupContext object.
 
-   * Assign this DirectPath to the `path` fields in the Commit and GroupInfo objects.
+   * Assign this DirectPath to the `path` fields in the Commit.
 
    * Apply the DirectPath to the tree, as described in
      {{synchronizing-views-of-the-tree}}. Define `commit_secret` as the value
