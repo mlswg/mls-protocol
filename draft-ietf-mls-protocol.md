@@ -1287,6 +1287,7 @@ struct {
 } DirectPathNode;
 
 struct {
+    KeyPackage leaf_key_package;
     DirectPathNode nodes<0..2^16-1>;
 } DirectPath;
 ~~~~~
@@ -1977,8 +1978,7 @@ struct {
     ProposalID removes<0..2^16-1>;
     ProposalID adds<0..2^16-1>;
 
-    KeyPackage key_package;
-    DirectPath path;
+    optional<DirectPath> path;
 } Commit;
 ~~~~~
 
@@ -2002,11 +2002,12 @@ The Commit MUST NOT combine proposals sent within different epochs. In the event
 that a valid proposal is omitted from the next Commit, the sender of the
 proposal SHOULD retransmit it in the new epoch.
 
-[[ OPEN ISSUE: This structure loses the welcome_info_hash, because new
-participants are no longer expected to have access to the Commit message adding
-them to the group.  It might be we need to re-introduce this assumption, though
-it seems like the information confirmed by the welcome_info_hash is confirmed at
-the next epoch change anyway. ]]
+The `path` field of a Commit message MUST be populated if the Commit covers at
+least one Update or Remove proposal, i.e., if the length of the `updates` or
+`removes vectors is greater than zero.  The `path` field MUST also be populated
+if the Commit covers no proposals at all (i.e., if all three proposal vectors
+are empty).  The `path` field MAY be omitted if the Commit covers only Add
+proposals.
 
 A member of the group creates a Commit message and the corresponding Welcome
 message at the same time, by taking the following steps:
@@ -2021,16 +2022,21 @@ message at the same time, by taking the following steps:
   applied at the leftmost unoccupied leaf, or appended to the right edge of the
   tree if all leaves are occupied.
 
-* Create a DirectPath using the new tree (which includes any new members).  The
-  GroupContext for this operation uses the `group_id`, `epoch`, `tree_hash`, and
-  `confirmed_transcript_hash` values in the initial GroupContext object.
+* If populating the `path` field: Create a DirectPath using the new tree (which
+  includes any new members).  The GroupContext for this operation uses the
+  `group_id`, `epoch`, `tree_hash`, and `confirmed_transcript_hash` values in
+  the initial GroupContext object.
 
-   * Assign this DirectPath to the `path` fields in the Commit.
+   * Assign this DirectPath to the `path` field in the Commit.
 
    * Apply the DirectPath to the tree, as described in
      {{synchronizing-views-of-the-tree}}. Define `commit_secret` as the value
      `path_secret[n+1]` derived from the `path_secret[n]` value assigned to
      the root node.
+
+* If not populating the `path` field: Set the `path` field in the Commit to the
+  null optional.  Define `commit_secret` as the all-zero vector of the same
+  length as a `path_secret` value would be.
 
 * Generate a new KeyPackage for the Committer's own leaf, with a
   `parent_hash` extension. Store it in the ratchet tree and assign it to the
@@ -2076,21 +2082,28 @@ A member of the group applies a Commit message by taking the following steps:
   applied at the leftmost unoccupied leaf, or appended to the right edge of the
   tree if all leaves are occupied.
 
-* Process the `path` value using the ratchet tree the provisional GroupContext,
-  to update the ratchet tree and generate the `commit_secret`:
+* Verify that the `path` value is populated if either of the `updates` or
+  `removes` vectors has length greater than zero, or if all of the `updates`,
+  `removes`, and `adds` vectors are empty.
+
+* If the `path` value is populated: Process the `path` value using the ratchet
+  tree the provisional GroupContext, to update the ratchet tree and generate the
+  `commit_secret`:
 
   * Apply the DirectPath to the tree, as described in
     {{synchronizing-views-of-the-tree}}, and store `key_package` at the
     Committer's leaf.
 
-  * Verify that the KeyPackage has a `parent_hash`
-    extension and that its value matches the new parent of the sender's leaf
-    node.
+  * Verify that the KeyPackage has a `parent_hash` extension and that its value
+    matches the new parent of the sender's leaf node.
 
   * Define `commit_secret` as the value `path_secret[n+1]` derived from the
     `path_secret[n]` value assigned to the root node.
 
-* Update the new GroupContexts confirmed and interim transcript hashes using the
+* If the `path` value is not populated: Define `commit_secret` as the all-zero
+  vector of the same length as a `path_secret` value would be.
+
+* Update the new GroupContext's confirmed and interim transcript hashes using the
   new Commit.
 
 * Use the `commit_secret`, the provisional GroupContext, and the init secret from
