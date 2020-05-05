@@ -2857,7 +2857,7 @@ The following python code demonstrates the tree computations
 necessary for MLS.  Test vectors can be derived from the diagram
 above.
 
-~~~~~
+```python
 # The largest power of 2 less than n.  Equivalent to:
 #   int(math.floor(math.log(x, 2)))
 def log2(x):
@@ -2970,4 +2970,4 @@ def common_ancestor(x, y):
        xn, yn = xn >> 1, yn >> 1
        k += 1
     return (xn << k) + (1 << (k-1)) - 1
-~~~~~
+```
