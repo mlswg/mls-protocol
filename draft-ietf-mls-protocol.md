@@ -2017,9 +2017,10 @@ message at the same time, by taking the following steps:
 
 * Generate a provisional GroupContext object by applying the proposals
   referenced in the initial Commit object in the order provided, as described in
-  {{proposals}}. Add proposals are applied left to right: Each Add proposal is
-  applied at the leftmost unoccupied leaf, or appended to the right edge of the
-  tree if all leaves are occupied.
+  {{proposals}}. First the list of update proposals, then the list of remove
+  proposals, and last the list of add proposals. Add proposals are applied left
+  to right: Each Add proposal is applied at the leftmost unoccupied leaf, or
+  appended to the right edge of the tree if all leaves are occupied.
 
 * Create a DirectPath using the new tree (which includes any new members).  The
   GroupContext for this operation uses the `group_id`, `epoch`, `tree_hash`, and
@@ -2072,9 +2073,10 @@ A member of the group applies a Commit message by taking the following steps:
 
 * Generate a provisional GroupContext object by applying the proposals
   referenced in the commit object in the order provided, as described in
-  {{proposals}}.  Add proposals are applied left to right: Each Add proposal is
-  applied at the leftmost unoccupied leaf, or appended to the right edge of the
-  tree if all leaves are occupied.
+  {{proposals}}. First the list of update proposals, then the list of remove
+  proposals, and last the list of add proposals. Add proposals are applied left
+  to right: Each Add proposal is applied at the leftmost unoccupied leaf, or
+  appended to the right edge of the tree if all leaves are occupied.
 
 * Process the `path` value using the ratchet tree the provisional GroupContext,
   to update the ratchet tree and generate the `commit_secret`:
