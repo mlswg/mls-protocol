@@ -1299,13 +1299,13 @@ corresponding node in the resolution.
 The HPKECiphertext values are computed as
 
 ~~~~~
-kem_output, context = SetupBaseI(node_public_key, "")
+kem_output, context = SetupBaseS(node_public_key, "")
 ciphertext = context.Seal(group_context, path_secret)
 ~~~~~
 
 where `node_public_key` is the public key of the node that the path
 secret is being encrypted for, group_context is the current GroupContext object
-for the group, and the functions `SetupBaseI` and
+for the group, and the functions `SetupBaseS` and
 `Seal` are defined according to {{!I-D.irtf-cfrg-hpke}}.
 
 Decryption is performed in the corresponding way, using the private
