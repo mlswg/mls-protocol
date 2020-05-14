@@ -1863,12 +1863,7 @@ message.
 ## Group Creation from existing PSK
 
 Group creation may be tied to an already existing group structure, consisting of
-a recovery of an existing group, re-initialization of an existing group, or branching
-of a sub-group.
-
-Recovery of an existing group may be used, for example, to reset the group to a
-prior state following a de-synchronization. In such cases a PSK derived at a
-previous epoch may be used to bootstrap the group state.
+a re-initialization of an existing group, or branching of a sub-group.
 
 Re-initialization of an existing group may be used, for example, to re-start the
 group based on the current group state but under a different ciphersuite.
@@ -2057,6 +2052,7 @@ to change the ciphersuite of the group.
 ~~~~~
 struct {
   opaque re-init_group_id<0..255>;
+  opaque re-init_nonce<0..255>;
 } Re-Init;
 ~~~~~
 
@@ -2227,11 +2223,12 @@ message at the same time, by taking the following steps:
   group and send corresponding Welcome messages to all Clients that are Members
   of the group _after_ the commit. The Welcome message MUST include a `PSKId`
   with `psktype = re-initialization`, `psk_group_id = group_id`, `psk_epoch =
-  epoch` and `recovery_nonce = re-init_nonce`, where `group_id` and `epoch` are
-  the fields from the previously constructed GroupInfo and `re-init_nonce` is
-  the field from the `Re-Init` proposal included in the commit. The
+  epoch` and `psk_nonce = re-init_nonce`, where `group_id` and `epoch` are the
+  fields from the previously constructed GroupInfo and `re-init_nonce` is the
+  field from the `Re-Init` proposal included in the commit. The
   `ProtocolVersion` of the new group MUST be greater or equal than the one of
-  the original group.
+  the original group. Also, the `group_id` of the new group must be equal to the
+  `re-init_group_id` in the `Re-Init` proposal
 
 A member of the group applies a Commit message by taking the following steps:
 
@@ -2289,7 +2286,7 @@ A member of the group applies a Commit message by taking the following steps:
     original group.
   * A `PSKId` is included in the Welcome message with `psktype =
     re-initialization`, `psk_group_id = group_id`, `psk_epoch = epoch` and
-    `recovery_nonce = re-init_nonce`, where `group_id` and `epoch` are the
+    `psk_nonce = re-init_nonce`, where `group_id` and `epoch` are the
     fields from the previously constructed GroupContext object and
     `re-init_nonce` is the field from the `Re-Init` proposal included in the
     commit.
@@ -2336,8 +2333,8 @@ Commit.
 If the sender of the Welcome message wants the receiving member to include a PSK
 into the derivation of the `epoch_secret`, they can add a field indicating which
 PSK to use. A PSK MUST be included if the Welcome message is sent in the context
-of a group re-initialization or recovery and it SHOULD be included if the
-welcome message is sent to create a sub-group of an existing group.
+of a group re-initialization and it SHOULD be included if the Welcome message is
+sent to create a sub-group of an existing group.
 
 ~~~~~
 struct {
