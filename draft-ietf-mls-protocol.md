@@ -1878,7 +1878,7 @@ message.
 ## Group Creation from existing PSKs
 
 Group creation may be tied to an already existing group structure, consisting of
-a re-initialization of an existing group, or branching of a sub-group.
+re-initialization of an existing group, or branching of a sub-group.
 
 Re-initialization of an existing group may be used, for example, to re-start the
 group based on the current group state but under a different ciphersuite.
@@ -1930,6 +1930,7 @@ If a client wants to create a subgroup of an existing group, they MAY choose to
 include a `PSKId` in the welcome message choosing the `psktype` `branch`, the
 `group_id` of the group from which a subgroup is to be branched, as well as an
 epoch within the number of epochs for which a `recovery_secret` is kept.
+They also must include a nonce to avoid key re-use.
 
 # Group Evolution
 
@@ -2094,7 +2095,7 @@ The `psktype` field of `pskid` has to be `external` and the `psk_id` field
 should correspond to the ID with which members can identify the external PSK.
 
 [[OPEN ISSUE: Do we want the party doing the proposal to sample a random nonce
-or derive it from the group state?]]
+or derive it from the group state, i.e. implicit or explicit nonces?]]
 
 ### External Proposals
 
@@ -2248,7 +2249,7 @@ message at the same time, by taking the following steps:
   `ProtocolVersion` of the new group MUST be greater or equal than the one of
   the original group. Also, the `group_id` of the new group must be equal to the
   `re-init_group_id` in the `Re-Init` proposal. Also, the parameters of the new
-  grouup, i.e. the protocol version, ciphersuite and extensions MUST correspond
+  group, i.e. the protocol version, ciphersuite and extensions MUST correspond
   to the parameters specified in the proposal.
 
 A member of the group applies a Commit message by taking the following steps:
