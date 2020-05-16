@@ -2119,7 +2119,6 @@ A PSK proposal requests that an external PSK be injected into the group.
 ~~~~~
 struct {
   PSKId pskid<0..255>;
-  opaque re-init_nonce<0..255>;
 } EPSK;
 ~~~~~
 
