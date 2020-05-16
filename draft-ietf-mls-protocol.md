@@ -2277,7 +2277,11 @@ A member of the group applies a Commit message by taking the following steps:
 * For each `EPSK` proposal and each `Add` that includes a `PSKId` included in
   the commit compute the corresponding `Derived_PSK` as described in
   {{Pre-Shared Keys}} and combine them to a single `Combined_PSK` as described
-  in {{Multiple PSKs}}.
+  in {{Multiple PSKs}}. In case of the `Add`, the group member applying the
+  Commit MUST check that the `psk_epoch` from the `PSKId` is within the window
+  of epochs for which `recovery_secret`s are kept and that the `psk_group_id` is
+  equal to that of the group. If either of the checks fails, it MUST NOT process
+  the commit.
 
 * Use the `commit_secret`, a previously computed `Derived_PSK` or `Combined_PSK`
   (if existing), the provisional GroupContext, and the init secret from the
