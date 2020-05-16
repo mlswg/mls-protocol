@@ -1387,8 +1387,8 @@ the MLS group secrets computations by this external entropy.
 At any epoch, including the initial state, an application can decide to
 synchronize the injection of one or more PSKs into the MLS key schedule.
 
-The injecting of an external PSK can improve security in the cases where 
-having a full run of updates across members is too expensive or in the 
+The injecting of an external PSK (EPSK) can improve security in the cases 
+where having a full run of updates across members is too expensive or in the 
 case where the external group key establishment mechanism provides 
 stronger security against classical or quantum adversaries.
 
@@ -1541,8 +1541,8 @@ to refresh those values after a group operation is processed.
 The main MLS key schedule provides a `recovery_secret` which can be
 used for branching of the current group.
 
-The application SHOULD specify an upper limit to determine for how
-many past epochs the `recovery_secret` should be stored.
+The application SHOULD specify an upper limit on the number of past 
+epochs for which the `recovery_secret` may be stored.
 
 There are three ways in which a `recovery_secret` can be used:
 
@@ -1553,13 +1553,20 @@ There are three ways in which a `recovery_secret` can be used:
 3. To create a sub-group of an existing group (see {{Sub-group-Branching}}).
 
 Recovery keys are distinguished from exporter keys in that they have specific
-use inside the MLS protocol, whereas the use of exporter secrets may be decided
-by an external application.
+use inside the MLS protocol, whereas the use of exporter secrets may be 
+decided by an external application. They are thus derived separately to avoid
+key material reuse resulting from poor exporter key management external to 
+the protocol.
 
 ## State Authentication Keys
 
 The main MLS key schedule provides a per-epoch `authentication_secret`
-which MAY be used for authenticating the current group state.
+which MAY be used for authenticating the current group state. As with recovery
+keys, these are distinguished from exporter keys in that they have specific
+use affecting the MLS protocol.
+
+Authentication keys MAY be used to authenticate current or past group 
+members out-of-band.
 
 # Message Framing
 
