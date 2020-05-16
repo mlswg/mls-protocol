@@ -1381,31 +1381,31 @@ Derived_PSK (or 0) -> HKDF-Extract = intermediate_secret
 ## Pre-Shared Keys
 
 Groups which already have an out-of-band mechanism to generate
-shared group secrets can inject those in the MLS key schedule to seed
+shared group secrets can inject those into the MLS key schedule to seed
 the MLS group secrets computations by this external entropy.
 
 At any epoch, including the initial state, an application can decide to
-synchronize the injection of one or more PSKs in the MLS key schedule.
+synchronize the injection of one or more PSKs into the MLS key schedule.
 
-This injecting an external PSK can improve security in the cases where having a
-full run of updates across members is too expensive or in the case where the
-external group key establishment mechanism provides stronger security against
-classical or quantum adversaries.
+The injecting of an external PSK can improve security in the cases where 
+having a full run of updates across members is too expensive or in the 
+case where the external group key establishment mechanism provides 
+stronger security against classical or quantum adversaries.
 
 The security level associated with the PSK injected in the key schedule
 SHOULD match at least the security level of the ciphersuite in use in
 the group.
 
-[[Open ISSUE: Define "security level", and what it means to match the security
-level of the ciphersuite used in the group.]]
+[[Open ISSUE: Define "security level", and what it means to match the 
+security level of the ciphersuite used in the group.]]
 
-Note that, as a PSK may have a different lifetime than an update, it
-does not necessarily provide the same FS or PCS guarantees of
-a Commit message.
+Note that, as a PSK may have a different lifetime than an update, it does 
+not necessarily provide the same FS or PCS guarantees as a Commit 
+message.
 
-[[OPEN ISSUE: Clarify lifetime vs security level mandated above. E.g. if the PSK
-security expires before the next update (shorter PSK lifetime than update), does
-that constitute a weaker security level]]
+[[OPEN ISSUE: Clarify lifetime vs security level mandated above. E.g. if 
+the PSK security expires before the next update (shorter PSK lifetime than 
+update), does that constitute a weaker security level]]
 
 [[OPEN ISSUE: We have to decide if we want an external coordination
 via the application of a Handshake proposal.]]
@@ -1413,17 +1413,17 @@ via the application of a Handshake proposal.]]
 A PSK may also be used within MLS in the following cases:
 
   - Re-Initialization: If, during the lifetime of the group, a change in the
-    fixed group parameters becomes necessary, e.g. if the ciphersuite used by
-    the group is deprecated or if the protocol version should be upgraded, a PSK
-    can be used to reboot the group with the desired parameters.
+    fixed group parameters becomes necessary, e.g. if the ciphersuite used 
+    by the group is deprecated or if the protocol version should be upgraded, 
+    a PSK can be used to reboot the group with the desired parameters.
 
   - Recovery: If the group state of one or more members of the group deviates
     from the rest, they can be re-added to the group using a `recovery_key` from
     a previously known shared group state.
 
-  - Branching: A PSK may also be used to bootstrap a sub-group of the current
-    group. This applies if a subset of current group members wish to branch
-    based on the current group state.
+  - Branching: A PSK may be used to bootstrap a subset of current group 
+    members into a new group. This applies if a subset of current group 
+    members wish to branch based on the current group state.
 
 Regardless of its origin, the PSK injected in the key schedule must be unique.
 We ensure this by deriving it using a nonce and a `PSKLabel` as follows.
@@ -1447,6 +1447,8 @@ PSKLabel(psktype) =
 
 Derived_PSK =
   Derive-Secret(PSK, Hash(PSKLabel(psktype) || psk_nonce))
+  
+[[OPEN ISSUE: Do we allow implicit nonces, vs. explicit nonces?]]  
 ~~~~~
 
 ### Multiple PSKs
