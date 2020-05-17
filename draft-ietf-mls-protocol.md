@@ -1319,7 +1319,7 @@ functions as defined in {{!RFC5869}}, as well as the functions
 defined below:
 
 ~~~~~
-HKDF-Expand-Label(Secret, Label, Context, Length) =
+HKDF-Expand-Label(Secret, Label, Context, Count, Index, Length) =
     HKDF-Expand(Secret, HKDFLabel, Length)
 
 Where HKDFLabel is specified as:
@@ -1329,18 +1329,30 @@ struct {
     uint16 length = Length;
     opaque label<7..255> = "mls10 " + Label;
     opaque context<0..2^32-1> = Context;
+    uint8_t count = Count;
+    uint8_t index = Index;
 } HKDFLabel;
 
-Derive-Secret(Secret, Label) =
-    HKDF-Expand-Label(Secret, Label, "", Hash.length)
+Derive-Secret(Secret, Label, Context) =
+    HKDF-Expand-Label(Secret, Label, Context, 0, 1, Hash.length)
+
+Derive-Secrets(Secrets, Count, Label, Context) =
+        HKDF-Expand-Label(Secret0, Label, Context, 0,   n, Hash.length)
+    xor HKDF-Expand-Label(Secret1, Label, Context, 1,   n, Hash.length)
+              ⁝
+    xor HKDF-Expand-Label(Secret1, Label, Context, n-1, n, Hash.length)
+
+Where n is the number of secrets in Secrets.
 ~~~~~
 
 The Hash function used by HKDF is the ciphersuite hash algorithm.
 Hash.length is its output length in bytes.  In the below diagram:
 
-* HKDF-Extract takes its salt argument from the top and its IKM
-  argument from the left
 * Derive-Secret takes its Secret argument from the incoming arrow
+* Derive-Secrets takes its Secrets list argument from the
+  incoming arrows
+* `unique_value` needs to be the same unique value for all
+  derivation steps in a phase (and SHOULD be different between different phases)
 
 When processing a handshake message, a client combines the
 following information to derive new epoch secrets:
@@ -1353,32 +1365,32 @@ Given these inputs, the derivation of secrets for an epoch
 proceeds as shown in the following diagram:
 
 ~~~~~
-               init_secret_[n-1] (or 0)
-                     |
-                     V
-    PSK (or 0) -> HKDF-Extract = early_secret
-                     |
-               Derive-Secret(., "derived", "")
-                     |
-                     V
-commit_secret -> HKDF-Extract = epoch_secret
+ init_secret_[n-1] (or 0)-+
+                          |
+   commit_secret-----+    |
+                     |    |
+     PSK (or 0)-+    |    |
+                |    |    |
+                |    |    |
+                V    V    V
+               Derive-Secrets([., ., .], "combine", unique_value) = epoch_secret
                      |
                      +--> HKDF-Expand(., "mls 1.0 welcome", Hash.length)
                      |    = welcome_secret
                      |
-                     +--> Derive-Secret(., "sender data", GroupContext_[n])
+                     +--> Derive-Secret(., "sender data", (unique_value, GroupContext_[n]))
                      |    = sender_data_secret
                      |
-                     +--> Derive-Secret(., "handshake", GroupContext_[n])
+                     +--> Derive-Secret(., "handshake", (unique_value, GroupContext_[n]))
                      |    = handshake_secret
                      |
-                     +--> Derive-Secret(., "app", GroupContext_[n])
+                     +--> Derive-Secret(., "app", (unique_value, GroupContext_[n]))
                      |    = application_secret
                      |
-                     +--> Derive-Secret(., "exporter", GroupContext_[n])
+                     +--> Derive-Secret(., "exporter", (unique_value, GroupContext_[n]))
                      |    = exporter_secret
                      |
-                     +--> Derive-Secret(., "confirm", GroupContext_[n])
+                     +--> Derive-Secret(., "confirm", (unique_value, GroupContext_[n]))
                      |    = confirmation_key
                      |
                      V
@@ -1387,6 +1399,8 @@ commit_secret -> HKDF-Extract = epoch_secret
                      V
                init_secret_[n]
 ~~~~~
+
+[[OPEN ISSUE: `unique_value` needs to be chosen to be derived from information that can be expected to be unique. Choose such information]]
 
 ## Pre-Shared Keys
 
