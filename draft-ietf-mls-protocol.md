@@ -1283,7 +1283,7 @@ struct {
 
 struct {
     HPKEPublicKey public_key;
-    HPKECiphertext encrypted_path_secret<0..2^16-1>;
+    HPKECiphertext encrypted_path_secret<0..2^32-1>;
 } DirectPathNode;
 
 struct {
