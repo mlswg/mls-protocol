@@ -838,18 +838,18 @@ Each MLS session uses a single ciphersuite that specifies the
 following primitives to be used in group key computations:
 
 * A hash function
-* A Diffie-Hellman finite-field group or elliptic curve group
+* A key encapsulation mechanism (KEM)
 * An AEAD encryption algorithm {{!RFC5116}}
 * A signature algorithm
 
-The ciphersuite's Diffie-Hellman group is used to instantiate an HPKE
+The ciphersuite's KEM used to instantiate an HPKE
 {{!I-D.irtf-cfrg-hpke}} instance for the purpose of public-key encryption.
 The ciphersuite must specify an algorithm `Derive-Key-Pair` that maps octet
 strings with length Hash.length to HPKE key pairs.
 
 Ciphersuites are represented with the CipherSuite type. HPKE public keys
-are opaque values in a format defined by the underlying Diffie-Hellman
-protocol (see the Ciphersuites section of the HPKE specification for more
+are opaque values in a format defined by the underlying
+protocol (see the Cryptographic Dependencies section of the HPKE specification for more
 information).
 
 ~~~~~
@@ -864,7 +864,9 @@ used to add new members).
 
 The ciphersuites are defined in section {{mls-ciphersuites}}.
 
-Depending on the Diffie-Hellman group of the ciphersuite, different rules apply
+### KEMs
+
+Depending on the KEM of the ciphersuite, different rules apply
 to private key derivation and public key verification.   For all ciphersuites
 defined in this document, the Derive-Key-Pair function begins by deriving a "key
 pair secret" of appropriate length, then converting it to a private key in the
