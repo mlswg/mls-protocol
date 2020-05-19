@@ -720,9 +720,9 @@ node, from which the node's key pair is derived.
 
 ~~~~~
 path_secret[0] = HKDF-Expand-Label(leaf_hpke_secret,
-                                   "path", "", Hash.Length)
+                                   "path", "", Nsk)
 path_secret[n] = HKDF-Expand-Label(path_secret[n-1],
-                                   "path", "", Hash.Length)
+                                   "path", "", Nsk)
 node_priv[n], node_pub[n] = Derive-Key-Pair(path_secret[n])
 ~~~~~
 
@@ -844,8 +844,9 @@ following primitives to be used in group key computations:
 
 The ciphersuite's KEM used to instantiate an HPKE
 {{!I-D.irtf-cfrg-hpke}} instance for the purpose of public-key encryption.
-The ciphersuite must specify an algorithm `Derive-Key-Pair` that maps octet
-strings with length Hash.length to HPKE key pairs.
+Each ciphersuite has a `Derive-Key-Pair` function that maps octet strings of
+length `Nsk` (a KEM-specific constant defined by HPKE) to HPKE key pairs. This
+function is defined to be HPKE's `DeriveKeyPair` function.
 
 Ciphersuites are represented with the CipherSuite type. HPKE public keys
 are opaque values in a format defined by the underlying
@@ -861,31 +862,6 @@ to be used for signatures in MLSPlaintext and the tree signatures.  It MUST be
 the same as the signature algorithm specified in the credential field of the
 KeyPackage objects in the leaves of the tree (including the InitKeys
 used to add new members).
-
-For all ciphersuites defined in this document, the `Derive-Key-Pair` function
-rejection-samples candidate private key byte sequences until the `UnmarshalSk`
-function defined in HPKE {{!I-D.irtf-cfrg-hpke}} succeeds. Concretely,
-`Derive-Key-Pair(Secret)` will derive candidate octet strings of length `Nsk`
-(a KEM-specific constant defined in HPKE) as below
-
-~~~~~
-        "derive key pair"
-              |
-              V
-Secret -> HKDF-Extract
-              |
-              +--> HKDF-Expand-Label(., "sk candidate 1.", "", Nsk)
-              |
-              +--> HKDF-Expand-Label(., "sk candidate 2.", "", Nsk)
-              |
-              .
-              .
-              .
-~~~~~
-
-For each candidate octet string `enc`, `Derive-Key-Pair` will call
-`UnmarshalSk(enc)`. The first non-error return value of `UnmarshalSk` is
-considered the return value of `Derive-Key-Pair`.
 
 The ciphersuites are defined in section {{mls-ciphersuites}}.
 
