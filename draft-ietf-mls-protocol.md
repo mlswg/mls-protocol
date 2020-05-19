@@ -1340,7 +1340,7 @@ Derive-Secrets(Secrets, Count, Label, Context) =
         HKDF-Expand-Label(Secret0, Label, Context, 0,   n, Hash.length)
     xor HKDF-Expand-Label(Secret1, Label, Context, 1,   n, Hash.length)
               ⁝
-    xor HKDF-Expand-Label(Secret1, Label, Context, n-1, n, Hash.length)
+    xor HKDF-Expand-Label(Secretn-1, Label, Context, n-1, n, Hash.length)
 
 Where n is the number of secrets in Secrets.
 ~~~~~
