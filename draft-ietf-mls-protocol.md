@@ -862,70 +862,32 @@ the same as the signature algorithm specified in the credential field of the
 KeyPackage objects in the leaves of the tree (including the InitKeys
 used to add new members).
 
+For all ciphersuites defined in this document, the `Derive-Key-Pair` function
+rejection-samples candidate private key byte sequences until the `UnmarshalSk`
+function defined in HPKE {{!I-D.irtf-cfrg-hpke}} succeeds. Concretely,
+`Derive-Key-Pair(Secret)` will derive candidate octet strings of length `Nsk`
+(a KEM-specific constant defined in HPKE) as below
+
+~~~~~
+        "derive key pair"
+              |
+              V
+Secret -> HKDF-Extract
+              |
+              +--> HKDF-Expand-Label(., "sk candidate 1.", "", Nsk)
+              |
+              +--> HKDF-Expand-Label(., "sk candidate 2.", "", Nsk)
+              |
+              .
+              .
+              .
+~~~~~
+
+For each candidate octet string `enc`, `Derive-Key-Pair` will call
+`UnmarshalSk(enc)`. The first non-error return value of `UnmarshalSk` is
+considered the return value of `Derive-Key-Pair`.
+
 The ciphersuites are defined in section {{mls-ciphersuites}}.
-
-### KEMs
-
-Depending on the KEM of the ciphersuite, different rules apply
-to private key derivation and public key verification.   For all ciphersuites
-defined in this document, the Derive-Key-Pair function begins by deriving a "key
-pair secret" of appropriate length, then converting it to a private key in the
-required group.  The ciphersuite specifies the required length and the
-conversion.
-
-~~~~~
-key_pair_secret = HKDF-Expand-Label(path_secret, "key pair",
-                                    "", KeyPairSecretLength)
-~~~~~
-
-### X25519 and X448
-
-For X25519, the key pair secret is 32 octets long.  No conversion is required,
-since any 32-octet string is a valid X25519 private key.  The corresponding public
-key is X25519(SHA-256(X), 9).
-
-For X448, the key pair secret is 56 octets long.  No conversion is required,
-since any 56-octet string is a valid X448 private key.  The corresponding public
-key is X448(SHA-256(X), 5).
-
-Implementations MUST use the approach specified in {{?RFC7748}} to calculate
-the Diffie-Hellman shared secret.  Implementations MUST check whether the
-computed Diffie-Hellman shared secret is the all-zero value and abort if so, as
-described in Section 6 of {{RFC7748}}.  If implementers use an alternative
-implementation of these elliptic curves, they MUST perform the additional
-checks specified in Section 7 of {{RFC7748}}
-
-### P-256 and P-521
-
-For P-256, the key pair secret is 32 octets long.  For P-521, the key pair
-secret is 66 octets long.  In either case, the private key derived from a key
-pair secret is computed by interpreting the key pair secret as a big-endian
-integer.
-
-ECDH calculations for these curves (including parameter
-and key generation as well as the shared secret calculation) are
-performed according to {{IEEE1363}} using the ECKAS-DH1 scheme with the identity
-map as key derivation function (KDF), so that the shared secret is the
-x-coordinate of the ECDH shared secret elliptic curve point represented
-as an octet string.  Note that this octet string (Z in IEEE 1363 terminology)
-as output by FE2OSP, the Field Element to Octet String Conversion
-Primitive, has constant length for any given field; leading zeros
-found in this octet string MUST NOT be truncated.
-
-(Note that this use of the identity KDF is a technicality.  The
-complete picture is that ECDH is employed with a non-trivial KDF
-because MLS does not directly use this secret for anything
-other than for computing other secrets.)
-
-Clients MUST validate remote public values by ensuring
-that the point is a valid point on the elliptic curve.
-The appropriate validation procedures are defined in Section 4.3.7
-of {{X962}} and alternatively in Section 5.6.2.3 of {{keyagreement}}.
-This process consists of three steps: (1) verify that the value is not
-the point at infinity (O), (2) verify that for Y = (x, y) both integers
-are in the correct interval, (3) ensure that (x, y) is a correct solution
-to the elliptic curve equation. For these curves, implementers do
-not need to verify membership in the correct subgroup.
 
 ## Credentials
 
