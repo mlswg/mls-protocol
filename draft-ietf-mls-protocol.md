@@ -2007,7 +2007,19 @@ least one Update or Remove proposal, i.e., if the length of the `updates` or
 `removes vectors is greater than zero.  The `path` field MUST also be populated
 if the Commit covers no proposals at all (i.e., if all three proposal vectors
 are empty).  The `path` field MAY be omitted if the Commit covers only Add
-proposals.
+proposals.  In pseudocode, the logic for whether the `path` field is required is
+as follows:
+
+~~~~~
+haveUpdates = len(commit.Updates) > 0
+haveRemoves = len(commit.Removes) > 0
+haveAdds = len(commit.Adds) > 0
+
+haveUpdateOrRemove = haveUpdates || haveRemoves
+haveNoProposalsAtAll = !haveUpdateOrRemove && !haveAdds
+
+pathRequired = haveUpdateOrRemove || haveNoProposalsAtAll
+~~~~~
 
 A member of the group creates a Commit message and the corresponding Welcome
 message at the same time, by taking the following steps:
