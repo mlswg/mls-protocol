@@ -2060,9 +2060,10 @@ message at the same time, by taking the following steps:
 * For each new member in the group:
   * Identify the lowest common ancestor in the tree of the new member's
     leaf node and the member sending the Commit
-  * Compute the path secret corresponding to the common ancestor node
+  * If the `path` field was populated above: Compute the path secret
+    corresponding to the common ancestor node
   * Compute an EncryptedGroupSecrets object that encapsulates the `init_secret`
-    for the current epoch and the path secret for the common ancestor.
+    for the current epoch and the path secret (if present).
 
 * Construct a Welcome message from the encrypted GroupInfo object and the
   encrypted group secrets.
@@ -2167,8 +2168,12 @@ struct {
 } GroupInfo;
 
 struct {
-  opaque epoch_secret<1..255>;
   opaque path_secret<1..255>;
+} PathSecret;
+
+struct {
+  opaque epoch_secret<1..255>;
+  optional<PathSecret> path_secret;
 } GroupSecrets;
 
 struct {
@@ -2238,9 +2243,10 @@ welcome_key = HKDF-Expand(welcome_secret, "key", key_length)
     * Update the leaf at index `index` with the private key corresponding to the
       public key in the node.
 
-    * Identify the lowest common ancestor of the leaves at `index` and at
+    * If the `path_secret` value is set in the GroupSecrets object: Identify the
+      lowest common ancestor of the leaves at `index` and at
       `GroupInfo.signer_index`.  Set the private key for this node to the
-      private key derived from the `path_secret` in the GroupSecrets object.
+      private key derived from the `path_secret`.
 
     * For each parent of the common ancestor, up to the root of the tree, derive
       a new path secret and set the private key for the node to the private key
