@@ -1071,7 +1071,7 @@ These extensions MUST be always present in a KeyPackage.
 ## Lifetime
 
 The `lifetime` extension represents the times between which clients will
-consider a KeyPackage invalid.  This time is represented as an absolute time,
+consider a KeyPackage valid.  This time is represented as an absolute time,
 measured in seconds since the Unix epoch (1970-01-01T00:00:00Z). A client MUST
 NOT use the data in a KeyPackage for any processing before the `not_before`
 date, or after the `not_after` date.
