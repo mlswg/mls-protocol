@@ -139,6 +139,10 @@ shared keys with costs that scale as the log of the group size.
 
 RFC EDITOR PLEASE DELETE THIS SECTION.
 
+draft-10
+
+- Re-enable constant-time Add (\*)
+
 draft-09
 
 - Remove blanking of nodes on Add (\*)
