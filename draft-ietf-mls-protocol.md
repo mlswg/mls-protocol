@@ -2038,6 +2038,10 @@ message at the same time, by taking the following steps:
   applied at the leftmost unoccupied leaf, or appended to the right edge of the
   tree if all leaves are occupied.
 
+* Decide whether to populate the `path` field: If the `path` field is required
+  based on the proposals that are in the commit (see above), then it MUST be
+  populated.  Otherwise, the sender MAY omit the `path` field at its discretion.
+
 * If populating the `path` field: Create a DirectPath using the new tree (which
   includes any new members).  The GroupContext for this operation uses the
   `group_id`, `epoch`, `tree_hash`, and `confirmed_transcript_hash` values in
@@ -2101,7 +2105,8 @@ A member of the group applies a Commit message by taking the following steps:
 
 * Verify that the `path` value is populated if either of the `updates` or
   `removes` vectors has length greater than zero, or if all of the `updates`,
-  `removes`, and `adds` vectors are empty.
+  `removes`, and `adds` vectors are empty.  Otherwise, the `path` value MAY be
+  omitted.
 
 * If the `path` value is populated: Process the `path` value using the ratchet
   tree the provisional GroupContext, to update the ratchet tree and generate the
