@@ -1659,7 +1659,10 @@ group and epoch.
 
 ~~~~~
 struct {
-    GroupContext context;
+    select (MLSPlaintextTBS.sender.sender_type) {
+        case member:
+            GroupContext context;
+    }
 
     opaque group_id<0..255>;
     uint64 epoch;
@@ -1680,6 +1683,9 @@ struct {
     }
 } MLSPlaintextTBS;
 ~~~~~
+
+[[OPEN ISSUE: group_id and epoch are duplicated in the TBS and in GroupContext.
+Think about how to de-duplicate.]]
 
 The ciphertext field of the MLSCiphertext object is produced by
 supplying the inputs described below to the AEAD function specified
@@ -1939,7 +1945,7 @@ Add and Remove proposals can be constructed and sent to the group by a party
 that is outside the group.  For example, a Delivery Service might propose to
 remove a member of a group has been inactive for a long time, or propose adding
 a newly-hired staff member to a group representing a real-world team.  Proposals
-originating outside the group are identified by an `preconfigured` or
+originating outside the group are identified by a `preconfigured` or
 `new_member` SenderType in MLSPlaintext.
 
 The `new_member` SenderType is used for clients proposing that they themselves
