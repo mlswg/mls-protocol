@@ -1978,9 +1978,9 @@ hash function from the group's ciphersuite.
 opaque ProposalID<0..255>;
 
 struct {
-    ProposalID updates<0..2^16-1>;
-    ProposalID removes<0..2^16-1>;
-    ProposalID adds<0..2^16-1>;
+    ProposalID updates<0..2^32-1>;
+    ProposalID removes<0..2^32-1>;
+    ProposalID adds<0..2^32-1>;
 
     optional<DirectPath> path;
 } Commit;
