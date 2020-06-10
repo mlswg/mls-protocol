@@ -2181,7 +2181,7 @@ Commit.
 struct {
   opaque group_id<0..255>;
   uint64 epoch;
-  optional<Node> tree<1..2^32-1>;
+  Node tree<1..2^32-1>;
   opaque confirmed_transcript_hash<0..255>;
   opaque interim_transcript_hash<0..255>;
   Extension extensions<0..2^16-1>;
