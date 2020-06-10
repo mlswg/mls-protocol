@@ -720,9 +720,9 @@ node, from which the node's key pair is derived.
 
 ~~~~~
 path_secret[0] = HKDF-Expand-Label(leaf_hpke_secret,
-                                   "path", "", Nsk)
+                                   "path", "", KEM.Nsk)
 path_secret[n] = HKDF-Expand-Label(path_secret[n-1],
-                                   "path", "", Nsk)
+                                   "path", "", KEM.Nsk)
 node_priv[n], node_pub[n] = Derive-Key-Pair(path_secret[n])
 ~~~~~
 
