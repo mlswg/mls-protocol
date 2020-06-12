@@ -1286,8 +1286,13 @@ struct {
 } HPKECiphertext;
 
 struct {
+    uint32 node_index;
+    HPKECiphertext encrypted_path_secret;
+} DirectPathEncryption;
+
+struct {
     HPKEPublicKey public_key;
-    HPKECiphertext encrypted_path_secret<0..2^32-1>;
+    DirectPathEncryption encryptions<0..2^32-1>;
 } DirectPathNode;
 
 struct {
