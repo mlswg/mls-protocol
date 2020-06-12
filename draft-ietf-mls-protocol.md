@@ -1149,20 +1149,6 @@ struct {
     }
 } optional<T>;
 
-enum {
-    leaf(0),
-    parent(1),
-    (255)
-} NodeType;
-
-struct {
-    NodeType node_type;
-    select (Node.node_type) {
-        case leaf:   optional<KeyPackage> key_package;
-        case parent: optional<ParentNode> node;
-    };
-} Node;
-
 struct {
     HPKEPublicKey public_key;
     uint32 unmerged_leaves<0..2^32-1>;
@@ -2181,7 +2167,7 @@ Commit.
 struct {
   opaque group_id<0..255>;
   uint64 epoch;
-  optional<Node> tree<1..2^32-1>;
+  opaque tree_hash<0..255>;
   opaque confirmed_transcript_hash<0..255>;
   opaque interim_transcript_hash<0..255>;
   Extension extensions<0..2^16-1>;
@@ -2211,10 +2197,6 @@ struct {
   opaque encrypted_group_info<1..2^32-1>;
 } Welcome;
 ~~~~~
-
-In the description of the tree as a list of nodes, the `key_package`
-field for a node MUST be populated if and only if that node is a
-leaf in the tree.
 
 On receiving a Welcome message, a client processes it using the following steps:
 
@@ -2285,6 +2267,41 @@ welcome_key = HKDF-Expand(welcome_secret, "key", key_length)
 * Verify the confirmation MAC in the GroupInfo using the derived confirmation
   key and the `confirmed_transcript_hash` from the GroupInfo.
 
+## Ratchet Tree Extension
+
+By default, a GroupInfo message only provides the joiner with a commitment
+to the group's ratchet tree.  In order to process or generate handshake
+messages, the joiner will need to get a copy of the ratchet tree from some other
+source.  (For example, the DS might provide a cached copy.)  The inclusion of
+the tree hash in the GroupInfo message means that the source of the ratchet
+tree need not be trusted to maintain the integrity of tree.
+
+In cases where the application does not wish to provide such an external source,
+the whole public state of the ratchet tree can be provided in an extension of
+type `ratchet_tree`, containing a `ratchet_tree` object of the following form:
+
+~~~~~
+enum {
+    leaf(0),
+    parent(1),
+    (255)
+} NodeType;
+
+struct {
+    NodeType node_type;
+    select (Node.node_type) {
+        case leaf:   optional<KeyPackage> key_package;
+        case parent: optional<ParentNode> node;
+    };
+} Node;
+
+optional<Node> ratchet_tree<1..2^32-1>;
+~~~~~
+
+The presence of a `ratchet_tree` extension in a GroupInfo message does not
+result in any changes to the GroupContext extensions for the group.  The ratchet
+tree provided is simply stored by the client and used for MLS operations.
+
 # Extensibility
 
 This protocol includes a mechanism for negotiating extension parameters similar
@@ -2325,11 +2342,12 @@ handle extensible fields:
   consistent with the value of the extension in the GroupContext, according to
   the semantics of the specific extension.
 
-* A client joining a group MUST populate the GroupContext extensions with
-  exactly the contents of the extensions field in the Welcome message.  If any
-  extension is unrecognized (i.e., not contained in the corresponding
-  KeyPackage), then the client MUST reject the Welcome message and not join
-  the group.
+* If any extension in a GroupInfo message is unrecognized (i.e., not contained
+  in the corresponding KeyPackage), then the client MUST reject the Welcome
+  message and not join the group.
+
+* The extensions populated into a GroupContext object are drawn from those in
+  the GroupInfo object, according to the definitions of those extensions.
 
 Note that the latter two requirements mean that all MLS extensions are
 mandatory, in the sense that an extension in use by the group MUST be supported
