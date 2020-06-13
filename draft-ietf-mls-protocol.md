@@ -724,9 +724,9 @@ node, from which the node's key pair is derived.
 
 ~~~~~
 path_secret[0] = HKDF-Expand-Label(leaf_hpke_secret,
-                                   "path", "", Hash.Length)
+                                   "path", "", KEM.Nsk)
 path_secret[n] = HKDF-Expand-Label(path_secret[n-1],
-                                   "path", "", Hash.Length)
+                                   "path", "", KEM.Nsk)
 node_priv[n], node_pub[n] = Derive-Key-Pair(path_secret[n])
 ~~~~~
 
@@ -842,18 +842,19 @@ Each MLS session uses a single ciphersuite that specifies the
 following primitives to be used in group key computations:
 
 * A hash function
-* A Diffie-Hellman finite-field group or elliptic curve group
+* A key encapsulation mechanism (KEM)
 * An AEAD encryption algorithm {{!RFC5116}}
 * A signature algorithm
 
-The ciphersuite's Diffie-Hellman group is used to instantiate an HPKE
+The ciphersuite's KEM used to instantiate an HPKE
 {{!I-D.irtf-cfrg-hpke}} instance for the purpose of public-key encryption.
-The ciphersuite must specify an algorithm `Derive-Key-Pair` that maps octet
-strings with length Hash.length to HPKE key pairs.
+Each ciphersuite has a `Derive-Key-Pair` function that maps octet strings of
+length `Nsk` (a KEM-specific constant defined by HPKE) to HPKE key pairs. This
+function is defined to be HPKE's `DeriveKeyPair` function.
 
 Ciphersuites are represented with the CipherSuite type. HPKE public keys
-are opaque values in a format defined by the underlying Diffie-Hellman
-protocol (see the Ciphersuites section of the HPKE specification for more
+are opaque values in a format defined by the underlying
+protocol (see the Cryptographic Dependencies section of the HPKE specification for more
 information).
 
 ~~~~~
@@ -867,67 +868,6 @@ KeyPackage objects in the leaves of the tree (including the InitKeys
 used to add new members).
 
 The ciphersuites are defined in section {{mls-ciphersuites}}.
-
-Depending on the Diffie-Hellman group of the ciphersuite, different rules apply
-to private key derivation and public key verification.   For all ciphersuites
-defined in this document, the Derive-Key-Pair function begins by deriving a "key
-pair secret" of appropriate length, then converting it to a private key in the
-required group.  The ciphersuite specifies the required length and the
-conversion.
-
-~~~~~
-key_pair_secret = HKDF-Expand-Label(path_secret, "key pair",
-                                    "", KeyPairSecretLength)
-~~~~~
-
-### X25519 and X448
-
-For X25519, the key pair secret is 32 octets long.  No conversion is required,
-since any 32-octet string is a valid X25519 private key.  The corresponding public
-key is X25519(SHA-256(X), 9).
-
-For X448, the key pair secret is 56 octets long.  No conversion is required,
-since any 56-octet string is a valid X448 private key.  The corresponding public
-key is X448(SHA-256(X), 5).
-
-Implementations MUST use the approach specified in {{?RFC7748}} to calculate
-the Diffie-Hellman shared secret.  Implementations MUST check whether the
-computed Diffie-Hellman shared secret is the all-zero value and abort if so, as
-described in Section 6 of {{RFC7748}}.  If implementers use an alternative
-implementation of these elliptic curves, they MUST perform the additional
-checks specified in Section 7 of {{RFC7748}}
-
-### P-256 and P-521
-
-For P-256, the key pair secret is 32 octets long.  For P-521, the key pair
-secret is 66 octets long.  In either case, the private key derived from a key
-pair secret is computed by interpreting the key pair secret as a big-endian
-integer.
-
-ECDH calculations for these curves (including parameter
-and key generation as well as the shared secret calculation) are
-performed according to {{IEEE1363}} using the ECKAS-DH1 scheme with the identity
-map as key derivation function (KDF), so that the shared secret is the
-x-coordinate of the ECDH shared secret elliptic curve point represented
-as an octet string.  Note that this octet string (Z in IEEE 1363 terminology)
-as output by FE2OSP, the Field Element to Octet String Conversion
-Primitive, has constant length for any given field; leading zeros
-found in this octet string MUST NOT be truncated.
-
-(Note that this use of the identity KDF is a technicality.  The
-complete picture is that ECDH is employed with a non-trivial KDF
-because MLS does not directly use this secret for anything
-other than for computing other secrets.)
-
-Clients MUST validate remote public values by ensuring
-that the point is a valid point on the elliptic curve.
-The appropriate validation procedures are defined in Section 4.3.7
-of {{X962}} and alternatively in Section 5.6.2.3 of {{keyagreement}}.
-This process consists of three steps: (1) verify that the value is not
-the point at infinity (O), (2) verify that for Y = (x, y) both integers
-are in the correct interval, (3) ensure that (x, y) is a correct solution
-to the elliptic curve equation. For these curves, implementers do
-not need to verify membership in the correct subgroup.
 
 ## Credentials
 
