@@ -1029,6 +1029,7 @@ enum {
     lifetime(3),
     key_id(4),
     parent_hash(5),
+    ratchet_tree(6),
     (65535)
 } ExtensionType;
 
@@ -2290,8 +2291,8 @@ enum {
 struct {
     NodeType node_type;
     select (Node.node_type) {
-        case leaf:   optional<KeyPackage> key_package;
-        case parent: optional<ParentNode> node;
+        case leaf:   KeyPackage key_package;
+        case parent: ParentNode node;
     };
 } Node;
 
@@ -2301,6 +2302,14 @@ optional<Node> ratchet_tree<1..2^32-1>;
 The presence of a `ratchet_tree` extension in a GroupInfo message does not
 result in any changes to the GroupContext extensions for the group.  The ratchet
 tree provided is simply stored by the client and used for MLS operations.
+
+If this extension is not provided in a Welcome message, then the client will
+need to fetch the ratchet tree over some other channel before it can generate or
+process Commit messages.  Applications should ensure that this out-of-band
+channel is provided with security protections equivalent to the protections that
+are afforded to Proposal and Commit messages.  For example, an application that
+encrypts Proposal and Commit messages might distribute ratchet trees encrypted
+using a key exchanged over the MLS channel.
 
 # Extensibility
 
