@@ -1568,7 +1568,6 @@ struct {
 
 struct {
     EpochID epoch_id;
-    ContentType content_type;
     opaque authenticated_data<0..2^32-1>;
     opaque sender_data_nonce<0..255>;
     opaque encrypted_sender_data<0..255>;
@@ -1685,7 +1684,8 @@ are encoded in the following form:
 
 ~~~~~
 struct {
-    select (MLSCiphertext.content_type) {
+    ContentType content_type;
+    select (content_type) {
         case application:
           opaque application_data<0..2^32-1>;
 
