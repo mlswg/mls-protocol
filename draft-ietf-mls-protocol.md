@@ -1201,7 +1201,6 @@ summarizes the state of the group:
 ~~~~~
 struct {
     opaque group_id<0..255>;
-    uint64 epoch;
     opaque tree_hash<0..255>;
     opaque confirmed_transcript_hash<0..255>;
     Extension extensions<0..2^16-1>;
@@ -1212,7 +1211,6 @@ The fields in this state have the following semantics:
 
 * The `group_id` field is an application-defined identifier for the
   group.
-* The `epoch` field represents the current version of the group key.
 * The `tree_hash` field contains a commitment to the contents of the
   group's ratchet tree and the credentials for the members of the
   group, as described in {{tree-hashes}}.
@@ -1229,8 +1227,6 @@ These effects are described in their respective subsections of {{proposals}}.
 The following general rules apply:
 
 * The `group_id` field is constant
-* The `epoch` field increments by one for each Commit message that
-  is processed
 * The `tree_hash` is updated to represent the current tree and
   credentials
 * The `confirmed_transcript_hash` is updated with the data for an
@@ -1238,8 +1234,7 @@ The following general rules apply:
 
 ~~~~~
 struct {
-    opaque group_id<0..255>;
-    uint64 epoch;
+    EpochID epoch_id;
     Sender sender;
     ContentType content_type = commit;
     Commit commit;
@@ -1367,6 +1362,9 @@ proceeds as shown in the following diagram:
                      |
                      V
 commit_secret -> HKDF-Extract = epoch_secret
+                     |
+                     +--> HKDF-Expand(., "mls 1.0 epoch", 8)
+                     |    = epoch_id
                      |
                      +--> HKDF-Expand(., "mls 1.0 welcome", Hash.length)
                      |    = welcome_secret
@@ -1545,9 +1543,10 @@ struct {
     uint32 sender;
 } Sender;
 
+uint8 EpochID[8];
+
 struct {
-    opaque group_id<0..255>;
-    uint64 epoch;
+    EpochID epoch_id;
     Sender sender;
     opaque authenticated_data<0..2^32-1>;
 
@@ -1568,8 +1567,7 @@ struct {
 } MLSPlaintext;
 
 struct {
-    opaque group_id<0..255>;
-    uint64 epoch;
+    EpochID epoch_id;
     ContentType content_type;
     opaque authenticated_data<0..2^32-1>;
     opaque sender_data_nonce<0..255>;
@@ -1585,7 +1583,7 @@ The remainder of this section describes how to compute the signature of an
 MLSPlaintext object and how to convert it to an MLSCiphertext object for
 `member` sender types.  The steps are:
 
-* Set group_id, epoch, content_type and authenticated_data fields from the
+* Set epoch, content_type and authenticated_data fields from the
   MLSPlaintext object directly
 
 * Randomly generate the sender_data_nonce field
@@ -1634,8 +1632,7 @@ computation is its prefix in the MLSCiphertext, namely:
 
 ~~~~~
 struct {
-    opaque group_id<0..255>;
-    uint64 epoch;
+    EpochID epoch_id;
     ContentType content_type;
     opaque authenticated_data<0..2^32-1>;
     opaque sender_data_nonce<0..255>;
@@ -1661,8 +1658,7 @@ group and epoch.
 struct {
     GroupContext context;
 
-    opaque group_id<0..255>;
-    uint64 epoch;
+    EpochID epoch_id;
     Sender sender;
     opaque authenticated_data<0..2^32-1>;
 
@@ -1745,8 +1741,7 @@ identify the key and nonce:
 
 ~~~~~
 struct {
-    opaque group_id<0..255>;
-    uint64 epoch;
+    EpochID epoch_id;
     ContentType content_type;
     opaque authenticated_data<0..2^32-1>;
     opaque sender_data_nonce<0..255>;
@@ -2045,7 +2040,7 @@ message at the same time, by taking the following steps:
 
 * If populating the `path` field: Create a DirectPath using the new tree (which
   includes any new members).  The GroupContext for this operation uses the
-  `group_id`, `epoch`, `tree_hash`, and `confirmed_transcript_hash` values in
+  `group_id`, `tree_hash`, and `confirmed_transcript_hash` values in
   the initial GroupContext object.
 
    * Assign this DirectPath to the `path` field in the Commit.
@@ -2180,7 +2175,6 @@ Commit.
 ~~~~~
 struct {
   opaque group_id<0..255>;
-  uint64 epoch;
   optional<Node> tree<1..2^32-1>;
   opaque confirmed_transcript_hash<0..255>;
   opaque interim_transcript_hash<0..255>;
