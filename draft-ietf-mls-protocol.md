@@ -1022,15 +1022,8 @@ enum {
     (255)
 } ProtocolVersion;
 
-enum {
-    invalid(0),
-    supported_versions(1),
-    supported_ciphersuites(2),
-    lifetime(3),
-    key_id(4),
-    parent_hash(5),
-    (65535)
-} ExtensionType;
+// See IANA registry for registered values
+uint16 ExtensionType;
 
 struct {
     ExtensionType extension_type;
@@ -2720,12 +2713,17 @@ exhausting all available InitKeys.
 
 # IANA Considerations
 
-This document requests the creation of the following new IANA
-registries: MLS Ciphersuites ({{mls-ciphersuites}}). All of these
-registries should be under a heading of "Messaging Layer Security",
-and assignments are made via the Specification Required policy
-{{!RFC8126}}. See {{de}} for additional information about the
-MLS Designated Experts (DEs).
+This document requests the creation of the following new IANA registries:
+
+* MLS Ciphersuites ({{mls-ciphersuites}})
+* MLS Extension Types ({{mls-extension-types}})
+
+All of these registries should be under a heading of "Messaging Layer Security",
+and assignments are made via the Specification Required policy {{!RFC8126}}. See
+{{de}} for additional information about the MLS Designated Experts (DEs).
+
+[[ RFC EDITOR: Please replace XXXX throughout with the RFC number assigned to
+this document ]]
 
 ## MLS Ciphersuites
 
@@ -2782,14 +2780,48 @@ Values with the first byte 255 (decimal) are reserved for Private Use.
 New ciphersuite values are assigned by IANA as described in
 {{iana-considerations}}.
 
-## MLS Designated Expert Pool {#de}
+## MLS Extension Types
 
-[[ OPEN ISSUE: pick DE mailing address.
-Maybe mls-des@ or mls-de-pool. ]]
+This registry lists identifiers for extensions to the MLS protocol.  The
+extension type field is two bytes wide, so valid extension type values are in
+the range 0x0000 to 0xffff.
+
+Template:
+
+* Value: The numeric value of the extension type value
+
+* Name: The name of the extension type
+
+* Message(s): The messages in which the extension may appear, drawn from the following
+  list:
+
+  * KP: KeyPackage messages
+
+* Recommended: Whether support for this extension is recommended by the IETF MLS
+  WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
+  value of "N" unless explicitly requested, and adding a value with a
+  "Recommended" value of "Y" requires Standards Action [RFC8126].  IESG Approval
+  is REQUIRED for a Y->N transition.
+
+* Reference: The document where this extension is defined
+
+Initial contents:
+
+| Value  | Name                   | Message(s) | Recommended | Reference |
+|:=======|:=======================|:===========|:============|:==========|
+| 0x0000 | RESERVED               | N/A        | N/A         | RFC XXXX  |
+| 0x0001 | supported_versions     | KP         | Y           | RFC XXXX  |
+| 0x0002 | supported_ciphersuites | KP         | Y           | RFC XXXX  |
+| 0x0003 | lifetime               | KP         | Y           | RFC XXXX  |
+| 0x0004 | key_id                 | KP         | Y           | RFC XXXX  |
+| 0x0005 | parent_hash            | KP         | Y           | RFC XXXX  |
+| 0x0006 | ratchet_tree           | W          | Y           | RFC XXXX  |
+
+## MLS Designated Expert Pool {#de}
 
 Specification Required {{RFC8126}} registry requests are registered
 after a three-week review period on the MLS DEs' mailing list:
-<TBD@ietf.org>, on the advice of one or more of the MLS DEs. However,
+<mls-reg-review@ietf.org>, on the advice of one or more of the MLS DEs. However,
 to allow for the allocation of values prior to publication, the MLS
 DEs may approve registration once they are satisfied that such a
 specification will be published.
