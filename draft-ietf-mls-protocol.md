@@ -538,17 +538,14 @@ _right subtree_).
 All trees used in this protocol are left-balanced binary trees. A
 binary tree is _full_ (and _balanced_) if its size is a power of
 two and for any parent node in the tree, its left and right subtrees
-have the same size. If a subtree is full and it is not a subset of
-any other full subtree, then it is _maximal_.
+have the same size.
 
 A binary tree is _left-balanced_ if for every
 parent, either the parent is balanced, or the left subtree of that
 parent is the largest full subtree that could be constructed from
 the leaves present in the parent's own subtree.
 Given a list of `n` items, there is a unique left-balanced
-binary tree structure with these elements as leaves.  In such a
-left-balanced tree, the `k-th` leaf node refers to the `k-th` leaf
-node in the tree when counting from the left, starting from 0.
+binary tree structure with these elements as leaves.
 
 (Note that left-balanced binary trees are the same structure that is
 used for the Merkle trees in the Certificate Transparency protocol
@@ -602,7 +599,8 @@ are as follows:
 
 The leaves of the tree are indexed separately, using a _leaf index_,
 since the protocol messages only need to refer to leaves in the
-tree.  Like nodes, leaves are numbered left to right.  Note that
+tree.  Like nodes, leaves are numbered left to right.  The node with
+leaf index `k` is also called the `k-th` leaf.  Note that
 given the above numbering, a node is a leaf node if and only if it
 has an even node index, and a leaf node's leaf index is half its
 node index.  The leaf indices in the above tree are as follows:
@@ -982,13 +980,14 @@ struct {
     CipherSuite cipher_suite;
     HPKEPublicKey hpke_init_key;
     Credential credential;
-    Extension extensions<0..2^16-1>;
+    Extension extensions<12..2^16-1>;
     opaque signature<0..2^16-1>;
 } KeyPackage;
 ~~~~~
 
-KeyPackage objects MUST contain at least two extensions, one of type
-`supported_versions` and one of type `supported_ciphersuites`.  These extensions
+KeyPackage objects MUST contain at least three extensions, one of type
+`supported_versions`, one of type `supported_ciphersuites`, and one of
+type `lifetime`.  The `supported_versions` and `supported_ciphersuites` extensions
 allow MLS session establishment to be safe from downgrade attacks on these two
 parameters (as discussed in {{group-creation}}), while still only advertising
 one version / ciphersuite per KeyPackage.
@@ -1777,7 +1776,7 @@ In MLS, each such change is accomplished by a two-step process:
 The group thus evolves from one cryptographic state to another each time a
 Commit message is sent and processed.  These states are referred to as "epochs"
 and are uniquely identified among states of the group by eight-octet epoch values.
-When a new group is initialized, its initial state epoch 0x0000000000000000.  Each time
+When a new group is initialized, its initial state epoch is 0x0000000000000000.  Each time
 a state transition occurs, the epoch number is incremented by one.
 
 [[ OPEN ISSUE: It would be better to have non-linear epochs, in order to
@@ -2134,7 +2133,7 @@ struct {
   opaque confirmed_transcript_hash<0..255>;
   opaque interim_transcript_hash<0..255>;
   Extension extensions<0..2^16-1>;
-  opaque confirmation<0..255>
+  opaque confirmation<0..255>;
   uint32 signer_index;
   opaque signature<0..2^16-1>;
 } GroupInfo;
