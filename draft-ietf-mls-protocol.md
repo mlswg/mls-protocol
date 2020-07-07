@@ -1614,6 +1614,7 @@ object of the following form:
 struct {
     uint32 sender;
     uint32 generation;
+    ContentType content_type;
     opaque reuse_guard[4];
 } MLSSenderData;
 ~~~~~
@@ -1632,7 +1633,6 @@ computation is its prefix in the MLSCiphertext, namely:
 ~~~~~
 struct {
     EpochID epoch_id;
-    ContentType content_type;
     opaque authenticated_data<0..2^32-1>;
     opaque sender_data_nonce<0..255>;
 } MLSCiphertextSenderDataAAD;
@@ -1684,7 +1684,6 @@ are encoded in the following form:
 
 ~~~~~
 struct {
-    ContentType content_type;
     select (content_type) {
         case application:
           opaque application_data<0..2^32-1>;
