@@ -1128,10 +1128,13 @@ a leaf node, the hash of a `LeafNodeHashInput` object is used:
 
 ~~~~~
 struct {
-    uint32 leaf_index;
+    uint32 node_index;
     optional<KeyPackage> key_package;
 } LeafNodeHashInput;
 ~~~~~
+
+Note that the `node_index` field contains the index of the leaf among the nodes
+in the tree, not its index among the leaves; `node_index = 2 * leaf_index`.
 
 ## Group State
 
