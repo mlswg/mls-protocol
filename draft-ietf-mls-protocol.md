@@ -969,10 +969,10 @@ struct {
 } Credential;
 ~~~~~
 
-A BasicCredential is an authenticated assertion of an identity/key binding.  The
-format of the key in the `public_key` field is defined by the relevant
-ciphersuite: the group ciphersuite for a credential in a ratchet tree, the
-KeyPackage ciphersuite for a credential in a KeyPackage object.
+A BasicCredential is a raw, unauthenticated assertion of an identity/key
+binding.  The format of the key in the `public_key` field is defined by the
+relevant ciphersuite: the group ciphersuite for a credential in a ratchet tree,
+the KeyPackage ciphersuite for a credential in a KeyPackage object.
 
 For ciphersuites using Ed25519 or Ed448 signature schemes, the public key is in
 the format specified {{?RFC8032}}.  For ciphersuites using ECDSA with the NIST
@@ -2766,15 +2766,16 @@ The columns in the registry are as follows:
 
 Initial contents:
 
-| Value  | Name                                                  | Recommended | Reference |
-|:-------|:------------------------------------------------------|:============|:==========|
-| 0x0000 | RESERVED                                              | N/A         | RFC XXXX  |
-| 0x0001 | MLS10_128_DHKEMX25519_AES128GCM_SHA256_Ed25519        | Y           | RFC XXXX  |
-| 0x0002 | MLS10_128_DHKEMP256_AES128GCM_SHA256_P256             | Y           | RFC XXXX  |
-| 0x0003 | MLS10_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519 | Y           | RFC XXXX  |
-| 0x0004 | MLS10_256_DHKEMX448_AES256GCM_SHA512_Ed448            | Y           | RFC XXXX  |
-| 0x0005 | MLS10_256_DHKEMP521_AES256GCM_SHA512_P521             | Y           | RFC XXXX  |
-| 0x0006 | MLS10_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     | Y           | RFC XXXX  |
+| Value            | Name                                                  | Recommended | Reference |
+|:-----------------|:------------------------------------------------------|:============|:==========|
+| 0x0000           | RESERVED                                              | N/A         | RFC XXXX  |
+| 0x0001           | MLS10_128_DHKEMX25519_AES128GCM_SHA256_Ed25519        | Y           | RFC XXXX  |
+| 0x0002           | MLS10_128_DHKEMP256_AES128GCM_SHA256_P256             | Y           | RFC XXXX  |
+| 0x0003           | MLS10_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519 | Y           | RFC XXXX  |
+| 0x0004           | MLS10_256_DHKEMX448_AES256GCM_SHA512_Ed448            | Y           | RFC XXXX  |
+| 0x0005           | MLS10_256_DHKEMP521_AES256GCM_SHA512_P521             | Y           | RFC XXXX  |
+| 0x0006           | MLS10_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     | Y           | RFC XXXX  |
+| 0xff00  - 0xffff | Reserved for Private Use                              | N/A         | RFC XXXX  |
 
 These ciphersuites map to HPKE primitives and TLS signature schemes as follows
 {{I-D.irtf-cfrg-hpke}} {{RFC8446}}:
@@ -2842,17 +2843,16 @@ Template:
 
 Initial contents:
 
-| Value  | Name                   | Message(s) | Recommended | Reference |
-|:=======|:=======================|:===========|:============|:==========|
-| 0x0000 | RESERVED               | N/A        | N/A         | RFC XXXX  |
-| 0x0001 | supported_versions     | KP         | Y           | RFC XXXX  |
-| 0x0002 | supported_ciphersuites | KP         | Y           | RFC XXXX  |
-| 0x0003 | lifetime               | KP         | Y           | RFC XXXX  |
-| 0x0004 | key_id                 | KP         | Y           | RFC XXXX  |
-| 0x0005 | parent_hash            | KP         | Y           | RFC XXXX  |
-| 0x0006 | ratchet_tree           | W          | Y           | RFC XXXX  |
+| Value            | Name                     | Message(s) | Recommended | Reference |
+|:=================|:=========================|:===========|:============|:==========|
+| 0x0000           | RESERVED                 | N/A        | N/A         | RFC XXXX  |
+| 0x0001           | supported_versions       | KP         | Y           | RFC XXXX  |
+| 0x0002           | supported_ciphersuites   | KP         | Y           | RFC XXXX  |
+| 0x0003           | lifetime                 | KP         | Y           | RFC XXXX  |
+| 0x0004           | key_id                   | KP         | Y           | RFC XXXX  |
+| 0x0005           | parent_hash              | KP         | Y           | RFC XXXX  |
+| 0xff00  - 0xffff | Reserved for Private Use | N/A        | N/A         | RFC XXXX  |
 
-[[ TODO: Should some space be reserved for private use? ]]
 
 ## MLS Credential Types
 
@@ -2876,13 +2876,12 @@ Template:
 
 Initial contents:
 
-| Value  | Name                   | Recommended | Reference |
-|:=======|:=======================|:============|:==========|
-| 0x0000 | RESERVED               | N/A         | RFC XXXX  |
-| 0x0001 | basic                  | Y           | RFC XXXX  |
-| 0x0002 | x509                   | Y           | RFC XXXX  |
-
-[[ TODO: Should some space be reserved for private use? ]]
+| Value            | Name                     | Recommended | Reference |
+|:=================|:=========================|:============|:==========|
+| 0x0000           | RESERVED                 | N/A         | RFC XXXX  |
+| 0x0001           | basic                    | Y           | RFC XXXX  |
+| 0x0002           | x509                     | Y           | RFC XXXX  |
+| 0xff00  - 0xffff | Reserved for Private Use | N/A         | RFC XXXX  |
 
 ## MLS Designated Expert Pool {#de}
 
