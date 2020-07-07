@@ -538,17 +538,14 @@ _right subtree_).
 All trees used in this protocol are left-balanced binary trees. A
 binary tree is _full_ (and _balanced_) if its size is a power of
 two and for any parent node in the tree, its left and right subtrees
-have the same size. If a subtree is full and it is not a subset of
-any other full subtree, then it is _maximal_.
+have the same size.
 
 A binary tree is _left-balanced_ if for every
 parent, either the parent is balanced, or the left subtree of that
 parent is the largest full subtree that could be constructed from
 the leaves present in the parent's own subtree.
 Given a list of `n` items, there is a unique left-balanced
-binary tree structure with these elements as leaves.  In such a
-left-balanced tree, the `k-th` leaf node refers to the `k-th` leaf
-node in the tree when counting from the left, starting from 0.
+binary tree structure with these elements as leaves.
 
 (Note that left-balanced binary trees are the same structure that is
 used for the Merkle trees in the Certificate Transparency protocol
@@ -602,7 +599,8 @@ are as follows:
 
 The leaves of the tree are indexed separately, using a _leaf index_,
 since the protocol messages only need to refer to leaves in the
-tree.  Like nodes, leaves are numbered left to right.  Note that
+tree.  Like nodes, leaves are numbered left to right.  The node with
+leaf index `k` is also called the `k-th` leaf.  Note that
 given the above numbering, a node is a leaf node if and only if it
 has an even node index, and a leaf node's leaf index is half its
 node index.  The leaf indices in the above tree are as follows:
@@ -724,9 +722,9 @@ node, from which the node's key pair is derived.
 
 ~~~~~
 path_secret[0] = HKDF-Expand-Label(leaf_hpke_secret,
-                                   "path", "", Hash.Length)
+                                   "path", "", KEM.Nsk)
 path_secret[n] = HKDF-Expand-Label(path_secret[n-1],
-                                   "path", "", Hash.Length)
+                                   "path", "", KEM.Nsk)
 node_priv[n], node_pub[n] = Derive-Key-Pair(path_secret[n])
 ~~~~~
 
@@ -842,18 +840,19 @@ Each MLS session uses a single ciphersuite that specifies the
 following primitives to be used in group key computations:
 
 * A hash function
-* A Diffie-Hellman finite-field group or elliptic curve group
+* A key encapsulation mechanism (KEM)
 * An AEAD encryption algorithm {{!RFC5116}}
 * A signature algorithm
 
-The ciphersuite's Diffie-Hellman group is used to instantiate an HPKE
+The ciphersuite's KEM used to instantiate an HPKE
 {{!I-D.irtf-cfrg-hpke}} instance for the purpose of public-key encryption.
-The ciphersuite must specify an algorithm `Derive-Key-Pair` that maps octet
-strings with length Hash.length to HPKE key pairs.
+Each ciphersuite has a `Derive-Key-Pair` function that maps octet strings of
+length `Nsk` (a KEM-specific constant defined by HPKE) to HPKE key pairs. This
+function is defined to be HPKE's `DeriveKeyPair` function.
 
 Ciphersuites are represented with the CipherSuite type. HPKE public keys
-are opaque values in a format defined by the underlying Diffie-Hellman
-protocol (see the Ciphersuites section of the HPKE specification for more
+are opaque values in a format defined by the underlying
+protocol (see the Cryptographic Dependencies section of the HPKE specification for more
 information).
 
 ~~~~~
@@ -867,67 +866,6 @@ KeyPackage objects in the leaves of the tree (including the InitKeys
 used to add new members).
 
 The ciphersuites are defined in section {{mls-ciphersuites}}.
-
-Depending on the Diffie-Hellman group of the ciphersuite, different rules apply
-to private key derivation and public key verification.   For all ciphersuites
-defined in this document, the Derive-Key-Pair function begins by deriving a "key
-pair secret" of appropriate length, then converting it to a private key in the
-required group.  The ciphersuite specifies the required length and the
-conversion.
-
-~~~~~
-key_pair_secret = HKDF-Expand-Label(path_secret, "key pair",
-                                    "", KeyPairSecretLength)
-~~~~~
-
-### X25519 and X448
-
-For X25519, the key pair secret is 32 octets long.  No conversion is required,
-since any 32-octet string is a valid X25519 private key.  The corresponding public
-key is X25519(SHA-256(X), 9).
-
-For X448, the key pair secret is 56 octets long.  No conversion is required,
-since any 56-octet string is a valid X448 private key.  The corresponding public
-key is X448(SHA-256(X), 5).
-
-Implementations MUST use the approach specified in {{?RFC7748}} to calculate
-the Diffie-Hellman shared secret.  Implementations MUST check whether the
-computed Diffie-Hellman shared secret is the all-zero value and abort if so, as
-described in Section 6 of {{RFC7748}}.  If implementers use an alternative
-implementation of these elliptic curves, they MUST perform the additional
-checks specified in Section 7 of {{RFC7748}}
-
-### P-256 and P-521
-
-For P-256, the key pair secret is 32 octets long.  For P-521, the key pair
-secret is 66 octets long.  In either case, the private key derived from a key
-pair secret is computed by interpreting the key pair secret as a big-endian
-integer.
-
-ECDH calculations for these curves (including parameter
-and key generation as well as the shared secret calculation) are
-performed according to {{IEEE1363}} using the ECKAS-DH1 scheme with the identity
-map as key derivation function (KDF), so that the shared secret is the
-x-coordinate of the ECDH shared secret elliptic curve point represented
-as an octet string.  Note that this octet string (Z in IEEE 1363 terminology)
-as output by FE2OSP, the Field Element to Octet String Conversion
-Primitive, has constant length for any given field; leading zeros
-found in this octet string MUST NOT be truncated.
-
-(Note that this use of the identity KDF is a technicality.  The
-complete picture is that ECDH is employed with a non-trivial KDF
-because MLS does not directly use this secret for anything
-other than for computing other secrets.)
-
-Clients MUST validate remote public values by ensuring
-that the point is a valid point on the elliptic curve.
-The appropriate validation procedures are defined in Section 4.3.7
-of {{X962}} and alternatively in Section 5.6.2.3 of {{keyagreement}}.
-This process consists of three steps: (1) verify that the value is not
-the point at infinity (O), (2) verify that for Y = (x, y) both integers
-are in the correct interval, (3) ensure that (x, y) is a correct solution
-to the elliptic curve equation. For these curves, implementers do
-not need to verify membership in the correct subgroup.
 
 ## Credentials
 
@@ -1042,13 +980,14 @@ struct {
     CipherSuite cipher_suite;
     HPKEPublicKey hpke_init_key;
     Credential credential;
-    Extension extensions<0..2^16-1>;
+    Extension extensions<12..2^16-1>;
     opaque signature<0..2^16-1>;
 } KeyPackage;
 ~~~~~
 
-KeyPackage objects MUST contain at least two extensions, one of type
-`supported_versions` and one of type `supported_ciphersuites`.  These extensions
+KeyPackage objects MUST contain at least three extensions, one of type
+`supported_versions`, one of type `supported_ciphersuites`, and one of
+type `lifetime`.  The `supported_versions` and `supported_ciphersuites` extensions
 allow MLS session establishment to be safe from downgrade attacks on these two
 parameters (as discussed in {{group-creation}}), while still only advertising
 one version / ciphersuite per KeyPackage.
@@ -1188,10 +1127,13 @@ a leaf node, the hash of a `LeafNodeHashInput` object is used:
 
 ~~~~~
 struct {
-    uint32 leaf_index;
+    uint32 node_index;
     optional<KeyPackage> key_package;
 } LeafNodeHashInput;
 ~~~~~
+
+Note that the `node_index` field contains the index of the leaf among the nodes
+in the tree, not its index among the leaves; `node_index = 2 * leaf_index`.
 
 ## Group State
 
@@ -1659,7 +1601,10 @@ group and epoch.
 
 ~~~~~
 struct {
-    GroupContext context;
+    select (MLSPlaintextTBS.sender.sender_type) {
+        case member:
+            GroupContext context;
+    }
 
     opaque group_id<0..255>;
     uint64 epoch;
@@ -1680,6 +1625,9 @@ struct {
     }
 } MLSPlaintextTBS;
 ~~~~~
+
+[[OPEN ISSUE: group_id and epoch are duplicated in the TBS and in GroupContext.
+Think about how to de-duplicate.]]
 
 The ciphertext field of the MLSCiphertext object is produced by
 supplying the inputs described below to the AEAD function specified
@@ -1828,7 +1776,7 @@ In MLS, each such change is accomplished by a two-step process:
 The group thus evolves from one cryptographic state to another each time a
 Commit message is sent and processed.  These states are referred to as "epochs"
 and are uniquely identified among states of the group by eight-octet epoch values.
-When a new group is initialized, its initial state epoch 0x0000000000000000.  Each time
+When a new group is initialized, its initial state epoch is 0x0000000000000000.  Each time
 a state transition occurs, the epoch number is incremented by one.
 
 [[ OPEN ISSUE: It would be better to have non-linear epochs, in order to
@@ -1939,7 +1887,7 @@ Add and Remove proposals can be constructed and sent to the group by a party
 that is outside the group.  For example, a Delivery Service might propose to
 remove a member of a group has been inactive for a long time, or propose adding
 a newly-hired staff member to a group representing a real-world team.  Proposals
-originating outside the group are identified by an `preconfigured` or
+originating outside the group are identified by a `preconfigured` or
 `new_member` SenderType in MLSPlaintext.
 
 The `new_member` SenderType is used for clients proposing that they themselves
@@ -1978,9 +1926,9 @@ hash function from the group's ciphersuite.
 opaque ProposalID<0..255>;
 
 struct {
-    ProposalID updates<0..2^16-1>;
-    ProposalID removes<0..2^16-1>;
-    ProposalID adds<0..2^16-1>;
+    ProposalID updates<0..2^32-1>;
+    ProposalID removes<0..2^32-1>;
+    ProposalID adds<0..2^32-1>;
 
     optional<DirectPath> path;
 } Commit;
@@ -2193,7 +2141,7 @@ struct {
   opaque confirmed_transcript_hash<0..255>;
   opaque interim_transcript_hash<0..255>;
   Extension extensions<0..2^16-1>;
-  opaque confirmation<0..255>
+  opaque confirmation<0..255>;
   uint32 signer_index;
   opaque signature<0..2^16-1>;
 } GroupInfo;
