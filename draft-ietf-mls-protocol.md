@@ -1981,6 +1981,20 @@ haveNoProposalsAtAll = !haveUpdateOrRemove && !haveAdds
 pathRequired = haveUpdateOrRemove || haveNoProposalsAtAll
 ~~~~~
 
+To summarize, a Commit can have three different configurations, with different
+uses:
+
+1. An "empty" Commit that references no proposals, which updates the committer's
+   contribution to the group and provides PCS with regard to the committer.
+
+2. An "add-only" Commit that references only Add proposals, in which the path is
+   optional.  Such a commit provides PCS with regard to the committer only if
+   the path field is present.
+
+3. A "full" Commit that references proposals of any type, which provides FS with
+   regard to any removed members and PCS for the committer and any updated
+   members.
+
 A member of the group creates a Commit message and the corresponding Welcome
 message at the same time, by taking the following steps:
 
