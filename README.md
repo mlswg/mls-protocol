@@ -1,12 +1,10 @@
-# 
+# The Messaging Layer Security (MLS) Protocol
 
-This is the working area for the IETF MLS Working Group Internet-Draft, "The Messaging Layer Security (MLS) Protocol".
+This is the working area for the IETF [MLS Working Group](https://datatracker.ietf.org/wg/mls/documents/) Internet-Draft, "The Messaging Layer Security (MLS) Protocol".
 
-* [Editor's Copy](https://github.com/mlswg/mls-protocol/blob/master/draft-ietf-mls-protocol.md)
+* [Editor's Copy](https://Bren2010.github.io/mls-protocol/#go.draft-ietf-mls-protocol.html)
 * [Working Group Draft](https://tools.ietf.org/html/draft-ietf-mls-protocol)
-* [Compare Editor's Copy to Working Group Draft](https://github.com/mlswg/mls-protocol/compare/draft-ietf-mls-protocol-00...master)
-
-[![Build Status](https://travis-ci.org/mlswg/mls-protocol.svg?branch=master)](https://travis-ci.org/mlswg/mls-protocol)
+* [Compare Editor's Copy to Working Group Draft](https://Bren2010.github.io/mls-protocol/#go.draft-ietf-mls-protocol.diff)
 
 ## Building the Draft
 
@@ -23,4 +21,4 @@ This requires that you have the necessary software installed.  See
 ## Contributing
 
 See the
-[guidelines for contributions](https://github.com/mlswg/mls-protocol/blob/master/CONTRIBUTING.md).
+[guidelines for contributions](https://github.com/Bren2010/mls-protocol/blob/master/CONTRIBUTING.md).
