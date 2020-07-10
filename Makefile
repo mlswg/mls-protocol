@@ -9,3 +9,6 @@ else
 	git clone -q --depth 10 $(CLONE_ARGS) \
 	    -b main https://github.com/martinthomson/i-d-template $(LIBDIR)
 endif
+
+fix-insecure-links:
+	sed -i'.bak' -e 's/http:/https:/g' draft-ietf-mls-protocol.html
