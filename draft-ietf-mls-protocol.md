@@ -310,7 +310,7 @@ Member:
   has access to the group's secrets.
 
 Key Package:
-: A signed object describing a clients identity and capabilities, and including
+: A signed object describing a client's identity and capabilities, and including
   an HPKE public key that can be used to encrypt to that client.
 
 Initialization Key (InitKey):
@@ -356,7 +356,7 @@ post-compromise security with respect to compromise of any members.
 
 We describe the information stored by each client as _state_, which includes
 both public and private data. An initial state is set up by a group creator,
-which is a group containing only themself. The creator then sends _Add_
+which is a group containing only itself. The creator then sends _Add_
 proposals for each client in the initial set of members, followed by a _Commit_
 message which incorporates all of the _Adds_ into the group state. Finally, the
 group creator generates a _Welcome_ message corresponding to the Commit and
@@ -1885,7 +1885,7 @@ A member of the group applies a Remove message by taking the following steps:
 
 Add and Remove proposals can be constructed and sent to the group by a party
 that is outside the group.  For example, a Delivery Service might propose to
-remove a member of a group has been inactive for a long time, or propose adding
+remove a member of a group who has been inactive for a long time, or propose adding
 a newly-hired staff member to a group representing a real-world team.  Proposals
 originating outside the group are identified by a `preconfigured` or
 `new_member` SenderType in MLSPlaintext.
