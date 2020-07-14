@@ -75,6 +75,11 @@ informative:
        - name: Trevor Perrin(ed)
        - name: Moxie Marlinspike
 
+  SECG:
+    title: "Elliptic Curve Cryptography, Standards for Efficient Cryptography Group, ver. 2"
+    target: https://secg.org/sec1-v2.pdf
+    date: 2009
+
 --- abstract
 
 Messaging applications are increasingly making use of end-to-end
@@ -882,16 +887,12 @@ Credentials MAY also include information that allows a relying party
 to verify the identity / signing key binding.
 
 ~~~~~
-enum {
-    basic(0),
-    x509(1),
-    (255)
-} CredentialType;
+// See IANA registry for registered values
+uint16 CredentialType;
 
 struct {
     opaque identity<0..2^16-1>;
-    SignatureScheme algorithm;
-    SignaturePublicKey public_key;
+    opaque public_key<0..2^16-1>;
 } BasicCredential;
 
 struct {
@@ -906,18 +907,15 @@ struct {
 } Credential;
 ~~~~~
 
-The SignatureScheme type represents a signature algorithm. Signature public
-keys are opaque values in a format defined by the signature scheme.
+A BasicCredential is a raw, unauthenticated assertion of an identity/key
+binding.  The format of the key in the `public_key` field is defined by the
+relevant ciphersuite: the group ciphersuite for a credential in a ratchet tree,
+the KeyPackage ciphersuite for a credential in a KeyPackage object.
 
-~~~~~
-enum {
-    ecdsa_secp256r1_sha256(0x0403),
-    ed25519(0x0807),
-    (0xFFFF)
-} SignatureScheme;
-
-opaque SignaturePublicKey<1..2^16-1>;
-~~~~~
+For ciphersuites using Ed25519 or Ed448 signature schemes, the public key is in
+the format specified {{?RFC8032}}.  For ciphersuites using ECDSA with the NIST
+curves P-256 or P-521, the public key is the output of the uncompressed
+Elliptic-Curve-Point-to-Octet-String conversion according to {{SECG}}.
 
 Note that each new credential that has not already been validated
 by the application MUST be validated against the Authentication
@@ -960,15 +958,8 @@ enum {
     (255)
 } ProtocolVersion;
 
-enum {
-    invalid(0),
-    supported_versions(1),
-    supported_ciphersuites(2),
-    lifetime(3),
-    key_id(4),
-    parent_hash(5),
-    (65535)
-} ExtensionType;
+// See IANA registry for registered values
+uint16 ExtensionType;
 
 struct {
     ExtensionType extension_type;
@@ -2668,56 +2659,98 @@ exhausting all available InitKeys.
 
 # IANA Considerations
 
-This document requests the creation of the following new IANA
-registries: MLS Ciphersuites ({{mls-ciphersuites}}). All of these
-registries should be under a heading of "Messaging Layer Security",
-and assignments are made via the Specification Required policy
-{{!RFC8126}}. See {{de}} for additional information about the
-MLS Designated Experts (DEs).
+This document requests the creation of the following new IANA registries:
+
+* MLS Ciphersuites ({{mls-ciphersuites}})
+* MLS Extension Types ({{mls-extension-types}})
+* MLS Credential Types ({{mls-credential-types}})
+
+All of these registries should be under a heading of "Messaging Layer Security",
+and assignments are made via the Specification Required policy {{!RFC8126}}. See
+{{de}} for additional information about the MLS Designated Experts (DEs).
+
+[[ RFC EDITOR: Please replace XXXX throughout with the RFC number assigned to
+this document ]]
 
 ## MLS Ciphersuites
 
-A ciphersuite is a combination of a protocol version and the set of cryptographic algorithms that should be used.
+A ciphersuite is a combination of a protocol version and the set of
+cryptographic algorithms that should be used.
 
 Ciphersuite names follow the naming convention:
 
 ~~~
-   CipherSuite MLS_LVL_KEM_AEAD_HASH_SIG = VALUE;
+CipherSuite MLS_LVL_KEM_AEAD_HASH_SIG = VALUE;
 ~~~
 
-Where VALUE is represented as two 8bit octets:
+Where VALUE is represented as a sixteen-bit integer:
 
 ~~~
-uint8 CipherSuite[2];
+uint16 CipherSuite;
 ~~~
 
-| Component | Contents |
-|:----------|:---------|
+| Component | Contents                                                               |
+|:----------|:-----------------------------------------------------------------------|
 | MLS       | The string "MLS" followed by the major and minor version, e.g. "MLS10" |
-| LVL       | The security level |
-| KEM       | The KEM algorithm used for HPKE in TreeKEM group operations |
-| AEAD      | The AEAD algorithm used for HPKE and message protection |
-| HASH      | The hash algorithm used for HPKE and the MLS KDF |
-| SIG       | The Signature algorithm used for message authentication |
+| LVL       | The security level                                                     |
+| KEM       | The KEM algorithm used for HPKE in TreeKEM group operations            |
+| AEAD      | The AEAD algorithm used for HPKE and message protection                |
+| HASH      | The hash algorithm used for HPKE and the MLS KDF                       |
+| SIG       | The Signature algorithm used for message authentication                |
 
-This specification defines the following ciphersuites for use with MLS 1.0.
+The columns in the registry are as follows:
 
-|          Description                                  |    Value    |
-|:------------------------------------------------------|:------------|
-| MLS10_128_DHKEMX25519_AES128GCM_SHA256_Ed25519        | { 0x00,0x01 } |
-| MLS10_128_DHKEMP256_AES128GCM_SHA256_P256             | { 0x00,0x02 } |
-| MLS10_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519 | { 0x00,0x03 } |
-| MLS10_256_DHKEMX448_AES256GCM_SHA512_Ed448            | { 0x00,0x04 } |
-| MLS10_256_DHKEMP521_AES256GCM_SHA512_P521             | { 0x00,0x05 } |
-| MLS10_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     | { 0x00,0x06 } |
+* Value: The numeric value of the ciphersuite
 
-The KEM/DEM constructions used for HPKE are defined by {{!I-D.irtf-cfrg-hpke}}.
-The corresponding AEAD algorithms AEAD_AES_128_GCM and AEAD_AES_256_GCM, are
-defined in {{RFC5116}}. AEAD_CHACHA20_POLY1305 is defined
-in {{!RFC7539}}. The corresponding hash algorithms are defined in {{SHS}}.
+* Name: The name of the ciphersuite
 
-It is advisable to keep the number of ciphersuites low to increase the chances clients can interoperate in a federated environment, therefore the ciphersuites only inlcude modern, yet well-established algorithms.
-Depending on their requirements, clients can choose between two security levels (roughly 128-bit and 256-bit). Within the security levels clients can choose between faster X25519/X448 curves and FIPS 140-2 compliant curves for Diffie-Hellman key negotiations. Additionally clients that run predominantly on mobile processors can choose ChaCha20Poly1305 over AES-GCM for performance reasons. Since ChaCha20Poly1305 is not listed by FIPS 140-2 it is not paired with FIPS 140-2 compliant curves. The security level of symmetric encryption algorithms and hash functions is paired with the security level of the curves.
+* Recommended: Whether support for this extension is recommended by the IETF MLS
+  WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
+  value of "N" unless explicitly requested, and adding a value with a
+  "Recommended" value of "Y" requires Standards Action [RFC8126].  IESG Approval
+  is REQUIRED for a Y->N transition.
+
+* Reference: The document where this ciphersuite is defined
+
+Initial contents:
+
+| Value            | Name                                                  | Recommended | Reference |
+|:-----------------|:------------------------------------------------------|:============|:==========|
+| 0x0000           | RESERVED                                              | N/A         | RFC XXXX  |
+| 0x0001           | MLS10_128_DHKEMX25519_AES128GCM_SHA256_Ed25519        | Y           | RFC XXXX  |
+| 0x0002           | MLS10_128_DHKEMP256_AES128GCM_SHA256_P256             | Y           | RFC XXXX  |
+| 0x0003           | MLS10_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519 | Y           | RFC XXXX  |
+| 0x0004           | MLS10_256_DHKEMX448_AES256GCM_SHA512_Ed448            | Y           | RFC XXXX  |
+| 0x0005           | MLS10_256_DHKEMP521_AES256GCM_SHA512_P521             | Y           | RFC XXXX  |
+| 0x0006           | MLS10_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     | Y           | RFC XXXX  |
+| 0xff00  - 0xffff | Reserved for Private Use                              | N/A         | RFC XXXX  |
+
+These ciphersuites map to HPKE primitives and TLS signature schemes as follows
+{{I-D.irtf-cfrg-hpke}} {{RFC8446}}:
+
+| Value  | KEM    | KDF    | AEAD   | Signature              |
+|:-------|:-------|:-------|:-------|:-----------------------|
+| 0x0001 | 0x0020 | 0x0001 | 0x0001 | ed25519                |
+| 0x0002 | 0x0010 | 0x0001 | 0x0001 | ecdsa_secp256r1_sha256 |
+| 0x0003 | 0x0020 | 0x0001 | 0x0003 | ed25519                |
+| 0x0004 | 0x0021 | 0x0003 | 0x0002 | ed448                  |
+| 0x0005 | 0x0012 | 0x0003 | 0x0002 | ecdsa_secp521r1_sha512 |
+| 0x0006 | 0x0021 | 0x0003 | 0x0003 | ed448                  |
+
+The hash used for HKDF computations in MLS is the same hash used in the HPKE KDF
+for the ciphersuite.
+
+It is advisable to keep the number of ciphersuites low to increase the chances
+clients can interoperate in a federated environment, therefore the ciphersuites
+only inlcude modern, yet well-established algorithms.  Depending on their
+requirements, clients can choose between two security levels (roughly 128-bit
+and 256-bit). Within the security levels clients can choose between faster
+X25519/X448 curves and FIPS 140-2 compliant curves for Diffie-Hellman key
+negotiations. Additionally clients that run predominantly on mobile processors
+can choose ChaCha20Poly1305 over AES-GCM for performance reasons. Since
+ChaCha20Poly1305 is not listed by FIPS 140-2 it is not paired with FIPS 140-2
+compliant curves. The security level of symmetric encryption algorithms and hash
+functions is paired with the security level of the curves.
 
 The mandatory-to-implement ciphersuite for MLS 1.0 is
 `MLS10\_128\_HPKE25519\_AES128GCM\_SHA256\_Ed25519` which uses
@@ -2730,14 +2763,79 @@ Values with the first byte 255 (decimal) are reserved for Private Use.
 New ciphersuite values are assigned by IANA as described in
 {{iana-considerations}}.
 
-## MLS Designated Expert Pool {#de}
+## MLS Extension Types
 
-[[ OPEN ISSUE: pick DE mailing address.
-Maybe mls-des@ or mls-de-pool. ]]
+This registry lists identifiers for extensions to the MLS protocol.  The
+extension type field is two bytes wide, so valid extension type values are in
+the range 0x0000 to 0xffff.
+
+Template:
+
+* Value: The numeric value of the extension type
+
+* Name: The name of the extension type
+
+* Message(s): The messages in which the extension may appear, drawn from the following
+  list:
+
+  * KP: KeyPackage messages
+  * W: Welcome messages
+
+* Recommended: Whether support for this extension is recommended by the IETF MLS
+  WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
+  value of "N" unless explicitly requested, and adding a value with a
+  "Recommended" value of "Y" requires Standards Action [RFC8126].  IESG Approval
+  is REQUIRED for a Y->N transition.
+
+* Reference: The document where this extension is defined
+
+Initial contents:
+
+| Value            | Name                     | Message(s) | Recommended | Reference |
+|:=================|:=========================|:===========|:============|:==========|
+| 0x0000           | RESERVED                 | N/A        | N/A         | RFC XXXX  |
+| 0x0001           | supported_versions       | KP         | Y           | RFC XXXX  |
+| 0x0002           | supported_ciphersuites   | KP         | Y           | RFC XXXX  |
+| 0x0003           | lifetime                 | KP         | Y           | RFC XXXX  |
+| 0x0004           | key_id                   | KP         | Y           | RFC XXXX  |
+| 0x0005           | parent_hash              | KP         | Y           | RFC XXXX  |
+| 0xff00  - 0xffff | Reserved for Private Use | N/A        | N/A         | RFC XXXX  |
+
+
+## MLS Credential Types
+
+This registry lists identifiers for types of credentials that can be used for
+authentication in the MLS protocol.  The extension type field is two bytes wide,
+so valid extension type values are in the range 0x0000 to 0xffff.
+
+Template:
+
+* Value: The numeric value of the credential type
+
+* Name: The name of the credential type
+
+* Recommended: Whether support for this extension is recommended by the IETF MLS
+  WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
+  value of "N" unless explicitly requested, and adding a value with a
+  "Recommended" value of "Y" requires Standards Action [RFC8126].  IESG Approval
+  is REQUIRED for a Y->N transition.
+
+* Reference: The document where this extension is defined
+
+Initial contents:
+
+| Value            | Name                     | Recommended | Reference |
+|:=================|:=========================|:============|:==========|
+| 0x0000           | RESERVED                 | N/A         | RFC XXXX  |
+| 0x0001           | basic                    | Y           | RFC XXXX  |
+| 0x0002           | x509                     | Y           | RFC XXXX  |
+| 0xff00  - 0xffff | Reserved for Private Use | N/A         | RFC XXXX  |
+
+## MLS Designated Expert Pool {#de}
 
 Specification Required {{RFC8126}} registry requests are registered
 after a three-week review period on the MLS DEs' mailing list:
-<TBD@ietf.org>, on the advice of one or more of the MLS DEs. However,
+<mls-reg-review@ietf.org>, on the advice of one or more of the MLS DEs. However,
 to allow for the allocation of values prior to publication, the MLS
 DEs may approve registration once they are satisfied that such a
 specification will be published.
