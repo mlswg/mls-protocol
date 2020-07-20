@@ -1303,23 +1303,23 @@ commit_secret -> HKDF-Extract = epoch_secret
                      +--> HKDF-Expand(., "mls 1.0 welcome", Hash.length)
                      |    = welcome_secret
                      |
-                     +--> Derive-Secret(., "sender data", GroupContext_[n])
+                     +--> Derive-Secret(., "sender data")
                      |    = sender_data_secret
                      |
-                     +--> Derive-Secret(., "handshake", GroupContext_[n])
+                     +--> Derive-Secret(., "handshake")
                      |    = handshake_secret
                      |
-                     +--> Derive-Secret(., "app", GroupContext_[n])
+                     +--> Derive-Secret(., "app")
                      |    = application_secret
                      |
-                     +--> Derive-Secret(., "exporter", GroupContext_[n])
+                     +--> Derive-Secret(., "exporter")
                      |    = exporter_secret
                      |
-                     +--> Derive-Secret(., "confirm", GroupContext_[n])
+                     +--> Derive-Secret(., "confirm")
                      |    = confirmation_key
                      |
                      V
-               Derive-Secret(., "init", GroupContext_[n])
+               Derive-Secret(., "init")
                      |
                      V
                init_secret_[n]
