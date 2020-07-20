@@ -1262,7 +1262,6 @@ HKDF-Expand-Label(Secret, Label, Context, Length) =
 Where HKDFLabel is specified as:
 
 struct {
-    opaque group_context<0..255> = Hash(GroupContext_[n]);
     uint16 length = Length;
     opaque label<7..255> = "mls10 " + Label;
     opaque context<0..2^32-1> = Context;
@@ -1290,39 +1289,40 @@ Given these inputs, the derivation of secrets for an epoch
 proceeds as shown in the following diagram:
 
 ~~~~~
-               init_secret_[n-1] (or 0)
-                     |
-                     V
-    PSK (or 0) -> HKDF-Extract = early_secret
-                     |
-               Derive-Secret(., "derived", "")
-                     |
-                     V
-commit_secret -> HKDF-Extract = epoch_secret
-                     |
-                     +--> HKDF-Expand(., "mls 1.0 welcome", Hash.length)
-                     |    = welcome_secret
-                     |
-                     +--> Derive-Secret(., "sender data")
-                     |    = sender_data_secret
-                     |
-                     +--> Derive-Secret(., "handshake")
-                     |    = handshake_secret
-                     |
-                     +--> Derive-Secret(., "app")
-                     |    = application_secret
-                     |
-                     +--> Derive-Secret(., "exporter")
-                     |    = exporter_secret
-                     |
-                     +--> Derive-Secret(., "confirm")
-                     |    = confirmation_key
-                     |
-                     V
-               Derive-Secret(., "init")
-                     |
-                     V
-               init_secret_[n]
+                  init_secret_[n-1] (or 0)
+                        |
+                        V
+   commit_secret -> HKDF-Extract = joiner_secret
+                        |
+                        +--> Derive-Secret(., "welcome")
+                        |    = welcome_secret
+                        |
+                        V
+      PSK (or 0) -> HKDF-Extract = member_secret
+                        |
+                        V
+GroupContext_[n] -> HKDF-Extract = epoch_secret
+                        |
+                        +--> Derive-Secret(., "sender data")
+                        |    = sender_data_secret
+                        |
+                        +--> Derive-Secret(., "handshake")
+                        |    = handshake_secret
+                        |
+                        +--> Derive-Secret(., "app")
+                        |    = application_secret
+                        |
+                        +--> Derive-Secret(., "exporter")
+                        |    = exporter_secret
+                        |
+                        +--> Derive-Secret(., "confirm")
+                        |    = confirmation_key
+                        |
+                        V
+                  Derive-Secret(., "init")
+                        |
+                        V
+                  init_secret_[n]
 ~~~~~
 
 ## Pre-Shared Keys
@@ -2013,7 +2013,7 @@ message at the same time, by taking the following steps:
     hash from the new state
   * The confirmation from the MLSPlaintext object
   * Sign the GroupInfo using the member's private signing key
-  * Encrypt the GroupInfo using the key and nonce derived from the `epoch_secret`
+  * Encrypt the GroupInfo using the key and nonce derived from the `joiner_secret`
     for the new epoch (see {{welcoming-new-members}})
 
 * For each new member in the group:
@@ -2133,7 +2133,7 @@ struct {
 } PathSecret;
 
 struct {
-  opaque epoch_secret<1..255>;
+  opaque joiner_secret<1..255>;
   optional<PathSecret> path_secret;
 } GroupSecrets;
 
@@ -2165,12 +2165,12 @@ On receiving a Welcome message, a client processes it using the following steps:
 * Decrypt the `encrypted_group_secrets` using HPKE with the algorithms indicated
   by the ciphersuite and the HPKE private key corresponding to the GroupSecrets.
 
-* From the `epoch_secret` in the decrypted GroupSecrets object, derive the
+* From the `joiner_secret` in the decrypted GroupSecrets object, derive the
   `welcome_secret`, `welcome_key`, and `welcome_nonce`.  Use the key
   and nonce to decrypt the `encrypted_group_info` field.
 
 ~~~~~
-welcome_secret = HKDF-Expand(epoch_secret, "mls 1.0 welcome", Hash.length)
+welcome_secret = HKDF-Expand(joiner_secret, "mls 1.0 welcome", Hash.length)
 welcome_nonce = HKDF-Expand(welcome_secret, "nonce", nonce_length)
 welcome_key = HKDF-Expand(welcome_secret, "key", key_length)
 ~~~~~
@@ -2214,7 +2214,7 @@ welcome_key = HKDF-Expand(welcome_secret, "key", key_length)
       derived from the path secret.  The private key MUST be the private key
       that corresponds to the public key in the node.
 
-* Use the `epoch_secret` from the GroupSecrets object to generate the epoch secret
+* Use the `joiner_secret` from the GroupSecrets object to generate the epoch secret
   and other derived secrets for the current epoch.
 
 * Set the confirmed transcript hash in the new state to the value of the
