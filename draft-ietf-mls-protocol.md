@@ -2199,6 +2199,12 @@ struct {
 } Welcome;
 ~~~~~
 
+The client processing a Welcome message will need to have a copy of the group's
+ratchet tree.  The tree can be provided in the Welcome message, in an extension
+of type `ratchet_tree`.  If it is sent otherwise (e.g., provided by a caching
+service on the Delivery Service), then the client MUST download the tree before
+processing the Welcome.
+
 On receiving a Welcome message, a client processes it using the following steps:
 
 * Identify an entry in the `secrets` array where the `key_package_hash`
@@ -2226,6 +2232,9 @@ welcome_key = HKDF-Expand(welcome_secret, "key", key_length)
   position `signer_index`.  If this verification fails, return an error.
 
 * Verify the integrity of the ratchet tree.
+
+  * Verify that the tree hash of the ratchet tree matches the `tree_hash` field
+    in the GroupInfo.
 
   * For each non-empty parent node, verify that exactly one of the node's
     children are non-empty and have the hash of this node set as their
