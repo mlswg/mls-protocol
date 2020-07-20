@@ -43,14 +43,6 @@ author:
 
 
 normative:
-  X962:
-    title: "Public Key Cryptography For The Financial Services Industry: The Elliptic Curve Digital Signature Algorithm (ECDSA)"
-    date: 1998
-    author:
-      org: ANSI
-    seriesinfo:
-      ANSI: X9.62
-  IEEE1363: DOI.10.1109/IEEESTD.2009.4773330
   SHS: DOI.10.6028/NIST.FIPS.180-4
 
 informative:
@@ -65,12 +57,11 @@ informative:
       - name: Kevin Milner
     date: 2018-01-18
   doubleratchet: DOI.10.1109/EuroSP.2017.27
-  dhreuse: DOI.10.1504/IJACT.2010.038308
-  keyagreement: DOI.10.6028/NIST.SP.800-56Ar2
 
   signal:
     target: https://www.signal.org/docs/specifications/doubleratchet/
     title: "The Double Ratchet Algorithm"
+    date: 2016-11-20
     author:
        - name: Trevor Perrin(ed)
        - name: Moxie Marlinspike
@@ -386,7 +377,7 @@ Each of these operations is "proposed" by sending a message of the corresponding
 type (Add / Update / Remove).  The state of the group is not changed, however,
 until a Commit message is sent to provide the group with fresh entropy.  In this
 section, we show each proposal being committed immediately, but in more advanced
-deployment cases, an application might gather several proposals before
+deployment cases an application might gather several proposals before
 committing them all at once.
 
 Before the initialization of a group, clients publish InitKeys (as KeyPackage
@@ -407,17 +398,17 @@ A                B                C            Directory       Channel
 |                |                |                |              |
 ~~~~~
 
-When a client A wants to establish a group with B and C, it
-first downloads KeyPackages for B and C.  It then initializes a group state
-containing only itself and uses the KeyPackages to compute Welcome and Add
-messages to add B and C, in a sequence chosen by A.  The Welcome messages are
-sent directly to the new members (there is no need to send them to
-the group).
-The Add messages are broadcast to the group, and processed in sequence
-by B and C.  Messages received before a client has joined the
-group are ignored.  Only after A has received its Add messages
-back from the server does it update its state to reflect their addition.
+When a client A wants to establish a group with B and C, it first initializes a
+group state containing only itself and downloads KeyPackages for B and C. For
+each member, A generates an Add and Commit message adding that member, and
+broadcasts them to the group. It also generates a Welcome message and sends this
+directly to the new member (there's no need to send it to the group). Only after
+A has received its Commit message back from the server does it update its state
+to reflect the new member's addition.
 
+Upon receiving the Welcome message and the corresponding Commit, the new member
+will be able to read and send new messages to the group. Messages received
+before the client has joined the group are ignored.
 
 ~~~~~
                                                                Group
@@ -458,19 +449,20 @@ A              B              C          Directory            Channel
 Subsequent additions of group members proceed in the same way.  Any
 member of the group can download a KeyPackage for a new client
 and broadcast an Add message that the current group can use to update
-their state and a Welcome message that the new client can use to
+their state, and a Welcome message that the new client can use to
 initialize its state.
 
-To enforce forward secrecy and post-compromise security of messages,
+To enforce the forward secrecy and post-compromise security of messages,
 each member periodically updates their leaf secret.
 Any member can update this information at any time by generating a fresh
 KeyPackage and sending an Update message followed by a Commit message.
 Once all members have processed both, the group's secrets will be unknown to an
 attacker that had compromised the sender's prior leaf secret.
 
-It is left to the application to determine a policy for regularly sending
-Update messages. This policy can be as strong as requiring an Update+Commit
-after each application message, or weaker, such as once every hour, day...
+Update messages should be sent at regular intervals of time as long as the group
+is active, and members that don't update should eventually be removed from the
+group. It's left to the application to determine an appropriate amount of time
+between Updates.
 
 ~~~~~
                                                           Group
@@ -510,8 +502,8 @@ A              B     ...      Z          Directory       Channel
 |              |              |              | Remove(B)    |
 |              |              |              | Commit(Rem)  |
 |<----------------------------------------------------------|
-|state.del(B)  |              |<----------------------------|
-|              |              |state.del(B)  |              |
+|state.rem(B)  |              |<----------------------------|
+|              |              |state.rem(B)  |              |
 |              |              |              |              |
 |              |              |              |              |
 ~~~~~
@@ -667,9 +659,9 @@ A   _   C   D
 
 In this tree, we can see all of the above rules in play:
 
-* The resolution of node 5 is the list [CD, C]
-* The resolution of node 2 is the empty list []
-* The resolution of node 3 is the list [A, CD, C]
+* The resolution of node 5 is the list \[CD, C\]
+* The resolution of node 2 is the empty list \[\]
+* The resolution of node 3 is the list \[A, CD, C\]
 
 Every node, regardless of whether the node is blank or populated, has
 a corresponding _hash_ that summarizes the contents of the subtree
@@ -717,10 +709,10 @@ generated value to provide post-compromise security.
 
 The generator of the Commit starts by using the HPKE secret key
 "leaf_hpke_secret" associated with the new leaf KeyPackage (see
-{{key-packages}}) to compute "path_secret[0]" and generate a
+{{key-packages}}) to compute "path_secret\[0\]" and generate a
 sequence of "path secrets", one for each ancestor of its leaf.  That
-is, path_secret[0] is used for the node directly above the leaf,
-path_secret[1] for its parent, and so on. At each step, the path
+is, path_secret\[0\] is used for the node directly above the leaf,
+path_secret\[1\] for its parent, and so on. At each step, the path
 secret is used to derive a new secret value for the corresponding
 node, from which the node's key pair is derived.
 
@@ -760,7 +752,7 @@ of path secrets:
 ~~~~~
 
 After the Commit, the tree will have the following structure, where
-"np[i]" represents the node_priv values generated as described
+"np\[i\]" represents the node_priv values generated as described
 above:
 
 ~~~~~
@@ -825,10 +817,10 @@ For example, in order to communicate the example update described in
 the previous section, the sender would transmit the following
 values:
 
-| Public Key | Ciphertext(s)                    |
-|:-----------|:---------------------------------|
-| pk(ns[1])  | E(pk(C), ps[1]), E(pk(D), ps[1]) |
-| pk(ns[0])  | E(pk(A), ps[0])                  |
+| Public Key   | Ciphertext(s)                        |
+|:-------------|:-------------------------------------|
+| pk(ns\[1\])  | E(pk(C), ps\[1\]), E(pk(D), ps\[1\]) |
+| pk(ns\[0\])  | E(pk(A), ps\[0\])                    |
 
 In this table, the value pk(X) represents the public key
 derived from the node secret X.  The value E(K, S) represents
@@ -1046,14 +1038,14 @@ message. If the extension is present, clients MUST verify that `parent_hash`
 matches the hash of the leaf's parent node when represented as a ParentNode
 struct.
 
-[[ OPEN ISSUE: This scheme, in which the tree hash covers the parent hash, is
+<!-- OPEN ISSUE: This scheme, in which the tree hash covers the parent hash, is
 designed to allow for more deniable deployments, since a signature by a member
 covers only its direct path. The other possible scheme, in which the parent hash
 covers the tree hash, provides better group agreement properties, since a
 member's signature covers the entire membership of the trees it is in. Further
 discussion is needed to determine whether the benefits to deniability justify
 the harm to group agreement properties, or whether there are alternative
-approaches to deniability that could be compatible with the other approach. ]]
+approaches to deniability that could be compatible with the other approach. -->
 
 ## Tree Hashes
 
@@ -1347,8 +1339,8 @@ Note that, as a PSK may have a different lifetime than an update, it
 does not necessarily provide the same FS or PCS guarantees than
 a Commit message.
 
-[[OPEN ISSUE: We have to decide if we want an external coordination
-via the application of a Handshake proposal.]]
+<!-- OPEN ISSUE: We have to decide if we want an external coordination
+via the application of a Handshake proposal. -->
 
 ## Encryption Keys
 
@@ -1615,8 +1607,8 @@ struct {
 } MLSPlaintextTBS;
 ~~~~~
 
-[[OPEN ISSUE: group_id and epoch are duplicated in the TBS and in GroupContext.
-Think about how to de-duplicate.]]
+<!-- OPEN ISSUE: group_id and epoch are duplicated in the TBS and in
+GroupContext. Think about how to de-duplicate. -->
 
 The ciphertext field of the MLSCiphertext object is produced by
 supplying the inputs described below to the AEAD function specified
@@ -1768,11 +1760,11 @@ and are uniquely identified among states of the group by eight-octet epoch value
 When a new group is initialized, its initial state epoch is 0x0000000000000000.  Each time
 a state transition occurs, the epoch number is incremented by one.
 
-[[ OPEN ISSUE: It would be better to have non-linear epochs, in order to
+<!-- OPEN ISSUE: It would be better to have non-linear epochs, in order to
 tolerate forks in the history. There is a need to discuss whether we
 want to keep lexicographical ordering for the public value we serialize
 in the common framing, as it influence the ability of the DS to order
-messages.]]
+messages. -->
 
 ## Proposals
 
@@ -1899,8 +1891,8 @@ An external proposal MUST be sent as an MLSPlaintext
 object, since the sender will not have the keys necessary to construct an
 MLSCiphertext object.
 
-[[ TODO: Should recognized external signers be added to some object that the
-group explicitly agrees on, e.g., as an extension to the GroupContext? ]]
+<!-- TODO: Should recognized external signers be added to some object that the
+group explicitly agrees on, e.g., as an extension to the GroupContext? -->
 
 ## Commit
 
@@ -2089,13 +2081,13 @@ MLSPlaintext.confirmation =
 
 HMAC {{!RFC2104}} uses the Hash algorithm for the ciphersuite in use.
 
-[[ OPEN ISSUE: It is not possible for the recipient of a handshake
+<!-- OPEN ISSUE: It is not possible for the recipient of a handshake
 message to verify that ratchet tree information in the message is
 accurate, because each node can only compute the secret and private
 key for nodes in its direct path.  This creates the possibility
 that a malicious participant could cause a denial of service by sending a
 handshake message with invalid values for public keys in the ratchet
-tree. ]]
+tree. -->
 
 ### Welcoming New Members
 
@@ -2276,19 +2268,19 @@ by all members of the group.
 This document does not define any way for the parameters of the group to change
 once it has been created; such a behavior could be implemented as an extension.
 
-[[ OPEN ISSUE: Should we put bounds on what an extension can change?  For
+<!-- OPEN ISSUE: Should we put bounds on what an extension can change?  For
 example, should we make an explicit guarantee that as long as you're speaking
 MLS 1.0, the format of the KeyPackage will remain the same?  (Analogous to
 the TLS invariant with regard to ClientHello.)  If we are explicit that
 effectively arbitrary changes can be made to protocol behavior with the consent
 of the members, we will need to note that some such changes can undermine the
-security of the protocol. ]]
+security of the protocol. -->
 
 # Sequencing of State Changes {#sequencing}
 
-[[ OPEN ISSUE: This section has an initial set of considerations
+<!-- OPEN ISSUE: This section has an initial set of considerations
 regarding sequencing.  It would be good to have some more detailed
-discussion, and hopefully have a mechanism to deal with this issue. ]]
+discussion, and hopefully have a mechanism to deal with this issue. -->
 
 Each Commit message is premised on a given starting state,
 indicated in its `prior_epoch` field.  If the changes implied by a
@@ -2442,7 +2434,7 @@ astree_node_[N]_secret
              = astree_node_[right(N)]_secret
 ~~~~
 
-Note that fixing concrete values for GroupContext_[n] and application_secret
+Note that fixing concrete values for GroupContext_\[n\] and application_secret
 completely defines all secrets in the AS Tree.
 
 The secret in the leaf of the AS tree is used to initiate a symmetric hash
@@ -2516,10 +2508,10 @@ removed from the group can no longer receive messages and to (potentially)
 recover confidentiality and authenticity for future messages despite a past
 state compromise.
 
-[[ OPEN ISSUE: At the moment there is no contributivity of Application secrets
+<!-- OPEN ISSUE: At the moment there is no contributivity of Application secrets
 chained from the initial one to the next generation of Epoch secret. While this
 seems safe because cryptographic operations using the application secrets can't
-affect the group init_secret, it remains to be proven correct. ]]
+affect the group init_secret, it remains to be proven correct. -->
 
 ## Message Encryption and Decryption
 
@@ -2558,14 +2550,14 @@ The padding length length_of_padding can be chosen at the time of the message
 encryption by the sender. Recipients can calculate the padding size from knowing
 the total size of the ApplicationPlaintext and the length of the content.
 
-[[ TODO: A preliminary formal security analysis has yet to be performed on
-this authentication scheme.]]
+<!-- TODO: A preliminary formal security analysis has yet to be performed on
+this authentication scheme. -->
 
-[[ OPEN ISSUE: Should the padding be required for handshake messages ?
+<!-- OPEN ISSUE: Should the padding be required for handshake messages ?
 Can an adversary get more than the position of a participant in the tree
 without padding ? Should the base ciphertext block length be negotiated or
 is is reasonable to allow to leak a range for the length of the plaintext
-by allowing to send a variable number of ciphertext blocks ? ]]
+by allowing to send a variable number of ciphertext blocks ? -->
 
 ## Delayed and Reordered Application messages
 
@@ -2580,8 +2572,8 @@ and nonce for a certain amount of time to retain the ability to decrypt
 delayed or out of order messages, possibly still in transit while a
 decryption is being done.
 
-[[TODO: Describe here or in the Architecture spec the details. Depending
-on which Secret or key is kept alive, the security guarantees will vary.]]
+<!-- TODO: Describe here or in the Architecture spec the details. Depending
+on which Secret or key is kept alive, the security guarantees will vary. -->
 
 
 # Security Considerations
@@ -2600,8 +2592,7 @@ tree is secret and thus so are all values derived from it.
 
 Initial leaf keys are known only by their owner and the group creator,
 because they are derived from an authenticated key exchange protocol.
-Subsequent leaf keys are known only by their owner. [[TODO: or by
-someone who replaced them.]]
+Subsequent leaf keys are known only by their owner.
 
 Note that the long-term identity keys used by the protocol MUST be
 distributed by an "honest" authentication service for clients to
@@ -2624,12 +2615,12 @@ meaning the group members can verify that a message originated from a
 particular member of the group. This property is provided by digital
 signatures on the messages under identity keys.
 
-[[ OPEN ISSUE: Signatures under the identity keys, while simple, have
+<!-- OPEN ISSUE: Signatures under the identity keys, while simple, have
 the side-effect of precluding deniability. We may wish to allow other
 options, such as (ii) a key chained off of the identity key,
 or (iii) some other key obtained through a different manner, such
 as a pairwise channel that provides deniability for the message
-contents.]]
+contents. -->
 
 ## Forward and post-compromise security
 
