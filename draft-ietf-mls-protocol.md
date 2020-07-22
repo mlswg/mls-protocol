@@ -1283,7 +1283,7 @@ proceeds as shown in the following diagram:
                      V
     PSK (or 0) -> HKDF-Extract = early_secret
                      |
-               Derive-Secret(., "derived", "")
+               Derive-Secret(., "derived")
                      |
                      V
 commit_secret -> HKDF-Extract = epoch_secret
