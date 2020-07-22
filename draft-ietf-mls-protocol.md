@@ -41,10 +41,6 @@ author:
     organization: Wire
     email: raphael@wire.com
 
-
-normative:
-  SHS: DOI.10.6028/NIST.FIPS.180-4
-
 informative:
   art:
     target: https://eprint.iacr.org/2017/666.pdf
@@ -327,7 +323,7 @@ describe the structure of protocol messages.
 # Basic Assumptions
 
 This protocol is designed to execute in the context of a Service Provider (SP)
-as described in [I-D.ietf-mls-architecture].  In particular, we assume
+as described in {{?I-D.ietf-mls-architecture}}.  In particular, we assume
 the SP provides the following services:
 
 * A long-term identity key provider which allows clients to authenticate
@@ -2578,7 +2574,7 @@ on which Secret or key is kept alive, the security guarantees will vary. -->
 
 # Security Considerations
 
-The security goals of MLS are described in [I-D.ietf-mls-architecture].
+The security goals of MLS are described in {{?I-D.ietf-mls-architecture}}.
 We describe here how the protocol achieves its goals at a high level,
 though a complete security analysis is outside of the scope of this
 document.
@@ -2659,8 +2655,8 @@ All of these registries should be under a heading of "Messaging Layer Security",
 and assignments are made via the Specification Required policy {{!RFC8126}}. See
 {{de}} for additional information about the MLS Designated Experts (DEs).
 
-[[ RFC EDITOR: Please replace XXXX throughout with the RFC number assigned to
-this document ]]
+RFC EDITOR: Please replace XXXX throughout with the RFC number assigned to
+this document
 
 ## MLS Ciphersuites
 
@@ -2705,7 +2701,7 @@ The columns in the registry are as follows:
 Initial contents:
 
 | Value            | Name                                                  | Recommended | Reference |
-|:-----------------|:------------------------------------------------------|:============|:==========|
+|:-----------------|:------------------------------------------------------|:------------|:----------|
 | 0x0000           | RESERVED                                              | N/A         | RFC XXXX  |
 | 0x0001           | MLS10_128_DHKEMX25519_AES128GCM_SHA256_Ed25519        | Y           | RFC XXXX  |
 | 0x0002           | MLS10_128_DHKEMP256_AES128GCM_SHA256_P256             | Y           | RFC XXXX  |
