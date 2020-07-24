@@ -1930,6 +1930,13 @@ The Commit MUST NOT combine proposals sent within different epochs. In the event
 that a valid proposal is omitted from the next Commit, the sender of the
 proposal SHOULD retransmit it in the new epoch.
 
+A member of the group MAY send a Commit that references no proposals at all,
+which would thus have empty vectors for `updates`, `removes`, and `adds`.  Such
+a Commit resets the sender's leaf and the nodes along its direct path, and
+provides forward secrecy and post-compromise security with regard to the sender
+of the Commit.  An Update proposal can be regarded as a "lazy" version of this
+operation, where only the leaf changes and intermediate nodes are blanked out.
+
 The `path` field of a Commit message MUST be populated if the Commit covers at
 least one Update or Remove proposal, i.e., if the length of the `updates` or
 `removes vectors is greater than zero.  The `path` field MUST also be populated
@@ -1948,6 +1955,20 @@ haveNoProposalsAtAll = !haveUpdateOrRemove && !haveAdds
 
 pathRequired = haveUpdateOrRemove || haveNoProposalsAtAll
 ~~~~~
+
+To summarize, a Commit can have three different configurations, with different
+uses:
+
+1. An "empty" Commit that references no proposals, which updates the committer's
+   contribution to the group and provides PCS with regard to the committer.
+
+2. An "add-only" Commit that references only Add proposals, in which the path is
+   optional.  Such a commit provides PCS with regard to the committer only if
+   the path field is present.
+
+3. A "full" Commit that references proposals of any type, which provides FS with
+   regard to any removed members and PCS for the committer and any updated
+   members.
 
 A member of the group creates a Commit message and the corresponding Welcome
 message at the same time, by taking the following steps:
