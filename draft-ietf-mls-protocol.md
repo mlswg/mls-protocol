@@ -1932,11 +1932,10 @@ proposal SHOULD retransmit it in the new epoch.
 
 A member of the group MAY send a Commit that references no proposals at all,
 which would thus have empty vectors for `updates`, `removes`, and `adds`.  Such
-a Commit resets the sender's leaf and the nodes along its direct path and
-advances the group to a new epoch, with the forward secrecy and post-compromise
-security guarantees that that entails.  An Update proposal can be regarded as a
-"lazy" version of this operation, where only the leaf changes and intermediate
-nodes are blanked out.
+a Commit resets the sender's leaf and the nodes along its direct path, and
+provides forward secrecy and post-compromise security with regard to the sender
+of the Commit.  An Update proposal can be regarded as a "lazy" version of this
+operation, where only the leaf changes and intermediate nodes are blanked out.
 
 The `path` field of a Commit message MUST be populated if the Commit covers at
 least one Update or Remove proposal, i.e., if the length of the `updates` or
