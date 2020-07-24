@@ -607,13 +607,13 @@ node index.  The leaf indices in the above tree are as follows:
 
 ## Ratchet Tree Nodes
 
-A particular instance of a ratchet tree is based on the following
-cryptographic primitives, defined by the ciphersuite in use:
+A particular instance of a ratchet tree is defined by the same parameters that
+define an instance of HPKE, namely:
 
-* An HPKE ciphersuite, which specifies a Key Encapsulation Mechanism
-  (KEM), an AEAD encryption scheme, and a hash function
-* A Derive-Key-Pair function that produces an asymmetric key pair
-  for the specified KEM from a symmetric secret
+* A Key Encapsulation Mechanism (KEM), including a `DeriveKeyPair` function that
+  creates a key pair for the KEM from a symmetric secret
+* A Key Derivation Function (KDF), including `Extract` and `Expand` functions
+* An AEAD encryption scheme
 
 Each node in a ratchet tree contains up to five values:
 
@@ -713,11 +713,11 @@ secret is used to derive a new secret value for the corresponding
 node, from which the node's key pair is derived.
 
 ~~~~~
-path_secret[0] = HKDF-Expand-Label(leaf_hpke_secret,
+path_secret[0] = ExpandWithLabel(leaf_hpke_secret,
                                    "path", "", KEM.Nsk)
-path_secret[n] = HKDF-Expand-Label(path_secret[n-1],
+path_secret[n] = ExpandWithLabel(path_secret[n-1],
                                    "path", "", KEM.Nsk)
-node_priv[n], node_pub[n] = Derive-Key-Pair(path_secret[n])
+node_priv[n], node_pub[n] = KEM.DeriveKeyPair(path_secret[n])
 ~~~~~
 
 For example, suppose there is a group with four members:
@@ -831,16 +831,15 @@ public key K.
 Each MLS session uses a single ciphersuite that specifies the
 following primitives to be used in group key computations:
 
-* A hash function
-* A key encapsulation mechanism (KEM)
-* An AEAD encryption algorithm {{!RFC5116}}
+* HPKE parameters:
+  * A Key Encapsulation Mechanism (KEM)
+  * A Key Derivation Fucntion (KDF)
+  * An AEAD encryption algorithm
 * A signature algorithm
 
-The ciphersuite's KEM used to instantiate an HPKE
-{{!I-D.irtf-cfrg-hpke}} instance for the purpose of public-key encryption.
-Each ciphersuite has a `Derive-Key-Pair` function that maps octet strings of
-length `Nsk` (a KEM-specific constant defined by HPKE) to HPKE key pairs. This
-function is defined to be HPKE's `DeriveKeyPair` function.
+The HPKE parameters are used to instantiate HPKE {{!I-D.irtf-cfrg-hpke}} for the
+purpose of public-key encryption.  The `DeriveKeyPair` function associated to
+the KEM for the ciphersuite maps octet strings to HPKE key pairs.
 
 Ciphersuites are represented with the CipherSuite type. HPKE public keys
 are opaque values in a format defined by the underlying
@@ -1239,33 +1238,32 @@ transmitted in the message.
 
 ## Key Schedule
 
-Group keys are derived using the HKDF-Extract and HKDF-Expand
-functions as defined in {{!RFC5869}}, as well as the functions
-defined below:
+Group keys are derived using the `Extract` and `Expand` functions from the KDF
+for the group's ciphersuite, as well as the functions defined below:
 
 ~~~~~
-HKDF-Expand-Label(Secret, Label, Context, Length) =
-    HKDF-Expand(Secret, HKDFLabel, Length)
+ExpandWithLabel(Secret, Label, Context, Length) =
+    KDF.Expand(Secret, KDFLabel, Length)
 
-Where HKDFLabel is specified as:
+Where KDFLabel is specified as:
 
 struct {
     opaque group_context<0..255> = Hash(GroupContext_[n]);
     uint16 length = Length;
     opaque label<7..255> = "mls10 " + Label;
     opaque context<0..2^32-1> = Context;
-} HKDFLabel;
+} KDFLabel;
 
-Derive-Secret(Secret, Label) =
-    HKDF-Expand-Label(Secret, Label, "", Hash.length)
+DeriveSecret(Secret, Label) =
+    ExpandWithLabel(Secret, Label, "", KDF.Nh)
 ~~~~~
 
-The Hash function used by HKDF is the ciphersuite hash algorithm.
-Hash.length is its output length in bytes.  In the below diagram:
+The value `KDF.Nh` is the size of an output from `KDF.Extract`, in bytes.  In
+the below diagram:
 
-* HKDF-Extract takes its salt argument from the top and its IKM
+* KDF.Extract takes its salt argument from the top and its IKM
   argument from the left
-* Derive-Secret takes its Secret argument from the incoming arrow
+* DeriveSecret takes its Secret argument from the incoming arrow
 
 When processing a handshake message, a client combines the
 following information to derive new epoch secrets:
@@ -1281,33 +1279,33 @@ proceeds as shown in the following diagram:
                init_secret_[n-1] (or 0)
                      |
                      V
-    PSK (or 0) -> HKDF-Extract = early_secret
+   PSK (or 0) -> KDF.Extract = early_secret
                      |
-               Derive-Secret(., "derived")
+               DeriveSecret(., "derived")
                      |
                      V
-commit_secret -> HKDF-Extract = epoch_secret
+commit_secret -> KDF.Extract = epoch_secret
                      |
-                     +--> HKDF-Expand(., "mls 1.0 welcome", Hash.length)
+                     +--> KDF.Expand(., "mls 1.0 welcome", KDF.Nh)
                      |    = welcome_secret
                      |
-                     +--> Derive-Secret(., "sender data")
+                     +--> DeriveSecret(., "sender data")
                      |    = sender_data_secret
                      |
-                     +--> Derive-Secret(., "handshake")
+                     +--> DeriveSecret(., "handshake")
                      |    = handshake_secret
                      |
-                     +--> Derive-Secret(., "app")
+                     +--> DeriveSecret(., "app")
                      |    = application_secret
                      |
-                     +--> Derive-Secret(., "exporter")
+                     +--> DeriveSecret(., "exporter")
                      |    = exporter_secret
                      |
-                     +--> Derive-Secret(., "confirm")
+                     +--> DeriveSecret(., "confirm")
                      |    = confirmation_key
                      |
                      V
-               Derive-Secret(., "init")
+               DeriveSecret(., "init")
                      |
                      V
                init_secret_[n]
@@ -1353,7 +1351,7 @@ which is derived from the `sender_data_secret` as follows:
 
 ~~~~~
 sender_data_key =
-    HKDF-Expand-Label(sender_data_secret, "sd key", "", key_length)
+    ExpandWithLabel(sender_data_secret, "sd key", "", key_length)
 ~~~~~
 
 For handshake and application messages, a sequence of keys is derived via a
@@ -1368,7 +1366,7 @@ secrets are derived directly from the `handshake_secret`.
 application_secret_[sender]_[0] = astree_node_[N]_secret
 
 handshake_secret_[sender]_[0] =
-    HKDF-Expand-Label(handshake_secret, "hs", [sender], nonce_length)
+    ExpandWithLabel(handshake_secret, "hs", [sender], nonce_length)
 ~~~~~
 
 The base secret for each sender is used to initiate a symmetric hash ratchet
@@ -1378,7 +1376,7 @@ send during that epoch.  In particular, each key/nonce pair MUST NOT be used to
 encrypt more than one message.
 
 Keys, nonces and secrets of ratchets are derived using
-Derive-App-Secret. The context in a given call consists of the index
+DeriveAppSecret. The context in a given call consists of the index
 of the sender's leaf in the ratchet tree and the current position in
 the ratchet.  In particular, the index of the sender's leaf in the
 ratchet tree is the same as the index of the leaf in the AS Tree
@@ -1387,14 +1385,14 @@ used to initialize the sender's ratchet.
 ~~~~~
 ratchet_secret_[N]_[j]
       |
-      +--> Derive-App-Secret(., "nonce", N, j, AEAD.nonce_length)
+      +--> DeriveAppSecret(., "nonce", N, j, AEAD.nonce_length)
       |    = ratchet_nonce_[N]_[j]
       |
-      +--> Derive-App-Secret(., "key", N, j, AEAD.key_length)
+      +--> DeriveAppSecret(., "key", N, j, AEAD.key_length)
       |    = ratchet_key_[N]_[j]
       |
       V
-Derive-App-Secret(., "secret", N, j, Hash.length)
+DeriveAppSecret(., "secret", N, j, Hash.length)
 = ratchet_secret_[N]_[j+1]
 ~~~~~
 
@@ -1411,13 +1409,13 @@ be used by an application as the basis to derive new secrets called
 
 ~~~~~
 MLS-Exporter(Label, Context, key_length) =
-       HKDF-Expand-Label(Derive-Secret(exporter_secret, Label),
+       ExpandWithLabel(DeriveSecret(exporter_secret, Label),
                          "exporter", Hash(Context), key_length)
 ~~~~~
 
 The context used for the derivation of the `exported_value` MAY be
 empty while each application SHOULD provide a unique label as an input
-of the HKDF-Expand-Label for each use case. This is to prevent two
+of the ExpandWithLabel for each use case. This is to prevent two
 exported outputs from being generated with the same values and used
 for different functionalities.
 
@@ -2158,9 +2156,9 @@ On receiving a Welcome message, a client processes it using the following steps:
   and nonce to decrypt the `encrypted_group_info` field.
 
 ~~~~~
-welcome_secret = HKDF-Expand(epoch_secret, "mls 1.0 welcome", Hash.length)
-welcome_nonce = HKDF-Expand(welcome_secret, "nonce", nonce_length)
-welcome_key = HKDF-Expand(welcome_secret, "key", key_length)
+welcome_secret = KDF.Expand(epoch_secret, "mls 1.0 welcome", Hash.length)
+welcome_nonce = KDF.Expand(welcome_secret, "nonce", nonce_length)
+welcome_key = KDF.Expand(welcome_secret, "key", key_length)
 ~~~~~
 
 * Verify the signature on the GroupInfo object.  The signature input comprises
@@ -2402,11 +2400,11 @@ astree_node_[root]_secret = application_secret
 ~~~~
 
 The secret of any other node in the tree is derived from its parent's secret
-using a call to Derive-App-Secret.
+using a call to DeriveAppSecret.
 
 ~~~~
-Derive-App-Secret(Secret, Label, Node, Generation, Length) =
-    HKDF-Expand-Label(Secret, Label, ApplicationContext, Length)
+DeriveAppSecret(Secret, Label, Node, Generation, Length) =
+    ExpandWithLabel(Secret, Label, ApplicationContext, Length)
 
 Where ApplicationContext is specified as:
 
@@ -2423,10 +2421,10 @@ of N are defined to be:
 astree_node_[N]_secret
         |
         |
-        +--> Derive-App-Secret(., "tree", left(N), 0, Hash.length)
+        +--> DeriveAppSecret(., "tree", left(N), 0, Hash.length)
         |    = astree_node_[left(N)]_secret
         |
-        +--> Derive-App-Secret(., "tree", right(N), 0, Hash.length)
+        +--> DeriveAppSecret(., "tree", right(N), 0, Hash.length)
              = astree_node_[right(N)]_secret
 ~~~~
 
@@ -2444,7 +2442,7 @@ _consumed_. A sensitive value S is said to be _consumed_ if
 
 * S was used to encrypt or (successfully) decrypt a message, or if
 * a key, nonce, or secret derived from S has been consumed. (This goes for
-  values derived via Derive-Secret as well as HKDF-Expand-Label.)
+  values derived via DeriveSecret as well as ExpandWithLabel.)
 
 Here, S may be the `init_secret`, `commit_secret`, `epoch_secret`, `application_secret`
 as well as any secret in the AS Tree or one of the ratchets.
@@ -2722,9 +2720,6 @@ These ciphersuites map to HPKE primitives and TLS signature schemes as follows
 | 0x0004 | 0x0021 | 0x0003 | 0x0002 | ed448                  |
 | 0x0005 | 0x0012 | 0x0003 | 0x0002 | ecdsa_secp521r1_sha512 |
 | 0x0006 | 0x0021 | 0x0003 | 0x0003 | ed448                  |
-
-The hash used for HKDF computations in MLS is the same hash used in the HPKE KDF
-for the ciphersuite.
 
 It is advisable to keep the number of ciphersuites low to increase the chances
 clients can interoperate in a federated environment, therefore the ciphersuites
