@@ -1258,7 +1258,7 @@ struct {
     opaque context<0..2^32-1> = Context;
 } KDFLabel;
 
-Derive-Secret(Secret, Label) =
+DeriveSecret(Secret, Label) =
     ExpandWithLabel(Secret, Label, "", KDF.Nh)
 ~~~~~
 
@@ -1267,7 +1267,7 @@ the below diagram:
 
 * KDF.Extract takes its salt argument from the top and its IKM
   argument from the left
-* Derive-Secret takes its Secret argument from the incoming arrow
+* DeriveSecret takes its Secret argument from the incoming arrow
 
 When processing a handshake message, a client combines the
 following information to derive new epoch secrets:
@@ -1285,7 +1285,7 @@ proceeds as shown in the following diagram:
                      V
    PSK (or 0) -> KDF.Extract = early_secret
                      |
-               Derive-Secret(., "derived", "")
+               DeriveSecret(., "derived", "")
                      |
                      V
 commit_secret -> KDF.Extract = epoch_secret
@@ -1293,23 +1293,23 @@ commit_secret -> KDF.Extract = epoch_secret
                      +--> KDF.Expand(., "mls 1.0 welcome", KDF.Nh)
                      |    = welcome_secret
                      |
-                     +--> Derive-Secret(., "sender data")
+                     +--> DeriveSecret(., "sender data")
                      |    = sender_data_secret
                      |
-                     +--> Derive-Secret(., "handshake")
+                     +--> DeriveSecret(., "handshake")
                      |    = handshake_secret
                      |
-                     +--> Derive-Secret(., "app")
+                     +--> DeriveSecret(., "app")
                      |    = application_secret
                      |
-                     +--> Derive-Secret(., "exporter")
+                     +--> DeriveSecret(., "exporter")
                      |    = exporter_secret
                      |
-                     +--> Derive-Secret(., "confirm")
+                     +--> DeriveSecret(., "confirm")
                      |    = confirmation_key
                      |
                      V
-               Derive-Secret(., "init")
+               DeriveSecret(., "init")
                      |
                      V
                init_secret_[n]
@@ -1380,7 +1380,7 @@ send during that epoch.  In particular, each key/nonce pair MUST NOT be used to
 encrypt more than one message.
 
 Keys, nonces and secrets of ratchets are derived using
-Derive-App-Secret. The context in a given call consists of the index
+DeriveAppSecret. The context in a given call consists of the index
 of the sender's leaf in the ratchet tree and the current position in
 the ratchet.  In particular, the index of the sender's leaf in the
 ratchet tree is the same as the index of the leaf in the AS Tree
@@ -1389,14 +1389,14 @@ used to initialize the sender's ratchet.
 ~~~~~
 ratchet_secret_[N]_[j]
       |
-      +--> Derive-App-Secret(., "nonce", N, j, AEAD.nonce_length)
+      +--> DeriveAppSecret(., "nonce", N, j, AEAD.nonce_length)
       |    = ratchet_nonce_[N]_[j]
       |
-      +--> Derive-App-Secret(., "key", N, j, AEAD.key_length)
+      +--> DeriveAppSecret(., "key", N, j, AEAD.key_length)
       |    = ratchet_key_[N]_[j]
       |
       V
-Derive-App-Secret(., "secret", N, j, Hash.length)
+DeriveAppSecret(., "secret", N, j, Hash.length)
 = ratchet_secret_[N]_[j+1]
 ~~~~~
 
@@ -1413,7 +1413,7 @@ be used by an application as the basis to derive new secrets called
 
 ~~~~~
 MLS-Exporter(Label, Context, key_length) =
-       ExpandWithLabel(Derive-Secret(exporter_secret, Label),
+       ExpandWithLabel(DeriveSecret(exporter_secret, Label),
                          "exporter", Hash(Context), key_length)
 ~~~~~
 
@@ -2404,10 +2404,10 @@ astree_node_[root]_secret = application_secret
 ~~~~
 
 The secret of any other node in the tree is derived from its parent's secret
-using a call to Derive-App-Secret.
+using a call to DeriveAppSecret.
 
 ~~~~
-Derive-App-Secret(Secret, Label, Node, Generation, Length) =
+DeriveAppSecret(Secret, Label, Node, Generation, Length) =
     ExpandWithLabel(Secret, Label, ApplicationContext, Length)
 
 Where ApplicationContext is specified as:
@@ -2425,10 +2425,10 @@ of N are defined to be:
 astree_node_[N]_secret
         |
         |
-        +--> Derive-App-Secret(., "tree", left(N), 0, Hash.length)
+        +--> DeriveAppSecret(., "tree", left(N), 0, Hash.length)
         |    = astree_node_[left(N)]_secret
         |
-        +--> Derive-App-Secret(., "tree", right(N), 0, Hash.length)
+        +--> DeriveAppSecret(., "tree", right(N), 0, Hash.length)
              = astree_node_[right(N)]_secret
 ~~~~
 
@@ -2446,7 +2446,7 @@ _consumed_. A sensitive value S is said to be _consumed_ if
 
 * S was used to encrypt or (successfully) decrypt a message, or if
 * a key, nonce, or secret derived from S has been consumed. (This goes for
-  values derived via Derive-Secret as well as ExpandWithLabel.)
+  values derived via DeriveSecret as well as ExpandWithLabel.)
 
 Here, S may be the `init_secret`, `commit_secret`, `epoch_secret`, `application_secret`
 as well as any secret in the AS Tree or one of the ratchets.
