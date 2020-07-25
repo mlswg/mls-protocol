@@ -1893,6 +1893,7 @@ struct {
     ProposalID adds<0..2^32-1>;
 
     optional<DirectPath> path;
+    Extension extensions<0..2^16-1>;
 } Commit;
 ~~~~~
 
@@ -2275,15 +2276,21 @@ places:
 
 * In KeyPackages, to describe client capabilities and aspects of their
   participation in the group (once in the ratchet tree)
-* In the Welcome message, to tell new members of a group what parameters are
-  being used by the group
+* In the GroupInfo object carried in a Welcome message, to tell new members of a
+  group what parameters are being used by the group
 * In the GroupContext object, to ensure that all members of the group have the
   same view of the parameters in use
+* In Commit messages, to describe changes to the group's parameters
 
 In other words, clients advertise their capabilities in KeyPackage
 extensions, the creator of the group expresses its choices for the group in
 Welcome extensions, and the GroupContext confirms that all members of the group
 have the same view of the group's extensions.
+
+In addition to the function of managing the metadata associated to the group as
+described above, extensions in all four of these places may be used to attach
+additional information to a message, convey additional instructions, etc.,
+subject to the compatibility constraints below.
 
 This extension mechanism is designed to allow for secure and forward-compatible
 negotiation of extensions.  For this to work, implementations MUST correctly
@@ -2294,8 +2301,8 @@ handle extensible fields:
   those parameters.
 
 * A client initiating a group MUST ignore all unrecognized ciphersuites,
-  extensions, and other parameters.  Otherwise, it may fail to interoperate with
-  newer clients.
+  extensions, and other parameters in the KeyPackages for the other members.
+  Otherwise, it may fail to interoperate with newer clients.
 
 * A client adding a new member to a group MUST verify that the KeyPackage
   for the new member contains extensions that are consistent with the group's
@@ -2308,23 +2315,26 @@ handle extensible fields:
   in the corresponding KeyPackage), then the client MUST reject the Welcome
   message and not join the group.
 
-* The extensions populated into a GroupContext object are drawn from those in
-  the GroupInfo object, according to the definitions of those extensions.
+* If any extension in a Commit message is unrecognized, then the client MUST
+  reject the Commit.  The sender of a Commit message MUST verify that the
+  extension is supported by all members of the group, as indicated in the
+  KeyPackages in the leaves of the tree.
 
-Note that the latter two requirements mean that all MLS extensions are
+* The extensions populated into a GroupContext object by a joining member are
+  constructed from those in the GroupInfo object, according to the definitions
+  of those extensions.  Extensions in a Commit object may define modifications
+  to the list of GroupContext extensions, which recipients of the Commit apply
+  on receiving it.
+
+Note that the latter three requirements mean that all MLS extensions are
 mandatory, in the sense that an extension in use by the group MUST be supported
 by all members of the group.
 
-This document does not define any way for the parameters of the group to change
-once it has been created; such a behavior could be implemented as an extension.
-
-<!-- OPEN ISSUE: Should we put bounds on what an extension can change?  For
-example, should we make an explicit guarantee that as long as you're speaking
-MLS 1.0, the format of the KeyPackage will remain the same?  (Analogous to
-the TLS invariant with regard to ClientHello.)  If we are explicit that
-effectively arbitrary changes can be made to protocol behavior with the consent
-of the members, we will need to note that some such changes can undermine the
-security of the protocol. -->
+Extensions can change any aspect of the protocol, except for the structure of
+the KeyPackage object, since KeyPackage objects are created irrespective of any
+group.  New versions of the protocol MAY change the format of the KeyPackage as
+long as the version remains the first octet of the object (so that older clients
+can recognize the new version).
 
 # Sequencing of State Changes {#sequencing}
 
