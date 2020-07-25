@@ -2827,6 +2827,7 @@ Template:
 
   * KP: KeyPackage messages
   * W: Welcome messages
+  * C: Commit messages
 
 * Recommended: Whether support for this extension is recommended by the IETF MLS
   WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
