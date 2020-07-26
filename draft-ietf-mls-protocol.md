@@ -303,7 +303,8 @@ Member:
 
 Key Package:
 : A signed object describing a client's identity and capabilities, and including
-  an HPKE public key that can be used to encrypt to that client.
+  a hybrid public-key encryption (HPKE {{!I-D.irtf-cfrg-hpke}} ) public key that
+  can be used to encrypt to that client.
 
 Initialization Key (InitKey):
 : A key package that is prepublished by a client, which other clients can use to
