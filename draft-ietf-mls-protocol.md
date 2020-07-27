@@ -962,11 +962,11 @@ struct {
 } KeyPackage;
 ~~~~~
 
-KeyPackage objects MUST contain at least three extensions, one of type
-`supported_versions`, one of type `supported_ciphersuites`, and one of
-type `lifetime`.  The `supported_versions` and `supported_ciphersuites` extensions
-allow MLS session establishment to be safe from downgrade attacks on these two
-parameters (as discussed in {{group-creation}}), while still only advertising
+KeyPackage objects MUST contain at least two extensions, one of type
+`capabilities`, and one of
+type `lifetime`.  The `capabilities` extension
+allow MLS session establishment to be safe from downgrade attacks on the
+parameters described (as discussed in {{group-creation}}), while still only advertising
 one version / ciphersuite per KeyPackage.
 
 As the `KeyPackage` is a structure which is stored in the Ratchet
@@ -975,18 +975,22 @@ modification of its content MUST be reflected by a change of its
 signature. This allow other members to control the validity of the KeyPackage
 at any time and in particular in the case of a newcomer joining the group.
 
-## Supported Versions and Supported Ciphersuites
+## Client Capabilities
 
-The `supported_versions` extension contains a list of MLS versions that are
-supported by the client.  The `supported_ciphersuites` extension contains a list
-of MLS ciphersuites that are supported by the client.
+The `capabilities` extension indicates what protocol versions, ciphersuites, and
+protocol extensions are supported by a client.
 
 ~~~~~
-ProtocolVersion supported_versions<0..255>;
-CipherSuite supported_ciphersuites<0..255>;
+struct {
+    ProtocolVersion versions<0..255>;
+    CipherSuite ciphersuites<0..255>;
+    ExtensionType extensions<0..255>;
+} Capabilities;
 ~~~~~
 
-These extensions MUST be always present in a KeyPackage.
+This extension MUST be always present in a KeyPackage.  Extensions that appear
+in the `extensions` field of a KeyPackage MUST be included in the `extensions`
+field of the `capabilities` extension.
 
 ## Lifetime
 
@@ -1679,8 +1683,8 @@ The creator of a group MUST take the following steps to initialize the group:
 
 * Fetch KeyPackages for the members to be added, and selects a version and
   ciphersuite according to the capabilities of the members.  To protect against
-  downgrade attacks, the creator MUST use the `supported_versions` and
-  `supported_ciphersuites` fields in these KeyPackages to verify that the
+  downgrade attacks, the creator MUST use the `capabilities` extensions
+  in these KeyPackages to verify that the
   chosen version and ciphersuite is the best option supported by all members.
 
 * Initialize a one-member group with the following initial values (where "0"
@@ -2816,7 +2820,7 @@ Template:
   list:
 
   * KP: KeyPackage messages
-  * W: Welcome messages
+  * GI: GroupInfo objects
 
 * Recommended: Whether support for this extension is recommended by the IETF MLS
   WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
@@ -2831,11 +2835,11 @@ Initial contents:
 | Value            | Name                     | Message(s) | Recommended | Reference |
 |:=================|:=========================|:===========|:============|:==========|
 | 0x0000           | RESERVED                 | N/A        | N/A         | RFC XXXX  |
-| 0x0001           | supported_versions       | KP         | Y           | RFC XXXX  |
-| 0x0002           | supported_ciphersuites   | KP         | Y           | RFC XXXX  |
-| 0x0003           | lifetime                 | KP         | Y           | RFC XXXX  |
-| 0x0004           | key_id                   | KP         | Y           | RFC XXXX  |
-| 0x0005           | parent_hash              | KP         | Y           | RFC XXXX  |
+| 0x0001           | capabilities             | KP         | Y           | RFC XXXX  |
+| 0x0002           | lifetime                 | KP         | Y           | RFC XXXX  |
+| 0x0003           | key_id                   | KP         | Y           | RFC XXXX  |
+| 0x0004           | parent_hash              | KP         | Y           | RFC XXXX  |
+| 0x0005           | ratchet_tree             | GI         | Y           | RFC XXXX  |
 | 0xff00  - 0xffff | Reserved for Private Use | N/A        | N/A         | RFC XXXX  |
 
 
