@@ -703,17 +703,17 @@ KeyPackage and its direct path to the root with new secret values.  The
 HPKE leaf public key within the KeyPackage MUST be derived from a freshly
 generated HPKE secret key to provide post-compromise security.
 
-The generator of the Commit starts by using the freshly generated HPKE secret
-key "leaf_hpke_secret" associated with its now-updated leaf KeyPackage (see
-{{key-packages}}) to compute "path_secret\[0\]" and generate a
-sequence of "path secrets", one for each ancestor of its leaf.  That
-is, path_secret\[0\] is used for the node directly above the leaf,
+The generator of the Commit starts by sampling a fresh random value called
+"leaf_secret", and uses the leaf_secret to generate their leaf HPKE key pair
+(see {{key-packages}}) and to seed a sequence of "path secrets", one for each
+ancestor of its leaf. In this setting,
+path_secret\[0\] refers to the node directly above the leaf,
 path_secret\[1\] for its parent, and so on. At each step, the path
 secret is used to derive a new secret value for the corresponding
 node, from which the node's key pair is derived.
 
 ~~~~~
-path_secret[0] = ExpandWithLabel(leaf_hpke_secret,
+path_secret[0] = ExpandWithLabel(leaf_secret,
                                    "path", "", KEM.Nsk)
 path_secret[n] = ExpandWithLabel(path_secret[n-1],
                                    "path", "", KEM.Nsk)
@@ -733,18 +733,19 @@ A   B   C   D
 ~~~~~
 
 If member B subsequently generates a Commit based on a secret
-"leaf_hpke_secret", then it would generate the following sequence
+"leaf_secret", then it would generate the following sequence
 of path secrets:
 
 ~~~~~
 
-    path_secret[1] --> node_priv[1], node_pub[1]
-         ^
-         |
-    path_secret[0] --> node_priv[0], node_pub[0]
-         ^
-         |
-   leaf_hpke_secret
+   path_secret[1] --> node_priv[1], node_pub[1]
+        ^
+        |
+   path_secret[0] --> node_priv[0], node_pub[0]
+        ^
+        |
+   leaf_secret    --> leaf_priv, leaf_pub
+                   ~> leaf_key_package
 ~~~~~
 
 After the Commit, the tree will have the following structure, where
@@ -758,6 +759,9 @@ above:
      /  \      / \
     A    B    C   D
 ~~~~~
+
+After performing these operations, the generator of the Commit MUST
+delete the leaf_secret.
 
 ## Synchronizing Views of the Tree
 
