@@ -698,13 +698,13 @@ they receive the private keys for nodes, as described in
 
 ## Ratchet Tree Evolution
 
-When performing a Commit, the leaf KeyPackage of the committer and
-its direct path to the root are updated with new secret values.  The
+When performing a Commit, the generator of the Commit updates its leaf
+KeyPackage and its direct path to the root with new secret values.  The
 HPKE leaf public key within the KeyPackage MUST be derived from a freshly
 generated HPKE secret key to provide post-compromise security.
 
 The generator of the Commit starts by using the freshly generated HPKE secret
-key "leaf_hpke_secret" associated with the updated leaf KeyPackage (see
+key "leaf_hpke_secret" associated with its now-updated leaf KeyPackage (see
 {{key-packages}}) to compute "path_secret\[0\]" and generate a
 sequence of "path secrets", one for each ancestor of its leaf.  That
 is, path_secret\[0\] is used for the node directly above the leaf,
