@@ -1273,7 +1273,7 @@ proceeds as shown in the following diagram:
                   init_secret_[n-1] (or 0)
                         |
                         V
-   commit_secret -> KDF.Extract = joiner_secret
+    commit_secret -> KDF.Extract = joiner_secret
                         |
                         +--> Derive-Secret(., "welcome")
                         |    = welcome_secret
@@ -1282,13 +1282,13 @@ proceeds as shown in the following diagram:
                   Derive-Secret(., "member")
                         |
                         V
-      PSK (or 0) -> KDF.Extract = member_secret
+psk_secret (or 0) -> KDF.Extract = member_secret
                         |
                         V
                   Derive-Secret(., "epoch")
                         |
                         V
-GroupContext_[n] -> KDF.Extract = epoch_secret
+ GroupContext_[n] -> KDF.Extract = epoch_secret
                         |
                         +--> Derive-Secret(., <label>)
                         |    = <secret>
@@ -1316,24 +1316,65 @@ Groups which already have an out-of-band mechanism to generate
 shared group secrets can inject those in the MLS key schedule to seed
 the MLS group secrets computations by this external entropy.
 
-At any epoch, including the initial state, an application can decide
-to synchronize the injection of a PSK into the MLS key schedule.
-
 This mechanism can be used to improve security in the cases where
 having a full run of updates across members is too expensive or in
 the case where the external group key establishment mechanism provides
 stronger security against classical or quantum adversaries.
-
-The security level associated with the PSK injected in the key schedule
-SHOULD match at least the security level of the ciphersuite in use in
-the group.
-
 Note that, as a PSK may have a different lifetime than an update, it
 does not necessarily provide the same FS or PCS guarantees than
 a Commit message.
 
-<!-- OPEN ISSUE: We have to decide if we want an external coordination
-via the application of a Handshake proposal. -->
+The sender of a Commit message indicates that one or more PSKs are to be
+included in the key schedule for an epoch by including a `pre_shared_keys`
+extension in the Commit.  Such an extension contains an ordered list of PSKs
+that should be injected, encoded as a PreSharedKeys object:
+
+~~~~~
+// PreSharedKey extension
+enum {
+    invalid(0),
+    external(1),
+} PSKType;
+
+struct {
+    PSKType type;
+    opaque identifier<0..2^16-1>;
+} PreSharedKey;
+
+struct {
+    PreSharedKey psks<0..2^16-1>;
+} PreSharedKeys;
+~~~~~
+
+A client MAY include a `pre_shared_keys` extension in a KeyPackage to indicate
+that it supports a given set of PSKs (in this case order does not matter).
+Applications MAY choose to perform PSK coordination on their own, however, so it
+is NOT REQUIRED that a PSK in a Commit be among those advertised by the members
+in their KeyPackages.
+
+On receiving a Commit with a `pre_shared_keys` extension, it includes them in
+the key schedule in the order listed in the commit, as follows (where `n` is the
+number of PSKs):
+
+~~~~~
+// PreSharedKey injection combination
+struct {
+    PSKType type;
+    opaque identifier<0..2^16-1>;
+    uint16 index;
+    uint16 count;
+} PSKLabel;
+
+psk_input_[i] = KDF.Extract(0, psk_[i])
+psk_secret_[i] = ExpandWithLabel(psk_input_[i], "derived psk", PSKLabel, KDF.Nh)
+psk_secret     = psk_secret_[i] || ... || psk_secret_[n]
+~~~~~
+
+If the client does not have one or more of the indicated PSKs, then it MUST
+reject the Commit, since it cannot compute the updated epoch secret.
+
+This scheme assures that all members of the group in the current epoch know all
+of the required PSKs.
 
 ## Encryption Keys
 
