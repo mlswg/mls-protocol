@@ -1357,7 +1357,7 @@ secrets are derived directly from the `handshake_secret`.
 ~~~~~
 application_secret_[sender]_[0] = astree_node_[N]_secret
 
-handshake_secret_[sender]_[0]_ =
+handshake_secret_[sender]_[0] =
     ExpandWithLabel(handshake_secret, "hs", [sender], nonce_length)
 ~~~~~
 
@@ -1385,7 +1385,7 @@ ratchet_secret_[N]_[j]
       |
       V
 DeriveAppSecret(., "secret", N, j, Hash.length)
-= ratchet_secret_[N]_[j+1]_
+= ratchet_secret_[N]_[j+1]
 ~~~~~
 
 Here, AEAD.nonce\_length and AEAD.key\_length denote the lengths
@@ -2524,7 +2524,7 @@ epoch,
 * all node secrets in the AS Tree on the path from the root to the leaf with
 index i,
 * the first j secrets in the i-th ratchet and
-* `application_[i]_[j]_key` and `application_[i]_[j]_nonce`_.
+* `application_[i]_[j]_key` and `application_[i]_[j]_nonce`.
 
 Concretely, suppose we have the following AS Tree and ratchet for
 participant D:
