@@ -1322,8 +1322,8 @@ SHOULD match at least the security level of the ciphersuite in use in
 the group.
 
 Note that, as a PSK may have a different lifetime than an update, it
-does not necessarily provide the same Forward Secrecy or Post-Compromise
-Security guarantees that a _Commit_ message.
+does not necessarily provide the same Forward Secrecy (FC) or Post-Compromise
+Security (PCS) guarantees that a _Commit_ message.
 
 <!-- OPEN ISSUE: We have to decide if we want an external coordination
 via the application of a Handshake proposal. -->
