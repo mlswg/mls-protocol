@@ -1279,7 +1279,13 @@ proceeds as shown in the following diagram:
                         |    = welcome_secret
                         |
                         V
+                  Derive-Secret(., "member")
+                        |
+                        V
       PSK (or 0) -> KDF.Extract = member_secret
+                        |
+                        V
+                  Derive-Secret(., "epoch")
                         |
                         V
 GroupContext_[n] -> KDF.Extract = epoch_secret
