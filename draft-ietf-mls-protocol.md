@@ -1290,20 +1290,8 @@ proceeds as shown in the following diagram:
                         V
 GroupContext_[n] -> KDF.Extract = epoch_secret
                         |
-                        +--> Derive-Secret(., "sender data")
-                        |    = sender_data_secret
-                        |
-                        +--> Derive-Secret(., "handshake")
-                        |    = handshake_secret
-                        |
-                        +--> Derive-Secret(., "app")
-                        |    = application_secret
-                        |
-                        +--> Derive-Secret(., "exporter")
-                        |    = exporter_secret
-                        |
-                        +--> Derive-Secret(., "confirm")
-                        |    = confirmation_key
+                        +--> Derive-Secret(., <label>)
+                        |    = <secret>
                         |
                         V
                   Derive-Secret(., "init")
@@ -1311,6 +1299,16 @@ GroupContext_[n] -> KDF.Extract = epoch_secret
                         V
                   init_secret_[n]
 ~~~~~
+
+A number of secrets are derived from the epoch secret for different purposes:
+
+| Secret                | Label         |
+|:----------------------|:--------------|
+| `sender_data_secret`  | "sender data" |
+| `handshake_secret`    | "handshake"   |
+| `application_secret`  | "app"         |
+| `exporter_secret`     | "exporter"    |
+| `confirmation_key`    | "confirm"     |
 
 ## Pre-Shared Keys
 
