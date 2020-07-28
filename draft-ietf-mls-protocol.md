@@ -1273,16 +1273,16 @@ proceeds as shown in the following diagram:
                   init_secret_[n-1] (or 0)
                         |
                         V
-   commit_secret -> HKDF-Extract = joiner_secret
+   commit_secret -> KDF.Extract = joiner_secret
                         |
                         +--> Derive-Secret(., "welcome")
                         |    = welcome_secret
                         |
                         V
-      PSK (or 0) -> HKDF-Extract = member_secret
+      PSK (or 0) -> KDF.Extract = member_secret
                         |
                         V
-GroupContext_[n] -> HKDF-Extract = epoch_secret
+GroupContext_[n] -> KDF.Extract = epoch_secret
                         |
                         +--> Derive-Secret(., "sender data")
                         |    = sender_data_secret
