@@ -303,7 +303,8 @@ Member:
 
 Key Package:
 : A signed object describing a client's identity and capabilities, and including
-  an HPKE public key that can be used to encrypt to that client.
+  a hybrid public-key encryption (HPKE {{!I-D.irtf-cfrg-hpke}} ) public key that
+  can be used to encrypt to that client.
 
 Initialization Key (InitKey):
 : A key package that is prepublished by a client, which other clients can use to
@@ -698,22 +699,22 @@ they receive the private keys for nodes, as described in
 
 ## Ratchet Tree Evolution
 
-When performing a Commit, the leaf KeyPackage of the committer and
-its direct path to the root are updated with new secret values.  The
-HPKE leaf public key within the KeyPackage MUST be a freshly
-generated value to provide post-compromise security.
+When performing a Commit, the generator of the Commit updates its leaf
+KeyPackage and its direct path to the root with new secret values.  The
+HPKE leaf public key within the KeyPackage MUST be derived from a freshly
+generated HPKE secret key to provide post-compromise security.
 
-The generator of the Commit starts by using the HPKE secret key
-"leaf_hpke_secret" associated with the new leaf KeyPackage (see
-{{key-packages}}) to compute "path_secret\[0\]" and generate a
-sequence of "path secrets", one for each ancestor of its leaf.  That
-is, path_secret\[0\] is used for the node directly above the leaf,
+The generator of the Commit starts by sampling a fresh random value called
+"leaf_secret", and uses the leaf_secret to generate their leaf HPKE key pair
+(see {{key-packages}}) and to seed a sequence of "path secrets", one for each
+ancestor of its leaf. In this setting,
+path_secret\[0\] refers to the node directly above the leaf,
 path_secret\[1\] for its parent, and so on. At each step, the path
 secret is used to derive a new secret value for the corresponding
 node, from which the node's key pair is derived.
 
 ~~~~~
-path_secret[0] = ExpandWithLabel(leaf_hpke_secret,
+path_secret[0] = ExpandWithLabel(leaf_secret,
                                    "path", "", KEM.Nsk)
 path_secret[n] = ExpandWithLabel(path_secret[n-1],
                                    "path", "", KEM.Nsk)
@@ -733,18 +734,19 @@ A   B   C   D
 ~~~~~
 
 If member B subsequently generates a Commit based on a secret
-"leaf_hpke_secret", then it would generate the following sequence
+"leaf_secret", then it would generate the following sequence
 of path secrets:
 
 ~~~~~
 
-    path_secret[1] --> node_priv[1], node_pub[1]
-         ^
-         |
-    path_secret[0] --> node_priv[0], node_pub[0]
-         ^
-         |
-   leaf_hpke_secret
+   path_secret[1] --> node_priv[1], node_pub[1]
+        ^
+        |
+   path_secret[0] --> node_priv[0], node_pub[0]
+        ^
+        |
+   leaf_secret    --> leaf_priv, leaf_pub
+                   ~> leaf_key_package
 ~~~~~
 
 After the Commit, the tree will have the following structure, where
@@ -758,6 +760,9 @@ above:
      /  \      / \
     A    B    C   D
 ~~~~~
+
+After performing these operations, the generator of the Commit MUST
+delete the leaf_secret.
 
 ## Synchronizing Views of the Tree
 
@@ -962,11 +967,11 @@ struct {
 } KeyPackage;
 ~~~~~
 
-KeyPackage objects MUST contain at least three extensions, one of type
-`supported_versions`, one of type `supported_ciphersuites`, and one of
-type `lifetime`.  The `supported_versions` and `supported_ciphersuites` extensions
-allow MLS session establishment to be safe from downgrade attacks on these two
-parameters (as discussed in {{group-creation}}), while still only advertising
+KeyPackage objects MUST contain at least two extensions, one of type
+`capabilities`, and one of
+type `lifetime`.  The `capabilities` extension
+allow MLS session establishment to be safe from downgrade attacks on the
+parameters described (as discussed in {{group-creation}}), while still only advertising
 one version / ciphersuite per KeyPackage.
 
 As the `KeyPackage` is a structure which is stored in the Ratchet
@@ -975,18 +980,22 @@ modification of its content MUST be reflected by a change of its
 signature. This allow other members to control the validity of the KeyPackage
 at any time and in particular in the case of a newcomer joining the group.
 
-## Supported Versions and Supported Ciphersuites
+## Client Capabilities
 
-The `supported_versions` extension contains a list of MLS versions that are
-supported by the client.  The `supported_ciphersuites` extension contains a list
-of MLS ciphersuites that are supported by the client.
+The `capabilities` extension indicates what protocol versions, ciphersuites, and
+protocol extensions are supported by a client.
 
 ~~~~~
-ProtocolVersion supported_versions<0..255>;
-CipherSuite supported_ciphersuites<0..255>;
+struct {
+    ProtocolVersion versions<0..255>;
+    CipherSuite ciphersuites<0..255>;
+    ExtensionType extensions<0..255>;
+} Capabilities;
 ~~~~~
 
-These extensions MUST be always present in a KeyPackage.
+This extension MUST be always present in a KeyPackage.  Extensions that appear
+in the `extensions` field of a KeyPackage MUST be included in the `extensions`
+field of the `capabilities` extension.
 
 ## Lifetime
 
@@ -1234,7 +1243,6 @@ ExpandWithLabel(Secret, Label, Context, Length) =
 Where KDFLabel is specified as:
 
 struct {
-    opaque group_context<0..255> = Hash(GroupContext_[n]);
     uint16 length = Length;
     opaque label<7..255> = "mls10 " + Label;
     opaque context<0..2^32-1> = Context;
@@ -1262,40 +1270,45 @@ Given these inputs, the derivation of secrets for an epoch
 proceeds as shown in the following diagram:
 
 ~~~~~
-               init_secret_[n-1] (or 0)
-                     |
-                     V
-   PSK (or 0) -> KDF.Extract = early_secret
-                     |
-               DeriveSecret(., "derived")
-                     |
-                     V
-commit_secret -> KDF.Extract = epoch_secret
-                     |
-                     +--> KDF.Expand(., "mls 1.0 welcome", KDF.Nh)
-                     |    = welcome_secret
-                     |
-                     +--> DeriveSecret(., "sender data")
-                     |    = sender_data_secret
-                     |
-                     +--> DeriveSecret(., "handshake")
-                     |    = handshake_secret
-                     |
-                     +--> DeriveSecret(., "app")
-                     |    = application_secret
-                     |
-                     +--> DeriveSecret(., "exporter")
-                     |    = exporter_secret
-                     |
-                     +--> DeriveSecret(., "confirm")
-                     |    = confirmation_key
-                     |
-                     V
-               DeriveSecret(., "init")
-                     |
-                     V
-               init_secret_[n]
+                  init_secret_[n-1] (or 0)
+                        |
+                        V
+   commit_secret -> KDF.Extract = joiner_secret
+                        |
+                        +--> Derive-Secret(., "welcome")
+                        |    = welcome_secret
+                        |
+                        V
+                  Derive-Secret(., "member")
+                        |
+                        V
+      PSK (or 0) -> KDF.Extract = member_secret
+                        |
+                        V
+                  Derive-Secret(., "epoch")
+                        |
+                        V
+GroupContext_[n] -> KDF.Extract = epoch_secret
+                        |
+                        +--> Derive-Secret(., <label>)
+                        |    = <secret>
+                        |
+                        V
+                  Derive-Secret(., "init")
+                        |
+                        V
+                  init_secret_[n]
 ~~~~~
+
+A number of secrets are derived from the epoch secret for different purposes:
+
+| Secret                | Label         |
+|:----------------------|:--------------|
+| `sender_data_secret`  | "sender data" |
+| `handshake_secret`    | "handshake"   |
+| `application_secret`  | "app"         |
+| `exporter_secret`     | "exporter"    |
+| `confirmation_key`    | "confirm"     |
 
 ## Pre-Shared Keys
 
@@ -1679,8 +1692,8 @@ The creator of a group MUST take the following steps to initialize the group:
 
 * Fetch KeyPackages for the members to be added, and selects a version and
   ciphersuite according to the capabilities of the members.  To protect against
-  downgrade attacks, the creator MUST use the `supported_versions` and
-  `supported_ciphersuites` fields in these KeyPackages to verify that the
+  downgrade attacks, the creator MUST use the `capabilities` extensions
+  in these KeyPackages to verify that the
   chosen version and ciphersuite is the best option supported by all members.
 
 * Initialize a one-member group with the following initial values (where "0"
@@ -2007,7 +2020,7 @@ message at the same time, by taking the following steps:
     hash from the new state
   * The confirmation from the MLSPlaintext object
   * Sign the GroupInfo using the member's private signing key
-  * Encrypt the GroupInfo using the key and nonce derived from the `epoch_secret`
+  * Encrypt the GroupInfo using the key and nonce derived from the `joiner_secret`
     for the new epoch (see {{welcoming-new-members}})
 
 * For each new member in the group:
@@ -2127,7 +2140,7 @@ struct {
 } PathSecret;
 
 struct {
-  opaque epoch_secret<1..255>;
+  opaque joiner_secret<1..255>;
   optional<PathSecret> path_secret;
 } GroupSecrets;
 
@@ -2161,12 +2174,12 @@ On receiving a Welcome message, a client processes it using the following steps:
 * Decrypt the `encrypted_group_secrets` using HPKE with the algorithms indicated
   by the ciphersuite and the HPKE private key corresponding to the GroupSecrets.
 
-* From the `epoch_secret` in the decrypted GroupSecrets object, derive the
+* From the `joiner_secret` in the decrypted GroupSecrets object, derive the
   `welcome_secret`, `welcome_key`, and `welcome_nonce`.  Use the key
   and nonce to decrypt the `encrypted_group_info` field.
 
 ~~~~~
-welcome_secret = KDF.Expand(epoch_secret, "mls 1.0 welcome", Hash.length)
+welcome_secret = KDF.Expand(joiner_secret, "mls 1.0 welcome", KDF.Nh)
 welcome_nonce = KDF.Expand(welcome_secret, "nonce", nonce_length)
 welcome_key = KDF.Expand(welcome_secret, "key", key_length)
 ~~~~~
@@ -2213,7 +2226,7 @@ welcome_key = KDF.Expand(welcome_secret, "key", key_length)
       derived from the path secret.  The private key MUST be the private key
       that corresponds to the public key in the node.
 
-* Use the `epoch_secret` from the GroupSecrets object to generate the epoch secret
+* Use the `joiner_secret` from the GroupSecrets object to generate the epoch secret
   and other derived secrets for the current epoch.
 
 * Set the confirmed transcript hash in the new state to the value of the
@@ -2826,7 +2839,7 @@ Template:
   list:
 
   * KP: KeyPackage messages
-  * W: Welcome messages
+  * GI: GroupInfo objects
   * C: Commit messages
 
 * Recommended: Whether support for this extension is recommended by the IETF MLS
@@ -2842,11 +2855,11 @@ Initial contents:
 | Value            | Name                     | Message(s) | Recommended | Reference |
 |:=================|:=========================|:===========|:============|:==========|
 | 0x0000           | RESERVED                 | N/A        | N/A         | RFC XXXX  |
-| 0x0001           | supported_versions       | KP         | Y           | RFC XXXX  |
-| 0x0002           | supported_ciphersuites   | KP         | Y           | RFC XXXX  |
-| 0x0003           | lifetime                 | KP         | Y           | RFC XXXX  |
-| 0x0004           | key_id                   | KP         | Y           | RFC XXXX  |
-| 0x0005           | parent_hash              | KP         | Y           | RFC XXXX  |
+| 0x0001           | capabilities             | KP         | Y           | RFC XXXX  |
+| 0x0002           | lifetime                 | KP         | Y           | RFC XXXX  |
+| 0x0003           | key_id                   | KP         | Y           | RFC XXXX  |
+| 0x0004           | parent_hash              | KP         | Y           | RFC XXXX  |
+| 0x0005           | ratchet_tree             | GI         | Y           | RFC XXXX  |
 | 0xff00  - 0xffff | Reserved for Private Use | N/A        | N/A         | RFC XXXX  |
 
 
