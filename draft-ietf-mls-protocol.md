@@ -1406,24 +1406,24 @@ the MLS group secrets computations by this external entropy.
 At any epoch, including the initial state, an application can decide to
 synchronize the injection of one or more PSKs into the MLS key schedule.
 
-The injecting of an external PSK (EPSK) can improve security in the cases 
-where having a full run of updates across members is too expensive or in the 
-case where the external group key establishment mechanism provides 
+The injecting of an external PSK (EPSK) can improve security in the cases
+where having a full run of updates across members is too expensive or in the
+case where the external group key establishment mechanism provides
 stronger security against classical or quantum adversaries.
 
 The security level associated with the PSK injected in the key schedule
 SHOULD match at least the security level of the ciphersuite in use in
 the group.
 
-[[Open ISSUE: Define "security level", and what it means to match the 
+[[Open ISSUE: Define "security level", and what it means to match the
 security level of the ciphersuite used in the group.]]
 
-Note that, as a PSK may have a different lifetime than an update, it does 
-not necessarily provide the same FS or PCS guarantees as a Commit 
+Note that, as a PSK may have a different lifetime than an update, it does
+not necessarily provide the same FS or PCS guarantees as a Commit
 message.
 
-[[OPEN ISSUE: Clarify lifetime vs security level mandated above. E.g. if 
-the PSK security expires before the next update (shorter PSK lifetime than 
+[[OPEN ISSUE: Clarify lifetime vs security level mandated above. E.g. if
+the PSK security expires before the next update (shorter PSK lifetime than
 update), does that constitute a weaker security level]]
 
 [[OPEN ISSUE: We have to decide if we want an external coordination
@@ -1432,16 +1432,16 @@ via the application of a Handshake proposal.]]
 A PSK may also be used within MLS in the following cases:
 
   - Re-Initialization: If, during the lifetime of the group, a change in the
-    fixed group parameters becomes necessary, e.g. if the ciphersuite used 
-    by the group is deprecated or if the protocol version should be upgraded, 
+    fixed group parameters becomes necessary, e.g. if the ciphersuite used
+    by the group is deprecated or if the protocol version should be upgraded,
     a PSK can be used to reboot the group with the desired parameters.
 
   - Recovery: If the group state of one or more members of the group deviates
     from the rest, they can be re-added to the group using a `recovery_key` from
     a previously known shared group state.
 
-  - Branching: A PSK may be used to bootstrap a subset of current group 
-    members into a new group. This applies if a subset of current group 
+  - Branching: A PSK may be used to bootstrap a subset of current group
+    members into a new group. This applies if a subset of current group
     members wish to branch based on the current group state.
 
 Regardless of its origin, the PSK injected in the key schedule must be unique.
@@ -1466,8 +1466,8 @@ PSKLabel(psktype) =
 
 Derived_PSK =
   Derive-Secret(PSK, Hash(PSKLabel(psktype) || psk_nonce))
-  
-[[OPEN ISSUE: Do we allow implicit nonces, vs. explicit nonces?]]  
+
+[[OPEN ISSUE: Do we allow implicit nonces, vs. explicit nonces?]]
 ~~~~~
 
 ### Multiple PSKs
@@ -1572,7 +1572,7 @@ to refresh those values after a group operation is processed.
 The main MLS key schedule provides a `recovery_secret` which can be
 used for branching of the current group.
 
-The application SHOULD specify an upper limit on the number of past 
+The application SHOULD specify an upper limit on the number of past
 epochs for which the `recovery_secret` may be stored.
 
 There are three ways in which a `recovery_secret` can be used:
@@ -1584,9 +1584,9 @@ There are three ways in which a `recovery_secret` can be used:
 3. To create a sub-group of an existing group (see {{Sub-group-Branching}}).
 
 Recovery keys are distinguished from exporter keys in that they have specific
-use inside the MLS protocol, whereas the use of exporter secrets may be 
+use inside the MLS protocol, whereas the use of exporter secrets may be
 decided by an external application. They are thus derived separately to avoid
-key material reuse resulting from poor exporter key management external to 
+key material reuse resulting from poor exporter key management external to
 the protocol.
 
 ## State Authentication Keys
@@ -1596,7 +1596,7 @@ which MAY be used for authenticating the current group state. As with recovery
 keys, these are distinguished from exporter keys in that they have specific
 use affecting the MLS protocol.
 
-Authentication keys MAY be used to authenticate current or past group 
+Authentication keys MAY be used to authenticate current or past group
 members out-of-band.
 
 # Message Framing
@@ -2415,7 +2415,7 @@ struct {
   opaque epoch_secret<1..255>;
   opaque path_secret<1..255>;
   optional<PSKId> psk<1..2^32-1;
-} KeyPackage;
+} GroupSecrets;
 
 struct {
   opaque key_package_hash<1..255>;
