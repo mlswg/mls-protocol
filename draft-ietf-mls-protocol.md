@@ -838,7 +838,7 @@ following primitives to be used in group key computations:
 
 * HPKE parameters:
   * A Key Encapsulation Mechanism (KEM)
-  * A Key Derivation Fucntion (KDF)
+  * A Key Derivation Function (KDF)
   * An AEAD encryption algorithm
 * A signature algorithm
 
@@ -1397,7 +1397,7 @@ DeriveAppSecret(., "secret", N, j, Hash.length)
 
 Here, AEAD.nonce\_length and AEAD.key\_length denote the lengths
 in bytes of the nonce and key for the AEAD scheme defined by
-the ciphersuite.  "ratchet" should be understood to mean "handshake" or
+the ciphersuite.  "Ratchet" should be understood to mean "handshake" or
 "application" depending on the context.
 
 ## Exporters
@@ -1690,7 +1690,7 @@ and {{welcoming-new-members}}.
 
 The creator of a group MUST take the following steps to initialize the group:
 
-* Fetch KeyPackages for the members to be added, and selects a version and
+* Fetch KeyPackages for the members to be added, and select a version and
   ciphersuite according to the capabilities of the members.  To protect against
   downgrade attacks, the creator MUST use the `capabilities` extensions
   in these KeyPackages to verify that the
@@ -2696,7 +2696,7 @@ updated root key after an Commit operation, it cannot compute any
 derived secrets.
 
 In the case where the client could have been compromised (device
-loss...), the client SHOULD signal the delivery service to expire
+loss, for example), the client SHOULD signal the delivery service to expire
 all the previous KeyPackages and publish fresh ones for PCS.
 
 ## InitKey Reuse
