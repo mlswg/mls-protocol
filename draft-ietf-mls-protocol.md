@@ -823,8 +823,9 @@ values:
 | pk(ns\[1\])  | E(pk(C), ps\[1\]), E(pk(D), ps\[1\]) |
 | pk(ns\[0\])  | E(pk(A), ps\[0\])                    |
 
-In this table, the value pk(X) represents the public key
-derived from the node secret X.  The value E(K, S) represents
+In this table, the value pk(ns\[1\]) represents the public key
+derived from the node secret X, whereas pk(X) represents the public leaf key
+for user X.  The value E(K, S) represents
 the public-key encryption of the path secret S to the
 public key K.
 
