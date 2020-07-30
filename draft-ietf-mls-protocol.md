@@ -828,6 +828,8 @@ derived from the node secret X.  The value E(K, S) represents
 the public-key encryption of the path secret S to the
 public key K.
 
+After applying the commit, all group members MUST delete outdated path secrets.
+
 
 # Cryptographic Objects
 
