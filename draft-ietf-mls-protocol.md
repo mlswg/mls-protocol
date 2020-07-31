@@ -767,9 +767,9 @@ delete the leaf_secret.
 ## Synchronizing Views of the Tree
 
 After generating a Commit as described in the prior section, the generator of
-the Commit must broadcast this update to other members of the group, who will need to
-apply it to keep their views of the tree in
-sync and up to date.  When a client commits a change to the tree
+the Commit must broadcast this update to other members of the group, who
+apply it to keep their local views of the tree in
+sync with the sender's.  When a client commits a change to the tree
 (e.g., to add or remove a member), it transmits a handshake message
 containing a set of public
 values for intermediate nodes in the direct path of a leaf. The
