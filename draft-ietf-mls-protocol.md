@@ -962,7 +962,7 @@ struct {
     CipherSuite cipher_suite;
     HPKEPublicKey hpke_init_key;
     Credential credential;
-    Extension extensions<12..2^16-1>;
+    Extension extensions<8..2^16-1>;
     opaque signature<0..2^16-1>;
 } KeyPackage;
 ~~~~~
