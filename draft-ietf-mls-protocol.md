@@ -835,7 +835,7 @@ After processing the update, each recipient MUST delete outdated key material,
 specifically:
 
 * The path secrets used to derive each updated node key pair.
-* Each outdated key pair that was replaced by the update.
+* Each outdated node key pair that was replaced by the update.
 
 
 # Cryptographic Objects
