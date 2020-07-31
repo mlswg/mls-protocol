@@ -2178,7 +2178,7 @@ On receiving a Welcome message, a client processes it using the following steps:
   and nonce to decrypt the `encrypted_group_info` field.
 
 ~~~~~
-welcome_secret = KDF.Expand(joiner_secret, "mls 1.0 welcome", KDF.Nh)
+welcome_secret = Derive-Secret(joiner_secret, "welcome")
 welcome_nonce = KDF.Expand(welcome_secret, "nonce", nonce_length)
 welcome_key = KDF.Expand(welcome_secret, "key", key_length)
 ~~~~~
