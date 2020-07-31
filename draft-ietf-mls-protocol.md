@@ -831,7 +831,11 @@ for user X.  The value E(K, S) represents
 the public-key encryption of the path secret S to the
 public key K.
 
-After applying the commit, all group members MUST delete outdated path secrets.
+After processing the update, each recipient MUST delete outdated key material,
+specifically:
+
+* The path secrets used to derive each updated node key pair.
+* Each outdated key pair that was replaced by the update.
 
 
 # Cryptographic Objects
