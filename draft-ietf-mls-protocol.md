@@ -766,8 +766,10 @@ delete the leaf_secret.
 
 ## Synchronizing Views of the Tree
 
-The members of the group need to keep their views of the tree in
-sync and up to date.  When a client commits a change to the tree
+After generating a Commit as described in the prior section, the generator of
+the Commit must broadcast this update to other members of the group, who
+apply it to keep their local views of the tree in
+sync with the sender's.  When a client commits a change to the tree
 (e.g., to add or remove a member), it transmits a handshake message
 containing a set of public
 values for intermediate nodes in the direct path of a leaf. The
@@ -823,10 +825,17 @@ values:
 | pk(ns\[1\])  | E(pk(C), ps\[1\]), E(pk(D), ps\[1\]) |
 | pk(ns\[0\])  | E(pk(A), ps\[0\])                    |
 
-In this table, the value pk(X) represents the public key
-derived from the node secret X.  The value E(K, S) represents
+In this table, the value pk(ns\[X\]) represents the public key
+derived from the node secret X, whereas pk(X) represents the public leaf key
+for user X.  The value E(K, S) represents
 the public-key encryption of the path secret S to the
 public key K.
+
+After processing the update, each recipient MUST delete outdated key material,
+specifically:
+
+* The path secrets used to derive each updated node key pair.
+* Each outdated node key pair that was replaced by the update.
 
 
 # Cryptographic Objects
