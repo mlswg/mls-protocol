@@ -2946,9 +2946,17 @@ MLS DE, that MLS DE SHOULD defer to the judgment of the other MLS DEs.
   Wire \\
   alan@wire.com
 
+* Britta Hale \\
+  Naval Postgraduate School \\
+  britta.hale@nps.edu
+
 * Srinivas Inguva \\
   Twitter \\
   singuva@twitter.com
+
+* Konrad Kohbrok \\
+  Aalto University \\
+  konrad.kohbrok@datashrine.de
 
 * Albert Kwon \\
   MIT \\
