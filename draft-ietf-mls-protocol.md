@@ -771,9 +771,9 @@ the Commit must broadcast this update to other members of the group, who
 apply it to keep their local views of the tree in
 sync with the sender's.  When a client commits a change to the tree
 (e.g., to add or remove a member), it transmits a handshake message
-containing a set of public
+containing a set of public and encrypted private
 values for intermediate nodes in the direct path of a leaf. The
-other members of the group can use these public values to update
+other members of the group can use these values to update
 their view of the tree, aligning their copy of the tree to the
 sender's.
 
