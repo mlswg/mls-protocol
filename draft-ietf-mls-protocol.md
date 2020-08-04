@@ -2355,9 +2355,10 @@ regarding sequencing.  It would be good to have some more detailed
 discussion, and hopefully have a mechanism to deal with this issue. -->
 
 Each Commit message is premised on a given starting state,
-indicated in its `prior_epoch` field.  If the changes implied by a
-Commit messages are made starting from a different state, the
-results will be incorrect.
+indicated by the `epoch` field of the enclosing MLSPlaintext
+message. If the changes implied by a Commit messages are made
+starting from a different state, the results will be incorrect.
+
 
 This need for sequencing is not a problem as long as each time a
 group member sends a Commit message, it is based on the most
