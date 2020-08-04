@@ -1947,7 +1947,7 @@ operation, where only the leaf changes and intermediate nodes are blanked out.
 
 The `path` field of a Commit message MUST be populated if the Commit covers at
 least one Update or Remove proposal, i.e., if the length of the `updates` or
-`removes vectors is greater than zero.  The `path` field MUST also be populated
+`removes` vectors is greater than zero.  The `path` field MUST also be populated
 if the Commit covers no proposals at all (i.e., if all three proposal vectors
 are empty).  The `path` field MAY be omitted if the Commit covers only Add
 proposals.  In pseudocode, the logic for whether the `path` field is required is
