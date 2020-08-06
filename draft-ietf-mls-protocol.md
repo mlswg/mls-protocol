@@ -2358,7 +2358,6 @@ indicated by the `epoch` field of the enclosing MLSPlaintext
 message. If the changes implied by a Commit messages are made
 starting from a different state, the results will be incorrect.
 
-
 This need for sequencing is not a problem as long as each time a
 group member sends a Commit message, it is based on the most
 current state of the group.  In practice, however, there is a risk
