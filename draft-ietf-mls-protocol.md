@@ -1875,7 +1875,7 @@ originating outside the group are identified by a `preconfigured` or
 
 The `new_member` SenderType is used for clients proposing that they themselves
 be added.  For this ID type the sender value MUST be zero and the Proposal type
-must be Add. The MLSPlaintext MUST be signed with the private key corresponding
+MUST be Add. The MLSPlaintext MUST be signed with the private key corresponding
 to the KeyPackage in the Add message.  Recipients MUST verify that the
 MLSPlaintext carrying the Proposal message is validly signed with this key.
 
