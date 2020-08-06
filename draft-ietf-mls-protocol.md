@@ -1271,8 +1271,7 @@ the below diagram:
 When processing a handshake message, a client combines the
 following information to derive new epoch secrets:
 
-* The init secret from the previous epoch. When the group is created and there
-  is no previous epoch a fresh random value MUST be used.
+* The init secret from the previous epoch.
 * The commit secret for the current epoch
 * The GroupContext object for current epoch
 
@@ -1715,7 +1714,7 @@ The creator of a group MUST take the following steps to initialize the group:
   * Tree hash: The root hash of the above ratchet tree
   * Confirmed transcript hash: 0
   * Interim transcript hash: 0
-  * Init secret: 0
+  * Init secret: a fresh random value
 
 * For each member, construct an Add proposal from the KeyPackage for that
   member (see {{add}})
