@@ -1271,7 +1271,8 @@ the below diagram:
 When processing a handshake message, a client combines the
 following information to derive new epoch secrets:
 
-* The init secret from the previous epoch
+* The init secret from the previous epoch. When the group is created and there
+  is no previous epoch a fresh random value MUST be used.
 * The commit secret for the current epoch
 * The GroupContext object for current epoch
 
@@ -1279,7 +1280,7 @@ Given these inputs, the derivation of secrets for an epoch
 proceeds as shown in the following diagram:
 
 ~~~~~
-                  init_secret_[n-1] (or 0)
+                  init_secret_[n-1]
                         |
                         V
    commit_secret -> KDF.Extract = joiner_secret
