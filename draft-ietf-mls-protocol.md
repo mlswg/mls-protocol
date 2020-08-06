@@ -1339,7 +1339,7 @@ the group.
 
 Note that, as a PSK may have a different lifetime than an update, it
 does not necessarily provide the same Forward Secrecy (FS) or Post-Compromise
-Security (PCS) guarantees than a Commit message.
+Security (PCS) guarantees as a Commit message.
 
 <!-- OPEN ISSUE: We have to decide if we want an external coordination
 via the application of a Handshake proposal. -->
@@ -1874,11 +1874,10 @@ originating outside the group are identified by a `preconfigured` or
 `new_member` SenderType in MLSPlaintext.
 
 The `new_member` SenderType is used for clients proposing that they themselves
-be added.  For this ID type the sender value MUST be zero.  Proposals with types
-other than Add MUST NOT be sent with this sender type.  In such cases, the
-MLSPlaintext MUST be signed with the private key corresponding to the
-KeyPackage in the Add message.  Recipients MUST verify that the MLSPlaintext
-carrying the Proposal message is validly signed with this key.
+be added.  For this ID type the sender value MUST be zero and the Proposal type
+MUST be Add. The MLSPlaintext MUST be signed with the private key corresponding
+to the KeyPackage in the Add message.  Recipients MUST verify that the
+MLSPlaintext carrying the Proposal message is validly signed with this key.
 
 The `preconfigured` SenderType is reserved for signers that are pre-provisioned
 to the clients within a group.  If proposals with these sender IDs are to be
@@ -1947,7 +1946,7 @@ operation, where only the leaf changes and intermediate nodes are blanked out.
 
 The `path` field of a Commit message MUST be populated if the Commit covers at
 least one Update or Remove proposal, i.e., if the length of the `updates` or
-`removes vectors is greater than zero.  The `path` field MUST also be populated
+`removes` vectors is greater than zero.  The `path` field MUST also be populated
 if the Commit covers no proposals at all (i.e., if all three proposal vectors
 are empty).  The `path` field MAY be omitted if the Commit covers only Add
 proposals.  In pseudocode, the logic for whether the `path` field is required is
@@ -2355,9 +2354,9 @@ regarding sequencing.  It would be good to have some more detailed
 discussion, and hopefully have a mechanism to deal with this issue. -->
 
 Each Commit message is premised on a given starting state,
-indicated in its `prior_epoch` field.  If the changes implied by a
-Commit messages are made starting from a different state, the
-results will be incorrect.
+indicated by the `epoch` field of the enclosing MLSPlaintext
+message. If the changes implied by a Commit messages are made
+starting from a different state, the results will be incorrect.
 
 This need for sequencing is not a problem as long as each time a
 group member sends a Commit message, it is based on the most
