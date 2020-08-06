@@ -1279,7 +1279,7 @@ Given these inputs, the derivation of secrets for an epoch
 proceeds as shown in the following diagram:
 
 ~~~~~
-                  init_secret_[n-1] (or 0)
+                  init_secret_[n-1]
                         |
                         V
    commit_secret -> KDF.Extract = joiner_secret
@@ -1714,7 +1714,7 @@ The creator of a group MUST take the following steps to initialize the group:
   * Tree hash: The root hash of the above ratchet tree
   * Confirmed transcript hash: 0
   * Interim transcript hash: 0
-  * Init secret: 0
+  * Init secret: a fresh random value of size `KDF.Nh`
 
 * For each member, construct an Add proposal from the KeyPackage for that
   member (see {{add}})
