@@ -1714,7 +1714,7 @@ The creator of a group MUST take the following steps to initialize the group:
   * Tree hash: The root hash of the above ratchet tree
   * Confirmed transcript hash: 0
   * Interim transcript hash: 0
-  * Init secret: a fresh random value
+  * Init secret: a fresh random value of size `KDF.Nh`
 
 * For each member, construct an Add proposal from the KeyPackage for that
   member (see {{add}})
