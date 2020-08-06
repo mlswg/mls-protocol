@@ -1271,7 +1271,7 @@ the below diagram:
 When processing a handshake message, a client combines the
 following information to derive new epoch secrets:
 
-* The init secret from the previous epoch.
+* The init secret from the previous epoch
 * The commit secret for the current epoch
 * The GroupContext object for current epoch
 
