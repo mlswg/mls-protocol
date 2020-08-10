@@ -1361,9 +1361,9 @@ A PSK may also be used within MLS in the following cases:
     members into a new group. This applies if a subset of current group
     members wish to branch based on the current group state.
 
-The injection of one or more PSKs into the Key Schedule can be signalled in two
-ways: By including a `pre_shared_keys` extension either in a Commit message or
-in the `GroupSecrets` object of a Welcome message.
+The injection of one or more PSKs into the key schedule is signaled in two
+ways: 1) as an extension to a Commit message that initiates a new epoch and 2)
+in the `GroupSecrets` object of a Welcome message sent to new members added in that epoch.
 
 ~~~~~
 enum {
@@ -1412,7 +1412,6 @@ struct {
 psk_input_[i] = KDF.Extract(0, psk_[i])
 psk_secret_[i] = ExpandWithLabel(psk_input_[i], "derived psk", PSKLabel, KDF.Nh)
 psk_secret     = psk_secret_[i] || ... || psk_secret_[n]
-
 ~~~~~
 
 <!-- OPEN ISSUE: How to combine multiple PSKs such that the final PSK, is
