@@ -1346,7 +1346,12 @@ security level of the ciphersuite used in the group. -->
 <!-- OPEN ISSUE: We have to decide if we want an external coordination
 via the application of a Handshake proposal. -->
 
-A PSK may also be used within MLS in the following cases:
+Each PSK in MLS has a type that designates how it was provisioned. 
+External PSKs are provided by the application logic. Other resumption PSKs 
+are derived from the MLS key schedule, and used in cases where it is 
+necessary to authenticate a member's participation in a prior group state.
+In particular, in addition to external PSK types, a PSK derived from within MLS
+may be used in the following cases:
 
   - Re-Initialization: If, during the lifetime of the group, a change in the
     fixed group parameters becomes necessary, e.g. if the ciphersuite used
