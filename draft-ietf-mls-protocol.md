@@ -2002,43 +2002,6 @@ A member of the group applies a Remove message by taking the following steps:
 * Blank the intermediate nodes along the path from the removed leaf to the root
 
 
-### Re-Initialize
-
-A Re-Initialize proposal requests that the group be re-initialized, for example
-to change the ciphersuite of the group.
-
-~~~~~
-struct {
-  opaque reinit_group_id<0..255>;
-  opaque reinit_nonce<0..255>;
-  ProtocolVersion mls_version;
-  CipherSuite ciphersuite;
-  Extension extensions<0..2^16-1>;
-} ReInit;
-~~~~~
-
-The `reinit_group_id` is the id of the new group. The fields `mls_version`,
-`ciphersuite` and `extensions` specify the desired parameters of the new group.
-
-
-### EPSK
-
-A PSK proposal requests that an external PSK be injected into the group.
-
-~~~~~
-struct {
-  PSKId pskid<0..255>;
-  opaque reinit_nonce<0..255>;
-} EPSK;
-~~~~~
-
-The `psktype` field of `pskid` has to be `external` and the `psk_id` field
-should correspond to the ID with which members can identify the external PSK.
-
-<!-- OPEN ISSUE: Do we want the party doing the proposal to sample a random nonce
-or derive it from the group state, i.e. implicit or explicit nonces?  -->
-
-
 ### External Proposals
 
 Add and Remove proposals can be constructed and sent to the group by a party
@@ -2106,8 +2069,7 @@ chooses one and includes only that one in the Commit, considering the rest
 invalid. The committer MUST prefer any Remove received, or the most recent
 Update for the leaf if there are no Removes. If there are multiple Add proposals
 for the same client, the committer again chooses one to include and considers
-the rest invalid. Similarly, if there are multiple proposals to re-initialize
-the group, the client MUST choose at most one and include it in the commit.
+the rest invalid. 
 
 The Commit MUST NOT combine proposals sent within different epochs. In the event
 that a valid proposal is omitted from the next Commit, the sender of the
@@ -2156,9 +2118,9 @@ uses:
 A member of the group creates a Commit message and the corresponding Welcome
 message at the same time, by taking the following steps:
 
-* Construct an initial Commit object with `updates`, `removes` and `adds`,
+* Construct an initial Commit object with `updates`, `removes`, and `adds`,
   fields populated from Proposals received during the current epoch, and empty
-  `client_init_key` and `path` fields.
+  `key_package` and `path` fields.
 
 * Generate a provisional GroupContext object by applying the proposals
   referenced in the initial Commit object in the order provided, as described in
@@ -2370,16 +2332,16 @@ processing the Welcome.
 
 On receiving a Welcome message, a client processes it using the following steps:
 
-* Identify an entry in the `key_packages` array where the `client_init_key_hash`
-  value corresponds to one of this client's ClientInitKeys, using the hash
+* Identify an entry in the `secrets` array where the `key_package_hash`
+  value corresponds to one of this client's KeyPackages, using the hash
   indicated by the `cipher_suite` field. If no such field exists, or if the
-  ciphersuite indicated in the ClientInitKey does not match the one in the
+  ciphersuite indicated in the KeyPackage does not match the one in the
   Welcome message, return an error.
 
-* Decrypt the `encrypted_key_package` using HPKE with the algorithms indicated
-  by the ciphersuite and the HPKE private key corresponding to the
-  ClientInitKey. If a PSKId is part of the KeyPackage and the client is not in
-  possession of the corresponding PSK, return an error.
+* Decrypt the `encrypted_group_secrets` using HPKE with the algorithms indicated
+  by the ciphersuite and the HPKE private key corresponding to the GroupSecrets. 
+  If a PSKId is part of the GroupSecrets and the client is not in possession of the 
+  corresponding PSK, return an error.
 
 * From the `joiner_secret` in the decrypted GroupSecrets object and the PSKs
   specified in the `GroupSecrets`, derive the `member_secret` and using that the
@@ -2750,11 +2712,11 @@ participant D:
     /     \
    E       F
   / \     / \
-A0  B0  C0  D0 -|- KD0
+A0  B0  C0  D0 -+- KD0
             |   |
             |   +- ND0
             |
-            D1 -|- KD1
+            D1 -+- KD1
             |   |
             |   +- ND1
             |
