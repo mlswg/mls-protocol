@@ -1337,12 +1337,12 @@ Note that, as a PSK may have a different lifetime than an update, it
 does not necessarily provide the same Forward Secrecy (FS) or Post-Compromise
 Security (PCS) guarantees as a Commit message.
 
-[[OPEN ISSUE: Clarify lifetime vs security level mandated above. E.g. if
+<!-- OPEN ISSUEClarify lifetime vs security level mandated above. E.g. if
 the PSK security expires before the next update (shorter PSK lifetime than
-update), does that constitute a weaker security level]]
+update), does that constitute a weaker security level -->
 
-[[Open ISSUE: Define "security level", and what it means to match the
-security level of the ciphersuite used in the group.]]
+<!-- OPEN ISSUE Define "security level", and what it means to match the
+security level of the ciphersuite used in the group. -->
 
 <!-- OPEN ISSUE: We have to decide if we want an external coordination
 via the application of a Handshake proposal. -->
@@ -1415,8 +1415,8 @@ psk_secret     = psk_secret_[i] || ... || psk_secret_[n]
 
 ~~~~~
 
-[[OPEN ISSUE: How to combine multiple PSKs such that the final PSK, is
-pseudorandom if at least one of the PSKs used is pseudorandom.]]
+<!-- OPEN ISSUE: How to combine multiple PSKs such that the final PSK, is
+pseudorandom if at least one of the PSKs used is pseudorandom. -->
 
 ## Encryption Keys
 
@@ -2036,8 +2036,8 @@ struct {
 The `psktype` field of `pskid` has to be `external` and the `psk_id` field
 should correspond to the ID with which members can identify the external PSK.
 
-[[OPEN ISSUE: Do we want the party doing the proposal to sample a random nonce
-or derive it from the group state, i.e. implicit or explicit nonces?]]
+<!-- OPEN ISSUE: Do we want the party doing the proposal to sample a random nonce
+or derive it from the group state, i.e. implicit or explicit nonces?  -->
 
 
 ### External Proposals
