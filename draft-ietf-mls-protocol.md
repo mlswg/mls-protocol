@@ -1318,7 +1318,6 @@ A number of secrets are derived from the epoch secret for different purposes:
 | `application_secret`    | "app"         |
 | `exporter_secret`       | "exporter"    |
 | `confirmation_key`      | "confirm"     |
-| `confirmation_key`      | "confirm"     |
 | `authentication_secret` | "stateauth"   |
 | `recovery_secret`       | "recovery"    |
 
@@ -1355,8 +1354,8 @@ A PSK may also be used within MLS in the following cases:
     a PSK can be used to reboot the group with the desired parameters.
 
   - Recovery: If the group state of one or more members of the group deviates
-    from the rest, they can be re-added to the group such that participants who 
-    were group members at the time of deviation and are still in the group can 
+    from the rest, they can be re-added to the group such that participants who
+    were group members at the time of deviation and are still in the group can
     verify that the added member was previously in the group.
 
   - Branching: A PSK may be used to bootstrap a subset of current group
@@ -1365,7 +1364,7 @@ A PSK may also be used within MLS in the following cases:
 
 The injection of one or more PSKs into the key schedule is signaled in two
 ways: 1) as an extension to a Commit message that initiates a new epoch and 2)
-in the `GroupSecrets` object of a Welcome message sent to new members 
+in the `GroupSecrets` object of a Welcome message sent to new members
 added in that epoch.
 
 ~~~~~
@@ -1396,7 +1395,7 @@ struct {
 } PreSharedKeys;
 ~~~~~
 
-On receiving a Commit with a `pre_shared_keys` extension or a GroupSecrets 
+On receiving a Commit with a `pre_shared_keys` extension or a GroupSecrets
 object with the psk field set, the receiving Client
 includes them in the key schedule in the order listed in the commit. For
 internal PSKs, the psk is defined as the `recovery_secret` of the group and
