@@ -1363,7 +1363,8 @@ A PSK may also be used within MLS in the following cases:
 
 The injection of one or more PSKs into the key schedule is signaled in two
 ways: 1) as an extension to a Commit message that initiates a new epoch and 2)
-in the `GroupSecrets` object of a Welcome message sent to new members added in that epoch.
+in the `GroupSecrets` object of a Welcome message sent to new members 
+added in that epoch.
 
 ~~~~~
 enum {
@@ -1394,7 +1395,8 @@ struct {
 
 ~~~~~
 
-On receiving a Commit with a `pre_shared_keys` extension, the receiving Client
+On receiving a Commit with a `pre_shared_keys` extension or a GroupSecrets 
+object with the psk field set, the receiving Client
 includes them in the key schedule in the order listed in the commit. For
 internal PSKs, the psk is defined as the `recovery_secret` of the group and
 epoch specified in the `PreSharedKey` object. Finally, the `psk_secret` to be
