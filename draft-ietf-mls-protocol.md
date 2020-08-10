@@ -1356,7 +1356,8 @@ may be used in the following cases:
   - Re-Initialization: If, during the lifetime of the group, a change in the
     fixed group parameters becomes necessary, e.g. if the ciphersuite used
     by the group is deprecated or if the protocol version should be upgraded,
-    a PSK can be used to reboot the group with the desired parameters.
+    a PSK can be used to carry entropy from the old group forward into a new 
+    group with the desired parameters.
 
   - Recovery: If the group state of one or more members of the group deviates
     from the rest, they can be re-added to the group such that participants who
