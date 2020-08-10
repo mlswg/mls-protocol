@@ -1279,34 +1279,34 @@ Given these inputs, the derivation of secrets for an epoch
 proceeds as shown in the following diagram:
 
 ~~~~~
-                  init_secret_[n-1]
-                        |
-                        V
-   commit_secret -> KDF.Extract = joiner_secret
-                        |
-                        +--> Derive-Secret(., "welcome")
-                        |    = welcome_secret
-                        |
-                        V
-                  Derive-Secret(., "member")
-                        |
-                        V
-      PSK (or 0) -> KDF.Extract = member_secret
-                        |
-                        V
-                  Derive-Secret(., "epoch")
-                        |
-                        V
-GroupContext_[n] -> KDF.Extract = epoch_secret
-                        |
-                        +--> Derive-Secret(., <label>)
-                        |    = <secret>
-                        |
-                        V
-                  Derive-Secret(., "init")
-                        |
-                        V
-                  init_secret_[n]
+                   init_secret_[n-1]
+                         |
+                         V
+    commit_secret -> KDF.Extract = joiner_secret
+                         |
+                         V
+                   Derive-Secret(., "member")
+                         |
+                         V
+psk_secret (or 0) -> KDF.Extract = member_secret
+                         |
+                         +--> Derive-Secret(., "welcome")
+                         |    = welcome_secret
+                         |
+                         V
+                   Derive-Secret(., "epoch")
+                         |
+                         V
+ GroupContext_[n] -> KDF.Extract = epoch_secret
+                         |
+                         +--> Derive-Secret(., <label>)
+                         |    = <secret>
+                         |
+                         V
+                   Derive-Secret(., "init")
+                         |
+                         V
+                   init_secret_[n]
 ~~~~~
 
 A number of secrets are derived from the epoch secret for different purposes:
@@ -1320,6 +1320,7 @@ A number of secrets are derived from the epoch secret for different purposes:
 | `confirmation_key`      | "confirm"     |
 | `confirmation_key`      | "confirm"     |
 | `authentication_secret` | "stateauth"   |
+| `recovery_secret`       | "recovery"    |
 
 ## Pre-Shared Keys
 
@@ -1327,17 +1328,10 @@ Groups which already have an out-of-band mechanism to generate
 shared group secrets can inject those into the MLS key schedule to seed
 the MLS group secrets computations by this external entropy.
 
-At any epoch, including the initial state, an application can decide to
-synchronize the injection of one or more PSKs into the MLS key schedule.
-
-The injecting of an external PSK (EPSK) can improve security in the cases
+The injecting of an external PSK can improve security in the cases
 where having a full run of updates across members is too expensive or in the
 case where the external group key establishment mechanism provides
 stronger security against classical or quantum adversaries.
-
-The security level associated with the PSK injected in the key schedule
-SHOULD match at least the security level of the ciphersuite in use in
-the group.
 
 Note that, as a PSK may have a different lifetime than an update, it
 does not necessarily provide the same Forward Secrecy (FS) or Post-Compromise
@@ -1361,43 +1355,65 @@ A PSK may also be used within MLS in the following cases:
     a PSK can be used to reboot the group with the desired parameters.
 
   - Recovery: If the group state of one or more members of the group deviates
-    from the rest, they can be re-added to the group using a `recovery_key` from
-    a previously known shared group state.
+    from the rest, they can be re-added to the group securely.
 
   - Branching: A PSK may be used to bootstrap a subset of current group
     members into a new group. This applies if a subset of current group
     members wish to branch based on the current group state.
 
-Regardless of its origin, the PSK injected in the key schedule must be unique.
-We ensure this by deriving it using a nonce and a `PSKLabel` as follows.
+The injection of one or more PSKs into the Key Schedule can be signalled in two
+ways: By including a `pre_shared_keys` extension either in a Commit message or
+in the `GroupSecrets` object of a Welcome message.
 
 ~~~~~
 enum {
-  re-initialization(0),
-  branch(1),
-  recovery(2),
-  external(3),
+  external(0),
+  re-initialization(1),
+  branch(2),
+  recovery(3),
   (255)
 } PSKType;
 
-PSKLabel(psktype) =
+struct {
+  PSKType psktype;
   select (psktype) {
-    case re-initialization: "re-inizialization";
-    case branch: "branch";
-    case recovery: "recovery";
-    case external: "external";
-}
 
-Derived_PSK =
-  Derive-Secret(PSK, Hash(PSKLabel(psktype) || psk_nonce))
+    case external:
+      opaque psk_id<0..255>;
 
-[[OPEN ISSUE: Do we allow implicit nonces, vs. explicit nonces?]]
+    default:
+      opaque psk_group_id<0..255>;
+      uint64 psk_epoch;
+  }
+  opaque psk_nonce<0..255>;
+} PreSharedKey
+
+struct {
+    PreSharedKey psks<0..2^16-1>;
+} PreSharedKeys;
+
 ~~~~~
 
-### Multiple PSKs
+On receiving a Commit with a `pre_shared_keys` extension, the receiving Client
+includes them in the key schedule in the order listed in the commit. For
+internal PSKs, the psk is defined as the `recovery_secret` of the group and
+epoch specified in the `PreSharedKey` object. Finally, the `psk_secret` to be
+included in the Key Schedule is derived as follows (where `n` is the number of
+PSKs):
 
-It can be desirable to inject multiple PSKs at once. For example, branching a
-sub-group from an existing group while additionally injecting an external PSK.
+~~~~~
+struct {
+    PSKType type;
+    PreSharedKey(type);
+    uint16 index;
+    uint16 count;
+} PSKLabel;
+
+psk_input_[i] = KDF.Extract(0, psk_[i])
+psk_secret_[i] = ExpandWithLabel(psk_input_[i], "derived psk", PSKLabel, KDF.Nh)
+psk_secret     = psk_secret_[i] || ... || psk_secret_[n]
+
+~~~~~
 
 [[OPEN ISSUE: How to combine multiple PSKs such that the final PSK, is
 pseudorandom if at least one of the PSKs used is pseudorandom.]]
@@ -1493,19 +1509,16 @@ It is RECOMMENDED for the application generating exported values
 to refresh those values after a group operation is processed.
 
 ## Recovery Keys
-The main MLS key schedule provides a `recovery_secret` which can be
-used for branching of the current group.
+
+The main MLS key schedule provides a `recovery_secret` which can provide extra
+security in some cross-group operations.
 
 The application SHOULD specify an upper limit on the number of past
 epochs for which the `recovery_secret` may be stored.
 
-There are three ways in which a `recovery_secret` can be used:
-
-1. To re-initialize the group with different parameters (see {{Re-Initialize}}).
-
-2. To re-add lost group members (see {{Add}} and {EPSK}).
-
-3. To create a sub-group of an existing group (see {{Sub-group-Branching}}).
+There are three ways in which a `recovery_secret` can be used to re-initialize
+the group with different parameters, to re-add lost group members or to create a
+sub-group of an existing group, as detailed in {{pre-shared-keys}}.
 
 Recovery keys are distinguished from exporter keys in that they have specific
 use inside the MLS protocol, whereas the use of exporter secrets may be
@@ -1846,40 +1859,17 @@ group based on the current group state but under a different ciphersuite.
 Branching may be used to bootstrap a new group consisting of a subset of
 current group members, based on the current group state.
 
+In both cases, the `psk_nonce` included in the `PreSharedKey` object must be a
+randomly sampled nonce to avoid key re-use.
+
 ### Re-Initialization {#re-initialization}
 
-If the group is created as the follow-up to a `Re-Init` proposal, the creator
-MUST include a `PSKId` in the Welcome message of the new group using the
-`psktype` `re-initialization`, as well as a valid epoch number within the list
-of maintained `recovery_secret` secrets and the group ID of the group they want
-to re-initialize. They also must include a nonce to avoid key re-use.
-
-~~~~~
-struct {
-  PSKType psktype;
-  select (psktype) {
-
-    case external:
-      opaque psk_id<0..255>;
-
-    default:
-      opaque psk_group_id<0..255>;
-      uint64 psk_epoch;
-  }
-  opaque psk_nonce<0..255>;
-} PSKId
-~~~~~
-
-The `psk_group_id` and `psk_epoch` are used to determine which recovery key to
-use as PSK. The `psk_nonce` is used as nonce when deriving the PSK as described
-in {{Pre-Shared Keys}}.
-
-The client receiving the Welcome message MUST then derive the same PSK and
-include it into the derivation of the `intermediate_secret`.
-
-If a party wants to re-initialize the group, they MUST send a Re-Init proposal
-as described in {{Re-Initialize}} to the group, proposing the re-initialization and
-specifying the group ID of the new group.
+If the group is created as the follow-up of a commit including a
+`pre_shared_key` extension with `psktype` "re-initialization", the creator MUST
+include the same `pre_shared_key` object in the Welcome message of the new
+group. If the application has specified a lifetime for recovery secrets, the
+`psk_epoch` MUST specify an epoch within that period. The `psk_group_id` MUST
+correspond to the id of the group to be re-initialized.
 
 Using a `recovery_secret` allows the newly created group to "inherit" the
 security level of the original group.
@@ -1887,10 +1877,10 @@ security level of the original group.
 ### Sub-group Branching
 
 If a client wants to create a subgroup of an existing group, they MAY choose to
-include a `PSKId` in the welcome message choosing the `psktype` `branch`, the
-`group_id` of the group from which a subgroup is to be branched, as well as an
-epoch within the number of epochs for which a `recovery_secret` is kept.
-They also must include a nonce to avoid key re-use.
+include a `PSKId` in the `GroupSecrets` object of the Welcome message choosing
+the `psktype` `branch`, the `group_id` of the group from which a subgroup is to
+be branched, as well as an epoch within the number of epochs for which a
+`recovery_secret` is kept.
 
 # Group Evolution
 
@@ -1936,8 +1926,6 @@ struct {
         case add:    Add;
         case update: Update;
         case remove: Remove;
-        case re-init: Re-Init
-        case epsk: EPSK
     };
 } Proposal;
 ~~~~~
@@ -1955,7 +1943,6 @@ to the group.
 ~~~~~
 struct {
     ClientInitKey client_init_key;
-    optional<PSKId> pskid;
 } Add;
 ~~~~~
 
@@ -1977,13 +1964,6 @@ leaf in the tree, for the second Add, the next empty leaf to the right, etc.
 * Set the leaf node in the tree at position `index` to a new node containing the
   public key from the KeyPackage in the Add, as well as the credential under
   which the KeyPackage was signed
-
-The optional `PSKId` MAY be included in the proposal if the purpose of the
-proposal is to add a member into the group that shares a group state of a past
-epoch with the group, as long as the epoch is within the epoch window in which
-`recovery_secret`s are kept. If a `PSKId` is included, the `psk_group_id` field
-has to be equal to the group's `group_id`. and the `psktype` has to be
-`recovery`.
 
 ### Update
 
@@ -2021,41 +2001,6 @@ A member of the group applies a Remove message by taking the following steps:
 * Replace the leaf node at position `removed` with a blank node
 
 * Blank the intermediate nodes along the path from the removed leaf to the root
-
-### Re-Initialize
-
-A Re-Initialize proposal requests that the group be re-initialized, for example
-to change the ciphersuite of the group.
-
-~~~~~
-struct {
-  opaque re-init_group_id<0..255>;
-  opaque re-init_nonce<0..255>;
-  ProtocolVersion mls_version;
-  CipherSuite ciphersuite;
-  Extension extensions<0..2^16-1>;
-} Re-Init;
-~~~~~
-
-The `re-init_group_id` is the id of the new group. The fields `mls_version`,
-`ciphersuite` and `extensions` specify the desired parameters of the new group.
-
-
-### EPSK
-
-A PSK proposal requests that an external PSK be injected into the group.
-
-~~~~~
-struct {
-  PSKId pskid<0..255>;
-} EPSK;
-~~~~~
-
-The `psktype` field of `pskid` has to be `external` and the `psk_id` field
-should correspond to the ID with which members can identify the external PSK.
-
-[[OPEN ISSUE: Do we want the party doing the proposal to sample a random nonce
-or derive it from the group state, i.e. implicit or explicit nonces?]]
 
 ### External Proposals
 
@@ -2174,9 +2119,9 @@ uses:
 A member of the group creates a Commit message and the corresponding Welcome
 message at the same time, by taking the following steps:
 
-* Construct an initial Commit object with `updates`, `removes`, `adds`,
-  `re-initializes` and `epsks` fields populated from Proposals received during
-  the current epoch, and empty `client_init_key` and `path` fields.
+* Construct an initial Commit object with `updates`, `removes` and `adds`,
+  fields populated from Proposals received during the current epoch, and empty
+  `client_init_key` and `path` fields.
 
 * Generate a provisional GroupContext object by applying the proposals
   referenced in the initial Commit object in the order provided, as described in
@@ -2209,15 +2154,9 @@ message at the same time, by taking the following steps:
   `parent_hash` extension. Store it in the ratchet tree and assign it to the
   `key_package` field in the Commit object.
 
-* For each `EPSK` proposal and each `Add` that includes a `PSKId` included in
-  the commit compute the corresponding `Derived_PSK` as described in
-  {{Pre-Shared Keys}} and combine them to a single `Combined_PSK` as described
-  in {{Multiple PSKs}}.
-
 * Construct an MLSPlaintext object containing the Commit object. Use the
-  `commit_secret`, and potentially a previously derived `Combined_PSK` or
-  `Derived_PSK` to advance the key schedule and compute the `confirmation` value
-  in the MLSPlaintext. Sign the MLSPlaintext using the current epoch's
+  `commit_secret` to advance the key schedule and compute the `confirmation`
+  value in the MLSPlaintext. Sign the MLSPlaintext using the current epoch's
   GroupContext as context.
 
 * Update the tree in the provisional state by applying the direct path
@@ -2240,19 +2179,6 @@ message at the same time, by taking the following steps:
 
 * Construct a Welcome message from the encrypted GroupInfo object, the
   encrypted key packages and, optionally, a PSK.
-
-* If the commit includes a `Re-Init` proposal, the Committer MUST create a new
-  group and send corresponding Welcome messages to all Clients that are Members
-  of the group _after_ the commit. The Welcome message MUST include a `PSKId`
-  with `psktype = re-initialization`, `psk_group_id = group_id`, `psk_epoch =
-  epoch` and `psk_nonce = re-init_nonce`, where `group_id` and `epoch` are the
-  fields from the previously constructed GroupInfo and `re-init_nonce` is the
-  field from the `Re-Init` proposal included in the commit. The
-  `ProtocolVersion` of the new group MUST be greater or equal than the one of
-  the original group. Also, the `group_id` of the new group must be equal to the
-  `re-init_group_id` in the `Re-Init` proposal. Also, the parameters of the new
-  group, i.e. the protocol version, ciphersuite and extensions MUST correspond
-  to the parameters specified in the proposal.
 
 A member of the group applies a Commit message by taking the following steps:
 
@@ -2295,19 +2221,9 @@ A member of the group applies a Commit message by taking the following steps:
 * Update the new GroupContext's confirmed and interim transcript hashes using the
   new Commit.
 
-* For each `EPSK` proposal and each `Add` that includes a `PSKId` included in
-  the commit compute the corresponding `Derived_PSK` as described in
-  {{Pre-Shared Keys}} and combine them to a single `Combined_PSK` as described
-  in {{Multiple PSKs}}. In case of the `Add`, the group member applying the
-  Commit MUST check that the `psk_epoch` from the `PSKId` is within the window
-  of epochs for which `recovery_secret`s are kept and that the `psk_group_id` is
-  equal to that of the group. If either of the checks fails, it MUST NOT process
-  the commit.
-
-* Use the `commit_secret`, a previously computed `Derived_PSK` or `Combined_PSK`
-  (if existing), the provisional GroupContext, and the init secret from the
-  previous epoch to compute the epoch secret and derived secrets for the new
-  epoch.
+* Use the `commit_secret`, the provisional GroupContext, and the init secret
+  from the previous epoch to compute the epoch secret and derived secrets for
+  the new epoch.
 
 * Use the `confirmation_key` for the new epoch to compute the confirmation MAC
   for this message, as described below, and verify that it is the same as the
@@ -2316,19 +2232,17 @@ A member of the group applies a Commit message by taking the following steps:
 * If the above checks are successful, consider the updated GroupContext object
   as the current state of the group.
 
-* If the commit included a `Re-Init` proposal, the Client MUST NOT use the group
-  to send messages. Instead, if it receives a Welcome message from the
+* If the commit included a `pre_shared_key` extension, the Client MUST NOT use
+  the group to send messages. Instead, if it receives a Welcome message from the
   Committer, it MUST check that
 
   * The `ProtocolVersion` of the new group is greater or equal to that of the
     original group.
-  * The `ProtocolVersion`, `CipherSuite` and `Extensions` of the new group
-    correspond to the ones specified in the committed proposal.
-  * A `PSKId` is included in the Welcome message with `psktype =
-    re-initialization`, `psk_group_id = group_id`, `psk_epoch = epoch` and
-    `psk_nonce = re-init_nonce`, where `group_id` and `epoch` are the fields
-    from the previously constructed GroupContext object and `re-init_nonce` is
-    the field from the `Re-Init` proposal included in the commit.
+  * A `pre_shared_key` extension is included in the Welcome message with
+    `psktype = re-initialization`, `psk_group_id = group_id`, `psk_epoch =
+    epoch` and `psk_nonce`, where `group_id` and `epoch` are the fields from the
+    previously constructed GroupContext object and `re-init_nonce` is the field
+    from the `Re-Init` proposal included in the commit.
 
   If any of the conditions is not met, the Client SHOULD not process the Welcome
   message.
@@ -2395,7 +2309,7 @@ struct {
 struct {
   opaque joiner_secret<1..255>;
   optional<PathSecret> path_secret;
-  optional<PSKId> psk<1..2^32-1;
+  optional<PreSharedKey> psk<1..2^32-1>;
 } GroupSecrets;
 
 struct {
@@ -2430,12 +2344,13 @@ On receiving a Welcome message, a client processes it using the following steps:
   ClientInitKey. If a PSKId is part of the KeyPackage and the client is not in
   possession of the corresponding PSK, return an error.
 
-* From the `joiner_secret` in the decrypted GroupSecrets object, derive the
-  `welcome_secret`, `welcome_key`, and `welcome_nonce`.  Use the key
-  and nonce to decrypt the `encrypted_group_info` field.
+* From the `joiner_secret` in the decrypted GroupSecrets object and the PSKs
+  specified in the `GroupSecrets`, derive the `member_secret` and using that the
+  `welcome_secret`, `welcome_key`, and `welcome_nonce`. Use the key and nonce to
+  decrypt the `encrypted_group_info` field.
 
 ~~~~~
-welcome_secret = Derive-Secret(joiner_secret, "welcome")
+welcome_secret = Derive-Secret(member_secret, "welcome")
 welcome_nonce = KDF.Expand(welcome_secret, "nonce", nonce_length)
 welcome_key = KDF.Expand(welcome_secret, "key", key_length)
 ~~~~~
