@@ -1369,7 +1369,7 @@ added in that epoch.
 ~~~~~
 enum {
   external(0),
-  re-initialization(1),
+  reinit(1),
   branch(2),
   recovery(3),
   (255)
@@ -1387,12 +1387,11 @@ struct {
       uint64 psk_epoch;
   }
   opaque psk_nonce<0..255>;
-} PreSharedKey
+} PreSharedKeyID;
 
 struct {
     PreSharedKey psks<0..2^16-1>;
 } PreSharedKeys;
-
 ~~~~~
 
 On receiving a Commit with a `pre_shared_keys` extension or a GroupSecrets 
@@ -1866,7 +1865,7 @@ randomly sampled nonce to avoid key re-use.
 ### Re-Initialization {#re-initialization}
 
 If the group is created as the follow-up of a commit including a
-`pre_shared_key` extension with `psktype` "re-initialization", the creator MUST
+`pre_shared_key` extension with `psktype` "reinit", the creator MUST
 include the same `pre_shared_key` object in the Welcome message of the new
 group. If the application has specified a lifetime for recovery secrets, the
 `psk_epoch` MUST specify an epoch within that period. The `psk_group_id` MUST
@@ -1916,7 +1915,7 @@ enum {
     add(1),
     update(2),
     remove(3),
-    re-init(4),
+    reinit(4),
     epsk(5),
     (255)
 } ProposalType;
@@ -2011,15 +2010,15 @@ to change the ciphersuite of the group.
 
 ~~~~~
 struct {
-  opaque re-init_group_id<0..255>;
-  opaque re-init_nonce<0..255>;
+  opaque reinit_group_id<0..255>;
+  opaque reinit_nonce<0..255>;
   ProtocolVersion mls_version;
   CipherSuite ciphersuite;
   Extension extensions<0..2^16-1>;
-} Re-Init;
+} ReInit;
 ~~~~~
 
-The `re-init_group_id` is the id of the new group. The fields `mls_version`,
+The `reinit_group_id` is the id of the new group. The fields `mls_version`,
 `ciphersuite` and `extensions` specify the desired parameters of the new group.
 
 
@@ -2030,7 +2029,7 @@ A PSK proposal requests that an external PSK be injected into the group.
 ~~~~~
 struct {
   PSKId pskid<0..255>;
-  opaque re-init_nonce<0..255>;
+  opaque reinit_nonce<0..255>;
 } EPSK;
 ~~~~~
 
@@ -2278,10 +2277,10 @@ A member of the group applies a Commit message by taking the following steps:
   * The `ProtocolVersion` of the new group is greater or equal to that of the
     original group.
   * A `pre_shared_key` extension is included in the Welcome message with
-    `psktype = re-initialization`, `psk_group_id = group_id`, `psk_epoch =
+    `psktype = reinit`, `psk_group_id = group_id`, `psk_epoch =
     epoch` and `psk_nonce`, where `group_id` and `epoch` are the fields from the
-    previously constructed GroupContext object and `re-init_nonce` is the field
-    from the `Re-Init` proposal included in the commit.
+    previously constructed GroupContext object and `reinit_nonce` is the field
+    from the `ReInit` proposal included in the commit.
 
   If any of the conditions is not met, the Client SHOULD not process the Welcome
   message.
