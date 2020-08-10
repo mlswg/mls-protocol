@@ -1389,9 +1389,17 @@ struct {
     case external:
       opaque psk_id<0..255>;
 
-    default:
+    case reinit:
       opaque psk_group_id<0..255>;
       uint64 psk_epoch;
+      
+    case branch:
+      opaque psk_group_id<0..255>;
+      uint64 psk_epoch;    
+      
+    case recovery:
+      opaque psk_group_id<0..255>;
+      uint64 psk_epoch;        
   }
   opaque psk_nonce<0..255>;
 } PreSharedKeyID;
