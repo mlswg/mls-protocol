@@ -954,7 +954,8 @@ except for the signature field.
 
 ~~~~~
 enum {
-    mls10(0),
+    reserved(0),
+    mls10(1),
     (255)
 } ProtocolVersion;
 
@@ -971,7 +972,7 @@ struct {
     CipherSuite cipher_suite;
     HPKEPublicKey hpke_init_key;
     Credential credential;
-    Extension extensions<8..2^16-1>;
+    Extension extensions<8..2^32-1>;
     opaque signature<0..2^16-1>;
 } KeyPackage;
 ~~~~~
@@ -1127,7 +1128,7 @@ struct {
     uint64 epoch;
     opaque tree_hash<0..255>;
     opaque confirmed_transcript_hash<0..255>;
-    Extension extensions<0..2^16-1>;
+    Extension extensions<0..2^32-1>;
 } GroupContext;
 ~~~~~
 
@@ -1215,7 +1216,7 @@ struct {
 
 struct {
     KeyPackage leaf_key_package;
-    DirectPathNode nodes<0..2^16-1>;
+    DirectPathNode nodes<0..2^32-1>;
 } DirectPath;
 ~~~~~
 
@@ -1451,7 +1452,7 @@ necessary for the delivery service to examine such messages.
 
 ~~~~~
 enum {
-    invalid(0),
+    reserved(0),
     application(1),
     proposal(2),
     commit(3),
@@ -1459,7 +1460,7 @@ enum {
 } ContentType;
 
 enum {
-    invalid(0),
+    reserved(0),
     member(1),
     preconfigured(2),
     new_member(3),
@@ -1775,7 +1776,7 @@ indicates their type:
 
 ~~~~~
 enum {
-    invalid(0),
+    reserved(0),
     add(1),
     update(2),
     remove(3),
@@ -2136,7 +2137,7 @@ struct {
   opaque tree_hash<0..255>;
   opaque confirmed_transcript_hash<0..255>;
   opaque interim_transcript_hash<0..255>;
-  Extension extensions<0..2^16-1>;
+  Extension extensions<0..2^32-1>;
   opaque confirmation<0..255>;
   uint32 signer_index;
   opaque signature<0..2^16-1>;
@@ -2257,8 +2258,9 @@ type `ratchet_tree`, containing a `ratchet_tree` object of the following form:
 
 ~~~~~
 enum {
-    leaf(0),
-    parent(1),
+    reserved(0),
+    leaf(1),
+    parent(2),
     (255)
 } NodeType;
 
