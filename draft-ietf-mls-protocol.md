@@ -1917,8 +1917,6 @@ enum {
     add(1),
     update(2),
     remove(3),
-    reinit(4),
-    epsk(5),
     (255)
 } ProposalType;
 
@@ -1944,7 +1942,7 @@ to the group.
 
 ~~~~~
 struct {
-    ClientInitKey client_init_key;
+    KeyPackage key_package;
 } Add;
 ~~~~~
 
@@ -2004,7 +2002,7 @@ A member of the group applies a Remove message by taking the following steps:
 
 * Blank the intermediate nodes along the path from the removed leaf to the root
 
-<<<<<<< HEAD
+
 ### Re-Initialize
 
 A Re-Initialize proposal requests that the group be re-initialized, for example
