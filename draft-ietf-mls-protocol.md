@@ -1175,7 +1175,7 @@ struct {
     opaque signature<0..2^16-1>;
 } MLSPlaintextCommitAuthData;
 
-interim_transcript_hash_[0] = 0
+interim_transcript_hash_[0] = ""; // zero-length octet string
 
 confirmed_transcript_hash_[n] =
     Hash(interim_transcript_hash_[n] ||
