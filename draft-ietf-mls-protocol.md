@@ -67,6 +67,8 @@ informative:
     target: https://secg.org/sec1-v2.pdf
     date: 2009
 
+  SHS: DOI.10.6028/NIST.FIPS.180-4
+
 --- abstract
 
 Messaging applications are increasingly making use of end-to-end
@@ -1173,11 +1175,13 @@ struct {
     opaque signature<0..2^16-1>;
 } MLSPlaintextCommitAuthData;
 
+interim_transcript_hash_[0] = 0
+
 confirmed_transcript_hash_[n] =
-    Hash(interim_transcript_hash_[n-1] ||
+    Hash(interim_transcript_hash_[n] ||
         MLSPlaintextCommitContent_[n]);
 
-interim_transcript_hash_[n] =
+interim_transcript_hash_[n+1] =
     Hash(confirmed_transcript_hash_[n] ||
         MLSPlaintextCommitAuthData_[n]);
 ~~~~~
@@ -1190,8 +1194,8 @@ interim transcript hash is passed to new members in the GroupInfo struct, and
 enables existing members to incorporate a Commit message into the transcript
 without having to store the whole MLSPlaintextCommitAuthData structure.
 
-When a new group is created, the `interim_transcript_hash` field is set to the
-zero-length octet string.
+As shown above, when a new group is created, the `interim_transcript_hash` field
+is set to the zero-length octet string.
 
 ## Direct Paths
 
@@ -2756,7 +2760,7 @@ uint16 CipherSuite;
 | LVL       | The security level                                                     |
 | KEM       | The KEM algorithm used for HPKE in TreeKEM group operations            |
 | AEAD      | The AEAD algorithm used for HPKE and message protection                |
-| HASH      | The hash algorithm used for HPKE and the MLS KDF                       |
+| HASH      | The hash algorithm used for HPKE and the MLS transcript hash           |
 | SIG       | The Signature algorithm used for message authentication                |
 
 The columns in the registry are as follows:
@@ -2797,6 +2801,10 @@ These ciphersuites map to HPKE primitives and TLS signature schemes as follows
 | 0x0004 | 0x0021 | 0x0003 | 0x0002 | ed448                  |
 | 0x0005 | 0x0012 | 0x0003 | 0x0002 | ecdsa_secp521r1_sha512 |
 | 0x0006 | 0x0021 | 0x0003 | 0x0003 | ed448                  |
+
+The hash used for the MLS transcript hash is the one referenced in the
+ciphersuite name.  In the ciphersuites defined above, "SHA256" and "SHA512"
+refer to the SHA-256 and SHA-512 functions defined in {{SHS}}.
 
 It is advisable to keep the number of ciphersuites low to increase the chances
 clients can interoperate in a federated environment, therefore the ciphersuites
