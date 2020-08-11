@@ -1739,7 +1739,7 @@ KeyPackage, the leaf secret from which the Commit is built, and the
 intermediate key pairs along the direct path to the root.
 
 A new member receiving a Welcome message can recognize group creation if the
-number of entries in the `members` array is equal to the number of leaves in the
+number of entries in the `secrets` array is equal to the number of leaves in the
 tree minus one.  A client receiving a Welcome message SHOULD verify whether it
 is a newly created group, and if so, SHOULD verify that the above process was
 followed by reconstructing the Add and Commit messages and verifying that the
