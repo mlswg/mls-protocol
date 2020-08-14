@@ -1449,10 +1449,11 @@ The two main structures involved are MLSPlaintext and MLSCiphertext.
 MLSCiphertext represents a signed and encrypted message, with
 protections for both the content of the message and related
 metadata.  MLSPlaintext represents a message that is only signed,
-and not encrypted.  Applications SHOULD use MLSCiphertext to encode
-both application and handshake messages, but MAY transmit handshake
-messages encoded as MLSPlaintext objects in cases where it is
-necessary for the delivery service to examine such messages.
+and not encrypted.  Applications MUST use MLSCiphertext to encrypt 
+application messages and SHOULD use MLSCiphertext to encode
+handshake messages, but MAY transmit handshake messages encoded 
+as MLSPlaintext objects in cases where it is necessary for the 
+delivery service to examine such messages.
 
 ~~~~~
 enum {
