@@ -1172,7 +1172,7 @@ struct {
 } MLSPlaintextCommitContent;
 
 struct {
-    opaque confirmation<0..255>;
+    opaque confirmation_tag<0..255>;
     opaque signature<0..2^16-1>;
 } MLSPlaintextCommitAuthData;
 
@@ -1189,7 +1189,7 @@ interim_transcript_hash_[n+1] =
 
 Thus the `confirmed_transcript_hash` field in a GroupContext object represents a
 transcript over the whole history of MLSPlaintext Commit messages, up to the
-confirmation field in the current MLSPlaintext message.  The confirmation and
+confirmation tag field in the current MLSPlaintext message.  The confirmation tag and
 signature fields are then included in the transcript for the next epoch.  The
 interim transcript hash is passed to new members in the GroupInfo struct, and
 enables existing members to incorporate a Commit message into the transcript
@@ -1492,7 +1492,7 @@ struct {
 
         case commit:
           Commit commit;
-          opaque confirmation<0..255>;
+          opaque confirmation_tag<0..255>;
     }
 
     opaque signature<0..2^16-1>;
@@ -1609,7 +1609,7 @@ struct {
 
         case commit:
           Commit commit;
-          opaque confirmation<0..255>;
+          opaque confirmation_tag<0..255>;
     }
 } MLSPlaintextTBS;
 ~~~~~
@@ -1634,7 +1634,7 @@ struct {
 
         case commit:
           Commit commit;
-          opaque confirmation<0..255>;
+          opaque confirmation_tag<0..255>;
     }
 
     opaque signature<0..2^16-1>;
@@ -2021,7 +2021,7 @@ message at the same time, by taking the following steps:
   `key_package` field in the Commit object.
 
 * Construct an MLSPlaintext object containing the Commit object.  Use the
-  `commit_secret` to advance the key schedule and compute the `confirmation`
+  `commit_secret` to advance the key schedule and compute the `confirmation_tag`
   value in the MLSPlaintext.  Sign the MLSPlaintext using the current epoch's
   GroupContext as context.
 
@@ -2030,7 +2030,7 @@ message at the same time, by taking the following steps:
 * Construct a GroupInfo reflecting the new state:
   * Group ID, epoch, tree, confirmed transcript hash, and interim transcript
     hash from the new state
-  * The confirmation from the MLSPlaintext object
+  * The confirmation_tag from the MLSPlaintext object
   * Sign the GroupInfo using the member's private signing key
   * Encrypt the GroupInfo using the key and nonce derived from the `joiner_secret`
     for the new epoch (see {{welcoming-new-members}})
@@ -2091,22 +2091,20 @@ A member of the group applies a Commit message by taking the following steps:
   the previous epoch to compute the epoch secret and derived secrets for the
   new epoch.
 
-* Use the `confirmation_key` for the new epoch to compute the confirmation MAC
+* Use the `confirmation_key` for the new epoch to compute the confirmation tag
   for this message, as described below, and verify that it is the same as the
-  `confirmation` field in the MLSPlaintext object.
+  `confirmation_tag` field in the MLSPlaintext object.
 
 * If the above checks are successful, consider the updated GroupContext object
   as the current state of the group.
 
-The confirmation value confirms that the members of the group have arrived at
+The confirmation tag value confirms that the members of the group have arrived at
 the same state of the group:
 
 ~~~~~
-MLSPlaintext.confirmation =
-    HMAC(confirmation_key, GroupContext.confirmed_transcript_hash)
+MLSPlaintext.confirmation_tag =
+    KDF.Extract(confirmation_key, GroupContext.confirmed_transcript_hash)
 ~~~~~
-
-HMAC {{!RFC2104}} uses the Hash algorithm for the ciphersuite in use.
 
 <!-- OPEN ISSUE: It is not possible for the recipient of a handshake
 message to verify that ratchet tree information in the message is
@@ -2142,7 +2140,7 @@ struct {
   opaque confirmed_transcript_hash<0..255>;
   opaque interim_transcript_hash<0..255>;
   Extension extensions<0..2^32-1>;
-  opaque confirmation<0..255>;
+  opaque confirmation_tag<0..255>;
   uint32 signer_index;
   opaque signature<0..2^16-1>;
 } GroupInfo;
@@ -2244,7 +2242,7 @@ welcome_key = KDF.Expand(welcome_secret, "key", key_length)
 * Set the confirmed transcript hash in the new state to the value of the
   `confirmed_transcript_hash` in the GroupInfo.
 
-* Verify the confirmation MAC in the GroupInfo using the derived confirmation
+* Verify the confirmation tag in the GroupInfo using the derived confirmation
   key and the `confirmed_transcript_hash` from the GroupInfo.
 
 ## Ratchet Tree Extension
