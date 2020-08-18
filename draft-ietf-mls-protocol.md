@@ -1336,6 +1336,7 @@ A number of secrets are derived from the epoch secret for different purposes:
 | `application_secret`  | "app"         |
 | `exporter_secret`     | "exporter"    |
 | `confirmation_key`    | "confirm"     |
+| `membership_key`      | "membership"  |
 
 ## Pre-Shared Keys
 
@@ -1505,6 +1506,7 @@ struct {
     }
 
     opaque signature<0..2^16-1>;
+    opaque membership_tag<0..2^8-1>;
 } MLSPlaintext;
 
 struct {
@@ -1543,13 +1545,17 @@ The following sections describe the encryption and signing processes in detail.
 
 ## Content Signing
 
-The `signature` field in an MLSPlaintext object is computed using the
-signing private key corresponding to the credential at the leaf in
-the tree indicated by the sender field.  The signature covers the
-plaintext metadata and message content, which is all of
-MLSPlaintext except for the `signature` field.  The signature also covers the
-GroupContext for the current epoch, so that signatures are specific to a given
-group and epoch.
+The `signature` field in an MLSPlaintext object authenticates the sender of the
+MLSPlaintext message.  The input to the signature is an MLSPlaintextTBS
+structure, which encodes the content and metadata of the message as well a
+context for the signature that associates to the group messages sent within the
+group.
+
+In cases where the sender is a member of the group, the context contains the
+GroupContext for the current epoch and a "membership token" that authenticates
+that the sender is a member of the group.  As a result, for messages sent within
+a group, the signature authenticates not only the member's individual identity,
+but also their membership in the group.
 
 ~~~~~
 struct {
@@ -1576,18 +1582,35 @@ struct {
           opaque confirmation_tag<0..255>;
     }
 } MLSPlaintextTBS;
+
+struct {
+  MLSPlaintextTBS tbs;
+  opaque signature<0..2^16-1>;
+} MLSPlaintextTBM;
 ~~~~~
 
-<!-- OPEN ISSUE: group_id and epoch are duplicated in the TBS and in
-GroupContext. Think about how to de-duplicate. -->
+The `membership_tag` field in the MLSPlaintext object authenticates the
+sender's membership in the group.  For an MLSPlaintext with a sender type other
+than `member`, this field MUST be set to the zero-length octet string.  For
+messages sent by members, it MUST be set to the following value:
+
+~~~~~
+membership_tag = MAC(membership_key, MLSPlaintextTBM);
+~~~~~
+
+When the sender type is `member`, the `membership_tag` field MUST contain a
+full-size MAC output, and MUST be verified before verifying the signature or
+processing the message content.  For other sender types, the `membership_tag`
+field MUST be set to the zero-length octet string.
 
 ## Content Encryption
 
-The `ciphertext` field of the MLSCiphertext object is produced by
-supplying the inputs described below to the AEAD function specified
-by the ciphersuite in use.  The plaintext input contains content and
-signature of the MLSPlaintext, plus optional padding.  These values
-are encoded in the following form:
+The `ciphertext` field of the MLSCiphertext object is produced by supplying the
+inputs described below to the AEAD function specified by the ciphersuite in use.
+The plaintext input contains the content and signature of the MLSPlaintext, plus
+optional padding.  (The membership token is not included in the encrypted
+content, because the AEAD operation already authenticates the sender's
+membership in the group.)  These values are encoded in the following form:
 
 ~~~~~
 struct {
@@ -2111,7 +2134,7 @@ the same state of the group:
 
 ~~~~~
 MLSPlaintext.confirmation_tag =
-    KDF.Extract(confirmation_key, GroupContext.confirmed_transcript_hash)
+    MAC(confirmation_key, GroupContext.confirmed_transcript_hash)
 ~~~~~
 
 <!-- OPEN ISSUE: It is not possible for the recipient of a handshake
@@ -2787,28 +2810,30 @@ The columns in the registry are as follows:
 
 Initial contents:
 
-| Value            | Name                                                  | Recommended | Reference |
-|:-----------------|:------------------------------------------------------|:------------|:----------|
-| 0x0000           | RESERVED                                              | N/A         | RFC XXXX  |
-| 0x0001           | MLS10_128_DHKEMX25519_AES128GCM_SHA256_Ed25519        | Y           | RFC XXXX  |
-| 0x0002           | MLS10_128_DHKEMP256_AES128GCM_SHA256_P256             | Y           | RFC XXXX  |
-| 0x0003           | MLS10_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519 | Y           | RFC XXXX  |
-| 0x0004           | MLS10_256_DHKEMX448_AES256GCM_SHA512_Ed448            | Y           | RFC XXXX  |
-| 0x0005           | MLS10_256_DHKEMP521_AES256GCM_SHA512_P521             | Y           | RFC XXXX  |
-| 0x0006           | MLS10_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     | Y           | RFC XXXX  |
-| 0xff00  - 0xffff | Reserved for Private Use                              | N/A         | RFC XXXX  |
+| Value           | Name                                                  | Recommended | Reference |
+|:----------------|:------------------------------------------------------|:------------|:----------|
+| 0x0000          | RESERVED                                              | N/A         | RFC XXXX  |
+| 0x0001          | MLS10_128_DHKEMX25519_AES128GCM_SHA256_Ed25519        | Y           | RFC XXXX  |
+| 0x0002          | MLS10_128_DHKEMP256_AES128GCM_SHA256_P256             | Y           | RFC XXXX  |
+| 0x0003          | MLS10_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519 | Y           | RFC XXXX  |
+| 0x0004          | MLS10_256_DHKEMX448_AES256GCM_SHA512_Ed448            | Y           | RFC XXXX  |
+| 0x0005          | MLS10_256_DHKEMP521_AES256GCM_SHA512_P521             | Y           | RFC XXXX  |
+| 0x0006          | MLS10_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     | Y           | RFC XXXX  |
+| 0xff00 - 0xffff | Reserved for Private Use                              | N/A         | RFC XXXX  |
 
-These ciphersuites map to HPKE primitives and TLS signature schemes as follows
+All of these ciphersuites use HMAC {{!RFC2104}} as their MAC function, with
+different hashes per ciphersuite.  The mapping of ciphersuites to HPKE
+primitives, HMAC hash functions, and TLS signature schemes is as follows
 {{I-D.irtf-cfrg-hpke}} {{RFC8446}}:
 
-| Value  | KEM    | KDF    | AEAD   | Signature              |
-|:-------|:-------|:-------|:-------|:-----------------------|
-| 0x0001 | 0x0020 | 0x0001 | 0x0001 | ed25519                |
-| 0x0002 | 0x0010 | 0x0001 | 0x0001 | ecdsa_secp256r1_sha256 |
-| 0x0003 | 0x0020 | 0x0001 | 0x0003 | ed25519                |
-| 0x0004 | 0x0021 | 0x0003 | 0x0002 | ed448                  |
-| 0x0005 | 0x0012 | 0x0003 | 0x0002 | ecdsa_secp521r1_sha512 |
-| 0x0006 | 0x0021 | 0x0003 | 0x0003 | ed448                  |
+| Value  | KEM    | KDF    | AEAD   | Hash   | Signature              |
+|:-------|:-------|:-------|:-------|:-------|:-----------------------|
+| 0x0001 | 0x0020 | 0x0001 | 0x0001 | SHA256 | ed25519                |
+| 0x0002 | 0x0010 | 0x0001 | 0x0001 | SHA256 | ecdsa_secp256r1_sha256 |
+| 0x0003 | 0x0020 | 0x0001 | 0x0003 | SHA256 | ed25519                |
+| 0x0004 | 0x0021 | 0x0003 | 0x0002 | SHA512 | ed448                  |
+| 0x0005 | 0x0012 | 0x0003 | 0x0002 | SHA512 | ecdsa_secp521r1_sha512 |
+| 0x0006 | 0x0021 | 0x0003 | 0x0003 | SHA512 | ed448                  |
 
 The hash used for the MLS transcript hash is the one referenced in the
 ciphersuite name.  In the ciphersuites defined above, "SHA256" and "SHA512"
