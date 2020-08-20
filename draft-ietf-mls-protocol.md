@@ -1198,7 +1198,7 @@ without having to store the whole MLSPlaintextCommitAuthData structure.
 As shown above, when a new group is created, the `interim_transcript_hash` field
 is set to the zero-length octet string.
 
-## Direct Paths
+## Update Paths
 
 As described in {{commit}}, each MLS Commit message needs to
 transmit a KeyPackage leaf and node values along its direct path.
@@ -1216,12 +1216,12 @@ struct {
 struct {
     HPKEPublicKey public_key;
     HPKECiphertext encrypted_path_secret<0..2^32-1>;
-} DirectPathNode;
+} UpdatePathNode;
 
 struct {
     KeyPackage leaf_key_package;
-    DirectPathNode nodes<0..2^32-1>;
-} DirectPath;
+    UpdatePathNode nodes<0..2^32-1>;
+} UpdatePath;
 ~~~~~
 
 The number of ciphertexts in the `encrypted_path_secret` vector MUST
@@ -1910,7 +1910,7 @@ struct {
     ProposalID removes<0..2^32-1>;
     ProposalID adds<0..2^32-1>;
 
-    optional<DirectPath> path;
+    optional<UpdatePath> path;
 } Commit;
 ~~~~~
 
@@ -1992,14 +1992,14 @@ message at the same time, by taking the following steps:
   based on the proposals that are in the commit (see above), then it MUST be
   populated.  Otherwise, the sender MAY omit the `path` field at its discretion.
 
-* If populating the `path` field: Create a DirectPath using the new tree (which
+* If populating the `path` field: Create a UpdatePath using the new tree (which
   includes any new members).  The GroupContext for this operation uses the
   `group_id`, `epoch`, `tree_hash`, and `confirmed_transcript_hash` values in
   the initial GroupContext object.
 
-   * Assign this DirectPath to the `path` field in the Commit.
+   * Assign this UpdatePath to the `path` field in the Commit.
 
-   * Apply the DirectPath to the tree, as described in
+   * Apply the UpdatePath to the tree, as described in
      {{synchronizing-views-of-the-tree}}. Define `commit_secret` as the value
      `path_secret[n+1]` derived from the `path_secret[n]` value assigned to
      the root node.
@@ -2063,7 +2063,7 @@ A member of the group applies a Commit message by taking the following steps:
   tree the provisional GroupContext, to update the ratchet tree and generate the
   `commit_secret`:
 
-  * Apply the DirectPath to the tree, as described in
+  * Apply the UpdatePath to the tree, as described in
     {{synchronizing-views-of-the-tree}}, and store `key_package` at the
     Committer's leaf.
 
