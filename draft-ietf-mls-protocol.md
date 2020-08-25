@@ -1370,7 +1370,7 @@ which is derived from the `sender_data_secret` as follows:
 
 ~~~~~
 sender_data_key =
-    ExpandWithLabel(sender_data_secret, "sd key", "", key_length)
+    ExpandWithLabel(sender_data_secret, "sd key", "", AEAD.Nk)
 ~~~~~
 
 For handshake and application messages, a sequence of keys is derived via a
@@ -1385,7 +1385,7 @@ secrets are derived directly from the `handshake_secret`.
 application_secret_[sender]_[0] = astree_node_[N]_secret
 
 handshake_secret_[sender]_[0] =
-    ExpandWithLabel(handshake_secret, "hs", [sender], nonce_length)
+    ExpandWithLabel(handshake_secret, "hs", [sender], AEAD.Nn)
 ~~~~~
 
 The base secret for each sender is used to initiate a symmetric hash ratchet
@@ -1404,14 +1404,14 @@ used to initialize the sender's ratchet.
 ~~~~~
 ratchet_secret_[N]_[j]
       |
-      +--> DeriveAppSecret(., "nonce", N, j, AEAD.nonce_length)
+      +--> DeriveAppSecret(., "nonce", N, j, AEAD.Nn)
       |    = ratchet_nonce_[N]_[j]
       |
-      +--> DeriveAppSecret(., "key", N, j, AEAD.key_length)
+      +--> DeriveAppSecret(., "key", N, j, AEAD.Nk)
       |    = ratchet_key_[N]_[j]
       |
       V
-DeriveAppSecret(., "secret", N, j, Hash.length)
+DeriveAppSecret(., "secret", N, j, KDF.Nh)
 = ratchet_secret_[N]_[j+1]
 ~~~~~
 
@@ -1510,7 +1510,6 @@ struct {
     uint64 epoch;
     ContentType content_type;
     opaque authenticated_data<0..2^32-1>;
-    opaque sender_data_nonce<0..255>;
     opaque encrypted_sender_data<0..255>;
     opaque ciphertext<0..2^32-1>;
 } MLSCiphertext;
@@ -1526,18 +1525,15 @@ MLSPlaintext object and how to convert it to an MLSCiphertext object for
 * Set group_id, epoch, content_type and authenticated_data fields from the
   MLSPlaintext object directly
 
-* Randomly generate the sender_data_nonce field
-
 * Identify the key and key generation depending on the content type
-
-* Encrypt an MLSSenderData object for the encrypted_sender_data field from
-  MLSPlaintext and the key generation
 
 * Generate and sign an MLSPlaintextTBS object from the MLSPlaintext
   object
 
 * Encrypt an MLSCiphertextContent for the ciphertext field using the key
   identified, the signature, and MLSPlaintext object
+
+* Encrypt an MLSSenderData object for the encrypted_sender_data field
 
 Decryption is done by decrypting the metadata, then the message, and then
 verifying the content signature.
@@ -1546,10 +1542,17 @@ The following sections describe the encryption and signing processes in detail.
 
 ## Metadata Encryption
 
-The "sender data" used to look up the key for the content encryption
-is encrypted under AEAD using the MLSCiphertext sender_data_nonce and
-the sender_data_key from the keyschedule. It is encoded as an
-object of the following form:
+The "sender data" used to look up the key for the content encryption is
+encrypted under AEAD using the sender_data_key from the key schedule.  The nonce
+for sender data encryption is derived from the encypted ciphertext:
+
+~~~~~
+ciphertext_sample = ciphertext[:AEAD.Nn]
+sender_data_nonce =
+    ExpandWithLabel(sender_data_secret, "sd nonce", ciphertext_sample, AEAD.Nn)
+~~~~~
+
+A sender data object has the following form:
 
 ~~~~~
 struct {
@@ -1692,8 +1695,7 @@ struct {
     uint64 epoch;
     ContentType content_type;
     opaque authenticated_data<0..2^32-1>;
-    opaque sender_data_nonce<0..255>;
-    opaque encrypted_sender_data<0..255>;
+    MLSSenderData sender_data;
 } MLSCiphertextContentAAD;
 ~~~~~
 
