@@ -1938,7 +1938,7 @@ that a valid proposal is omitted from the next Commit, the sender of the
 proposal SHOULD retransmit it in the new epoch.
 
 A member of the group MAY send a Commit that references no proposals at all,
-which would thus have empty vectors for `updates`, `removes`, and `adds`.  Such
+which would thus have an empty `proposals` vector.  Such
 a Commit resets the sender's leaf and the nodes along its direct path, and
 provides forward secrecy and post-compromise security with regard to the sender
 of the Commit.  An Update proposal can be regarded as a "lazy" version of this
@@ -1946,7 +1946,7 @@ operation, where only the leaf changes and intermediate nodes are blanked out.
 
 The `path` field of a Commit message MUST be populated if the Commit covers at
 least one Update or Remove proposal. The `path` field MUST also be populated
-if the Commit covers no proposals at all (i.e., if the proposal vectors
+if the Commit covers no proposals at all (i.e., if the proposals vector
 is empty). The `path` field MAY be omitted if the Commit covers only Add
 proposals.  In pseudocode, the logic for validating a Commit is as follows:
 
