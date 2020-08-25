@@ -727,7 +727,7 @@ path_secret[n] = ExpandWithLabel(path_secret[n-1],
                                    "path", "", KEM.Nsk)
 node_secret[n] = ExpandWithLabel(path_secret[n],
                                    "node", "", KEM.Nsk)
-node_priv[n], node_pub[n] = KEM.DeriveKeyPair(path_secret[n])
+node_priv[n], node_pub[n] = KEM.DeriveKeyPair(node_secret[n])
 ~~~~~
 
 For example, suppose there is a group with four members:
