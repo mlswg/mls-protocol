@@ -716,11 +716,18 @@ secret is used to derive a new secret value for the corresponding
 node, from which the node's key pair is derived.
 
 ~~~~~
+leaf_node_secret = ExpandWithLabel(leaf_secret,
+                                   "node", "", KEM.Nsk)
+leaf_priv, leaf_pub = KEM.DeriveKeyPair(leaf_node_secret)
+
+
 path_secret[0] = ExpandWithLabel(leaf_secret,
                                    "path", "", KEM.Nsk)
 path_secret[n] = ExpandWithLabel(path_secret[n-1],
                                    "path", "", KEM.Nsk)
-node_priv[n], node_pub[n] = KEM.DeriveKeyPair(path_secret[n])
+node_secret[n] = ExpandWithLabel(path_secret[n],
+                                   "node", "", KEM.Nsk)
+node_priv[n], node_pub[n] = KEM.DeriveKeyPair(node_secret[n])
 ~~~~~
 
 For example, suppose there is a group with four members:
@@ -740,15 +747,14 @@ If member B subsequently generates a Commit based on a secret
 of path secrets:
 
 ~~~~~
-
-   path_secret[1] --> node_priv[1], node_pub[1]
-        ^
-        |
-   path_secret[0] --> node_priv[0], node_pub[0]
-        ^
-        |
-   leaf_secret    --> leaf_priv, leaf_pub
-                   ~> leaf_key_package
+path_secret[1] --> node_secret[1] --> node_priv[1], node_pub[1]
+     ^
+     |
+path_secret[0] --> node_secret[0] --> node_priv[0], node_pub[0]
+     ^
+     |
+leaf_secret    --> leaf_node_secret --> leaf_priv, leaf_pub
+                                     ~> leaf_key_package
 ~~~~~
 
 After the Commit, the tree will have the following structure, where
