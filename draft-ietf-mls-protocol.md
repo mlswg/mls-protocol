@@ -2044,10 +2044,8 @@ and shutting down the old one.
 
 ~~~~~
 struct {
-    opaque re-init_group_id<0..255>;
-    opaque re-init_nonce<0..255>;
-    ProtocolVersion mls_version;
-    CipherSuite ciphersuite;
+    ProtocolVersion version;
+    CipherSuite cipher_suite;
     Extension extensions<0..2^32-1>;
 } ReInit;
 ~~~~~
@@ -2129,7 +2127,7 @@ in an ordering of their choice.
 If there are one or more multiple ReInit proposals, the commiter MUST choose one
 where each group member provides a KeyPackage that satisfies the parameters
 specified in the proposal and where the `mls_version` is greater or equal to
-that of the current group.
+that of the current group. It MUST consider all other ReInit proposals invalid.
 
 The Commit MUST NOT combine proposals sent within different epochs. In the event
 that a valid proposal is omitted from the next Commit, the sender of the
@@ -2333,22 +2331,19 @@ A member of the group applies a Commit message by taking the following steps:
   send messages. Instead, if it receives a Welcome message from the Committer,
   it MUST check that
 
-  * The `ProtocolVersion` of the new group corresponds to the one in the
-    `ReInit` proposal and is greater or equal to that of the original group.
-  * A `pre_shared_key` extension is included in the Welcome message with
-    `psktype = reinit`, `psk_group_id = group_id`, `psk_epoch =
-    epoch` and `psk_nonce`, where `group_id` and `epoch` are the fields from the
-    previously constructed GroupContext object and `reinit_nonce` is the field
-    from the `ReInit` proposal included in the commit.
+  * The `version`, `cipher_suite` and `extensions` fields of the new group
+    corresponds to the ones in the `ReInit` proposal and the `version`
+    is greater or equal to that of the original group.
+  * The `psks` field in the Welcome message includes a `PreSharedKeyID` with
+    `psktype` = `reinit` `psk_epoch` = `epoch` and `psk_group_id` = `group_id`,
+    where `epoch` and `group_id` are the fields of the original group after
+    processing the commit.
 
-  If any of the conditions is not met, the Client SHOULD not process the Welcome
-  message.
+  If any of the conditions are not met, the Client SHOULD not process the
+  Welcome message.
 
-The confirmation value confirms that the members of the group have arrived at
-=======
-The confirmation tag value confirms that the members of the group have arrived at
->>>>>>> upstream/master
-the same state of the group:
+The confirmation tag value confirms that the members of the group have arrived
+at the same state of the group:
 
 ~~~~~
 MLSPlaintext.confirmation_tag =
