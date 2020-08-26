@@ -701,12 +701,19 @@ they receive the private keys for nodes, as described in
 
 ## Ratchet Tree Evolution
 
-When performing a Commit, the generator of the Commit updates its leaf
+We now describe how members ratchet forward their group's shared secret with
+fresh key material. To do so, one member of the group will generate fresh key
+material, apply it to their local tree state, and then send this key material
+to other members in the group via an UpdatePath message (see {{update-paths}}) .
+All other group members then apply the key material in the UpdatePath to their
+own local tree state to derive the group's now-updated shared secret.
+
+To begin, the generator of the UpdatePath updates its leaf
 KeyPackage and its direct path to the root with new secret values.  The
 HPKE leaf public key within the KeyPackage MUST be derived from a freshly
 generated HPKE secret key to provide post-compromise security.
 
-The generator of the Commit starts by sampling a fresh random value called
+The generator of the UpdatePath starts by sampling a fresh random value called
 "leaf_secret", and uses the leaf_secret to generate their leaf HPKE key pair
 (see {{key-packages}}) and to seed a sequence of "path secrets", one for each
 ancestor of its leaf. In this setting,
@@ -742,7 +749,7 @@ For example, suppose there is a group with four members:
 A   B   C   D
 ~~~~~
 
-If member B subsequently generates a Commit based on a secret
+If member B subsequently generates an UpdatePath based on a secret
 "leaf_secret", then it would generate the following sequence
 of path secrets:
 
@@ -757,7 +764,7 @@ leaf_secret    --> leaf_node_secret --> leaf_priv, leaf_pub
                                      ~> leaf_key_package
 ~~~~~
 
-After the Commit, the tree will have the following structure, where
+After applying the UpdatePath, the tree will have the following structure, where
 "np\[i\]" represents the node_priv values generated as described
 above:
 
@@ -769,23 +776,24 @@ above:
     A    B    C   D
 ~~~~~
 
-After performing these operations, the generator of the Commit MUST
+After performing these operations, the generator of the UpdatePath MUST
 delete the leaf_secret.
 
 ## Synchronizing Views of the Tree
 
-After generating a Commit as described in the prior section, the generator of
-the Commit must broadcast this update to other members of the group, who
+After generating fresh key material and applying it to ratchet forward their
+local tree state as described in the prior section, the generator must broadcast
+this update to other members of the group via an UpdatePath message, who
 apply it to keep their local views of the tree in
-sync with the sender's.  When a client commits a change to the tree
-(e.g., to add or remove a member), it transmits a handshake message
+sync with the sender's.  More specifically, when a member commits a change to
+the tree (e.g., to add or remove a member), it transmits a UpdatePath message
 containing a set of public and encrypted private
 values for intermediate nodes in the direct path of a leaf. The
-other members of the group can use these values to update
+other members of the group use these values to update
 their view of the tree, aligning their copy of the tree to the
 sender's.
 
-To perform an update for a path (a Commit), the sender broadcasts to the group
+To transmit this update, the sender broadcasts to the group
 the following information for each node in the direct path of the
 leaf, including the root:
 
