@@ -67,6 +67,8 @@ informative:
     target: https://secg.org/sec1-v2.pdf
     date: 2009
 
+  SHS: DOI.10.6028/NIST.FIPS.180-4
+
 --- abstract
 
 Messaging applications are increasingly making use of end-to-end
@@ -714,11 +716,18 @@ secret is used to derive a new secret value for the corresponding
 node, from which the node's key pair is derived.
 
 ~~~~~
+leaf_node_secret = ExpandWithLabel(leaf_secret,
+                                   "node", "", KEM.Nsk)
+leaf_priv, leaf_pub = KEM.DeriveKeyPair(leaf_node_secret)
+
+
 path_secret[0] = ExpandWithLabel(leaf_secret,
                                    "path", "", KEM.Nsk)
 path_secret[n] = ExpandWithLabel(path_secret[n-1],
                                    "path", "", KEM.Nsk)
-node_priv[n], node_pub[n] = KEM.DeriveKeyPair(path_secret[n])
+node_secret[n] = ExpandWithLabel(path_secret[n],
+                                   "node", "", KEM.Nsk)
+node_priv[n], node_pub[n] = KEM.DeriveKeyPair(node_secret[n])
 ~~~~~
 
 For example, suppose there is a group with four members:
@@ -738,15 +747,14 @@ If member B subsequently generates a Commit based on a secret
 of path secrets:
 
 ~~~~~
-
-   path_secret[1] --> node_priv[1], node_pub[1]
-        ^
-        |
-   path_secret[0] --> node_priv[0], node_pub[0]
-        ^
-        |
-   leaf_secret    --> leaf_priv, leaf_pub
-                   ~> leaf_key_package
+path_secret[1] --> node_secret[1] --> node_priv[1], node_pub[1]
+     ^
+     |
+path_secret[0] --> node_secret[0] --> node_priv[0], node_pub[0]
+     ^
+     |
+leaf_secret    --> leaf_node_secret --> leaf_priv, leaf_pub
+                                     ~> leaf_key_package
 ~~~~~
 
 After the Commit, the tree will have the following structure, where
@@ -954,7 +962,8 @@ except for the signature field.
 
 ~~~~~
 enum {
-    mls10(0),
+    reserved(0),
+    mls10(1),
     (255)
 } ProtocolVersion;
 
@@ -971,7 +980,7 @@ struct {
     CipherSuite cipher_suite;
     HPKEPublicKey hpke_init_key;
     Credential credential;
-    Extension extensions<8..2^16-1>;
+    Extension extensions<8..2^32-1>;
     opaque signature<0..2^16-1>;
 } KeyPackage;
 ~~~~~
@@ -1127,7 +1136,7 @@ struct {
     uint64 epoch;
     opaque tree_hash<0..255>;
     opaque confirmed_transcript_hash<0..255>;
-    Extension extensions<0..2^16-1>;
+    Extension extensions<0..2^32-1>;
 } GroupContext;
 ~~~~~
 
@@ -1169,31 +1178,33 @@ struct {
 } MLSPlaintextCommitContent;
 
 struct {
-    opaque confirmation<0..255>;
+    opaque confirmation_tag<0..255>;
     opaque signature<0..2^16-1>;
 } MLSPlaintextCommitAuthData;
 
+interim_transcript_hash_[0] = ""; // zero-length octet string
+
 confirmed_transcript_hash_[n] =
-    Hash(interim_transcript_hash_[n-1] ||
+    Hash(interim_transcript_hash_[n] ||
         MLSPlaintextCommitContent_[n]);
 
-interim_transcript_hash_[n] =
+interim_transcript_hash_[n+1] =
     Hash(confirmed_transcript_hash_[n] ||
         MLSPlaintextCommitAuthData_[n]);
 ~~~~~
 
 Thus the `confirmed_transcript_hash` field in a GroupContext object represents a
 transcript over the whole history of MLSPlaintext Commit messages, up to the
-confirmation field in the current MLSPlaintext message.  The confirmation and
+confirmation tag field in the current MLSPlaintext message.  The confirmation tag and
 signature fields are then included in the transcript for the next epoch.  The
 interim transcript hash is passed to new members in the GroupInfo struct, and
 enables existing members to incorporate a Commit message into the transcript
 without having to store the whole MLSPlaintextCommitAuthData structure.
 
-When a new group is created, the `interim_transcript_hash` field is set to the
-zero-length octet string.
+As shown above, when a new group is created, the `interim_transcript_hash` field
+is set to the zero-length octet string.
 
-## Direct Paths
+## Update Paths
 
 As described in {{commit}}, each MLS Commit message needs to
 transmit a KeyPackage leaf and node values along its direct path.
@@ -1211,12 +1222,12 @@ struct {
 struct {
     HPKEPublicKey public_key;
     HPKECiphertext encrypted_path_secret<0..2^32-1>;
-} DirectPathNode;
+} UpdatePathNode;
 
 struct {
     KeyPackage leaf_key_package;
-    DirectPathNode nodes<0..2^16-1>;
-} DirectPath;
+    UpdatePathNode nodes<0..2^32-1>;
+} UpdatePath;
 ~~~~~
 
 The number of ciphertexts in the `encrypted_path_secret` vector MUST
@@ -1346,9 +1357,9 @@ security level of the ciphersuite used in the group. -->
 <!-- OPEN ISSUE: We have to decide if we want an external coordination
 via the application of a Handshake proposal. -->
 
-Each PSK in MLS has a type that designates how it was provisioned. 
-External PSKs are provided by the application logic. Other resumption PSKs 
-are derived from the MLS key schedule, and used in cases where it is 
+Each PSK in MLS has a type that designates how it was provisioned.
+External PSKs are provided by the application logic. Other resumption PSKs
+are derived from the MLS key schedule, and used in cases where it is
 necessary to authenticate a member's participation in a prior group state.
 In particular, in addition to external PSK types, a PSK derived from within MLS
 may be used in the following cases:
@@ -1356,7 +1367,7 @@ may be used in the following cases:
   - Re-Initialization: If, during the lifetime of the group, a change in the
     fixed group parameters becomes necessary, e.g. if the ciphersuite used
     by the group is deprecated or if the protocol version should be upgraded,
-    a PSK can be used to carry entropy from the old group forward into a new 
+    a PSK can be used to carry entropy from the old group forward into a new
     group with the desired parameters.
 
   - Recovery: If the group state of one or more members of the group deviates
@@ -1392,20 +1403,20 @@ struct {
     case reinit:
       opaque psk_group_id<0..255>;
       uint64 psk_epoch;
-      
+
     case branch:
       opaque psk_group_id<0..255>;
-      uint64 psk_epoch;    
-      
+      uint64 psk_epoch;
+
     case recovery:
       opaque psk_group_id<0..255>;
-      uint64 psk_epoch;        
+      uint64 psk_epoch;
   }
   opaque psk_nonce<0..255>;
 } PreSharedKeyID;
 
 struct {
-    PreSharedKey psks<0..2^16-1>;
+    PreSharedKeyID psks<0..2^16-1>;
 } PreSharedKeys;
 ~~~~~
 
@@ -1413,14 +1424,13 @@ On receiving a Commit with a `pre_shared_keys` extension or a GroupSecrets
 object with the psk field set, the receiving Client
 includes them in the key schedule in the order listed in the commit. For
 internal PSKs, the psk is defined as the `recovery_secret` of the group and
-epoch specified in the `PreSharedKey` object. Finally, the `psk_secret` to be
+epoch specified in the `PreSharedKeyID` object. Finally, the `psk_secret` to be
 included in the Key Schedule is derived as follows (where `n` is the number of
 PSKs):
 
 ~~~~~
 struct {
-    PSKType type;
-    PreSharedKey(type);
+    PreSharedKeyID;
     uint16 index;
     uint16 count;
 } PSKLabel;
@@ -1561,14 +1571,15 @@ The two main structures involved are MLSPlaintext and MLSCiphertext.
 MLSCiphertext represents a signed and encrypted message, with
 protections for both the content of the message and related
 metadata.  MLSPlaintext represents a message that is only signed,
-and not encrypted.  Applications SHOULD use MLSCiphertext to encode
-both application and handshake messages, but MAY transmit handshake
-messages encoded as MLSPlaintext objects in cases where it is
-necessary for the delivery service to examine such messages.
+and not encrypted.  Applications MUST use MLSCiphertext to encrypt
+application messages and SHOULD use MLSCiphertext to encode
+handshake messages, but MAY transmit handshake messages encoded
+as MLSPlaintext objects in cases where it is necessary for the
+delivery service to examine such messages.
 
 ~~~~~
 enum {
-    invalid(0),
+    reserved(0),
     application(1),
     proposal(2),
     commit(3),
@@ -1576,7 +1587,7 @@ enum {
 } ContentType;
 
 enum {
-    invalid(0),
+    reserved(0),
     member(1),
     preconfigured(2),
     new_member(3),
@@ -1604,7 +1615,7 @@ struct {
 
         case commit:
           Commit commit;
-          opaque confirmation<0..255>;
+          opaque confirmation_tag<0..255>;
     }
 
     opaque signature<0..2^16-1>;
@@ -1721,7 +1732,7 @@ struct {
 
         case commit:
           Commit commit;
-          opaque confirmation<0..255>;
+          opaque confirmation_tag<0..255>;
     }
 } MLSPlaintextTBS;
 ~~~~~
@@ -1746,7 +1757,7 @@ struct {
 
         case commit:
           Commit commit;
-          opaque confirmation<0..255>;
+          opaque confirmation_tag<0..255>;
     }
 
     opaque signature<0..2^16-1>;
@@ -1855,14 +1866,6 @@ introduced.  The only choices the creator makes here are its own
 KeyPackage, the leaf secret from which the Commit is built, and the
 intermediate key pairs along the direct path to the root.
 
-A new member receiving a Welcome message can recognize group creation if the
-number of entries in the `members` array is equal to the number of leaves in the
-tree minus one.  A client receiving a Welcome message SHOULD verify whether it
-is a newly created group, and if so, SHOULD verify that the above process was
-followed by reconstructing the Add and Commit messages and verifying that the
-resulting transcript hashes and epoch secret match those found in the Welcome
-message.
-
 ## Group Creation from existing PSKs
 
 Group creation may be tied to an already existing group structure, consisting of
@@ -1874,7 +1877,7 @@ group based on the current group state but under a different ciphersuite.
 Branching may be used to bootstrap a new group consisting of a subset of
 current group members, based on the current group state.
 
-In both cases, the `psk_nonce` included in the `PreSharedKey` object must be a
+In both cases, the `psk_nonce` included in the `PreSharedKeyID` object must be a
 randomly sampled nonce to avoid key re-use.
 
 ### Re-Initialization {#re-initialization}
@@ -1926,10 +1929,11 @@ indicates their type:
 
 ~~~~~
 enum {
-    invalid(0),
+    reserved(0),
     add(1),
     update(2),
     remove(3),
+    psk(4)
     (255)
 } ProposalType;
 
@@ -1939,6 +1943,7 @@ struct {
         case add:    Add;
         case update: Update;
         case remove: Remove;
+        case psk:    PSK;
     };
 } Proposal;
 ~~~~~
@@ -1964,7 +1969,7 @@ new member is added.  Instead, the sender of the Commit message chooses a
 location for each added member and states it in the Commit message.
 
 An Add is applied after being included in a Commit message.  The position of the
-Add in the list of adds determines the leaf index `index` where the new member
+Add in the list of proposals determines the leaf index `index` where the new member
 will be added.  For the first Add in the Commit, `index` is the leftmost empty
 leaf in the tree, for the second Add, the next empty leaf to the right, etc.
 
@@ -1997,7 +2002,6 @@ A member of the group applies an Update message by taking the following steps:
 
 * Blank the intermediate nodes along the path from the sender's leaf to the root
 
-
 ### Remove
 
 A Remove proposal requests that the client at a specified index in the tree be
@@ -2014,6 +2018,43 @@ A member of the group applies a Remove message by taking the following steps:
 * Replace the leaf node at position `removed` with a blank node
 
 * Blank the intermediate nodes along the path from the removed leaf to the root
+
+### PSK
+
+A PSK proposal can be used to request that a PSK be injected into the
+key schedule in the process of advancing the epoch.
+
+~~~~~
+struct {
+    PreSharedKeyID psk;
+} PSK;
+~~~~~
+
+When processing a commit message including one or more PSK proposals, a group
+member MUST derive the `psk_secret` for the inclusion in the Key Schedule as
+described in {{pre-shared-keys}}, where the order of the PSKs corresponds to the
+order of the PSK proposals in the commit.
+
+### ReInit
+
+A ReInit proposal represents a request to re-initialize the group with different
+parameters, for example, to increase the version number or to change the
+ciphersuite. The re-initialization is done by creating a completely new group
+and shutting down the old one.
+
+~~~~~
+struct {
+    opaque re-init_group_id<0..255>;
+    opaque re-init_nonce<0..255>;
+    ProtocolVersion mls_version;
+    CipherSuite ciphersuite;
+    Extension extensions<0..2^32-1>;
+} ReInit;
+~~~~~
+
+A member of the group applies a ReInit message by waiting for the committer to
+send the Welcome message and by checking that the parameters of the new group
+corresponds to the ones specified in the proposal.
 
 
 ### External Proposals
@@ -2061,11 +2102,8 @@ hash function from the group's ciphersuite.
 opaque ProposalID<0..255>;
 
 struct {
-    ProposalID updates<0..2^32-1>;
-    ProposalID removes<0..2^32-1>;
-    ProposalID adds<0..2^32-1>;
-
-    optional<DirectPath> path;
+    ProposalID proposals<0..2^32-1>;
+    optional<UpdatePath> path;
 } Commit;
 ~~~~~
 
@@ -2083,36 +2121,46 @@ chooses one and includes only that one in the Commit, considering the rest
 invalid. The committer MUST prefer any Remove received, or the most recent
 Update for the leaf if there are no Removes. If there are multiple Add proposals
 for the same client, the committer again chooses one to include and considers
-the rest invalid. 
+the rest invalid.
+
+If the committer recieved multiple PSK proposals, they MUST include all of them
+in an ordering of their choice.
+
+If there are one or more multiple ReInit proposals, the commiter MUST choose one
+where each group member provides a KeyPackage that satisfies the parameters
+specified in the proposal and where the `mls_version` is greater or equal to
+that of the current group.
 
 The Commit MUST NOT combine proposals sent within different epochs. In the event
 that a valid proposal is omitted from the next Commit, the sender of the
 proposal SHOULD retransmit it in the new epoch.
 
 A member of the group MAY send a Commit that references no proposals at all,
-which would thus have empty vectors for `updates`, `removes`, and `adds`.  Such
+which would thus have an empty `proposals` vector.  Such
 a Commit resets the sender's leaf and the nodes along its direct path, and
 provides forward secrecy and post-compromise security with regard to the sender
 of the Commit.  An Update proposal can be regarded as a "lazy" version of this
 operation, where only the leaf changes and intermediate nodes are blanked out.
 
 The `path` field of a Commit message MUST be populated if the Commit covers at
-least one Update or Remove proposal, i.e., if the length of the `updates` or
-`removes` vectors is greater than zero.  The `path` field MUST also be populated
-if the Commit covers no proposals at all (i.e., if all three proposal vectors
-are empty).  The `path` field MAY be omitted if the Commit covers only Add
-proposals.  In pseudocode, the logic for whether the `path` field is required is
-as follows:
+least one Update or Remove proposal. The `path` field MUST also be populated
+if the Commit covers no proposals at all (i.e., if the proposals vector
+is empty). The `path` field MAY be omitted if the Commit covers only Add
+proposals.  In pseudocode, the logic for validating a Commit is as follows:
 
 ~~~~~
-haveUpdates = len(commit.Updates) > 0
-haveRemoves = len(commit.Removes) > 0
-haveAdds = len(commit.Adds) > 0
+hasUpdates = false
+hasRemoves = false
 
-haveUpdateOrRemove = haveUpdates || haveRemoves
-haveNoProposalsAtAll = !haveUpdateOrRemove && !haveAdds
+for i, id in commit.proposals:
+    proposal = proposalCache[id]
+    assert(proposal != null)
 
-pathRequired = haveUpdateOrRemove || haveNoProposalsAtAll
+    hasUpdates = hasUpdates || proposal.msg_type == update
+    hasRemoves = hasRemoves || proposal.msg_type == remove
+
+if len(commit.proposals) == 0 || hasUpdates || hasRemoves:
+  assert(commit.path != null)
 ~~~~~
 
 To summarize, a Commit can have three different configurations, with different
@@ -2132,29 +2180,40 @@ uses:
 A member of the group creates a Commit message and the corresponding Welcome
 message at the same time, by taking the following steps:
 
-* Construct an initial Commit object with `updates`, `removes`, and `adds`,
-  fields populated from Proposals received during the current epoch, and empty
+* Construct an initial Commit object with the `proposals`
+  field populated from Proposals received during the current epoch, and empty
   `key_package` and `path` fields.
 
 * Generate a provisional GroupContext object by applying the proposals
-  referenced in the initial Commit object in the order provided, as described in
-  {{proposals}}. First the list of update proposals, then the list of remove
-  proposals, and last the list of add proposals. Add proposals are applied left
-  to right: Each Add proposal is applied at the leftmost unoccupied leaf, or
-  appended to the right edge of the tree if all leaves are occupied.
+  referenced in the initial Commit object, as described in {{proposals}}. Update
+  proposals are applied first, followed by Remove proposals, and then finally
+  Add proposals. Add proposals are applied in the order listed in the
+  `proposals` vector, and always to the leftmost unoccupied leaf in the tree, or
+  the right edge of the tree if all leaves are occupied.
+
+  * Note that the order in which different types of proposals are applied should
+    be updated by the implementation to include any new proposals added by
+    negotiated group extensions.
+
+  * PSK proposals are processed later when deriving the `psk_secret` for the Key
+    Schedule.
+
+  * ReInit proposals are not applied. They are simply present in the `proposals`
+    vector to indicate to other members if and how the group should be
+    re-initialized.
 
 * Decide whether to populate the `path` field: If the `path` field is required
   based on the proposals that are in the commit (see above), then it MUST be
   populated.  Otherwise, the sender MAY omit the `path` field at its discretion.
 
-* If populating the `path` field: Create a DirectPath using the new tree (which
+* If populating the `path` field: Create a UpdatePath using the new tree (which
   includes any new members).  The GroupContext for this operation uses the
   `group_id`, `epoch`, `tree_hash`, and `confirmed_transcript_hash` values in
   the initial GroupContext object.
 
-   * Assign this DirectPath to the `path` field in the Commit.
+   * Assign this UpdatePath to the `path` field in the Commit.
 
-   * Apply the DirectPath to the tree, as described in
+   * Apply the UpdatePath to the tree, as described in
      {{synchronizing-views-of-the-tree}}. Define `commit_secret` as the value
      `path_secret[n+1]` derived from the `path_secret[n]` value assigned to
      the root node.
@@ -2167,17 +2226,22 @@ message at the same time, by taking the following steps:
   `parent_hash` extension. Store it in the ratchet tree and assign it to the
   `key_package` field in the Commit object.
 
+* If one or more PSK proposals are part of the commit, derive the `psk_secret`
+  as specified in {{pre-shared-keys}}, where the order of PSKs in the derivation
+  corresponds to the order of PSK proposals in the `proposals` vector.
+  Otherwise, set `psk_secret` to 0.
+
 * Construct an MLSPlaintext object containing the Commit object. Use the
-  `commit_secret` to advance the key schedule and compute the `confirmation`
-  value in the MLSPlaintext. Sign the MLSPlaintext using the current epoch's
-  GroupContext as context.
+  `commit_secret` and the `psk_secret` to advance the key schedule and compute
+  the `confirmation_tag` value in the MLSPlaintext. Sign the MLSPlaintext using
+  the current epoch's GroupContext as context.
 
 * Update the tree in the provisional state by applying the direct path
 
 * Construct a GroupInfo reflecting the new state:
   * Group ID, epoch, tree, confirmed transcript hash, and interim transcript
     hash from the new state
-  * The confirmation from the MLSPlaintext object
+  * The confirmation_tag from the MLSPlaintext object
   * Sign the GroupInfo using the member's private signing key
   * Encrypt the GroupInfo using the key and nonce derived from the `joiner_secret`
     for the new epoch (see {{welcoming-new-members}})
@@ -2190,8 +2254,17 @@ message at the same time, by taking the following steps:
   * Compute an EncryptedGroupSecrets object that encapsulates the `init_secret`
     for the current epoch and the path secret (if present).
 
-* Construct a Welcome message from the encrypted GroupInfo object, the
-  encrypted key packages and, optionally, a PSK.
+* Construct a Welcome message from the encrypted GroupInfo object, the encrypted
+  key packages and any PSK for which a proposal was included in the commit. The
+  order of the `psks` MUST be the same as the order of PSK proposals in the
+  `proposals` vector.
+
+* If a ReInit proposal was part of the commit, the Committer MUST create a new
+  group with the parameters specified in the ReInit proposal and with the same
+  members as the original group after processing the current commit. The Welcome
+  message MUST include a `PreSharedKeyID` with `psktype` `reinit` and with
+  `psk_group_id` and `psk_epoch` corresponding to the current group and the
+  epoch after the commit was processed.
 
 A member of the group applies a Commit message by taking the following steps:
 
@@ -2202,23 +2275,29 @@ A member of the group applies a Commit message by taking the following steps:
   public key from the credential stored at the leaf in the tree indicated by
   the `sender` field.
 
-* Generate a provisional GroupContext object by applying the proposals
-  referenced in the commit object in the order provided, as described in
-  {{proposals}}. First the list of update proposals, then the list of remove
-  proposals, and last the list of add proposals. Add proposals are applied left
-  to right: Each Add proposal is applied at the leftmost unoccupied leaf, or
-  appended to the right edge of the tree if all leaves are occupied.
+* Verify that all PSKs specified in any PSK proposals in the `proposals` vector
+  are available.
 
-* Verify that the `path` value is populated if either of the `updates` or
-  `removes` vectors has length greater than zero, or if all of the `updates`,
-  `removes`, and `adds` vectors are empty.  Otherwise, the `path` value MAY be
-  omitted.
+* Generate a provisional GroupContext object by applying the proposals
+  referenced in the initial Commit object, as described in {{proposals}}. Update
+  proposals are applied first, followed by Remove proposals, and then finally
+  Add proposals. Add proposals are applied in the order listed in the
+  `proposals` vector, and always to the leftmost unoccupied leaf in the tree, or
+  the right edge of the tree if all leaves are occupied.
+
+  * Note that the order in which different types of proposals are applied should
+    be updated by the implementation to include any new proposals added by
+    negotiated group extensions.
+
+* Verify that the `path` value is populated if the `proposals` vector contains
+  any Update or Remove proposals, or if it's empty. Otherwise, the `path` value
+  MAY be omitted.
 
 * If the `path` value is populated: Process the `path` value using the ratchet
   tree the provisional GroupContext, to update the ratchet tree and generate the
   `commit_secret`:
 
-  * Apply the DirectPath to the tree, as described in
+  * Apply the UpdatePath to the tree, as described in
     {{synchronizing-views-of-the-tree}}, and store `key_package` at the
     Committer's leaf.
 
@@ -2234,23 +2313,28 @@ A member of the group applies a Commit message by taking the following steps:
 * Update the new GroupContext's confirmed and interim transcript hashes using the
   new Commit.
 
-* Use the `commit_secret`, the provisional GroupContext, and the init secret
-  from the previous epoch to compute the epoch secret and derived secrets for
-  the new epoch.
+* If the `proposals` vector contains any PSK proposals, derive the `psk_secret`
+  as specified in {{pre-shared-keys}}, where the order of PSKs in the derivation
+  corresponds to the order of PSK proposals in the `proposals` vector.
+  Otherwise, set `psk_secret` to 0.
 
-* Use the `confirmation_key` for the new epoch to compute the confirmation MAC
+* Use the `commit_secret`, the `psk_secret`, the provisional GroupContext, and
+  the init secret from the previous epoch to compute the epoch secret and
+  derived secrets for the new epoch.
+
+* Use the `confirmation_key` for the new epoch to compute the confirmation tag
   for this message, as described below, and verify that it is the same as the
-  `confirmation` field in the MLSPlaintext object.
+  `confirmation_tag` field in the MLSPlaintext object.
 
 * If the above checks are successful, consider the updated GroupContext object
   as the current state of the group.
 
-* If the commit included a `pre_shared_key` extension, the Client MUST NOT use
-  the group to send messages. Instead, if it receives a Welcome message from the
-  Committer, it MUST check that
+* If the commit included a ReInit proposal, the Client MUST NOT use the group to
+  send messages. Instead, if it receives a Welcome message from the Committer,
+  it MUST check that
 
-  * The `ProtocolVersion` of the new group is greater or equal to that of the
-    original group.
+  * The `ProtocolVersion` of the new group corresponds to the one in the
+    `ReInit` proposal and is greater or equal to that of the original group.
   * A `pre_shared_key` extension is included in the Welcome message with
     `psktype = reinit`, `psk_group_id = group_id`, `psk_epoch =
     epoch` and `psk_nonce`, where `group_id` and `epoch` are the fields from the
@@ -2261,14 +2345,15 @@ A member of the group applies a Commit message by taking the following steps:
   message.
 
 The confirmation value confirms that the members of the group have arrived at
+=======
+The confirmation tag value confirms that the members of the group have arrived at
+>>>>>>> upstream/master
 the same state of the group:
 
 ~~~~~
-MLSPlaintext.confirmation =
-    HMAC(confirmation_key, GroupContext.confirmed_transcript_hash)
+MLSPlaintext.confirmation_tag =
+    KDF.Extract(confirmation_key, GroupContext.confirmed_transcript_hash)
 ~~~~~
-
-HMAC {{!RFC2104}} uses the Hash algorithm for the ciphersuite in use.
 
 <!-- OPEN ISSUE: It is not possible for the recipient of a handshake
 message to verify that ratchet tree information in the message is
@@ -2309,8 +2394,8 @@ struct {
   opaque tree_hash<0..255>;
   opaque confirmed_transcript_hash<0..255>;
   opaque interim_transcript_hash<0..255>;
-  Extension extensions<0..2^16-1>;
-  opaque confirmation<0..255>;
+  Extension extensions<0..2^32-1>;
+  opaque confirmation_tag<0..255>;
   uint32 signer_index;
   opaque signature<0..2^16-1>;
 } GroupInfo;
@@ -2322,7 +2407,7 @@ struct {
 struct {
   opaque joiner_secret<1..255>;
   optional<PathSecret> path_secret;
-  optional<PreSharedKey> psk<1..2^32-1>;
+  optional<PreSharedKeys> psks<1..2^32-1>;
 } GroupSecrets;
 
 struct {
@@ -2353,8 +2438,8 @@ On receiving a Welcome message, a client processes it using the following steps:
   Welcome message, return an error.
 
 * Decrypt the `encrypted_group_secrets` using HPKE with the algorithms indicated
-  by the ciphersuite and the HPKE private key corresponding to the GroupSecrets. 
-  If a PSKId is part of the GroupSecrets and the client is not in possession of the 
+  by the ciphersuite and the HPKE private key corresponding to the GroupSecrets.
+  If a PSKId is part of the GroupSecrets and the client is not in possession of the
   corresponding PSK, return an error.
 
 * From the `joiner_secret` in the decrypted GroupSecrets object and the PSKs
@@ -2416,7 +2501,7 @@ welcome_key = KDF.Expand(welcome_secret, "key", key_length)
 * Set the confirmed transcript hash in the new state to the value of the
   `confirmed_transcript_hash` in the GroupInfo.
 
-* Verify the confirmation MAC in the GroupInfo using the derived confirmation
+* Verify the confirmation tag in the GroupInfo using the derived confirmation
   key and the `confirmed_transcript_hash` from the GroupInfo.
 
 ## Ratchet Tree Extension
@@ -2434,8 +2519,9 @@ type `ratchet_tree`, containing a `ratchet_tree` object of the following form:
 
 ~~~~~
 enum {
-    leaf(0),
-    parent(1),
+    reserved(0),
+    leaf(1),
+    parent(2),
     (255)
 } NodeType;
 
@@ -2726,11 +2812,11 @@ participant D:
     /     \
    E       F
   / \     / \
-A0  B0  C0  D0 -+- KD0
+A0  B0  C0  D0 -|- KD0
             |   |
             |   +- ND0
             |
-            D1 -+- KD1
+            D1 -|- KD1
             |   |
             |   +- ND1
             |
@@ -2933,7 +3019,7 @@ uint16 CipherSuite;
 | LVL       | The security level                                                     |
 | KEM       | The KEM algorithm used for HPKE in TreeKEM group operations            |
 | AEAD      | The AEAD algorithm used for HPKE and message protection                |
-| HASH      | The hash algorithm used for HPKE and the MLS KDF                       |
+| HASH      | The hash algorithm used for HPKE and the MLS transcript hash           |
 | SIG       | The Signature algorithm used for message authentication                |
 
 The columns in the registry are as follows:
@@ -2974,6 +3060,10 @@ These ciphersuites map to HPKE primitives and TLS signature schemes as follows
 | 0x0004 | 0x0021 | 0x0003 | 0x0002 | ed448                  |
 | 0x0005 | 0x0012 | 0x0003 | 0x0002 | ecdsa_secp521r1_sha512 |
 | 0x0006 | 0x0021 | 0x0003 | 0x0003 | ed448                  |
+
+The hash used for the MLS transcript hash is the one referenced in the
+ciphersuite name.  In the ciphersuites defined above, "SHA256" and "SHA512"
+refer to the SHA-256 and SHA-512 functions defined in {{SHS}}.
 
 It is advisable to keep the number of ciphersuites low to increase the chances
 clients can interoperate in a federated environment, therefore the ciphersuites
