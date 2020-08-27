@@ -1785,17 +1785,17 @@ that the recipient of the message can use it to compute the nonce to be used for
 decryption.
 
 ~~~~~
-+-|-|-|-|---------...---+
++-+-+-+-+---------...---+
 |   Key Schedule Nonce  |
-+-|-|-|-|---------...---+
++-+-+-+-+---------...---+
            XOR
-+-|-|-|-|---------...---+
++-+-+-+-+---------...---+
 | Guard |       0       |
-+-|-|-|-|---------...---+
++-+-+-+-+---------...---+
            ===
-+-|-|-|-|---------...---+
++-+-+-+-+---------...---+
 | Encrypt/Decrypt Nonce |
-+-|-|-|-|---------...---+
++-+-+-+-+---------...---+
 ~~~~~
 
 The Additional Authenticated Data (AAD) input to the encryption
@@ -2807,7 +2807,7 @@ participant D:
     /     \
    E       F
   / \     / \
-A0  B0  C0  D0 -|- KD0
+A0  B0  C0  D0 -+- KD0
             |   |
             |   +- ND0
             |
