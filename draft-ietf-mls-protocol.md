@@ -1214,7 +1214,7 @@ is set to the zero-length octet string.
 
 ## Update Paths
 
-As described in {{commit}}, each MLS Commit message needs to
+As described in {{commit}}, each MLS Commit message may optionally
 transmit a KeyPackage leaf and node values along its direct path.
 The path contains a public key and encrypted secret value for all
 intermediate nodes in the path above the leaf.  The path is ordered
