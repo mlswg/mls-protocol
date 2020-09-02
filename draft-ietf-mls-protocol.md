@@ -1866,7 +1866,7 @@ introduced.  The only choices the creator makes here are its own
 KeyPackage, the leaf secret from which the Commit is built, and the
 intermediate key pairs along the direct path to the root.
 
-## Group Creation from existing PSKs
+## Linking a New Group to an Existing Group
 
 Group creation may be tied to an already existing group structure, consisting of
 re-initialization of an existing group, or branching of a sub-group.
