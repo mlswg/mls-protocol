@@ -1878,7 +1878,12 @@ Branching may be used to bootstrap a new group consisting of a subset of
 current group members, based on the current group state.
 
 In both cases, the `psk_nonce` included in the `PreSharedKeyID` object must be a
-randomly sampled nonce to avoid key re-use.
+randomly sampled nonce of length `KDF.Nh` to avoid key re-use.
+
+<!-- OPEN ISSUE: We can probably do without a nonce by simply using the GroupID
+of the new group, provided the GroupId is long enough to prevent collisions.
+However, GroupId is currently 'hidden' in the GroupInfo, which is only available
+to the receiver _after_ the PSK would have to be injected. -->
 
 ### Re-Initialization {#re-initialization}
 
