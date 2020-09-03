@@ -725,17 +725,13 @@ secret is used to derive a new secret value for the corresponding
 node, from which the node's key pair is derived.
 
 ~~~~~
-leaf_node_secret = ExpandWithLabel(leaf_secret,
-                                   "node", "", KEM.Nsk)
+leaf_node_secret = DeriveSecret(leaf_secret, "node")
+path_secret[0] = DeriveSecret(leaf_secret, "path")
+
+path_secret[n] = DeriveSecret(path_secret[n-1], "path")
+node_secret[n] = DeriveSecret(path_secret[n], "node")
+
 leaf_priv, leaf_pub = KEM.DeriveKeyPair(leaf_node_secret)
-
-
-path_secret[0] = ExpandWithLabel(leaf_secret,
-                                   "path", "", KEM.Nsk)
-path_secret[n] = ExpandWithLabel(path_secret[n-1],
-                                   "path", "", KEM.Nsk)
-node_secret[n] = ExpandWithLabel(path_secret[n],
-                                   "node", "", KEM.Nsk)
 node_priv[n], node_pub[n] = KEM.DeriveKeyPair(node_secret[n])
 ~~~~~
 
