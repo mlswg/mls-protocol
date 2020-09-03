@@ -701,7 +701,7 @@ they receive the private keys for nodes, as described in
 
 ## Ratchet Tree Evolution
 
-A member of a MLS group advances the key schedule to provide forward secrecy
+A member of an MLS group advances the key schedule to provide forward secrecy
 and post-compromise security by providing the group with fresh key material to
 be added into the group's shared secret.
 To do so, one member of the group generates fresh key
