@@ -701,9 +701,11 @@ they receive the private keys for nodes, as described in
 
 ## Ratchet Tree Evolution
 
-We now describe how members ratchet forward their group's shared secret with
-fresh key material. To do so, one member of the group will generate fresh key
-material, apply it to their local tree state, and then send this key material
+A member of a MLS group advances the key schedule to provide forward secrecy
+and post-compromise security by providing the group with fresh key material to
+be added into the group's shared secret.
+To do so, one member of the group generates fresh key
+material, applies it to their local tree state, and then sends this key material
 to other members in the group via an UpdatePath message (see {{update-paths}}) .
 All other group members then apply the key material in the UpdatePath to their
 own local tree state to derive the group's now-updated shared secret.
@@ -783,7 +785,7 @@ delete the leaf_secret.
 
 After generating fresh key material and applying it to ratchet forward their
 local tree state as described in the prior section, the generator must broadcast
-this update to other members of the group via an UpdatePath message, who
+this update to other members of the group in a Commit message, who
 apply it to keep their local views of the tree in
 sync with the sender's.  More specifically, when a member commits a change to
 the tree (e.g., to add or remove a member), it transmits a UpdatePath message
