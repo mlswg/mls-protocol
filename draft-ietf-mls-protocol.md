@@ -1354,9 +1354,6 @@ update), does that constitute a weaker security level -->
 <!-- OPEN ISSUE Define "security level", and what it means to match the
 security level of the ciphersuite used in the group. -->
 
-<!-- OPEN ISSUE: We have to decide if we want an external coordination
-via the application of a Handshake proposal. -->
-
 Each PSK in MLS has a type that designates how it was provisioned.
 External PSKs are provided by the application logic. Other resumption PSKs
 are derived from the MLS key schedule, and used in cases where it is
@@ -1785,17 +1782,17 @@ that the recipient of the message can use it to compute the nonce to be used for
 decryption.
 
 ~~~~~
-+-+-+-+-+---------...---+
++-|-+-|-+---------...---+
 |   Key Schedule Nonce  |
-+-+-+-+-+---------...---+
++-|-+-|-+---------...---+
            XOR
-+-+-+-+-+---------...---+
++-|-+-|-+---------...---+
 | Guard |       0       |
-+-+-+-+-+---------...---+
++-|-+-|-+---------...---+
            ===
-+-+-+-+-+---------...---+
++-|-+-|-+---------...---+
 | Encrypt/Decrypt Nonce |
-+-+-+-+-+---------...---+
++-|-+-|-+---------...---+
 ~~~~~
 
 The Additional Authenticated Data (AAD) input to the encryption
@@ -2812,11 +2809,11 @@ participant D:
     /     \
    E       F
   / \     / \
-A0  B0  C0  D0 -+- KD0
+A0  B0  C0  D0 -|- KD0
             |   |
             |   +- ND0
             |
-            D1 -+- KD1
+            D1 -|- KD1
             |   |
             |   +- ND1
             |
