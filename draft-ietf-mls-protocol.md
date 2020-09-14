@@ -2043,6 +2043,7 @@ and shutting down the old one.
 
 ~~~~~
 struct {
+    opaque group_id<0..255>;
     ProtocolVersion version;
     CipherSuite cipher_suite;
     Extension extensions<0..2^32-1>;
@@ -2050,8 +2051,8 @@ struct {
 ~~~~~
 
 A member of the group applies a ReInit message by waiting for the committer to
-send the Welcome message and by checking that the parameters of the new group
-corresponds to the ones specified in the proposal.
+send the Welcome message and by checking that the `group_id` and the parameters
+of the new group corresponds to the ones specified in the proposal.
 
 
 ### External Proposals
@@ -2124,9 +2125,14 @@ If the committer recieved multiple PSK proposals, they MUST include all of them
 in an ordering of their choice.
 
 If there are one or more multiple ReInit proposals, the commiter MUST choose one
-where each group member provides a KeyPackage that satisfies the parameters
-specified in the proposal and where the `mls_version` is greater or equal to
-that of the current group. It MUST consider all other ReInit proposals invalid.
+where
+
+* the `group_id` is unique among its own groups,
+* each group member provides a KeyPackage that satisfies the parameters
+specified in the proposal and
+* the `mls_version` is greater or equal to that of the current group
+
+The committer MUST consider all other ReInit proposals invalid.
 
 The Commit MUST NOT combine proposals sent within different epochs. In the event
 that a valid proposal is omitted from the next Commit, the sender of the
@@ -2256,12 +2262,12 @@ message at the same time, by taking the following steps:
   order of the `psks` MUST be the same as the order of PSK proposals in the
   `proposals` vector.
 
-* If a ReInit proposal was part of the commit, the Committer MUST create a new
-  group with the parameters specified in the ReInit proposal and with the same
-  members as the original group after processing the current commit. The Welcome
-  message MUST include a `PreSharedKeyID` with `psktype` `reinit` and with
-  `psk_group_id` and `psk_epoch` corresponding to the current group and the
-  epoch after the commit was processed.
+* If a ReInit proposal was part of the Commit, the committer MUST create a new
+  group with the Group ID and the parameters specified in the ReInit proposal
+  and with the same members as the original group after processing the current
+  commit. The Welcome message MUST include a `PreSharedKeyID` with `psktype`
+  `reinit` and with `psk_group_id` and `psk_epoch` corresponding to the current
+  group and the epoch after the commit was processed.
 
 A member of the group applies a Commit message by taking the following steps:
 
