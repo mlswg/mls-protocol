@@ -1386,7 +1386,6 @@ enum {
   external(0),
   reinit(1),
   branch(2),
-  recovery(3),
   (255)
 } PSKType;
 
@@ -1402,10 +1401,6 @@ struct {
       uint64 psk_epoch;
 
     case branch:
-      opaque psk_group_id<0..255>;
-      uint64 psk_epoch;
-
-    case recovery:
       opaque psk_group_id<0..255>;
       uint64 psk_epoch;
   }
