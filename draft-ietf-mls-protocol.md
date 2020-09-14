@@ -1931,6 +1931,7 @@ enum {
     update(2),
     remove(3),
     psk(4)
+    reinit(5)
     (255)
 } ProposalType;
 
@@ -1941,6 +1942,7 @@ struct {
         case update: Update;
         case remove: Remove;
         case psk:    PSK;
+        case reinit: ReInit;
     };
 } Proposal;
 ~~~~~
@@ -2272,6 +2274,9 @@ A member of the group applies a Commit message by taking the following steps:
 
 * Verify that all PSKs specified in any PSK proposals in the `proposals` vector
   are available.
+
+* Verify that only one ReInit proposal is present and that the `mls_version`
+  field indicates an equal or higher version that that of the current group.
 
 * Generate a provisional GroupContext object by applying the proposals
   referenced in the initial Commit object, as described in {{proposals}}. Update
