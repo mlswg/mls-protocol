@@ -312,7 +312,7 @@ Initialization Key (InitKey):
 : A key package that is prepublished by a client, which other clients can use to
   introduce the client to a new group.
 
-Identity Key:
+Signature Key:
 : A long-lived signing key pair used to authenticate the sender of a
   message.
 
@@ -329,7 +329,7 @@ This protocol is designed to execute in the context of a Service Provider (SP)
 as described in {{?I-D.ietf-mls-architecture}}.  In particular, we assume
 the SP provides the following services:
 
-* A long-term identity key provider which allows clients to authenticate
+* A long-term signature key provider which allows clients to authenticate
   protocol messages in a group.
 
 * A broadcast channel, for each group, which will relay a message to all members
@@ -907,7 +907,7 @@ uint16 CredentialType;
 
 struct {
     opaque identity<0..2^16-1>;
-    opaque public_key<0..2^16-1>;
+    opaque signature_key<0..2^16-1>;
 } BasicCredential;
 
 struct {
@@ -946,9 +946,9 @@ member can use to add this client to the group asynchronously.
 
 A KeyPackage object specifies a ciphersuite that the client
 supports, as well as providing a public key that others can use
-for key agreement. The client's identity key can be updated
+for key agreement. The client's signature key can be updated
 throughout the lifetime of the group by sending a new KeyPackage
-with a new identity; the new identity MUST be validated by the
+with a new signature key; the new signature key MUST be validated by the
 authentication service.
 
 When used as InitKeys, KeyPackages are intended to be used only once and SHOULD NOT
@@ -962,7 +962,7 @@ among the set of KeyPackages created by this client.
 
 The value for hpke\_init\_key MUST be a public key for the asymmetric
 encryption scheme defined by cipher\_suite. The whole structure
-is signed using the client's identity key. A KeyPackage object
+is signed using the client's signature key. A KeyPackage object
 with an invalid signature field MUST be considered malformed.
 The input to the signature computation comprises all of the fields
 except for the signature field.
@@ -2677,7 +2677,7 @@ Initial leaf keys are known only by their owner and the group creator,
 because they are derived from an authenticated key exchange protocol.
 Subsequent leaf keys are known only by their owner.
 
-Note that the long-term identity keys used by the protocol MUST be
+Note that the long-term signature keys used by the protocol MUST be
 distributed by an "honest" authentication service for clients to
 authenticate their legitimate peers.
 
@@ -2696,11 +2696,11 @@ key) has sent a message.
 The second form considers authentication with respect to the sender,
 meaning the group members can verify that a message originated from a
 particular member of the group. This property is provided by digital
-signatures on the messages under identity keys.
+signatures on the messages under signature keys.
 
-<!-- OPEN ISSUE: Signatures under the identity keys, while simple, have
+<!-- OPEN ISSUE: Signatures under the signature keys, while simple, have
 the side-effect of precluding deniability. We may wish to allow other
-options, such as (ii) a key chained off of the identity key,
+options, such as (ii) a key chained off of the signature key,
 or (iii) some other key obtained through a different manner, such
 as a pairwise channel that provides deniability for the message
 contents. -->
