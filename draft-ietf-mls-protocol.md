@@ -313,8 +313,7 @@ Initialization Key (InitKey):
   introduce the client to a new group.
 
 Identity Key:
-: A long-lived signing key pair used to authenticate the sender of a
-  message.
+: A signing key pair used to authenticate the sender of a message.
 
 Terminology specific to tree computations is described in
 {{ratchet-trees}}.
@@ -329,7 +328,7 @@ This protocol is designed to execute in the context of a Service Provider (SP)
 as described in {{?I-D.ietf-mls-architecture}}.  In particular, we assume
 the SP provides the following services:
 
-* A long-term identity key provider which allows clients to authenticate
+* A identity key provider which allows clients to authenticate
   protocol messages in a group.
 
 * A broadcast channel, for each group, which will relay a message to all members
@@ -2677,7 +2676,7 @@ Initial leaf keys are known only by their owner and the group creator,
 because they are derived from an authenticated key exchange protocol.
 Subsequent leaf keys are known only by their owner.
 
-Note that the long-term identity keys used by the protocol MUST be
+Note that the identity keys used by the protocol MUST be
 distributed by an "honest" authentication service for clients to
 authenticate their legitimate peers.
 
