@@ -894,9 +894,10 @@ participants by means of credentials issued by some authentication
 system, like a PKI.  Each type of credential MUST express the
 following data:
 
-* The public key of a signature key pair
-* The identity of the holder of the private key
-* The signature scheme that the holder will use to sign MLS messages
+* The public keys of one or more signature key pairs
+* The identity of the holder of the private keys
+* The signature schemes corresponding to the individual key pairs (only if more
+  than one key pair is included)
 
 Credentials MAY also include information that allows a relying party
 to verify the identity / signing key binding.
@@ -907,7 +908,7 @@ uint16 CredentialType;
 
 struct {
     opaque identity<0..2^16-1>;
-    opaque public_key<0..2^16-1>;
+    opaque identity_key<0..2^16-1>;
 } BasicCredential;
 
 struct {
@@ -946,10 +947,16 @@ member can use to add this client to the group asynchronously.
 
 A KeyPackage object specifies a ciphersuite that the client
 supports, as well as providing a public key that others can use
-for key agreement. The client's identity key can be updated
-throughout the lifetime of the group by sending a new KeyPackage
-with a new identity; the new identity MUST be validated by the
-authentication service.
+for key agreement.
+
+If the credential present in the KeyPackage supports multiple signature schemes,
+it MUST support the one indicated by the ciphersuite of the KeyPackage. The
+public key corresponding to that signature scheme MUST be used to authenticate
+the group member represented by the KeyPackage.
+
+The client's identity key can be updated throughout the lifetime of the group by
+sending a new KeyPackage with a new identity key; the new identity key MUST be
+validated by the authentication service.
 
 When used as InitKeys, KeyPackages are intended to be used only once and SHOULD NOT
 be reused except in case of last resort. (See {{initkey-reuse}}).
