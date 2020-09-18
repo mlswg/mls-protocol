@@ -328,7 +328,7 @@ This protocol is designed to execute in the context of a Service Provider (SP)
 as described in {{?I-D.ietf-mls-architecture}}.  In particular, we assume
 the SP provides the following services:
 
-* A identity key provider which allows clients to authenticate
+* An identity key provider which allows clients to authenticate
   protocol messages in a group.
 
 * A broadcast channel, for each group, which will relay a message to all members
