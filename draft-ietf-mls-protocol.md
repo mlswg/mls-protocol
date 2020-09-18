@@ -3284,6 +3284,31 @@ that a Commit is well-formed comprises an acknowledgement from one member per
 node in the UpdatePath, that is, one member from each subtree rooted in the
 copath node corresponding to the node in the UpdatePath.
 
+## Improving Resiliance to Poor Random Number Generators
+
+The security of a group hinges on the fact that every member has access to a
+good source of entropy. To make the protocol more robust in environments with
+weak sources of entropy or even compromised random number generators, each MLS
+implementation MUST maintain a `base_secret` and a `base_derivation_counter`,
+which act as an entropy pool.
+
+In the course of MLS protocol operations, whenever a client has to sample a
+fresh secret, new randomness is sampled from the underlying entropy source (e.g.
+the RNG of the operating system) and extracted together with the `base_secret`
+to form the new `base_secret`. The fresh secret is then derived from the
+`base_secret` and the value of the `base_derivation_counter`.
+
+Additionally, whenever a client processes a commit message in one of its groups,
+an extra secret is derived from the resulting `epoch_secret` with the label
+`base_secret_addition`. That secret is then Expanded together with the
+`base_secret` to form a new `base_secret`.
+
+TODO:
+* Formally specify the extract and expand calls
+* think of better names
+* do we actually need the counter?
+* should the secret derived from the `epoch_secret` be part of the Key Schedule?
+
 # IANA Considerations
 
 This document requests the creation of the following new IANA registries:
