@@ -1392,7 +1392,6 @@ enum {
 struct {
   PSKType psktype;
   select (psktype) {
-
     case external:
       opaque psk_id<0..255>;
 
@@ -1533,7 +1532,7 @@ security in some cross-group operations.
 The application SHOULD specify an upper limit on the number of past
 epochs for which the `recovery_secret` may be stored.
 
-There are three ways in which a `recovery_secret` can be used to re-initialize
+There are three ways in which a `recovery_secret` can be used: to re-initialize
 the group with different parameters, to re-add lost group members or to create a
 sub-group of an existing group, as detailed in {{pre-shared-keys}}.
 
@@ -2281,7 +2280,7 @@ A member of the group applies a Commit message by taking the following steps:
 * Verify that all PSKs specified in any PSK proposals in the `proposals` vector
   are available.
 
-* Verify that only one ReInit proposal is present and that the `mls_version`
+* Verify that at most one ReInit proposal is present and that the `mls_version`
   field indicates an equal or higher version that that of the current group.
 
 * Generate a provisional GroupContext object by applying the proposals
