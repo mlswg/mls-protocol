@@ -2712,7 +2712,7 @@ provides a form of forward secrecy: learning a message key does not
 reveal previous message or root keys. Post-compromise security is
 provided by Commit operations, in which a new root key is generated
 from the latest ratcheting tree. If the adversary cannot derive the
-updated root key after an Commit operation, it cannot compute any
+updated root key after a Commit operation, it cannot compute any
 derived secrets.
 
 In the case where the client could have been compromised (device
