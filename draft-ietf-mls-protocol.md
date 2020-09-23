@@ -2122,13 +2122,13 @@ Update for the leaf if there are no Removes. If there are multiple Add proposals
 for the same client, the committer again chooses one to include and considers
 the rest invalid.
 
-If there are multiple ReInit proposals, the commiter MUST choose the committer 
-MUST choose exactly one to include in the Commit message. The `version` field 
-in the ReInit proposal MUST be no less than the version for the current group. 
-A client processing a Commit that covers multiple ReInit proposals or a ReInit 
-proposal with a lower version MUST reject it as malformed. The committer 
-SHOULD choose a ReInit proposal with a unique `group_id` and parameters 
-that are supported by all clients in the group.
+If there are multiple ReInit proposals, the committer MUST choose exactly one to
+include in the Commit message. The `version` field in the ReInit proposal MUST
+be no less than the version for the current group. A client processing a Commit
+that covers multiple ReInit proposals or a ReInit proposal with a lower version
+MUST reject it as malformed. The committer SHOULD choose a ReInit proposal with
+a unique `group_id` and parameters that are supported by all clients in the
+group.
 
 The Commit MUST NOT combine proposals sent within different epochs. In the event
 that a valid proposal is omitted from the next Commit, the sender of the
