@@ -2195,9 +2195,7 @@ message at the same time, by taking the following steps:
   * PSK proposals are processed later when deriving the `psk_secret` for the Key
     Schedule.
 
-  * ReInit proposals are not applied. They are simply present in the `proposals`
-    vector to indicate to other members if and how the group should be
-    re-initialized.
+  * A ReInit proposal is applied by marking the group as "closed".  Further proposals and commits for this group MUST be rejected.  The group's only further purpose is to provide a PSK used by the successor group.
 
 * Decide whether to populate the `path` field: If the `path` field is required
   based on the proposals that are in the commit (see above), then it MUST be
