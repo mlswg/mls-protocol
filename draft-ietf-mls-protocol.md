@@ -1928,7 +1928,7 @@ enum {
     add(1),
     update(2),
     remove(3),
-    psk(4)
+    presharedkey(4)
     reinit(5)
     (255)
 } ProposalType;
@@ -1939,7 +1939,7 @@ struct {
         case add:    Add;
         case update: Update;
         case remove: Remove;
-        case psk:    PSK;
+        case psk:    PreSharedKey;
         case reinit: ReInit;
     };
 } Proposal;
@@ -2016,21 +2016,21 @@ A member of the group applies a Remove message by taking the following steps:
 
 * Blank the intermediate nodes along the path from the removed leaf to the root
 
-### PSK
+### PreSharedKey
 
-A PSK proposal can be used to request that a PSK be injected into the
+A PreSharedKey proposal can be used to request that a PreSharedKey be injected into the
 key schedule in the process of advancing the epoch.
 
 ~~~~~
 struct {
     PreSharedKeyID psk;
-} PSK;
+} PreSharedKey;
 ~~~~~
 
-When processing a commit message including one or more PSK proposals, a group
-member MUST derive the `psk_secret` for the inclusion in the Key Schedule as
-described in {{pre-shared-keys}}, where the order of the PSKs corresponds to the
-order of the PSK proposals in the commit.
+When processing a Commit message including one or more PreSharedKey proposals, a
+group member MUST derive the `psk_secret` for the inclusion in the Key Schedule
+as described in {{pre-shared-keys}}, where the order of the PSKs corresponds to
+the order of the PreSharedKey proposals in the commit.
 
 ### ReInit
 
@@ -2194,7 +2194,7 @@ message at the same time, by taking the following steps:
     be updated by the implementation to include any new proposals added by
     negotiated group extensions.
 
-  * PSK proposals are processed later when deriving the `psk_secret` for the Key
+  * PreSharedKey proposals are processed later when deriving the `psk_secret` for the Key
     Schedule.
 
   * ReInit proposals are not applied. They are simply present in the `proposals`
@@ -2225,9 +2225,9 @@ message at the same time, by taking the following steps:
   `parent_hash` extension. Store it in the ratchet tree and assign it to the
   `key_package` field in the Commit object.
 
-* If one or more PSK proposals are part of the commit, derive the `psk_secret`
+* If one or more PreSharedKey proposals are part of the commit, derive the `psk_secret`
   as specified in {{pre-shared-keys}}, where the order of PSKs in the derivation
-  corresponds to the order of PSK proposals in the `proposals` vector.
+  corresponds to the order of PreSharedKey proposals in the `proposals` vector.
   Otherwise, set `psk_secret` to 0.
 
 * Construct an MLSPlaintext object containing the Commit object. Use the
@@ -2255,7 +2255,7 @@ message at the same time, by taking the following steps:
 
 * Construct a Welcome message from the encrypted GroupInfo object, the encrypted
   key packages and any PSK for which a proposal was included in the commit. The
-  order of the `psks` MUST be the same as the order of PSK proposals in the
+  order of the `psks` MUST be the same as the order of PreSharedKey proposals in the
   `proposals` vector.
 
 * If a ReInit proposal was part of the Commit, the committer MUST create a new
@@ -2274,7 +2274,7 @@ A member of the group applies a Commit message by taking the following steps:
   public key from the credential stored at the leaf in the tree indicated by
   the `sender` field.
 
-* Verify that all PSKs specified in any PSK proposals in the `proposals` vector
+* Verify that all PSKs specified in any PreSharedKey proposals in the `proposals` vector
   are available.
 
 * Verify that at most one ReInit proposal is present and that the `mls_version`
@@ -2315,9 +2315,9 @@ A member of the group applies a Commit message by taking the following steps:
 * Update the new GroupContext's confirmed and interim transcript hashes using the
   new Commit.
 
-* If the `proposals` vector contains any PSK proposals, derive the `psk_secret`
+* If the `proposals` vector contains any PreSharedKey proposals, derive the `psk_secret`
   as specified in {{pre-shared-keys}}, where the order of PSKs in the derivation
-  corresponds to the order of PSK proposals in the `proposals` vector.
+  corresponds to the order of PreSharedKey proposals in the `proposals` vector.
   Otherwise, set `psk_secret` to 0.
 
 * Use the `commit_secret`, the `psk_secret`, the provisional GroupContext, and
