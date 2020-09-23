@@ -2050,7 +2050,10 @@ struct {
 
 A member of the group applies a ReInit message by waiting for the committer to
 send the Welcome message and by checking that the `group_id` and the parameters
-of the new group corresponds to the ones specified in the proposal.
+of the new group corresponds to the ones specified in the proposal. The Welcome
+message MUST specify a `PreSharedKey` with `psktype = reinit` and with
+`psk_group_id` and `psk_epoch` equal to the `group_id` and `epoch` of the
+existing group after the Commit containing the `reinit` Proposal was processed.
 
 
 ### External Proposals
