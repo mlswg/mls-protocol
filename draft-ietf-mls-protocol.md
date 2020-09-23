@@ -1890,7 +1890,7 @@ security level of the original group.
 ### Sub-group Branching
 
 If a client wants to create a subgroup of an existing group, they MAY choose to
-include a `PSKId` in the `GroupSecrets` object of the Welcome message choosing
+include a `PreSharedKeyID` in the `GroupSecrets` object of the Welcome message choosing
 the `psktype` `branch`, the `group_id` of the group from which a subgroup is to
 be branched, as well as an epoch within the number of epochs for which a
 `recovery_secret` is kept.
@@ -2438,8 +2438,8 @@ On receiving a Welcome message, a client processes it using the following steps:
 
 * Decrypt the `encrypted_group_secrets` using HPKE with the algorithms indicated
   by the ciphersuite and the HPKE private key corresponding to the GroupSecrets.
-  If a PSKId is part of the GroupSecrets and the client is not in possession of the
-  corresponding PSK, return an error.
+  If a `PreSharedKeyID` is part of the GroupSecrets and the client is not in
+  possession of the corresponding PSK, return an error.
 
 * From the `joiner_secret` in the decrypted GroupSecrets object and the PSKs
   specified in the `GroupSecrets`, derive the `member_secret` and using that the
