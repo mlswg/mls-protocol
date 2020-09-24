@@ -914,7 +914,6 @@ struct {
     opaque cert_data<0..2^16-1>;
 } Certificate;
 
-
 struct {
     CredentialType credential_type;
     select (Credential.credential_type) {
@@ -932,12 +931,7 @@ binding.  The format of the key in the `public_key` field is defined by the
 relevant ciphersuite: the group ciphersuite for a credential in a ratchet tree,
 the KeyPackage ciphersuite for a credential in a KeyPackage object.
 
-For X509Credential, each entry in the chain represents a single  DER-encoded
- X509 certificate. The chain is ordered such that the first entry (chain[0]) 
- is the end-entity certificate and each subsequent entry in the chain MUST be 
- a parent of the previous entry. The algorithm for the `public_key` in the 
- end-entity certificate MUST match the ciphersuite for the enclosing 
- KeyPackage.
+For X509Credential, each entry in the chain represents a single DER-encoded X509 certificate. The chain is ordered such that the first entry (chain[0]) is the end-entity certificate and each subsequent certificate in the chain MUST be the issuer of the previous certificate. The algorithm for the `public_key` in the end-entity certificate MUST match the relevant ciphersuite for the enclosing KeyPackage.
 
 For ciphersuites using Ed25519 or Ed448 signature schemes, the public key is in
 the format specified {{?RFC8032}}.  For ciphersuites using ECDSA with the NIST
