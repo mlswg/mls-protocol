@@ -313,8 +313,7 @@ Initialization Key (InitKey):
   introduce the client to a new group.
 
 Signature Key:
-: A long-lived signing key pair used to authenticate the sender of a
-  message.
+: A signing key pair used to authenticate the sender of a message.
 
 Terminology specific to tree computations is described in
 {{ratchet-trees}}.
@@ -329,7 +328,7 @@ This protocol is designed to execute in the context of a Service Provider (SP)
 as described in {{?I-D.ietf-mls-architecture}}.  In particular, we assume
 the SP provides the following services:
 
-* A long-term signature key provider which allows clients to authenticate
+* A signature key provider which allows clients to authenticate
   protocol messages in a group.
 
 * A broadcast channel, for each group, which will relay a message to all members
@@ -948,7 +947,8 @@ A KeyPackage object specifies a ciphersuite that the client
 supports, as well as providing a public key that others can use
 for key agreement. The client's signature key can be updated
 throughout the lifetime of the group by sending a new KeyPackage
-with a new signature key; the new signature key MUST be validated by the
+with a new Credential. However, the identity MUST be the same in
+both Credentials and the new Credential MUST be validated by the
 authentication service.
 
 When used as InitKeys, KeyPackages are intended to be used only once and SHOULD NOT
@@ -2677,7 +2677,7 @@ Initial leaf keys are known only by their owner and the group creator,
 because they are derived from an authenticated key exchange protocol.
 Subsequent leaf keys are known only by their owner.
 
-Note that the long-term signature keys used by the protocol MUST be
+Note that the signature keys used by the protocol MUST be
 distributed by an "honest" authentication service for clients to
 authenticate their legitimate peers.
 
