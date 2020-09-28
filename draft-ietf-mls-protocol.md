@@ -1543,8 +1543,11 @@ which MAY be used for authenticating the current group state. As with recovery
 keys, these are distinguished from exporter keys in that they have specific
 use affecting the MLS protocol.
 
-Authentication keys MAY be used to authenticate current or past group
-members out-of-band.
+Members of a group MAY compare their `authentication_secrets` out-of-band to
+authenticate that they share the same view of the group.
+
+If one of the parties is being actively impersonated by an attacker, their
+`authentication_secret` will differ from that of the other group members.
 
 # Message Framing
 
