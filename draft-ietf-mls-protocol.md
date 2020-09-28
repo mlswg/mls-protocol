@@ -1367,11 +1367,6 @@ may be used in the following cases:
     a PSK can be used to carry entropy from the old group forward into a new
     group with the desired parameters.
 
-  - Recovery: If the group state of one or more members of the group deviates
-    from the rest, they can be re-added to the group such that participants who
-    were group members at the time of deviation and are still in the group can
-    verify that the added member was previously in the group.
-
   - Branching: A PSK may be used to bootstrap a subset of current group
     members into a new group. This applies if a subset of current group
     members wish to branch based on the current group state.
