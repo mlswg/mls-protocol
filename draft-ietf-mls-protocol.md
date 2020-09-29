@@ -1533,8 +1533,7 @@ sub-group of an existing group, as detailed in {{pre-shared-keys}}.
 Recovery keys are distinguished from exporter keys in that they have specific
 use inside the MLS protocol, whereas the use of exporter secrets may be
 decided by an external application. They are thus derived separately to avoid
-key material reuse resulting from poor exporter key management external to
-the protocol.
+key material reuse.
 
 ## State Authentication Keys
 
