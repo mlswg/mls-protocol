@@ -1393,7 +1393,7 @@ enum {
 
 struct {
   PSKType psktype;
-  select (psktype) {
+  select (PreSharedKeyID.psktype) {
     case external:
       opaque psk_id<0..255>;
 
