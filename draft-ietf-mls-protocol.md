@@ -1405,10 +1405,10 @@ struct {
 } PreSharedKeys;
 ~~~~~
 
-On receiving a Commit with a `pre_shared_keys` extension or a GroupSecrets
-object with the psk field set, the receiving Client
-includes them in the key schedule in the order listed in the commit. For
-internal PSKs, the psk is defined as the `recovery_secret` of the group and
+On receiving a Commit with a `PreSharedKey` Proposal or a GroupSecrets object
+with the `psks` field set, the receiving Client includes them in the key
+schedule in the order listed in the commit or in the `psks` field respectively.
+For internal PSKs, the psk is defined as the `recovery_secret` of the group and
 epoch specified in the `PreSharedKeyID` object. Finally, the `psk_secret` to be
 included in the Key Schedule is derived as follows (where `n` is the number of
 PSKs):
