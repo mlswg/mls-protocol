@@ -1351,7 +1351,7 @@ Security (PCS) guarantees as a Commit message.
 the PSK security expires before the next update (shorter PSK lifetime than
 update), does that constitute a weaker security level -->
 
-<!-- OPEN ISSUE Define "security level", and what it means to match the
+<!-- OPEN ISSUE: Define "security level", and what it means to match the
 security level of the ciphersuite used in the group. -->
 
 Each PSK in MLS has a type that designates how it was provisioned.
