@@ -936,7 +936,7 @@ X509 certificate. The chain is ordered such that the first entry (chain[0])
 is the end-entity certificate and each subsequent certificate in the chain 
 MUST be the issuer of the previous certificate. The algorithm for the  
 `public_key` in the end-entity certificate MUST match the relevant 
-ciphersuite for the enclosing KeyPackage.
+ciphersuite.
 
 For ciphersuites using Ed25519 or Ed448 signature schemes, the public key is in
 the format specified {{?RFC8032}}.  For ciphersuites using ECDSA with the NIST
