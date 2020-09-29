@@ -312,9 +312,8 @@ Initialization Key (InitKey):
 : A key package that is prepublished by a client, which other clients can use to
   introduce the client to a new group.
 
-Identity Key:
-: A long-lived signing key pair used to authenticate the sender of a
-  message.
+Signature Key:
+: A signing key pair used to authenticate the sender of a message.
 
 Terminology specific to tree computations is described in
 {{ratchet-trees}}.
@@ -329,7 +328,7 @@ This protocol is designed to execute in the context of a Service Provider (SP)
 as described in {{?I-D.ietf-mls-architecture}}.  In particular, we assume
 the SP provides the following services:
 
-* A long-term identity key provider which allows clients to authenticate
+* A signature key provider which allows clients to authenticate
   protocol messages in a group.
 
 * A broadcast channel, for each group, which will relay a message to all members
@@ -701,12 +700,21 @@ they receive the private keys for nodes, as described in
 
 ## Ratchet Tree Evolution
 
-When performing a Commit, the generator of the Commit updates its leaf
+A member of an MLS group advances the key schedule to provide forward secrecy
+and post-compromise security by providing the group with fresh key material to
+be added into the group's shared secret.
+To do so, one member of the group generates fresh key
+material, applies it to their local tree state, and then sends this key material
+to other members in the group via an UpdatePath message (see {{update-paths}}) .
+All other group members then apply the key material in the UpdatePath to their
+own local tree state to derive the group's now-updated shared secret.
+
+To begin, the generator of the UpdatePath updates its leaf
 KeyPackage and its direct path to the root with new secret values.  The
 HPKE leaf public key within the KeyPackage MUST be derived from a freshly
 generated HPKE secret key to provide post-compromise security.
 
-The generator of the Commit starts by sampling a fresh random value called
+The generator of the UpdatePath starts by sampling a fresh random value called
 "leaf_secret", and uses the leaf_secret to generate their leaf HPKE key pair
 (see {{key-packages}}) and to seed a sequence of "path secrets", one for each
 ancestor of its leaf. In this setting,
@@ -716,17 +724,13 @@ secret is used to derive a new secret value for the corresponding
 node, from which the node's key pair is derived.
 
 ~~~~~
-leaf_node_secret = ExpandWithLabel(leaf_secret,
-                                   "node", "", KEM.Nsk)
+leaf_node_secret = DeriveSecret(leaf_secret, "node")
+path_secret[0] = DeriveSecret(leaf_secret, "path")
+
+path_secret[n] = DeriveSecret(path_secret[n-1], "path")
+node_secret[n] = DeriveSecret(path_secret[n], "node")
+
 leaf_priv, leaf_pub = KEM.DeriveKeyPair(leaf_node_secret)
-
-
-path_secret[0] = ExpandWithLabel(leaf_secret,
-                                   "path", "", KEM.Nsk)
-path_secret[n] = ExpandWithLabel(path_secret[n-1],
-                                   "path", "", KEM.Nsk)
-node_secret[n] = ExpandWithLabel(path_secret[n],
-                                   "node", "", KEM.Nsk)
 node_priv[n], node_pub[n] = KEM.DeriveKeyPair(node_secret[n])
 ~~~~~
 
@@ -742,7 +746,7 @@ For example, suppose there is a group with four members:
 A   B   C   D
 ~~~~~
 
-If member B subsequently generates a Commit based on a secret
+If member B subsequently generates an UpdatePath based on a secret
 "leaf_secret", then it would generate the following sequence
 of path secrets:
 
@@ -757,7 +761,7 @@ leaf_secret    --> leaf_node_secret --> leaf_priv, leaf_pub
                                      ~> leaf_key_package
 ~~~~~
 
-After the Commit, the tree will have the following structure, where
+After applying the UpdatePath, the tree will have the following structure, where
 "np\[i\]" represents the node_priv values generated as described
 above:
 
@@ -769,23 +773,24 @@ above:
     A    B    C   D
 ~~~~~
 
-After performing these operations, the generator of the Commit MUST
+After performing these operations, the generator of the UpdatePath MUST
 delete the leaf_secret.
 
 ## Synchronizing Views of the Tree
 
-After generating a Commit as described in the prior section, the generator of
-the Commit must broadcast this update to other members of the group, who
+After generating fresh key material and applying it to ratchet forward their
+local tree state as described in the prior section, the generator must broadcast
+this update to other members of the group in a Commit message, who
 apply it to keep their local views of the tree in
-sync with the sender's.  When a client commits a change to the tree
-(e.g., to add or remove a member), it transmits a handshake message
+sync with the sender's.  More specifically, when a member commits a change to
+the tree (e.g., to add or remove a member), it transmits a UpdatePath message
 containing a set of public and encrypted private
 values for intermediate nodes in the direct path of a leaf. The
-other members of the group can use these values to update
+other members of the group use these values to update
 their view of the tree, aligning their copy of the tree to the
 sender's.
 
-To perform an update for a path (a Commit), the sender broadcasts to the group
+To transmit this update, the sender broadcasts to the group
 the following information for each node in the direct path of the
 leaf, including the root:
 
@@ -857,6 +862,7 @@ following primitives to be used in group key computations:
   * A Key Encapsulation Mechanism (KEM)
   * A Key Derivation Function (KDF)
   * An AEAD encryption algorithm
+* A hash algorithm
 * A signature algorithm
 
 The HPKE parameters are used to instantiate HPKE {{!I-D.irtf-cfrg-hpke}} for the
@@ -900,7 +906,7 @@ uint16 CredentialType;
 
 struct {
     opaque identity<0..2^16-1>;
-    opaque public_key<0..2^16-1>;
+    opaque signature_key<0..2^16-1>;
 } BasicCredential;
 
 struct {
@@ -939,9 +945,10 @@ member can use to add this client to the group asynchronously.
 
 A KeyPackage object specifies a ciphersuite that the client
 supports, as well as providing a public key that others can use
-for key agreement. The client's identity key can be updated
+for key agreement. The client's signature key can be updated
 throughout the lifetime of the group by sending a new KeyPackage
-with a new identity; the new identity MUST be validated by the
+with a new Credential. However, the identity MUST be the same in
+both Credentials and the new Credential MUST be validated by the
 authentication service.
 
 When used as InitKeys, KeyPackages are intended to be used only once and SHOULD NOT
@@ -955,7 +962,7 @@ among the set of KeyPackages created by this client.
 
 The value for hpke\_init\_key MUST be a public key for the asymmetric
 encryption scheme defined by cipher\_suite. The whole structure
-is signed using the client's identity key. A KeyPackage object
+is signed using the client's signature key. A KeyPackage object
 with an invalid signature field MUST be considered malformed.
 The input to the signature computation comprises all of the fields
 except for the signature field.
@@ -1206,7 +1213,7 @@ is set to the zero-length octet string.
 
 ## Update Paths
 
-As described in {{commit}}, each MLS Commit message needs to
+As described in {{commit}}, each MLS Commit message may optionally
 transmit a KeyPackage leaf and node values along its direct path.
 The path contains a public key and encrypted secret value for all
 intermediate nodes in the path above the leaf.  The path is ordered
@@ -1437,14 +1444,9 @@ types of information:
 * Handshake messages (Proposal and Commit)
 * Application messages
 
-The sender information used to look up the key for the content encryption
-is encrypted under AEAD using a random nonce and the `sender_data_key`
-which is derived from the `sender_data_secret` as follows:
-
-~~~~~
-sender_data_key =
-    ExpandWithLabel(sender_data_secret, "sd key", "", key_length)
-~~~~~
+The sender information used to look up the key for content encryption is
+encrypted with an AEAD where the key and nonce are derived from both
+`sender_data_secret` and a sample of the encrypted message content.
 
 For handshake and application messages, a sequence of keys is derived via a
 "sender ratchet".  Each sender has their own sender ratchet, and each step along
@@ -1467,7 +1469,7 @@ key/nonce pair in the sequence to encrypt (using the AEAD) the j-th message they
 send during that epoch.  In particular, each key/nonce pair MUST NOT be used to
 encrypt more than one message.
 
-Keys, nonces and secrets of ratchets are derived using
+Keys, nonces, and the secrets in ratchets are derived using
 DeriveAppSecret. The context in a given call consists of the index
 of the sender's leaf in the ratchet tree and the current position in
 the ratchet.  In particular, the index of the sender's leaf in the
@@ -1610,7 +1612,6 @@ struct {
     uint64 epoch;
     ContentType content_type;
     opaque authenticated_data<0..2^32-1>;
-    opaque sender_data_nonce<0..255>;
     opaque encrypted_sender_data<0..255>;
     opaque ciphertext<0..2^32-1>;
 } MLSCiphertext;
@@ -1626,67 +1627,23 @@ MLSPlaintext object and how to convert it to an MLSCiphertext object for
 * Set group_id, epoch, content_type and authenticated_data fields from the
   MLSPlaintext object directly
 
-* Randomly generate the sender_data_nonce field
-
 * Identify the key and key generation depending on the content type
 
-* Encrypt an MLSSenderData object for the encrypted_sender_data field from
-  MLSPlaintext and the key generation
-
-* Generate and sign an MLSPlaintextTBS object from the MLSPlaintext
-  object
-
 * Encrypt an MLSCiphertextContent for the ciphertext field using the key
-  identified, the signature, and MLSPlaintext object
+  identified and MLSPlaintext object
 
-Decryption is done by decrypting the metadata, then the message, and then
+* Encrypt the sender data using a key and nonce derived from the
+  `sender_data_secret` for the epoch and a sample of the encrypted
+  MLSCiphertextContent.
+
+Decryption is done by decrypting the sender data, then the message, and then
 verifying the content signature.
 
 The following sections describe the encryption and signing processes in detail.
 
-## Metadata Encryption
+## Content Signing
 
-The "sender data" used to look up the key for the content encryption
-is encrypted under AEAD using the MLSCiphertext sender_data_nonce and
-the sender_data_key from the keyschedule. It is encoded as an
-object of the following form:
-
-~~~~~
-struct {
-    uint32 sender;
-    uint32 generation;
-    opaque reuse_guard[4];
-} MLSSenderData;
-~~~~~
-
-MLSSenderData.sender is assumed to be a `member` sender type.  When constructing
-an MLSSenderData from a Sender object, the sender MUST verify Sender.sender_type
-is `member` and use Sender.sender for MLSSenderData.sender.
-
-The `reuse_guard` field contains a fresh random value used to avoid nonce reuse
-in the case of state loss or corruption, as described in
-{{content-signing-and-encryption}}.
-
-The Additional Authenticated Data (AAD) for the SenderData ciphertext
-computation is its prefix in the MLSCiphertext, namely:
-
-~~~~~
-struct {
-    opaque group_id<0..255>;
-    uint64 epoch;
-    ContentType content_type;
-    opaque authenticated_data<0..2^32-1>;
-} MLSSenderDataAAD;
-~~~~~
-
-When parsing a SenderData struct as part of message decryption, the
-recipient MUST verify that the sender field represents an occupied
-leaf in the ratchet tree.  In particular, the sender index value
-MUST be less than the number of leaves in the tree.
-
-## Content Signing and Encryption
-
-The signature field in an MLSPlaintext object is computed using the
+The `signature` field in an MLSPlaintext object is computed using the
 signing private key corresponding to the credential at the leaf in
 the tree indicated by the sender field.  The signature covers the
 plaintext metadata and message content, which is all of
@@ -1724,7 +1681,9 @@ struct {
 <!-- OPEN ISSUE: group_id and epoch are duplicated in the TBS and in
 GroupContext. Think about how to de-duplicate. -->
 
-The ciphertext field of the MLSCiphertext object is produced by
+## Content Encryption
+
+The `ciphertext` field of the MLSCiphertext object is produced by
 supplying the inputs described below to the AEAD function specified
 by the ciphersuite in use.  The plaintext input contains content and
 signature of the MLSPlaintext, plus optional padding.  These values
@@ -1792,14 +1751,59 @@ struct {
     uint64 epoch;
     ContentType content_type;
     opaque authenticated_data<0..2^32-1>;
-    opaque sender_data_nonce<0..255>;
     opaque encrypted_sender_data<0..255>;
 } MLSCiphertextContentAAD;
 ~~~~~
 
-The ciphertext field of the MLSCiphertext object is produced by
-supplying these inputs to the AEAD function specified by the
-ciphersuite in use.
+## Sender Data Encryption
+
+The "sender data" used to look up the key for the content encryption is
+encrypted with the ciphersuite's AEAD with a key and nonce derived from both the
+`sender_data_secret` and a sample of the encrypted content. Before being
+encrypted, the sender data is encoded as an object of the following form:
+
+~~~~~
+struct {
+    uint32 sender;
+    uint32 generation;
+    opaque reuse_guard[4];
+} MLSSenderData;
+~~~~~
+
+MLSSenderData.sender is assumed to be a `member` sender type.  When constructing
+an MLSSenderData from a Sender object, the sender MUST verify Sender.sender_type
+is `member` and use Sender.sender for MLSSenderData.sender.
+
+The `reuse_guard` field contains a fresh random value used to avoid nonce reuse
+in the case of state loss or corruption, as described in {{content-encryption}}.
+
+The key and nonce provided to the AEAD are computed as the KDF of the first
+`KDF.Nh` bytes of the ciphertext generated in the previous section. If the
+length of the ciphertext is less than `KDF.Nh`, the whole ciphertext is used
+without padding. In pseudocode, the key and nonce are derived as:
+
+```
+ciphertext_sample = ciphertext[0..KDF.Nh-1]
+
+sender_data_key = ExpandWithLabel(sender_data_secret, "key", ciphertext_sample, AEAD.Nk)
+sender_data_nonce = ExpandWithLabel(sender_data_secret, "nonce", ciphertext_sample, AEAD.Nn)
+```
+
+The Additional Authenticated Data (AAD) for the SenderData ciphertext is all the
+fields of MLSCiphertext excluding `encrypted_sender_data`:
+
+~~~~~
+struct {
+    opaque group_id<0..255>;
+    uint64 epoch;
+    ContentType content_type;
+} MLSSenderDataAAD;
+~~~~~
+
+When parsing a SenderData struct as part of message decryption, the
+recipient MUST verify that the sender field represents an occupied
+leaf in the ratchet tree.  In particular, the sender index value
+MUST be less than the number of leaves in the tree.
 
 # Group Creation
 
@@ -2439,7 +2443,11 @@ On receiving a Welcome message, a client processes it using the following steps:
   decrypt the `encrypted_group_info` field.
 
 ~~~~~
+<<<<<<< HEAD
 welcome_secret = Derive-Secret(member_secret, "welcome")
+=======
+welcome_secret = DeriveSecret(joiner_secret, "welcome")
+>>>>>>> upstream/master
 welcome_nonce = KDF.Expand(welcome_secret, "nonce", nonce_length)
 welcome_key = KDF.Expand(welcome_secret, "key", key_length)
 ~~~~~
@@ -2919,7 +2927,7 @@ Initial leaf keys are known only by their owner and the group creator,
 because they are derived from an authenticated key exchange protocol.
 Subsequent leaf keys are known only by their owner.
 
-Note that the long-term identity keys used by the protocol MUST be
+Note that the signature keys used by the protocol MUST be
 distributed by an "honest" authentication service for clients to
 authenticate their legitimate peers.
 
@@ -2938,11 +2946,11 @@ key) has sent a message.
 The second form considers authentication with respect to the sender,
 meaning the group members can verify that a message originated from a
 particular member of the group. This property is provided by digital
-signatures on the messages under identity keys.
+signatures on the messages under signature keys.
 
-<!-- OPEN ISSUE: Signatures under the identity keys, while simple, have
+<!-- OPEN ISSUE: Signatures under the signature keys, while simple, have
 the side-effect of precluding deniability. We may wish to allow other
-options, such as (ii) a key chained off of the identity key,
+options, such as (ii) a key chained off of the signature key,
 or (iii) some other key obtained through a different manner, such
 as a pairwise channel that provides deniability for the message
 contents. -->
@@ -2954,7 +2962,7 @@ provides a form of forward secrecy: learning a message key does not
 reveal previous message or root keys. Post-compromise security is
 provided by Commit operations, in which a new root key is generated
 from the latest ratcheting tree. If the adversary cannot derive the
-updated root key after an Commit operation, it cannot compute any
+updated root key after a Commit operation, it cannot compute any
 derived secrets.
 
 In the case where the client could have been compromised (device
@@ -3070,9 +3078,8 @@ functions is paired with the security level of the curves.
 
 The mandatory-to-implement ciphersuite for MLS 1.0 is
 `MLS10\_128\_HPKE25519\_AES128GCM\_SHA256\_Ed25519` which uses
-Curve25519, HKDF over SHA2-256 and AES-128-GCM for HPKE,
-and AES-128-GCM with Ed25519 for symmetric encryption and
-signatures.
+Curve25519 for key exchange, AES-128-GCM for HPKE, HKDF over SHA2-256,
+AES for metadata masking, and Ed25519 for signatures.
 
 Values with the first byte 255 (decimal) are reserved for Private Use.
 
