@@ -1540,13 +1540,12 @@ key material reuse.
 
 ## State Authentication Keys
 
-The main MLS key schedule provides a per-epoch `authentication_secret`. Members
-of a group MAY compare their `authentication_secrets` out-of-band to
-authenticate that they share the same view of the group.
-
+The main MLS key schedule provides a per-epoch `authentication_secret`. 
 If one of the parties is being actively impersonated by an attacker, their
-`authentication_secret` will differ from that of the other group members, thus
-allowing the parties involved to detect such attacks.
+`authentication_secret` will differ from that of the other group members.
+Thus, members of a group MAY use their `authentication_secrets` within 
+an out-of-band authentication protocol to detect attacks or ensure that they 
+share the same view of the group.
 
 # Message Framing
 
