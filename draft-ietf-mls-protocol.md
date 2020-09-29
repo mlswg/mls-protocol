@@ -1537,16 +1537,13 @@ key material reuse.
 
 ## State Authentication Keys
 
-The main MLS key schedule provides a per-epoch `authentication_secret`
-which MAY be used for authenticating the current group state. As with recovery
-keys, these are distinguished from exporter keys in that they have specific
-use affecting the MLS protocol.
-
-Members of a group MAY compare their `authentication_secrets` out-of-band to
+The main MLS key schedule provides a per-epoch `authentication_secret`. Members
+of a group MAY compare their `authentication_secrets` out-of-band to
 authenticate that they share the same view of the group.
 
 If one of the parties is being actively impersonated by an attacker, their
-`authentication_secret` will differ from that of the other group members.
+`authentication_secret` will differ from that of the other group members, thus
+allowing the parties involved to detect such attacks.
 
 # Message Framing
 
