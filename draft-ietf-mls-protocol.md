@@ -1384,9 +1384,10 @@ sent to new members added in that epoch.
 
 ~~~~~
 enum {
-  external(0),
-  reinit(1),
-  branch(2),
+  reserved(0),
+  external(1),
+  reinit(2),
+  branch(3),
   (255)
 } PSKType;
 
