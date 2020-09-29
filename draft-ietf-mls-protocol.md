@@ -1347,11 +1347,11 @@ Note that, as a PSK may have a different lifetime than an update, it
 does not necessarily provide the same Forward Secrecy (FS) or Post-Compromise
 Security (PCS) guarantees as a Commit message.
 
-<!-- OPEN ISSUEClarify lifetime vs security level mandated above. E.g. if
+<!-- OPEN ISSUE: Clarify lifetime vs security level mandated above. E.g. if
 the PSK security expires before the next update (shorter PSK lifetime than
 update), does that constitute a weaker security level -->
 
-<!-- OPEN ISSUE Define "security level", and what it means to match the
+<!-- OPEN ISSUE: Define "security level", and what it means to match the
 security level of the ciphersuite used in the group. -->
 
 Each PSK in MLS has a type that designates how it was provisioned.
@@ -2398,7 +2398,7 @@ struct {
 struct {
   opaque joiner_secret<1..255>;
   optional<PathSecret> path_secret;
-  optional<PreSharedKeys> psks<1..2^32-1>;
+  optional<PreSharedKeys> psks;
 } GroupSecrets;
 
 struct {
