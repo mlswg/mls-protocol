@@ -1332,8 +1332,7 @@ A number of secrets are derived from the epoch secret for different purposes:
 | Secret                | Label         |
 |:----------------------|:--------------|
 | `sender_data_secret`  | "sender data" |
-| `handshake_secret`    | "handshake"   |
-| `application_secret`  | "app"         |
+| `encryption_secret`   | "encryption"  |
 | `exporter_secret`     | "exporter"    |
 | `confirmation_key`    | "confirm"     |
 
@@ -1361,18 +1360,16 @@ Security (PCS) guarantees as a Commit message.
 
 ## Secret Tree {#secret-tree}
 
-For the generation of encryption keys and nonces, the key schedule begins with a
-particular root secret and derives a tree of secrets with the same structure as
+For the generation of encryption keys and nonces, the key schedule begins with
+the `encryption_secret` and derives a tree of secrets with the same structure as
 the group's ratchet tree. Each leaf in the Secret Tree is associated with the
 same group member as the corresponding leaf in the ratchet tree. Nodes are also
 assigned an index according to their position in the array representation of the
 tree (described in {{tree-math}}). If N is a node index in the Secret Tree then
 left(N) and right(N) denote the children of N (if they exist).
 
-The root secret of the tree is either `handshake_secret` if the tree is for
-encrypting handshake messages, or `application_secret` if the tree is for
-encrypting application messages. The secret of any other node in the tree is
-derived from its parent's secret using a call to DeriveTreeSecret:
+The secret of any other node in the tree is derived from its parent's secret
+using a call to DeriveTreeSecret:
 
 ~~~~
 DeriveTreeSecret(Secret, Label, Node, Generation, Length) =
@@ -1400,9 +1397,20 @@ tree_node_[N]_secret
              = tree_node_[right(N)]_secret
 ~~~~
 
-The secret in the leaf of the Secret tree is used to initiate a symmetric hash
-ratchet, from which a sequence of single-use keys and nonces are derived, as
-described in {{encryption-keys}}.
+The secret in the leaf of the Secret Tree is used to initiate two symmetric hash
+ratchets, from which a sequence of single-use keys and nonces are derived, as
+described in {{encryption-keys}}. The root of each ratchet is computed as:
+
+~~~~
+tree_node_[N]_secret
+        |
+        |
+        +--> DeriveTreeSecret(., "handshake", N, 0, Hash.length)
+        |    = handshake_ratchet_secret_[N]_[0]
+        |
+        +--> DeriveTreeSecret(., "application", N, 0, Hash.length)
+             = application_ratchet_secret_[N]_[0]
+~~~~
 
 ## Encryption Keys
 
@@ -1463,7 +1471,7 @@ _consumed_. A sensitive value S is said to be _consumed_ if
   values derived via DeriveSecret as well as ExpandWithLabel.)
 
 Here, S may be the `init_secret`, `commit_secret`, `epoch_secret`,
-`application_secret` as well as any secret in a Secret Tree or one of the
+`encryption_secret` as well as any secret in a Secret Tree or one of the
 ratchets.
 
 As soon as a group member consumes a value they MUST immediately delete
@@ -1471,16 +1479,17 @@ As soon as a group member consumes a value they MUST immediately delete
 forward secrecy for past messages. Members MAY keep unconsumed values around
 for some reasonable amount of time to handle out-of-order message delivery.
 
-For example, suppose a group member encrypts or (successfully) decrypts a
-message using the j-th key and nonce in the i-th ratchet. Then, for that
-member, at least the following values have been consumed and MUST be deleted:
+For example, suppose a group member encrypts or (successfully) decrypts an
+application message using the j-th key and nonce in the i-th ratchet. Then, for
+that member, at least the following values have been consumed and MUST be
+deleted:
 
-* the `init_secret`, `commit_secret`, `epoch_secret`, `application_secret` of that
-epoch,
+* the `init_secret`, `commit_secret`, `epoch_secret`, `encryption_secret` of
+that epoch,
 * all node secrets in the Secret Tree on the path from the root to the leaf with
 index i,
-* the first j secrets in the i-th ratchet and
-* `application_[i]_[j]_key` and `application_[i]_[j]_nonce`.
+* the first j secrets in the i-th application data ratchet and
+* `application_ratchet_nonce_[N]_[j]` and `application_ratchet_nonce_[N]_[j]`.
 
 Concretely, suppose we have the following Secret Tree and ratchet for
 participant D:
@@ -1491,22 +1500,24 @@ participant D:
     /     \
    E       F
   / \     / \
-A0  B0  C0  D0 -+- KD0
-            |   |
-            |   +- ND0
-            |
-            D1 -+- KD1
-            |   |
-            |   +- ND1
-            |
-            D2
+ A   B   C   D
+            / \
+          HR0  AR0 -+- K0
+                |   |
+                |   +- N0
+                |
+               AR1 -+- K1
+                |   |
+                |   +- N1
+                |
+               AR2
 ~~~
 
-Then if a client uses key KD1 and nonce ND1 during epoch n then it must consume
-(at least) values G, F, D0, D1, KD1, ND1 as well as the `commit_secret` and
-`init_secret` used to derive G (the `application_secret`). The
-client MAY retain (not consume) the values KD0 and ND0 to
-allow for out-of-order delivery, and SHOULD retain D2 to allow for
+Then if a client uses key K1 and nonce N1 during epoch n then it must consume
+(at least) values G, F, D, AR0, K1, N1 as well as the `commit_secret` and
+`init_secret` used to derive G (the `encryption_secret`). The
+client MAY retain (not consume) the values K0 and N0 to
+allow for out-of-order delivery, and SHOULD retain AR2 for
 processing future messages.
 
 ## Exporters
@@ -2606,8 +2617,8 @@ During each epoch senders MUST NOT encrypt more data than permitted by the
 security bounds of the AEAD scheme used.
 
 Note that each change to the Group through a Handshake message will also set a
-new application_secret. Hence this change MUST be applied before encrypting
-any new Application message. This is required both to ensure that any users
+new `encryption_secret`. Hence this change MUST be applied before encrypting
+any new application message. This is required both to ensure that any users
 removed from the group can no longer receive messages and to (potentially)
 recover confidentiality and authenticity for future messages despite a past
 state compromise.
