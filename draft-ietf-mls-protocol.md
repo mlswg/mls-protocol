@@ -1651,7 +1651,7 @@ verifying the content signature.
 
 The following sections describe the encryption and signing processes in detail.
 
-## Content Signing
+## Content Authentication
 
 The `signature` field in an MLSPlaintext object authenticates the sender of the
 MLSPlaintext message.  The input to the signature is an MLSPlaintextTBS
@@ -1660,10 +1660,10 @@ context for the signature that associates to the group messages sent within the
 group.
 
 In cases where the sender is a member of the group, the context contains the
-GroupContext for the current epoch and a "membership token" that authenticates
+GroupContext for the current epoch and a "membership tag" that authenticates
 that the sender is a member of the group.  As a result, for messages sent within
-a group, the signature authenticates not only the member's individual identity,
-but also their membership in the group.
+a group, the signature authenticates the member's individual identity, and the
+membersip tag authenticates their membership in the group.
 
 ~~~~~
 struct {
@@ -1738,6 +1738,10 @@ struct {
     opaque padding<0..2^16-1>;
 } MLSCiphertextContent;
 ~~~~~
+
+Note that the `membership_tag` is not carried forward from MLSPlaintext to
+MLSCiphertext.  In the context of an MLSCiphertext, the AEAD authentication
+provides the function that the `membership_tag` provides for MLSPlaintext.
 
 The key and nonce used for the encryption of the message depend on the
 content type of the message.  The sender chooses the handshake key for a
