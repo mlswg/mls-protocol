@@ -312,9 +312,8 @@ Initialization Key (InitKey):
 : A key package that is prepublished by a client, which other clients can use to
   introduce the client to a new group.
 
-Identity Key:
-: A long-lived signing key pair used to authenticate the sender of a
-  message.
+Signature Key:
+: A signing key pair used to authenticate the sender of a message.
 
 Terminology specific to tree computations is described in
 {{ratchet-trees}}.
@@ -329,7 +328,7 @@ This protocol is designed to execute in the context of a Service Provider (SP)
 as described in {{?I-D.ietf-mls-architecture}}.  In particular, we assume
 the SP provides the following services:
 
-* A long-term identity key provider which allows clients to authenticate
+* A signature key provider which allows clients to authenticate
   protocol messages in a group.
 
 * A broadcast channel, for each group, which will relay a message to all members
@@ -907,8 +906,12 @@ uint16 CredentialType;
 
 struct {
     opaque identity<0..2^16-1>;
-    opaque public_key<0..2^16-1>;
+    opaque signature_key<0..2^16-1>;
 } BasicCredential;
+
+struct {
+    opaque cert_data<0..2^16-1>;
+} Certificate;
 
 struct {
     CredentialType credential_type;
@@ -917,15 +920,22 @@ struct {
             BasicCredential;
 
         case x509:
-            opaque cert_data<1..2^24-1>;
+            Certificate chain<1..2^32-1>;
     };
 } Credential;
 ~~~~~
 
 A BasicCredential is a raw, unauthenticated assertion of an identity/key
-binding.  The format of the key in the `public_key` field is defined by the
+binding. The format of the key in the `public_key` field is defined by the
 relevant ciphersuite: the group ciphersuite for a credential in a ratchet tree,
 the KeyPackage ciphersuite for a credential in a KeyPackage object.
+
+For X509Credential, each entry in the chain represents a single DER-encoded
+X509 certificate. The chain is ordered such that the first entry (chain[0])
+is the end-entity certificate and each subsequent certificate in the chain
+MUST be the issuer of the previous certificate. The algorithm for the
+`public_key` in the end-entity certificate MUST match the relevant
+ciphersuite.
 
 For ciphersuites using Ed25519 or Ed448 signature schemes, the public key is in
 the format specified {{?RFC8032}}.  For ciphersuites using ECDSA with the NIST
@@ -946,9 +956,10 @@ member can use to add this client to the group asynchronously.
 
 A KeyPackage object specifies a ciphersuite that the client
 supports, as well as providing a public key that others can use
-for key agreement. The client's identity key can be updated
+for key agreement. The client's signature key can be updated
 throughout the lifetime of the group by sending a new KeyPackage
-with a new identity; the new identity MUST be validated by the
+with a new Credential. However, the identity MUST be the same in
+both Credentials and the new Credential MUST be validated by the
 authentication service.
 
 When used as InitKeys, KeyPackages are intended to be used only once and SHOULD NOT
@@ -962,7 +973,7 @@ among the set of KeyPackages created by this client.
 
 The value for hpke\_init\_key MUST be a public key for the asymmetric
 encryption scheme defined by cipher\_suite. The whole structure
-is signed using the client's identity key. A KeyPackage object
+is signed using the client's signature key. A KeyPackage object
 with an invalid signature field MUST be considered malformed.
 The input to the signature computation comprises all of the fields
 except for the signature field.
@@ -1258,7 +1269,7 @@ Decryption is performed in the corresponding way, using the private
 key of the resolution node and the ephemeral public key
 transmitted in the message.
 
-## Key Schedule
+# Key Schedule
 
 Group keys are derived using the `Extract` and `Expand` functions from the KDF
 for the group's ciphersuite, as well as the functions defined below:
@@ -1332,8 +1343,7 @@ A number of secrets are derived from the epoch secret for different purposes:
 | Secret                | Label         |
 |:----------------------|:--------------|
 | `sender_data_secret`  | "sender data" |
-| `handshake_secret`    | "handshake"   |
-| `application_secret`  | "app"         |
+| `encryption_secret`   | "encryption"  |
 | `exporter_secret`     | "exporter"    |
 | `confirmation_key`    | "confirm"     |
 | `membership_key`      | "membership"  |
@@ -1360,8 +1370,59 @@ Note that, as a PSK may have a different lifetime than an update, it
 does not necessarily provide the same Forward Secrecy (FS) or Post-Compromise
 Security (PCS) guarantees as a Commit message.
 
-<!-- OPEN ISSUE: We have to decide if we want an external coordination
-via the application of a Handshake proposal. -->
+## Secret Tree {#secret-tree}
+
+For the generation of encryption keys and nonces, the key schedule begins with
+the `encryption_secret` and derives a tree of secrets with the same structure as
+the group's ratchet tree. Each leaf in the Secret Tree is associated with the
+same group member as the corresponding leaf in the ratchet tree. Nodes are also
+assigned an index according to their position in the array representation of the
+tree (described in {{tree-math}}). If N is a node index in the Secret Tree then
+left(N) and right(N) denote the children of N (if they exist).
+
+The secret of any other node in the tree is derived from its parent's secret
+using a call to DeriveTreeSecret:
+
+~~~~
+DeriveTreeSecret(Secret, Label, Node, Generation, Length) =
+    ExpandWithLabel(Secret, Label, TreeContext, Length)
+
+Where TreeContext is specified as:
+
+struct {
+    uint32 node = Node;
+    uint32 generation = Generation;
+} TreeContext;
+~~~~
+
+If N is a node index in the Secret Tree then the secrets of the children
+of N are defined to be:
+
+~~~~
+tree_node_[N]_secret
+        |
+        |
+        +--> DeriveTreeSecret(., "tree", left(N), 0, Hash.length)
+        |    = tree_node_[left(N)]_secret
+        |
+        +--> DeriveTreeSecret(., "tree", right(N), 0, Hash.length)
+             = tree_node_[right(N)]_secret
+~~~~
+
+The secret in the leaf of the Secret Tree is used to initiate two symmetric hash
+ratchets, from which a sequence of single-use keys and nonces are derived, as
+described in {{encryption-keys}}. The root of each ratchet is computed as:
+
+~~~~
+tree_node_[N]_secret
+        |
+        |
+        +--> DeriveTreeSecret(., "handshake", N, 0, Hash.length)
+        |    = handshake_ratchet_secret_[N]_[0]
+        |
+        +--> DeriveTreeSecret(., "application", N, 0, Hash.length)
+             = application_ratchet_secret_[N]_[0]
+~~~~
 
 ## Encryption Keys
 
@@ -1380,48 +1441,96 @@ For handshake and application messages, a sequence of keys is derived via a
 "sender ratchet".  Each sender has their own sender ratchet, and each step along
 the ratchet is called a "generation".
 
-A sender ratchet starts from a per-sender base secret.  For application keys,
-the base secret is derived as described in {{astree}}.  For handshake keys, base
-secrets are derived directly from the `handshake_secret`.
-
-~~~~~
-application_secret_[sender]_[0] = astree_node_[N]_secret
-
-handshake_secret_[sender]_[0] =
-    ExpandWithLabel(handshake_secret, "hs", [sender], nonce_length)
-~~~~~
-
-The base secret for each sender is used to initiate a symmetric hash ratchet
-which generates a sequence of keys and nonces. The sender uses the j-th
-key/nonce pair in the sequence to encrypt (using the AEAD) the j-th message they
-send during that epoch.  In particular, each key/nonce pair MUST NOT be used to
-encrypt more than one message.
+A sender ratchet starts from a per-sender base secret derived from a Secret
+Tree, as described in {{secret-tree}}. The base secret initiates a symmetric
+hash ratchet which generates a sequence of keys and nonces. The sender uses the
+j-th key/nonce pair in the sequence to encrypt (using the AEAD) the j-th message
+they send during that epoch. Each key/nonce pair MUST NOT be used to encrypt
+more than one message.
 
 Keys, nonces, and the secrets in ratchets are derived using
-DeriveAppSecret. The context in a given call consists of the index
+DeriveTreeSecret. The context in a given call consists of the index
 of the sender's leaf in the ratchet tree and the current position in
 the ratchet.  In particular, the index of the sender's leaf in the
-ratchet tree is the same as the index of the leaf in the AS Tree
+ratchet tree is the same as the index of the leaf in the Secret Tree
 used to initialize the sender's ratchet.
 
 ~~~~~
 ratchet_secret_[N]_[j]
       |
-      +--> DeriveAppSecret(., "nonce", N, j, AEAD.nonce_length)
+      +--> DeriveTreeSecret(., "nonce", N, j, AEAD.Nn)
       |    = ratchet_nonce_[N]_[j]
       |
-      +--> DeriveAppSecret(., "key", N, j, AEAD.key_length)
+      +--> DeriveTreeSecret(., "key", N, j, AEAD.Nk)
       |    = ratchet_key_[N]_[j]
       |
       V
-DeriveAppSecret(., "secret", N, j, Hash.length)
+DeriveTreeSecret(., "secret", N, j, Hash.length)
 = ratchet_secret_[N]_[j+1]
 ~~~~~
 
-Here, AEAD.nonce\_length and AEAD.key\_length denote the lengths
+Here, AEAD.Nn and AEAD.Nk denote the lengths
 in bytes of the nonce and key for the AEAD scheme defined by
-the ciphersuite.  "Ratchet" should be understood to mean "handshake" or
-"application" depending on the context.
+the ciphersuite.
+
+## Deletion Schedule
+
+It is important to delete all security sensitive values as soon as they are
+_consumed_. A sensitive value S is said to be _consumed_ if
+
+* S was used to encrypt or (successfully) decrypt a message, or if
+* a key, nonce, or secret derived from S has been consumed. (This goes for
+  values derived via DeriveSecret as well as ExpandWithLabel.)
+
+Here, S may be the `init_secret`, `commit_secret`, `epoch_secret`,
+`encryption_secret` as well as any secret in a Secret Tree or one of the
+ratchets.
+
+As soon as a group member consumes a value they MUST immediately delete
+(all representations of) that value. This is crucial to ensuring
+forward secrecy for past messages. Members MAY keep unconsumed values around
+for some reasonable amount of time to handle out-of-order message delivery.
+
+For example, suppose a group member encrypts or (successfully) decrypts an
+application message using the j-th key and nonce in the i-th ratchet. Then, for
+that member, at least the following values have been consumed and MUST be
+deleted:
+
+* the `init_secret`, `commit_secret`, `epoch_secret`, `encryption_secret` of
+that epoch,
+* all node secrets in the Secret Tree on the path from the root to the leaf with
+index i,
+* the first j secrets in the i-th application data ratchet and
+* `application_ratchet_nonce_[N]_[j]` and `application_ratchet_nonce_[N]_[j]`.
+
+Concretely, suppose we have the following Secret Tree and ratchet for
+participant D:
+
+~~~
+       G
+     /   \
+    /     \
+   E       F
+  / \     / \
+ A   B   C   D
+            / \
+          HR0  AR0 -+- K0
+                |   |
+                |   +- N0
+                |
+               AR1 -+- K1
+                |   |
+                |   +- N1
+                |
+               AR2
+~~~
+
+Then if a client uses key K1 and nonce N1 during epoch n then it must consume
+(at least) values G, F, D, AR0, K1, N1 as well as the `commit_secret` and
+`init_secret` used to derive G (the `encryption_secret`). The
+client MAY retain (not consume) the values K0 and N0 to
+allow for out-of-order delivery, and SHOULD retain AR2 for
+processing future messages.
 
 ## Exporters
 
@@ -1435,18 +1544,17 @@ MLS-Exporter(Label, Context, key_length) =
                          "exporter", Hash(Context), key_length)
 ~~~~~
 
-The context used for the derivation of the `exported_value` MAY be
-empty while each application SHOULD provide a unique label as an input
-of the ExpandWithLabel for each use case. This is to prevent two
+Each application SHOULD provide a unique label to `MLS-Exporter` that
+identifies its use case. This is to prevent two
 exported outputs from being generated with the same values and used
 for different functionalities.
 
-The exported values are bound to the Group epoch from which the
+The exported values are bound to the group epoch from which the
 `exporter_secret` is derived, hence reflects a particular state of
-the Group.
+the group.
 
 It is RECOMMENDED for the application generating exported values
-to refresh those values after a group operation is processed.
+to refresh those values after a Commit is processed.
 
 # Message Framing
 
@@ -1705,12 +1813,12 @@ The key and nonce provided to the AEAD are computed as the KDF of the first
 length of the ciphertext is less than `KDF.Nh`, the whole ciphertext is used
 without padding. In pseudocode, the key and nonce are derived as:
 
-```
+~~~~~
 ciphertext_sample = ciphertext[0..KDF.Nh-1]
 
 sender_data_key = ExpandWithLabel(sender_data_secret, "key", ciphertext_sample, AEAD.Nk)
 sender_data_nonce = ExpandWithLabel(sender_data_secret, "nonce", ciphertext_sample, AEAD.Nn)
-```
+~~~~~
 
 The Additional Authenticated Data (AAD) for the SenderData ciphertext is all the
 fields of MLSCiphertext excluding `encrypted_sender_data`:
@@ -2491,134 +2599,6 @@ To authenticate a message from a particular member, signatures are
 required. Handshake messages MUST use asymmetric signatures to strongly
 authenticate the sender of a message.
 
-## Tree of Application Secrets {#astree}
-
-The application key schedule begins with the application secrets which
-are arranged in an "Application Secret Tree" or AS Tree for short;
-a left balanced binary tree with the same set of nodes and edges as
-the epoch's ratchet tree. Each leaf in the AS Tree is associated with
-the same group member as the corresponding leaf in the ratchet tree.
-Nodes are also assigned an index according to their position in the
-array representation of the tree (described in {{tree-math}}). If N
-is a node index in the AS Tree then left(N) and right(N) denote the
-children of N (if they exist).
-
-Each node in the tree is assigned a secret. The root's secret is simply
-the application_secret of that epoch. (See {{key-schedule}} for the
-definition of application_secret.)
-
-~~~~
-astree_node_[root]_secret = application_secret
-~~~~
-
-The secret of any other node in the tree is derived from its parent's secret
-using a call to DeriveAppSecret.
-
-~~~~
-DeriveAppSecret(Secret, Label, Node, Generation, Length) =
-    ExpandWithLabel(Secret, Label, ApplicationContext, Length)
-
-Where ApplicationContext is specified as:
-
-struct {
-    uint32 node = Node;
-    uint32 generation = Generation;
-} ApplicationContext;
-~~~~
-
-If N is a node index in the AS Tree then the secrets of the children
-of N are defined to be:
-
-~~~~
-astree_node_[N]_secret
-        |
-        |
-        +--> DeriveAppSecret(., "tree", left(N), 0, Hash.length)
-        |    = astree_node_[left(N)]_secret
-        |
-        +--> DeriveAppSecret(., "tree", right(N), 0, Hash.length)
-             = astree_node_[right(N)]_secret
-~~~~
-
-Note that fixing concrete values for GroupContext_\[n\] and application_secret
-completely defines all secrets in the AS Tree.
-
-The secret in the leaf of the AS tree is used to initiate a symmetric hash
-ratchet, from which a sequence of single-use keys and nonces are derived, as
-described in {{encryption-keys}}.
-
-## Deletion Schedule
-
-It is important to delete all security sensitive values as soon as they are
-_consumed_. A sensitive value S is said to be _consumed_ if
-
-* S was used to encrypt or (successfully) decrypt a message, or if
-* a key, nonce, or secret derived from S has been consumed. (This goes for
-  values derived via DeriveSecret as well as ExpandWithLabel.)
-
-Here, S may be the `init_secret`, `commit_secret`, `epoch_secret`, `application_secret`
-as well as any secret in the AS Tree or one of the ratchets.
-
-As soon as a group member consumes a value they MUST immediately delete
-(all representations of) that value. This is crucial to ensuring
-forward secrecy for past messages. Members MAY keep unconsumed values around
-for some reasonable amount of time to handle out-of-order message delivery.
-
-For example, suppose a group member encrypts or (successfully) decrypts a
-message using the j-th key and nonce in the i-th ratchet. Then, for that
-member, at least the following values have been consumed and MUST be deleted:
-
-* the `init_secret`, `commit_secret`, `epoch_secret`, `application_secret` of that
-epoch,
-* all node secrets in the AS Tree on the path from the root to the leaf with
-index i,
-* the first j secrets in the i-th ratchet and
-* `application_[i]_[j]_key` and `application_[i]_[j]_nonce`.
-
-Concretely, suppose we have the following AS Tree and ratchet for
-participant D:
-
-~~~
-       G
-     /   \
-    /     \
-   E       F
-  / \     / \
-A0  B0  C0  D0 -+- KD0
-            |   |
-            |   +- ND0
-            |
-            D1 -+- KD1
-            |   |
-            |   +- ND1
-            |
-            D2
-~~~
-
-Then if a client uses key KD1 and nonce ND1 during epoch n then it must consume
-(at least) values G, F, D0, D1, KD1, ND1 as well as the `commit_secret` and
-init_secret used to derive G (the application_secret).  The
-client MAY retain (not consume) the values KD0 and ND0 to
-allow for out-of-order delivery, and SHOULD retain D2 to allow for
-processing future messages.
-
-## Further Restrictions {#further-restrictions}
-
-During each epoch senders MUST NOT encrypt more data than permitted by the
-security bounds of the AEAD scheme used.
-
-Note that each change to the Group through a Handshake message will also set a
-new application_secret. Hence this change MUST be applied before encrypting
-any new Application message. This is required both to ensure that any users
-removed from the group can no longer receive messages and to (potentially)
-recover confidentiality and authenticity for future messages despite a past
-state compromise.
-
-<!-- OPEN ISSUE: At the moment there is no contributivity of Application secrets
-chained from the initial one to the next generation of Epoch secret. While this
-seems safe because cryptographic operations using the application secrets can't
-affect the group init_secret, it remains to be proven correct. -->
-
 ## Message Encryption and Decryption
 
 The group members MUST use the AEAD algorithm associated with
@@ -2665,6 +2645,18 @@ without padding ? Should the base ciphertext block length be negotiated or
 is is reasonable to allow to leak a range for the length of the plaintext
 by allowing to send a variable number of ciphertext blocks ? -->
 
+## Restrictions {#restrictions}
+
+During each epoch senders MUST NOT encrypt more data than permitted by the
+security bounds of the AEAD scheme used.
+
+Note that each change to the Group through a Handshake message will also set a
+new `encryption_secret`. Hence this change MUST be applied before encrypting
+any new application message. This is required both to ensure that any users
+removed from the group can no longer receive messages and to (potentially)
+recover confidentiality and authenticity for future messages despite a past
+state compromise.
+
 ## Delayed and Reordered Application messages
 
 Since each Application message contains the group identifier, the epoch and a
@@ -2700,7 +2692,7 @@ Initial leaf keys are known only by their owner and the group creator,
 because they are derived from an authenticated key exchange protocol.
 Subsequent leaf keys are known only by their owner.
 
-Note that the long-term identity keys used by the protocol MUST be
+Note that the signature keys used by the protocol MUST be
 distributed by an "honest" authentication service for clients to
 authenticate their legitimate peers.
 
@@ -2719,11 +2711,11 @@ key) has sent a message.
 The second form considers authentication with respect to the sender,
 meaning the group members can verify that a message originated from a
 particular member of the group. This property is provided by digital
-signatures on the messages under identity keys.
+signatures on the messages under signature keys.
 
-<!-- OPEN ISSUE: Signatures under the identity keys, while simple, have
+<!-- OPEN ISSUE: Signatures under the signature keys, while simple, have
 the side-effect of precluding deniability. We may wish to allow other
-options, such as (ii) a key chained off of the identity key,
+options, such as (ii) a key chained off of the signature key,
 or (iii) some other key obtained through a different manner, such
 as a pairwise channel that provides deniability for the message
 contents. -->
@@ -2735,7 +2727,7 @@ provides a form of forward secrecy: learning a message key does not
 reveal previous message or root keys. Post-compromise security is
 provided by Commit operations, in which a new root key is generated
 from the latest ratcheting tree. If the adversary cannot derive the
-updated root key after an Commit operation, it cannot compute any
+updated root key after a Commit operation, it cannot compute any
 derived secrets.
 
 In the case where the client could have been compromised (device
