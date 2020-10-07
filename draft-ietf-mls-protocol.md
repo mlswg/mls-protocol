@@ -1595,6 +1595,10 @@ struct {
 } Sender;
 
 struct {
+    opaque mac_value<0..255>;
+} MAC;
+
+struct {
     opaque group_id<0..255>;
     uint64 epoch;
     Sender sender;
@@ -1614,7 +1618,7 @@ struct {
     }
 
     opaque signature<0..2^16-1>;
-    opaque membership_tag<0..2^8-1>;
+    optional<MAC> membership_tag;
 } MLSPlaintext;
 
 struct {
@@ -1697,10 +1701,10 @@ struct {
 } MLSPlaintextTBM;
 ~~~~~
 
-The `membership_tag` field in the MLSPlaintext object authenticates the
-sender's membership in the group.  For an MLSPlaintext with a sender type other
-than `member`, this field MUST be set to the zero-length octet string.  For
-messages sent by members, it MUST be set to the following value:
+The `membership_tag` field in the MLSPlaintext object authenticates the sender's
+membership in the group.  For an MLSPlaintext with a sender type other than
+`member`, this field MUST be omitted.  For messages sent by members, it MUST be
+present and set to the following value:
 
 ~~~~~
 membership_tag = MAC(membership_key, MLSPlaintextTBM);
