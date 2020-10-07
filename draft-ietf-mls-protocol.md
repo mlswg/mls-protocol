@@ -1540,11 +1540,11 @@ key material reuse.
 
 ## State Authentication Keys
 
-The main MLS key schedule provides a per-epoch `authentication_secret`. 
+The main MLS key schedule provides a per-epoch `authentication_secret`.
 If one of the parties is being actively impersonated by an attacker, their
 `authentication_secret` will differ from that of the other group members.
-Thus, members of a group MAY use their `authentication_secrets` within 
-an out-of-band authentication protocol to detect attacks or ensure that they 
+Thus, members of a group MAY use their `authentication_secrets` within
+an out-of-band authentication protocol to detect attacks or ensure that they
 share the same view of the group.
 
 # Message Framing
@@ -2311,10 +2311,10 @@ A member of the group applies a Commit message by taking the following steps:
 * Update the new GroupContext's confirmed and interim transcript hashes using the
   new Commit.
 
-* If the `proposals` vector contains any PreSharedKey proposals, derive the `psk_secret`
-  as specified in {{pre-shared-keys}}, where the order of PSKs in the derivation
-  corresponds to the order of PreSharedKey proposals in the `proposals` vector.
-  Otherwise, set `psk_secret` to 0.
+* If the `proposals` vector contains any PreSharedKey proposals, derive the
+  `psk_secret` as specified in {{pre-shared-keys}}, where the order of PSKs in
+  the derivation corresponds to the order of PreSharedKey proposals in the
+  `proposals` vector. Otherwise, set `psk_secret` to 0.
 
 * Use the `commit_secret`, the `psk_secret`, the provisional GroupContext, and
   the init secret from the previous epoch to compute the epoch secret and
