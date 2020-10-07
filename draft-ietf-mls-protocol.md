@@ -1570,7 +1570,7 @@ and not encrypted.  Applications MUST use MLSCiphertext to encrypt
 application messages and SHOULD use MLSCiphertext to encode
 handshake messages, but MAY transmit handshake messages encoded
 as MLSPlaintext objects in cases where it is necessary for the
-delivery service to examine such messages.
+Delivery Service to examine such messages.
 
 ~~~~~
 enum {
@@ -2519,7 +2519,7 @@ When this happens, there is a need for the members of the group to
 deconflict the simultaneous Commit messages.  There are two
 general approaches:
 
-* Have the delivery service enforce a total order
+* Have the Delivery Service enforce a total order
 * Have a signal in the message that clients can use to break ties
 
 As long as Commit messages cannot be merged, there is a risk of
@@ -2548,7 +2548,7 @@ the Commit message will succeed or not.
 
 ## Server-Enforced Ordering
 
-With this approach, the delivery service ensures that incoming
+With this approach, the Delivery Service ensures that incoming
 messages are added to an ordered queue and outgoing messages are
 dispatched in the same order. The server is trusted to break ties
 when two members send a Commit message at the same time.
@@ -2691,56 +2691,47 @@ document.
 
 ## Confidentiality of the Group Secrets
 
-Group secrets are derived from (i) previous group secrets, and (ii)
-the root key of a ratcheting tree. Only group members know their leaf
-private key in the group, therefore, the root key of the group's ratcheting
-tree is secret and thus so are all values derived from it.
+Group secrets are partly derived from the output of a ratchet tree. Ratchet
+trees work by assigning each member of the group to a leaf in the tree and
+maintaining the following property: the private key of a node in the tree is
+known only to members of the group that are assigned a leaf in the node's
+subtree. This is called the *ratchet tree invariant* and it makes it possible to
+encrypt to all group members except one, with a number of ciphertexts that's
+logarithmic in the number of group members.
 
-Initial leaf keys are known only by their owner and the group creator,
-because they are derived from an authenticated key exchange protocol.
-Subsequent leaf keys are known only by their owner.
-
-Note that the signature keys used by the protocol MUST be
-distributed by an "honest" authentication service for clients to
-authenticate their legitimate peers.
+The ability to efficiently encrypt to all members except one allows members to
+be securely removed from a group. It also allows a member to rotate their
+keypair such that the old private key can no longer be used to decrypt new
+messages.
 
 ## Authentication
 
-There are two forms of authentication we consider. The first form
-considers authentication with respect to the group. That is, the group
-members can verify that a message originated from one of the members
-of the group. This is implicitly guaranteed by the secrecy of the
-shared key derived from the ratcheting trees: if all members of the
-group are honest, then the shared group key is only known to the group
-members. By using AEAD or appropriate MAC with this shared key, we can
-guarantee that a member in the group (who knows the shared secret
-key) has sent a message.
+The first form of authentication we provide is that group members can verify a
+message originated from one of the members of the group. For encrypted messages,
+this is guaranteed because messages are encrypted with an AEAD under a key
+derived from the group secrets. For plaintext messages, this is guaranteed by
+the use of a `membership_tag` which constitutes a MAC over the message, under a
+key derived from the group secrets.
 
-The second form considers authentication with respect to the sender,
-meaning the group members can verify that a message originated from a
-particular member of the group. This property is provided by digital
-signatures on the messages under signature keys.
+The second form of authentication is that group members can verify a message
+originated from a particular member of the group. This is guaranteed by a
+digital signature on each message from the sender's identity key.
 
-<!-- OPEN ISSUE: Signatures under the signature keys, while simple, have
-the side-effect of precluding deniability. We may wish to allow other
-options, such as (ii) a key chained off of the signature key,
-or (iii) some other key obtained through a different manner, such
-as a pairwise channel that provides deniability for the message
-contents. -->
+## Forward Secrecy and Post-Compromise Security
 
-## Forward and post-compromise security
+Post-compromise security is provided between epochs by members regularly
+updating their leaf key in the ratchet tree. Updating their leaf key prevents
+group secrets from continuing to be encrypted to previously compromised public
+keys.
 
-Message encryption keys are derived via a hash ratchet, which
-provides a form of forward secrecy: learning a message key does not
-reveal previous message or root keys. Post-compromise security is
-provided by Commit operations, in which a new root key is generated
-from the latest ratcheting tree. If the adversary cannot derive the
-updated root key after a Commit operation, it cannot compute any
-derived secrets.
+Forward-secrecy between epochs is provided by deleting private keys from past
+version of the ratchet tree, as this prevents old group secrets from being
+re-derived. Forward secrecy *within* an epoch is provided by deleting message
+encryption keys once they've been used to encrypt or decrypt a message.
 
-In the case where the client could have been compromised (device
-loss, for example), the client SHOULD signal the delivery service to expire
-all the previous KeyPackages and publish fresh ones for PCS.
+Post-compromise security is also provided for new groups by members regularly
+generating new InitKeys and uploading them to the Delivery Service, such that
+compromised key material won't be used when the member is added to a new group.
 
 ## InitKey Reuse
 
