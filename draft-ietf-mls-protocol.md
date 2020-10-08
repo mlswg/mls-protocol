@@ -2229,11 +2229,27 @@ Proposals. It instructs group members to update their representation of the
 state of the group by applying the proposals and advancing the key schedule.
 
 Each proposal covered by the Commit is identified by a ProposalID value, which
-contains the hash of the MLSPlaintext in which the Proposal was sent, using the
-hash function from the group's ciphersuite.
+identifies the proposal to be applied by value or by reference.  Proposals
+supplied by value are included directly in the Commit object.  Proposals
+supplied by reference are specified by including the hash of the MLSPlaintext in
+which the Proposal was sent, using the hash function from the group's
+ciphersuite.
 
 ~~~~~
-opaque ProposalID<0..255>;
+enum {
+  reserved(0),
+  value(1)
+  plaintext_hash(2),
+  (255)
+} ProposalIDType;
+
+struct {
+  ProposalIDType type;
+  select (type) {
+    case value:          Proposal proposal;
+    case plaintext_hash: opaque hash<0..255>;
+  }
+} ProposalID;
 
 struct {
     ProposalID proposals<0..2^32-1>;
