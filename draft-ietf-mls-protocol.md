@@ -905,7 +905,6 @@ Additionally, Credentials SHOULD specify the signature scheme corresponding to
 each contained public key.
 
 ~~~~~
-
 // See IANA registry for registered values
 uint16 SignatureScheme;
 
