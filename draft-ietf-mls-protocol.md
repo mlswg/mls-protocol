@@ -914,8 +914,8 @@ uint16 CredentialType;
 
 struct {
     opaque identity<0..2^16-1>;
-    opaque signature_key<0..2^16-1>;
     SignatureScheme signature_scheme;
+    opaque signature_key<0..2^16-1>;
 } BasicCredential;
 
 struct {
