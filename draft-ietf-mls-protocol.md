@@ -893,26 +893,19 @@ of credentials issued by some authentication system, like a PKI. Each type of
 credential MUST express the following data in the context of the group it is
 used with:
 
-* The public key of a signature key pair matching the SignatureScheme specified
-  by the CipherSuite of the group
-* The identity of the holder of the private keys
+* The public key of a signature key pair matching the signature scheme specified
+  by the ciphersuite of the group
+* The identity of the holder of the private key
 
 Credentials MAY also include information that allows a relying party
 to verify the identity / signing key binding.
 
-Additionally, Credentials SHOULD specify the signature scheme corresponding to
-each contained public key.
-
 ~~~~~
-// See IANA registry for registered values
-uint16 SignatureScheme;
-
 // See IANA registry for registered values
 uint16 CredentialType;
 
 struct {
     opaque identity<0..2^16-1>;
-    SignatureScheme signature_scheme;
     opaque signature_key<0..2^16-1>;
 } BasicCredential;
 
