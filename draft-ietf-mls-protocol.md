@@ -2245,7 +2245,7 @@ enum {
 
 struct {
   ProposalIDType type;
-  select (type) {
+  select (ProposalID.type) {
     case value:          Proposal proposal;
     case plaintext_hash: opaque hash<0..255>;
   }
