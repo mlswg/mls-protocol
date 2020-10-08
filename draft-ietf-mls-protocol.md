@@ -1766,17 +1766,13 @@ The following sections describe the encryption and signing processes in detail.
 
 ## Content Authentication
 
-The `signature` field in an MLSPlaintext object authenticates the sender of the
-MLSPlaintext message.  The input to the signature is an MLSPlaintextTBS
-structure, which encodes the content and metadata of the message as well a
-context for the signature that associates to the group messages sent within the
-group.
-
-In cases where the sender is a member of the group, the context contains the
-GroupContext for the current epoch and a "membership tag" that authenticates
-that the sender is a member of the group.  As a result, for messages sent within
-a group, the signature authenticates the member's individual identity, and the
-membersip tag authenticates their membership in the group.
+The `signature` field in an MLSPlaintext object is computed using the signing
+private key corresponding to the credential at the leaf of the tree indicated by
+the sender field. The signature covers the plaintext metadata and message
+content, which is all of MLSPlaintext except for the `signature` and
+`membership_tag` fields. If the sender is a member of the group, the signature
+also covers the GroupContext for the current epoch, so that signatures are
+specific to a given group and epoch.
 
 ~~~~~
 struct {
@@ -1803,35 +1799,32 @@ struct {
           opaque confirmation_tag<0..255>;
     }
 } MLSPlaintextTBS;
+~~~~~
 
+The `membership_tag` field in the MLSPlaintext object authenticates the sender's
+membership in the group. For an MLSPlaintext with a sender type other than
+`member`, this field MUST be omitted. For messages sent by members, it MUST be
+present and set to the following value:
+
+~~~~~
 struct {
   MLSPlaintextTBS tbs;
   opaque signature<0..2^16-1>;
 } MLSPlaintextTBM;
-~~~~~
 
-The `membership_tag` field in the MLSPlaintext object authenticates the sender's
-membership in the group.  For an MLSPlaintext with a sender type other than
-`member`, this field MUST be omitted.  For messages sent by members, it MUST be
-present and set to the following value:
-
-~~~~~
 membership_tag = MAC(membership_key, MLSPlaintextTBM);
 ~~~~~
 
-When the sender type is `member`, the `membership_tag` field MUST contain a
-full-size MAC output, and MUST be verified before verifying the signature or
-processing the message content.  For other sender types, the `membership_tag`
-field MUST be set to the zero-length octet string.
+Note that the `membership_tag` only needs to be computed for MLSPlaintext
+messages that will be sent over the wire, and isn't needed for those that will
+be encrypted and transmitted as MLSCiphertext messages.
 
 ## Content Encryption
 
 The `ciphertext` field of the MLSCiphertext object is produced by supplying the
 inputs described below to the AEAD function specified by the ciphersuite in use.
 The plaintext input contains the content and signature of the MLSPlaintext, plus
-optional padding.  (The membership token is not included in the encrypted
-content, because the AEAD operation already authenticates the sender's
-membership in the group.)  These values are encoded in the following form:
+optional padding. These values are encoded in the following form:
 
 ~~~~~
 struct {
@@ -1851,10 +1844,6 @@ struct {
     opaque padding<0..2^16-1>;
 } MLSCiphertextContent;
 ~~~~~
-
-Note that the `membership_tag` is not carried forward from MLSPlaintext to
-MLSCiphertext.  In the context of an MLSCiphertext, the AEAD authentication
-provides the function that the `membership_tag` provides for MLSPlaintext.
 
 The key and nonce used for the encryption of the message depend on the
 content type of the message.  The sender chooses the handshake key for a
