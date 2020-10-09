@@ -1204,7 +1204,7 @@ struct {
 } MLSPlaintextCommitContent;
 
 struct {
-    MAC confirmation_tag<0..255>;
+    MAC confirmation_tag;
 } MLSPlaintextCommitAuthData;
 
 interim_transcript_hash_[0] = ""; // zero-length octet string
@@ -1725,7 +1725,7 @@ struct {
     }
 
     opaque signature<0..2^16-1>;
-    optional<MAC> confirmation_tag<0..255>;
+    optional<MAC> confirmation_tag;
     optional<MAC> membership_tag;
 } MLSPlaintext;
 
@@ -1738,6 +1738,9 @@ struct {
     opaque ciphertext<0..2^32-1>;
 } MLSCiphertext;
 ~~~~~
+
+The field `confirmation_tag` MUST be present if `content_type` equals commit.
+Otherwise, it MUST NOT be present.
 
 External sender types are sent as MLSPlaintext, see {{external-proposals}}
 for their use.
@@ -1808,7 +1811,7 @@ present and set to the following value:
 struct {
   MLSPlaintextTBS tbs;
   opaque signature<0..2^16-1>;
-  optional<MAC> confirmation_tag<0..255>;
+  optional<MAC> confirmation_tag;
 } MLSPlaintextTBM;
 
 membership_tag = MAC(membership_key, MLSPlaintextTBM);
@@ -1839,7 +1842,7 @@ struct {
     }
 
     opaque signature<0..2^16-1>;
-    optional<MAC> confirmation_tag<0..255>;
+    optional<MAC> confirmation_tag;
     opaque padding<0..2^16-1>;
 } MLSCiphertextContent;
 ~~~~~
@@ -2526,7 +2529,7 @@ struct {
   opaque confirmed_transcript_hash<0..255>;
   opaque interim_transcript_hash<0..255>;
   Extension extensions<0..2^32-1>;
-  opaque confirmation_tag<0..255>;
+  MAC confirmation_tag;
   uint32 signer_index;
   opaque signature<0..2^16-1>;
 } GroupInfo;
