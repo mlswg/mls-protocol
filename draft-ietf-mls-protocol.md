@@ -1200,11 +1200,11 @@ struct {
     Sender sender;
     ContentType content_type = commit;
     Commit commit;
+    opaque signature<0..2^16-1>;
 } MLSPlaintextCommitContent;
 
 struct {
-    opaque confirmation_tag<0..255>;
-    opaque signature<0..2^16-1>;
+    MAC confirmation_tag<0..255>;
 } MLSPlaintextCommitAuthData;
 
 interim_transcript_hash_[0] = ""; // zero-length octet string
@@ -1220,11 +1220,10 @@ interim_transcript_hash_[n+1] =
 
 Thus the `confirmed_transcript_hash` field in a GroupContext object represents a
 transcript over the whole history of MLSPlaintext Commit messages, up to the
-confirmation tag field in the current MLSPlaintext message.  The confirmation tag and
-signature fields are then included in the transcript for the next epoch.  The
-interim transcript hash is passed to new members in the GroupInfo struct, and
-enables existing members to incorporate a Commit message into the transcript
-without having to store the whole MLSPlaintextCommitAuthData structure.
+confirmation tag field in the current MLSPlaintext message.  The confirmation tag
+is then included in the transcript for the next epoch.  The interim transcript hash
+is passed to new members in the GroupInfo struct, and enables existing members to
+incorporate a Commit message into the transcript without having to store the whole MLSPlaintextCommitAuthData structure.
 
 As shown above, when a new group is created, the `interim_transcript_hash` field
 is set to the zero-length octet string.
@@ -1723,10 +1722,10 @@ struct {
 
         case commit:
           Commit commit;
-          opaque confirmation_tag<0..255>;
     }
 
     opaque signature<0..2^16-1>;
+    optional<MAC> confirmation_tag<0..255>;
     optional<MAC> membership_tag;
 } MLSPlaintext;
 
@@ -1769,10 +1768,10 @@ The following sections describe the encryption and signing processes in detail.
 The `signature` field in an MLSPlaintext object is computed using the signing
 private key corresponding to the credential at the leaf of the tree indicated by
 the sender field. The signature covers the plaintext metadata and message
-content, which is all of MLSPlaintext except for the `signature` and
-`membership_tag` fields. If the sender is a member of the group, the signature
-also covers the GroupContext for the current epoch, so that signatures are
-specific to a given group and epoch.
+content, which is all of MLSPlaintext except for the `signature`, the
+`confirmation_tag` and `membership_tag` fields. If the sender is a member of the
+group, the signature also covers the GroupContext for the current epoch, so that
+signatures are specific to a given group and epoch.
 
 ~~~~~
 struct {
@@ -1796,7 +1795,6 @@ struct {
 
         case commit:
           Commit commit;
-          opaque confirmation_tag<0..255>;
     }
 } MLSPlaintextTBS;
 ~~~~~
@@ -1810,6 +1808,7 @@ present and set to the following value:
 struct {
   MLSPlaintextTBS tbs;
   opaque signature<0..2^16-1>;
+  optional<MAC> confirmation_tag<0..255>;
 } MLSPlaintextTBM;
 
 membership_tag = MAC(membership_key, MLSPlaintextTBM);
@@ -1837,10 +1836,10 @@ struct {
 
         case commit:
           Commit commit;
-          opaque confirmation_tag<0..255>;
     }
 
     opaque signature<0..2^16-1>;
+    optional<MAC> confirmation_tag<0..255>;
     opaque padding<0..2^16-1>;
 } MLSCiphertextContent;
 ~~~~~
@@ -2363,10 +2362,10 @@ message at the same time, by taking the following steps:
   corresponds to the order of PreSharedKey proposals in the `proposals` vector.
   Otherwise, set `psk_secret` to 0.
 
-* Construct an MLSPlaintext object containing the Commit object. Use the
+* Construct an MLSPlaintext object containing the Commit object. Sign the MLSPlaintext
+  using the current epoch's GroupContext as context. Use the signature, the
   `commit_secret` and the `psk_secret` to advance the key schedule and compute
-  the `confirmation_tag` value in the MLSPlaintext. Sign the MLSPlaintext using
-  the current epoch's GroupContext as context.
+  the `confirmation_tag` value in the MLSPlaintext. 
 
 * Update the tree in the provisional state by applying the direct path
 
