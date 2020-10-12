@@ -1485,10 +1485,10 @@ of N are defined to be:
 tree_node_[N]_secret
         |
         |
-        +--> DeriveTreeSecret(., "tree", left(N), 0, Hash.length)
+        +--> DeriveTreeSecret(., "tree", left(N), 0, KDF.Nh)
         |    = tree_node_[left(N)]_secret
         |
-        +--> DeriveTreeSecret(., "tree", right(N), 0, Hash.length)
+        +--> DeriveTreeSecret(., "tree", right(N), 0, KDF.Nh)
              = tree_node_[right(N)]_secret
 ~~~~
 
@@ -1500,10 +1500,10 @@ described in {{encryption-keys}}. The root of each ratchet is computed as:
 tree_node_[N]_secret
         |
         |
-        +--> DeriveTreeSecret(., "handshake", N, 0, Hash.length)
+        +--> DeriveTreeSecret(., "handshake", N, 0, KDF.Nh)
         |    = handshake_ratchet_secret_[N]_[0]
         |
-        +--> DeriveTreeSecret(., "application", N, 0, Hash.length)
+        +--> DeriveTreeSecret(., "application", N, 0, KDF.Nh)
              = application_ratchet_secret_[N]_[0]
 ~~~~
 
@@ -1548,7 +1548,7 @@ ratchet_secret_[N]_[j]
       |    = ratchet_key_[N]_[j]
       |
       V
-DeriveTreeSecret(., "secret", N, j, Hash.length)
+DeriveTreeSecret(., "secret", N, j, KDF.Nh)
 = ratchet_secret_[N]_[j+1]
 ~~~~~
 
@@ -1959,7 +1959,7 @@ The creator of a group MUST take the following steps to initialize the group:
   chosen version and ciphersuite is the best option supported by all members.
 
 * Initialize a one-member group with the following initial values (where "0"
-  represents an all-zero vector of size Hash.length):
+  represents an all-zero vector of size KDF.Nh):
   * Ratchet tree: A tree with a single node, a leaf containing an HPKE public
     key and credential for the creator
   * Group ID: A value set by the creator
