@@ -895,7 +895,7 @@ used with:
 
 * The public key of a signature key pair matching the SignatureScheme specified
   by the CipherSuite of the group
-* The identity of the holder of the private keys
+* The identity of the holder of the private key
 
 Credentials MAY also include information that allows a relying party
 to verify the identity / signing key binding.
