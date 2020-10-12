@@ -1346,8 +1346,8 @@ A number of secrets are derived from the epoch secret for different purposes:
 | `encryption_secret`    | "encryption"  |
 | `exporter_secret`      | "exporter"    |
 | `authentication_secret`| "auth"  |
-| `confirmation_key`    | "confirm"     |
-| `membership_key`        | "membership"  |
+| `confirmation_key`     | "confirm"     |
+| `membership_key`      | "membership"  |
 | `recovery_secret`      | "recovery"    |
 
 ## Pre-Shared Keys
