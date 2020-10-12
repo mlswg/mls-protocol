@@ -1255,10 +1255,11 @@ struct {
 } UpdatePath;
 ~~~~~
 
-The number of ciphertexts in the `encrypted_path_secret` vector MUST
-be equal to the length of the resolution of the corresponding copath
-node.  Each ciphertext in the list is the encryption to the
-corresponding node in the resolution.
+For each `UpdatePathNode`, let `nodes_to_encrypt_for` be the the resolution of 
+the corresponding copath node excluding parties added as part of this MLS Commit
+message. The number of ciphertexts in the `encrypted_path_secret` vector MUST be
+equal to the length of `nodes_to_encrypt_for`. Each ciphertext in the list is the
+encryption to the corresponding node in `nodes_to_encrypt_for`.
 
 The HPKECiphertext values are computed as
 
@@ -2338,10 +2339,11 @@ message at the same time, by taking the following steps:
   based on the proposals that are in the commit (see above), then it MUST be
   populated.  Otherwise, the sender MAY omit the `path` field at its discretion.
 
-* If populating the `path` field: Create a UpdatePath using the new tree (which
-  includes any new members).  The GroupContext for this operation uses the
-  `group_id`, `epoch`, `tree_hash`, and `confirmed_transcript_hash` values in
-  the initial GroupContext object.
+* If populating the `path` field: Create a UpdatePath using the new tree. While 
+  the new tree includes the new members, any new member (from an add proposal) 
+  MUST be exluded from the resolution during the computation of the UpdatePath. 
+  The GroupContext for this operation uses the `group_id`, `epoch`, `tree_hash`, 
+  and `confirmed_transcript_hash` values in the initial GroupContext object.
 
    * Assign this UpdatePath to the `path` field in the Commit.
 
