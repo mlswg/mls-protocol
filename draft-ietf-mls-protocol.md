@@ -904,7 +904,7 @@ Additionally, Credentials SHOULD specify the signature scheme corresponding to
 each contained public key.
 
 ~~~~~
-// See See RFC 8446 and the IANA TLS SignatureScheme registry
+// See RFC 8446 and the IANA TLS SignatureScheme registry
 uint16 SignatureScheme;
 
 // See IANA registry for registered values
