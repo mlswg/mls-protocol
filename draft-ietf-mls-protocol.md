@@ -1340,8 +1340,8 @@ psk_secret (or 0) -> KDF.Extract = member_secret
 
 A number of secrets are derived from the epoch secret for different purposes:
 
-| Secret                 | Label         |
-|:-----------------------|:--------------|
+| Secret                 | Label           |
+|:-----------------------|:----------------|
 | `sender_data_secret`   | "sender data"   |
 | `encryption_secret`    | "encryption"    |
 | `exporter_secret`      | "exporter"      |
