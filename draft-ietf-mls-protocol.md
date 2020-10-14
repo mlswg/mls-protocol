@@ -1352,6 +1352,7 @@ A number of secrets are derived from the epoch secret for different purposes:
 | `sender_data_secret`  | "sender data" |
 | `encryption_secret`   | "encryption"  |
 | `exporter_secret`     | "exporter"    |
+| `external_secret`     | "external"    |
 | `confirmation_key`    | "confirm"     |
 | `membership_key`      | "membership"  |
 | `recovery_secret`       | "recovery"    |
@@ -2037,7 +2038,7 @@ might want to change their keys in order to achieve post-compromise security. In
 MLS, each such change is accomplished by a two-step process:
 
 1. A proposal to make the change is broadcast to the group in a Proposal message
-2. A member of the group broadcasts a Commit message that causes one or more
+2. A member of the group or a new member broadcasts a Commit message that causes one or more
    proposed changes to enter into effect
 
 The group thus evolves from one cryptographic state to another each time a
@@ -2063,19 +2064,21 @@ enum {
     add(1),
     update(2),
     remove(3),
-    presharedkey(4)
-    reinit(5)
+    presharedkey(4),
+    reinit(5),
+    externalinitsecret(6),
     (255)
 } ProposalType;
 
 struct {
     ProposalType msg_type;
     select (Proposal.msg_type) {
-        case add:    Add;
-        case update: Update;
-        case remove: Remove;
-        case psk:    PreSharedKey;
-        case reinit: ReInit;
+        case add:                Add;
+        case update:             Update;
+        case remove:             Remove;
+        case psk:                PreSharedKey;
+        case reinit:             ReInit;
+        case externalinitsecret: ExternalInitSecret;
     };
 } Proposal;
 ~~~~~
@@ -2189,6 +2192,18 @@ of the new group corresponds to the ones specified in the proposal. The Welcome
 message MUST specify a `PreSharedKey` with `psktype = reinit` and with
 `psk_group_id` and `psk_epoch` equal to the `group_id` and `epoch` of the
 existing group after the Commit containing the `reinit` Proposal was processed.
+
+### ExternalInitSecret
+
+An ExternalInitSecret proposal is used by new members that want to join a group by using an external commit. This propsal can only be used in that context.
+
+~~~~
+struct {
+  opaque kem_output<0..2^16-1>;
+} ExternalInitSecret;
+~~~~
+
+The field `kem_output` contains the encrypted `external_seed` as described in {{computing-the-external-init-secret}}.
 
 
 ### External Proposals
@@ -2494,6 +2509,125 @@ key for nodes in its direct path.  This creates the possibility
 that a malicious participant could cause a denial of service by sending a
 handshake message with invalid values for public keys in the ratchet
 tree. -->
+
+### External Commits
+
+External Commits are a mechanism for new members (external parties that want to become members of the group) to add themselves to a group, without requiring that an existing member has to come online to issue a Commit that references an Add Proposal.
+
+Whether existing members of the group will accept or reject an External Commit follows the same rules that are applied to other handshake messages.
+
+New members can create and issue an External Commit if they have access to the following information:
+
+ - group ID
+ - current epoch ID
+ - ciphersuite
+ - public tree hash
+ - confirmed transcript hash
+ - group extensions
+ - Public group key
+
+This information is aggregated in `ExternalCommitInfo` as follows:
+
+```
+struct {
+    CipherSuite cipher_suite;
+    CipherSuite cipher_suite;
+    opaque group_id<0..255>;
+    uint64 epoch;
+    opaque tree_hash<0..255>;
+    opaque confirmed_transcript_hash<0..255>;
+    Extension extensions<0..2^32-1>;
+    HPKEPublicKey group_public_key;
+} ExternalCommitInfo;
+```
+
+Note that the `tree_hash` field is used the same way as in the {{ratchet-tree-extension}}.
+
+The information above are not deemed public data in general, but applications can choose to make them available to new members in order to allow External Commits.
+
+External Commits work like regular Commits, with a few differences:
+
+ - External Commits MUST reference the Add Proposal that adds the issuing new member to the group
+ - External Commits MUST be signed by the new member
+ - External Commits MUST contain a `path` field (and is therefore a "full" Commit)
+ - When processing a Commit, both existing and new members MUST use the external init secret as described in {{computing-the-external-init-secret}}
+ - The sender type for the MLSPlaintext encpsulating the External Commit MUST be `new_member`
+ - If the Add Proposal is also issued by the new member, its member SenderType MUST be `new_member`
+
+#### Computing the External Init Secret
+
+The external init secret is calculated using the following steps:
+
+ - In each epoch, existing members use the `external_secret` from the key schedule to derive an HPKE keypair:
+
+`group_private_key, group_public_key = KEM.DeriveKeyPair(external_secret)`
+
+ - The group public key is published as part of the `ExternalCommitInfo`.
+
+ - The new joiner generates a random `external_seed_secret` of length `KDF.Nh`.
+ - The new joiner sends the seed to the group by computing:
+
+```
+kem_output, context = SetupBaseS(group_public_key, public_group_context)
+```
+
+where `public_group_context` is the ExternalCommitInfo serialized in TLS syntax.
+
+ - The new joiner sends `kem_output` to the group by encapsulating it in an ExternalInitSecret proposal:
+
+```
+struct {
+  opaque kem_output<0..2^16-1>;
+} ExternalInitSecret;
+```
+
+ - Existing members of the group process the ExternalInit proposal and can in turn compute:
+```
+context = SetupBaseR(kem_output, group_private_key, public_group_context)
+```
+ - Both sides can now compute:
+
+```
+external_init_secret = ctx.export("external init secret", KDF.Nh)
+```
+ - Both sides use `external_init_secret` as the iit secret when processing the commit.
+
+### External Commits
+
+External Commits are a mechanism for new members (external parties that want to become members of the group) to add themselves to a group, without requiring that an existing member has to come online to issue a Commit that references an Add Proposal.
+
+Whether existing members of the group will accept or reject an External Commit follows the same rules that are applied to other handshake messages.
+
+New members can create and issue an External Commit if they have access to the following information:
+
+ - group ID
+ - current epoch ID
+ - ciphersuite
+ - public tree
+ - confirmed transcript hash
+ - group extensions
+
+This information is aggregated in `ExternalCommitInfo` as follows:
+
+```
+struct {
+    CipherSuite cipher_suite;
+    GroupContext group_context;
+    optional<Node> ratchet_tree<1..2^32-1>;
+} ExternalCommitInfo;
+```
+
+Note that the `ratchet_tree` field is used the same way as in the {{ratchet-tree-extension}}.
+
+The information above are not deemed public data in general, but applications can choose to make them available to new members in order to allow External Commits.
+
+External Commits work like regular Commits, with a few differences:
+
+ - External Commits MUST reference the Add Proposal that adds the issuing new member to the group
+ - External Commits MUST be signed by the new member
+ - External Commits MUST contain a `path` field (and is therefore a "full" Commit)
+ - When processing a Commit, both existing and new members MUST use an empty init secret (all-zero vector of size Hash.length)
+ - If the Add Proposal is also issued by the new member, its member SenderType MUST be `new_member`
 
 ### Welcoming New Members
 
