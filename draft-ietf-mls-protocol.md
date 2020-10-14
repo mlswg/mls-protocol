@@ -1723,7 +1723,7 @@ struct {
 
         case commit:
           Commit commit;
-          opaque confirmation_tag<0..255>;
+          MAC confirmation_tag<0..255>;
     }
 
     opaque signature<0..2^16-1>;
@@ -1796,7 +1796,7 @@ struct {
 
         case commit:
           Commit commit;
-          opaque confirmation_tag<0..255>;
+          MAC confirmation_tag<0..255>;
     }
 } MLSPlaintextTBS;
 ~~~~~
@@ -1837,7 +1837,7 @@ struct {
 
         case commit:
           Commit commit;
-          opaque confirmation_tag<0..255>;
+          MAC confirmation_tag<0..255>;
     }
 
     opaque signature<0..2^16-1>;
@@ -2527,7 +2527,7 @@ struct {
   opaque confirmed_transcript_hash<0..255>;
   opaque interim_transcript_hash<0..255>;
   Extension extensions<0..2^32-1>;
-  opaque confirmation_tag<0..255>;
+  MAC confirmation_tag<0..255>;
   uint32 signer_index;
   opaque signature<0..2^16-1>;
 } GroupInfo;
