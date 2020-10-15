@@ -2339,11 +2339,11 @@ message at the same time, by taking the following steps:
   based on the proposals that are in the commit (see above), then it MUST be
   populated.  Otherwise, the sender MAY omit the `path` field at its discretion.
 
-* If populating the `path` field: Create a UpdatePath using the new tree. While 
-  the new tree includes the new members, any new member (from an add proposal) 
-  MUST be exluded from the resolution during the computation of the UpdatePath. 
-  The GroupContext for this operation uses the `group_id`, `epoch`, `tree_hash`, 
-  and `confirmed_transcript_hash` values in the initial GroupContext object.
+* If populating the `path` field: Create a UpdatePath using the new tree. Any 
+  new member (from an add proposal) MUST be exluded from the resolution during 
+  the computation of the UpdatePath. The GroupContext for this operation uses 
+  the `group_id`, `epoch`, `tree_hash`, and `confirmed_transcript_hash` values 
+  in the initial GroupContext object.
 
    * Assign this UpdatePath to the `path` field in the Commit.
 
