@@ -1357,8 +1357,8 @@ A number of secrets are derived from the epoch secret for different purposes:
 | `membership_key`     | "membership"  |
 | `recovery_secret`    | "recovery"    |
 
-The "external secret" is used to derive a key pair whose private key is held by
-the entire group:
+The "external secret" is used to derive an HPKE key pair whose private key is
+held by the entire group:
 
 ~~~~~
 external_priv, external_pub = KEM.DeriveKeyPair(external_secret)
@@ -1380,7 +1380,7 @@ information provided in the GroupKeyPackage and an external Commit to initialize
 their copy of the key schedule for the new epoch.
 
 ~~~~~
-kem_output, context = SetupBaseS(external_pub_[n], GroupKeyPackage_[n])
+kem_output, context = SetupBaseS(external_pub, GroupKeyPackage)
 init_secret = context.export("MLS 1.0 external init secret", KDF.Nh)
 ~~~~~
 
@@ -1388,9 +1388,12 @@ Members of the group receive the `kem_output` in an ExternalInit proposal and
 preform the corresponding calculation to retrieve the `init_secret` value.
 
 ~~~~~
-context = SetupBaseR(kem_outpu, external_priv_[n], GroupKeyPackage_[n])
+context = SetupBaseR(kem_outpu, external_priv, GroupKeyPackage)
 init_secret = context.export("MLS 1.0 external init secret", KDF.Nh)
 ~~~~~
+
+In both cases, the `info` input to HPKE is set to the GroupKeyPackage for the
+previous epoch, encoded using the TLS serialization.
 
 ## Pre-Shared Keys
 
@@ -2566,9 +2569,9 @@ following information for the group's current epoch:
 * public tree hash
 * confirmed transcript hash
 * group extensions
-* Public group key
+* external public key
 
-This information is aggregated in `GroupKeyPackage` as follows:
+This information is aggregated in a `GroupKeyPackage` object as follows:
 
 ```
 struct {
@@ -2578,7 +2581,7 @@ struct {
     opaque tree_hash<0..255>;
     opaque confirmed_transcript_hash<0..255>;
     Extension extensions<0..2^32-1>;
-    HPKEPublicKey group_public_key;
+    HPKEPublicKey external_pub;
 } GroupKeyPackage;
 ```
 
