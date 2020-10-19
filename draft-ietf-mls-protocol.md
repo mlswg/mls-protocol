@@ -895,7 +895,7 @@ used with:
 
 * The public key of a signature key pair matching the SignatureScheme specified
   by the CipherSuite of the group
-* The identity of the holder of the private keys
+* The identity of the holder of the private key
 
 Credentials MAY also include information that allows a relying party
 to verify the identity / signing key binding.
@@ -904,7 +904,7 @@ Additionally, Credentials SHOULD specify the signature scheme corresponding to
 each contained public key.
 
 ~~~~~
-// See IANA registry for registered values
+// See RFC 8446 and the IANA TLS SignatureScheme registry
 uint16 SignatureScheme;
 
 // See IANA registry for registered values
