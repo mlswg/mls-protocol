@@ -2083,7 +2083,7 @@ struct {
 On receiving an MLSPlaintext containing a Proposal, a client MUST verify the
 signature on the enclosing MLSPlaintext.  If the signature verifies
 successfully, then the Proposal should be cached in such a way that it can be
-retrieved using a ProposalID in a later Commit message.
+retrieved using by hash (as a ProposalOrRef object) in a later Commit message.
 
 ### Add
 
@@ -2228,7 +2228,7 @@ A Commit message initiates a new epoch for the group, based on a collection of
 Proposals. It instructs group members to update their representation of the
 state of the group by applying the proposals and advancing the key schedule.
 
-Each proposal covered by the Commit is identified by a ProposalID value, which
+Each proposal covered by the Commit is included by a ProposalOrRef value, which
 identifies the proposal to be applied by value or by reference.  Proposals
 supplied by value are included directly in the Commit object.  Proposals
 supplied by reference are specified by including the hash of the MLSPlaintext in
