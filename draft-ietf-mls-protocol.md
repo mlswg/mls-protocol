@@ -2607,8 +2607,9 @@ External Commits work like regular Commits, with a few differences:
 * External Commits MUST be signed by the new member.  In particular, the
   signature on the enclosing MLSPlaintext MUST verify using the public key for
   the credential in the `leaf_key_package` of the `path` field.
-* When processing a Commit, both existing and new members MUST use the external
-  init secret as described in {{external-initialization}}
+* An external commit MUST reference exactly one ExternalInit proposal. When
+  processing a Commit, both existing and new members MUST use the external
+  init secret as described in {{external-initialization}}.
 * The sender type for the MLSPlaintext encapsulating the External Commit MUST be
   `new_member`
 * If the Add Proposal is also issued by the new member, its member SenderType
