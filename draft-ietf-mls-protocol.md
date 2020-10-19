@@ -1849,11 +1849,12 @@ struct {
 } MLSCiphertextContent;
 ~~~~~
 
-The key and nonce used for the encryption of the message depend on the
-content type of the message.  The sender chooses the handshake key for a
-handshake message or an unused generation from its (per-sender)
-application key chain for the current epoch, according to the type
-of message being encrypted.
+In the MLS key schedule, the sender creates two distinct key ratchets for
+handshake and application messages for each member of the group. When encrypting
+a message, the sender looks at the ratchets it derived for its own member and
+chooses an unused generation from either the handshake or application ratchet
+depending on the content type of the message. This generation of the ratchet is
+used to derive a provisional nonce and key.
 
 Before use in the encryption operation, the nonce is XORed with a fresh random
 value to guard against reuse.  Because the key schedule generates nonces
