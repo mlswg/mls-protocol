@@ -895,7 +895,7 @@ used with:
 
 * The public key of a signature key pair matching the SignatureScheme specified
   by the CipherSuite of the group
-* The identity of the holder of the private keys
+* The identity of the holder of the private key
 
 Credentials MAY also include information that allows a relying party
 to verify the identity / signing key binding.
@@ -904,7 +904,7 @@ Additionally, Credentials SHOULD specify the signature scheme corresponding to
 each contained public key.
 
 ~~~~~
-// See IANA registry for registered values
+// See RFC 8446 and the IANA TLS SignatureScheme registry
 uint16 SignatureScheme;
 
 // See IANA registry for registered values
@@ -1200,11 +1200,11 @@ struct {
     Sender sender;
     ContentType content_type = commit;
     Commit commit;
+    opaque signature<0..2^16-1>;
 } MLSPlaintextCommitContent;
 
 struct {
-    opaque confirmation_tag<0..255>;
-    opaque signature<0..2^16-1>;
+    MAC confirmation_tag;
 } MLSPlaintextCommitAuthData;
 
 interim_transcript_hash_[0] = ""; // zero-length octet string
@@ -1220,11 +1220,11 @@ interim_transcript_hash_[n+1] =
 
 Thus the `confirmed_transcript_hash` field in a GroupContext object represents a
 transcript over the whole history of MLSPlaintext Commit messages, up to the
-confirmation tag field in the current MLSPlaintext message.  The confirmation tag and
-signature fields are then included in the transcript for the next epoch.  The
-interim transcript hash is passed to new members in the GroupInfo struct, and
-enables existing members to incorporate a Commit message into the transcript
-without having to store the whole MLSPlaintextCommitAuthData structure.
+confirmation tag field in the current MLSPlaintext message.  The confirmation tag 
+is then included in the transcript for the next epoch.  The interim transcript 
+hash is passed to new members in the GroupInfo struct, and enables existing 
+members to incorporate a Commit message into the transcript without having to 
+store the whole MLSPlaintextCommitAuthData structure.
 
 As shown above, when a new group is created, the `interim_transcript_hash` field
 is set to the zero-length octet string.
@@ -1347,15 +1347,16 @@ psk_secret (or 0) -> KDF.Extract = member_secret
 
 A number of secrets are derived from the epoch secret for different purposes:
 
-| Secret               | Label         |
-|:---------------------|:--------------|
-| `sender_data_secret` | "sender data" |
-| `encryption_secret`  | "encryption"  |
-| `exporter_secret`    | "exporter"    |
-| `external_secret`    | "external"    |
-| `confirmation_key`   | "confirm"     |
-| `membership_key`     | "membership"  |
-| `recovery_secret`    | "recovery"    |
+| Secret                  | Label         |
+|:------------------------|:--------------|
+| `sender_data_secret`    | "sender data" |
+| `encryption_secret`     | "encryption"  |
+| `exporter_secret`       | "exporter"    |
+| `authentication_secret` | "authentication"|
+| `external_secret`       | "external"    |
+| `confirmation_key`      | "confirm"     |
+| `membership_key`        | "membership"  |
+| `recovery_secret`       | "recovery"    |
 
 The "external secret" is used to derive an HPKE key pair whose private key is
 held by the entire group:
@@ -1762,10 +1763,10 @@ struct {
 
         case commit:
           Commit commit;
-          opaque confirmation_tag<0..255>;
     }
 
     opaque signature<0..2^16-1>;
+    optional<MAC> confirmation_tag;
     optional<MAC> membership_tag;
 } MLSPlaintext;
 
@@ -1778,6 +1779,9 @@ struct {
     opaque ciphertext<0..2^32-1>;
 } MLSCiphertext;
 ~~~~~
+
+The field `confirmation_tag` MUST be present if `content_type` equals commit.
+Otherwise, it MUST NOT be present.
 
 External sender types are sent as MLSPlaintext, see {{external-proposals}}
 for their use.
@@ -1808,10 +1812,10 @@ The following sections describe the encryption and signing processes in detail.
 The `signature` field in an MLSPlaintext object is computed using the signing
 private key corresponding to the credential at the leaf of the tree indicated by
 the sender field. The signature covers the plaintext metadata and message
-content, which is all of MLSPlaintext except for the `signature` and
-`membership_tag` fields. If the sender is a member of the group, the signature
-also covers the GroupContext for the current epoch, so that signatures are
-specific to a given group and epoch.
+content, which is all of MLSPlaintext except for the `signature`, the
+`confirmation_tag` and `membership_tag` fields. If the sender is a member of the
+group, the signature also covers the GroupContext for the current epoch, so that
+signatures are specific to a given group and epoch.
 
 ~~~~~
 struct {
@@ -1835,7 +1839,6 @@ struct {
 
         case commit:
           Commit commit;
-          opaque confirmation_tag<0..255>;
     }
 } MLSPlaintextTBS;
 ~~~~~
@@ -1849,6 +1852,7 @@ present and set to the following value:
 struct {
   MLSPlaintextTBS tbs;
   opaque signature<0..2^16-1>;
+  optional<MAC> confirmation_tag;
 } MLSPlaintextTBM;
 
 membership_tag = MAC(membership_key, MLSPlaintextTBM);
@@ -1876,19 +1880,20 @@ struct {
 
         case commit:
           Commit commit;
-          opaque confirmation_tag<0..255>;
     }
 
     opaque signature<0..2^16-1>;
+    optional<MAC> confirmation_tag;
     opaque padding<0..2^16-1>;
 } MLSCiphertextContent;
 ~~~~~
 
-The key and nonce used for the encryption of the message depend on the
-content type of the message.  The sender chooses the handshake key for a
-handshake message or an unused generation from its (per-sender)
-application key chain for the current epoch, according to the type
-of message being encrypted.
+In the MLS key schedule, the sender creates two distinct key ratchets for
+handshake and application messages for each member of the group. When encrypting
+a message, the sender looks at the ratchets it derived for its own member and
+chooses an unused generation from either the handshake or application ratchet
+depending on the content type of the message. This generation of the ratchet is
+used to derive a provisional nonce and key.
 
 Before use in the encryption operation, the nonce is XORed with a fresh random
 value to guard against reuse.  Because the key schedule generates nonces
@@ -2418,10 +2423,10 @@ message at the same time, by taking the following steps:
   corresponds to the order of PreSharedKey proposals in the `proposals` vector.
   Otherwise, set `psk_secret` to 0.
 
-* Construct an MLSPlaintext object containing the Commit object. Use the
+* Construct an MLSPlaintext object containing the Commit object. Sign the MLSPlaintext
+  using the current epoch's GroupContext as context. Use the signature, the
   `commit_secret` and the `psk_secret` to advance the key schedule and compute
-  the `confirmation_tag` value in the MLSPlaintext. Sign the MLSPlaintext using
-  the current epoch's GroupContext as context.
+  the `confirmation_tag` value in the MLSPlaintext. 
 
 * Update the tree in the provisional state by applying the direct path
 
@@ -2641,7 +2646,7 @@ struct {
   opaque confirmed_transcript_hash<0..255>;
   opaque interim_transcript_hash<0..255>;
   Extension extensions<0..2^32-1>;
-  opaque confirmation_tag<0..255>;
+  MAC confirmation_tag;
   uint32 signer_index;
   opaque signature<0..2^16-1>;
 } GroupInfo;
