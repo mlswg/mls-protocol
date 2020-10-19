@@ -1365,7 +1365,7 @@ held by the entire group:
 external_priv, external_pub = KEM.DeriveKeyPair(external_secret)
 ~~~~~
 
-The public key `external_pub` can be published as part of the `GroupKeyPacakge`
+The public key `external_pub` can be published as part of the `GroupKeyPackage`
 struct in order to allow non-members to join the group using an external commit.
 
 ## External Initialization
