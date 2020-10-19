@@ -2233,10 +2233,9 @@ identifies the proposal to be applied by value or by reference.  Proposals
 supplied by value are included directly in the Commit object.  Proposals
 supplied by reference are specified by including the hash of the MLSPlaintext in
 which the Proposal was sent, using the hash function from the group's
-ciphersuite.  For proposals whose application depends on who sent them (e.g.,
-Update), the sender of the proposal is the same as the sender of the Commit.
-Conversely, proposals sent by people other than the committer MUST be included
-by reference.
+ciphersuite.  For proposals supplied by value, the sender of the proposal is the
+same as the sender of the Commit.  Conversely, proposals sent by people other
+than the committer MUST be included by reference.
 
 ~~~~~
 enum {
