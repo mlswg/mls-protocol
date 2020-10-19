@@ -2233,26 +2233,29 @@ identifies the proposal to be applied by value or by reference.  Proposals
 supplied by value are included directly in the Commit object.  Proposals
 supplied by reference are specified by including the hash of the MLSPlaintext in
 which the Proposal was sent, using the hash function from the group's
-ciphersuite.
+ciphersuite.  For proposals whose application depends on who sent them (e.g.,
+Update), the sender of the proposal is the same as the sender of the Commit.
+Conversely, proposals sent by people other than the committer MUST be included
+by reference.
 
 ~~~~~
 enum {
   reserved(0),
-  value(1)
-  plaintext_hash(2),
+  proposal(1)
+  reference(2),
   (255)
-} ProposalIDType;
+} ProposalOrRefType;
 
 struct {
-  ProposalIDType type;
-  select (ProposalID.type) {
-    case value:          Proposal proposal;
-    case plaintext_hash: opaque hash<0..255>;
+  ProposalOrRefType type;
+  select (ProposalOrRef.type) {
+    case 0: Proposal proposal;
+    case 1: opaque hash<0..255>;
   }
-} ProposalID;
+} ProposalOrRef;
 
 struct {
-    ProposalID proposals<0..2^32-1>;
+    ProposalOrRef proposals<0..2^32-1>;
     optional<UpdatePath> path;
 } Commit;
 ~~~~~
