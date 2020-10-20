@@ -2083,7 +2083,7 @@ struct {
 On receiving an MLSPlaintext containing a Proposal, a client MUST verify the
 signature on the enclosing MLSPlaintext.  If the signature verifies
 successfully, then the Proposal should be cached in such a way that it can be
-retrieved using by hash (as a ProposalOrRef object) in a later Commit message.
+retrieved by hash (as a ProposalOrRef object) in a later Commit message.
 
 ### Add
 
@@ -2248,8 +2248,8 @@ enum {
 struct {
   ProposalOrRefType type;
   select (ProposalOrRef.type) {
-    case 0: Proposal proposal;
-    case 1: opaque hash<0..255>;
+    case proposal:  Proposal proposal;
+    case reference: opaque hash<0..255>;
   }
 } ProposalOrRef;
 
