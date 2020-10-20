@@ -1330,10 +1330,10 @@ psk_secret (or 0) -> KDF.Extract = member_secret
                          |    = welcome_secret
                          |
                          V
-                   Derive-Secret(., "epoch")
+                   ExpandWithLabel(., "epoch", GroupContext_[n], KDF.Nh)
                          |
                          V
- GroupContext_[n] -> KDF.Extract = epoch_secret
+                    epoch_secret
                          |
                          +--> Derive-Secret(., <label>)
                          |    = <secret>
