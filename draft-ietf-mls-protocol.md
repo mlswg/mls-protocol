@@ -1893,7 +1893,6 @@ struct {
     uint64 epoch;
     ContentType content_type;
     opaque authenticated_data<0..2^32-1>;
-    opaque encrypted_sender_data<0..255>;
 } MLSCiphertextContentAAD;
 ~~~~~
 
