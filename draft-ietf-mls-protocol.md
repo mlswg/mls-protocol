@@ -135,7 +135,39 @@ RFC EDITOR PLEASE DELETE THIS SECTION.
 
 draft-10
 
+- Allow new members to join via an external Commit (\*)
+
+- Enable proposals to be sent inline in a Commit (\*)
+
 - Re-enable constant-time Add (\*)
+
+- Change expiration extension to lifetime extension (\*)
+
+- Make the tree in the Welcome optional (\*)
+
+- PSK injection, re-init, sub-group branching (\*)
+
+- Require the initial init_secret to be a random value (\*)
+
+- Remove explicit sender data nonce (\*)
+
+- Do not encrypt to joiners in UpdatePath generation (\*)
+
+- Move MLSPlaintext signature under the confirmation tag (\*)
+
+- Explicitly authenticate group membership with MLSPLaintext (\*)
+
+- Clarify X509Credential structure (\*)
+
+- Remove uneeded interim transcript hash from GroupInfo (\*)
+
+- IANA considerations
+
+- Derive an authentication secret
+
+- Use Extract/Expand from HPKE KDF
+
+- Clarify that application messages MUST be encrypted
 
 draft-09
 
@@ -1258,7 +1290,7 @@ struct {
 For each `UpdatePathNode`, the resolution of the corresponding copath node MUST
 be filtered by removing all new leaf nodes added as part of this MLS Commit
 message. The number of ciphertexts in the `encrypted_path_secret` vector MUST be
-equal to the length of the filtered resolution, with each ciphertext being the 
+equal to the length of the filtered resolution, with each ciphertext being the
 encryption to the respective resolution node.
 
 The HPKECiphertext values are computed as
@@ -2343,10 +2375,10 @@ message at the same time, by taking the following steps:
   based on the proposals that are in the commit (see above), then it MUST be
   populated.  Otherwise, the sender MAY omit the `path` field at its discretion.
 
-* If populating the `path` field: Create a UpdatePath using the new tree. Any 
-  new member (from an add proposal) MUST be exluded from the resolution during 
-  the computation of the UpdatePath. The GroupContext for this operation uses 
-  the `group_id`, `epoch`, `tree_hash`, and `confirmed_transcript_hash` values 
+* If populating the `path` field: Create a UpdatePath using the new tree. Any
+  new member (from an add proposal) MUST be exluded from the resolution during
+  the computation of the UpdatePath. The GroupContext for this operation uses
+  the `group_id`, `epoch`, `tree_hash`, and `confirmed_transcript_hash` values
   in the initial GroupContext object.
 
    * Assign this UpdatePath to the `path` field in the Commit.
