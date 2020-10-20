@@ -2088,7 +2088,7 @@ struct {
 On receiving an MLSPlaintext containing a Proposal, a client MUST verify the
 signature on the enclosing MLSPlaintext.  If the signature verifies
 successfully, then the Proposal should be cached in such a way that it can be
-retrieved using a ProposalID in a later Commit message.
+retrieved by hash (as a ProposalOrRef object) in a later Commit message.
 
 ### Add
 
@@ -2233,15 +2233,33 @@ A Commit message initiates a new epoch for the group, based on a collection of
 Proposals. It instructs group members to update their representation of the
 state of the group by applying the proposals and advancing the key schedule.
 
-Each proposal covered by the Commit is identified by a ProposalID value, which
-contains the hash of the MLSPlaintext in which the Proposal was sent, using the
-hash function from the group's ciphersuite.
+Each proposal covered by the Commit is included by a ProposalOrRef value, which
+identifies the proposal to be applied by value or by reference.  Proposals
+supplied by value are included directly in the Commit object.  Proposals
+supplied by reference are specified by including the hash of the MLSPlaintext in
+which the Proposal was sent, using the hash function from the group's
+ciphersuite.  For proposals supplied by value, the sender of the proposal is the
+same as the sender of the Commit.  Conversely, proposals sent by people other
+than the committer MUST be included by reference.
 
 ~~~~~
-opaque ProposalID<0..255>;
+enum {
+  reserved(0),
+  proposal(1)
+  reference(2),
+  (255)
+} ProposalOrRefType;
 
 struct {
-    ProposalID proposals<0..2^32-1>;
+  ProposalOrRefType type;
+  select (ProposalOrRef.type) {
+    case proposal:  Proposal proposal;
+    case reference: opaque hash<0..255>;
+  }
+} ProposalOrRef;
+
+struct {
+    ProposalOrRef proposals<0..2^32-1>;
     optional<UpdatePath> path;
 } Commit;
 ~~~~~
