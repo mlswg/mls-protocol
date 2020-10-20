@@ -1347,16 +1347,16 @@ psk_secret (or 0) -> KDF.Extract = member_secret
 
 A number of secrets are derived from the epoch secret for different purposes:
 
-| Secret                  | Label         |
-|:------------------------|:--------------|
-| `sender_data_secret`    | "sender data" |
-| `encryption_secret`     | "encryption"  |
-| `exporter_secret`       | "exporter"    |
+| Secret                  | Label           |
+|:------------------------|:----------------|
+| `sender_data_secret`    | "sender data"   |
+| `encryption_secret`     | "encryption"    |
+| `exporter_secret`       | "exporter"      |
 | `authentication_secret` | "authentication"|
-| `external_secret`       | "external"    |
-| `confirmation_key`      | "confirm"     |
-| `membership_key`        | "membership"  |
-| `recovery_secret`       | "recovery"    |
+| `external_secret`       | "external"      |
+| `confirmation_key`      | "confirm"       |
+| `membership_key`        | "membership"    |
+| `recovery_secret`       | "recovery"      |
 
 The "external secret" is used to derive an HPKE key pair whose private key is
 held by the entire group:
