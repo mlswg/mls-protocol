@@ -1255,11 +1255,11 @@ struct {
 } UpdatePath;
 ~~~~~
 
-For each `UpdatePathNode`, let `nodes_to_encrypt_for` be the the resolution of 
-the corresponding copath node excluding parties added as part of this MLS Commit
+For each `UpdatePathNode`, the resolution of the corresponding copath node MUST
+be filtered by removing all new leaf nodes added as part of this MLS Commit
 message. The number of ciphertexts in the `encrypted_path_secret` vector MUST be
-equal to the length of `nodes_to_encrypt_for`. Each ciphertext in the list is the
-encryption to the corresponding node in `nodes_to_encrypt_for`.
+equal to the length of the filtered resolution, with each ciphertext being the 
+encryption to the respective resolution node.
 
 The HPKECiphertext values are computed as
 
