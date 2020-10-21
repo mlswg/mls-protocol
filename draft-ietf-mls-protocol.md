@@ -2584,7 +2584,7 @@ struct {
     opaque group_id<0..255>;
     uint64 epoch;
     opaque tree_hash<0..255>;
-    opaque confirmed_transcript_hash<0..255>;
+    opaque interim_transcript_hash<0..255>;
     Extension extensions<0..2^32-1>;
     HPKEPublicKey external_pub;
 } GroupKeyPackage;
