@@ -2075,7 +2075,7 @@ struct {
 On receiving an MLSPlaintext containing a Proposal, a client MUST verify the
 signature on the enclosing MLSPlaintext.  If the signature verifies
 successfully, then the Proposal should be cached in such a way that it can be
-retrieved using a ProposalID in a later Commit message.
+retrieved by hash (as a ProposalOrRef object) in a later Commit message.
 
 ### Add
 
@@ -2200,6 +2200,9 @@ a newly-hired staff member to a group representing a real-world team.  Proposals
 originating outside the group are identified by a `preconfigured` or
 `new_member` SenderType in MLSPlaintext.
 
+ReInit proposals can also be sent to the group by a `preconfigured` sender, for
+example to enforce a changed policy regarding MLS version or ciphersuite.
+
 The `new_member` SenderType is used for clients proposing that they themselves
 be added.  For this ID type the sender value MUST be zero and the Proposal type
 MUST be Add. The MLSPlaintext MUST be signed with the private key corresponding
@@ -2228,15 +2231,33 @@ A Commit message initiates a new epoch for the group, based on a collection of
 Proposals. It instructs group members to update their representation of the
 state of the group by applying the proposals and advancing the key schedule.
 
-Each proposal covered by the Commit is identified by a ProposalID value, which
-contains the hash of the MLSPlaintext in which the Proposal was sent, using the
-hash function from the group's ciphersuite.
+Each proposal covered by the Commit is included by a ProposalOrRef value, which
+identifies the proposal to be applied by value or by reference.  Proposals
+supplied by value are included directly in the Commit object.  Proposals
+supplied by reference are specified by including the hash of the MLSPlaintext in
+which the Proposal was sent, using the hash function from the group's
+ciphersuite.  For proposals supplied by value, the sender of the proposal is the
+same as the sender of the Commit.  Conversely, proposals sent by people other
+than the committer MUST be included by reference.
 
 ~~~~~
-opaque ProposalID<0..255>;
+enum {
+  reserved(0),
+  proposal(1)
+  reference(2),
+  (255)
+} ProposalOrRefType;
 
 struct {
-    ProposalID proposals<0..2^32-1>;
+  ProposalOrRefType type;
+  select (ProposalOrRef.type) {
+    case proposal:  Proposal proposal;
+    case reference: opaque hash<0..255>;
+  }
+} ProposalOrRef;
+
+struct {
+    ProposalOrRef proposals<0..2^32-1>;
     optional<UpdatePath> path;
 } Commit;
 ~~~~~
@@ -2328,10 +2349,11 @@ message at the same time, by taking the following steps:
   based on the proposals that are in the commit (see above), then it MUST be
   populated.  Otherwise, the sender MAY omit the `path` field at its discretion.
 
-* If populating the `path` field: Create an UpdatePath using the new tree (which
-  includes any new members).  The GroupContext for this operation uses the
-  `group_id`, `epoch`, `tree_hash`, and `confirmed_transcript_hash` values in
-  the initial GroupContext object.
+* If populating the `path` field: Create a UpdatePath using the new tree. Any
+  new member (from an add proposal) MUST be exluded from the resolution during
+  the computation of the UpdatePath. The GroupContext for this operation uses
+  the `group_id`, `epoch`, `tree_hash`, and `confirmed_transcript_hash` values
+  in the initial GroupContext object.
 
    * Assign this UpdatePath to the `path` field in the Commit.
 
@@ -2506,7 +2528,6 @@ struct {
   uint64 epoch;
   opaque tree_hash<0..255>;
   opaque confirmed_transcript_hash<0..255>;
-  opaque interim_transcript_hash<0..255>;
   Extension extensions<0..2^32-1>;
   MAC confirmation_tag;
   uint32 signer_index;
@@ -2616,6 +2637,9 @@ welcome_key = KDF.Expand(welcome_secret, "key", key_length)
 
 * Verify the confirmation tag in the GroupInfo using the derived confirmation
   key and the `confirmed_transcript_hash` from the GroupInfo.
+
+* Use the confirmed transcript hash and confirmation tag to compute the interim
+  transcript hash in the new state.
 
 ## Ratchet Tree Extension
 
