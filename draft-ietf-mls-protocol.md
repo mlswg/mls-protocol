@@ -2205,6 +2205,9 @@ a newly-hired staff member to a group representing a real-world team.  Proposals
 originating outside the group are identified by a `preconfigured` or
 `new_member` SenderType in MLSPlaintext.
 
+ReInit proposals can also be sent to the group by a `preconfigured` sender, for
+example to enforce a changed policy regarding MLS version or ciphersuite.
+
 The `new_member` SenderType is used for clients proposing that they themselves
 be added.  For this ID type the sender value MUST be zero and the Proposal type
 MUST be Add. The MLSPlaintext MUST be signed with the private key corresponding
