@@ -2572,7 +2572,7 @@ following information for the group's current epoch:
 * epoch ID
 * ciphersuite
 * public tree hash
-* confirmed transcript hash
+* interim transcript hash
 * group extensions
 * external public key
 
