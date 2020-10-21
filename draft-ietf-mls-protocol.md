@@ -2552,7 +2552,6 @@ struct {
   uint64 epoch;
   opaque tree_hash<0..255>;
   opaque confirmed_transcript_hash<0..255>;
-  opaque interim_transcript_hash<0..255>;
   Extension extensions<0..2^32-1>;
   MAC confirmation_tag;
   uint32 signer_index;
@@ -2662,6 +2661,9 @@ welcome_key = KDF.Expand(welcome_secret, "key", key_length)
 
 * Verify the confirmation tag in the GroupInfo using the derived confirmation
   key and the `confirmed_transcript_hash` from the GroupInfo.
+
+* Use the confirmed transcript hash and confirmation tag to compute the interim
+  transcript hash in the new state.
 
 ## Ratchet Tree Extension
 
