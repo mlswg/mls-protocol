@@ -1381,7 +1381,7 @@ update), does that constitute a weaker security level -->
 security level of the ciphersuite used in the group. -->
 
 Each PSK in MLS has a type that designates how it was provisioned.
-External PSKs are provided by the application, while resumption PSKs
+External PSKs are provided by the application, while recovery and re-init PSKs
 are derived from the MLS key schedule and used in cases where it is
 necessary to authenticate a member's participation in a prior group state.
 In particular, in addition to external PSK types, a PSK derived from within MLS
