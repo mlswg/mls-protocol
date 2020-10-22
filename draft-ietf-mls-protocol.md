@@ -2735,25 +2735,62 @@ exhausting all available InitKeys.
 The security of a group hinges on the fact that every member has access to a
 good source of entropy. To make the protocol more robust in environments with
 weak sources of entropy or even compromised random number generators, each MLS
-implementation MUST maintain a `base_secret` and a `base_derivation_counter`,
-which act as an entropy pool.
+implementation MUST maintain an `entropy_pool_secret`. The `entropy_pool_secret`
+serves as a source of entropy, which is used to derive fresh secrets whenever
+needed, for example when generating a new KeyPackage for an Update operation.
 
-In the course of MLS protocol operations, whenever a client has to sample a
-fresh secret, new randomness is sampled from the underlying entropy source (e.g.
-the RNG of the operating system) and extracted together with the `base_secret`
-to form the new `base_secret`. The fresh secret is then derived from the
-`base_secret` and the value of the `base_derivation_counter`.
+To ensure that Post-Compromise Security (PCS) can be achieved, the
+`entropy_pool_secret` must be injected with fresh entropy from some other
+source, such as the Random Number Generator (RNG) of the operating system.
 
-Additionally, whenever a client processes a commit message in one of its groups,
-an extra secret is derived from the resulting `epoch_secret` with the label
-`base_secret_addition`. That secret is then Expanded together with the
-`base_secret` to form a new `base_secret`.
+To achieve Forward Secrecy, the `entropy_pool_secret` is additionally "ratcheted
+forward" after each extraction of a fresh secret.
 
-TODO:
-* Formally specify the extract and expand calls
-* think of better names
-* do we actually need the counter?
-* should the secret derived from the `epoch_secret` be part of the Key Schedule?
+~~~~~
+             entropy_pool_secret_[n-1]
+                        |
+                        V
+fresh_randomness -> KDF.Extract = intermediate_secret
+                        |
+                        +--> DeriveSecret(., "mls_secret")
+                        |    = fresh_secret
+                        |
+                        V
+                  DeriveSecret(., "entropy_pool_secret")
+                  = entropy_pool_secret_[n]
+~~~~~
+
+The entropy gathered in the `entropy_pool_secret`, can be further increased by
+injecting addtional entropy whenever a group is updated by another party.
+
+If that is the case, the each party that did not perform the update operation
+themselves can update their `entropy_pool_secret` by injecting a secret derived
+from the updated group's key schedule. To that end, they first derive an
+`external_secret` as follows, where `epoch_secret` is the taken from the group's
+key schedule and `leaf_id` is the index of the party's leaf in the group:
+
+~~~~~
+external_secret =
+    ExpandWithLabel(`epoch_secret`, "entropy_pool_update", leaf_id, KDF.Nh)
+~~~~~
+
+The resulting `external_secret` can then be injected into the entropy pool as follows.
+~~~~~
+             entropy_pool_secret_[n-1]
+                        |
+                        V
+external_secret -> KDF.Extract = intermediate_secret
+                        |
+                        V
+                  DeriveSecret(., "entropy_pool_secret")
+                  = entropy_pool_secret_[n]
+~~~~~
+
+Even though each group member can derive the `external_secret` for every other
+member of the group, the resulting `entropy_pool_secret_[n]` is still secure as
+long as the preceding `entropy_pool_secret_[n-1]` was secure. As a consequence,
+this operation strictly improves the quality of the gathered entropy.
+
 
 # IANA Considerations
 
