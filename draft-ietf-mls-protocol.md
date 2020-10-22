@@ -1459,12 +1459,13 @@ pseudorandom if at least one of the PSKs used is pseudorandom. -->
 ## Secret Tree {#secret-tree}
 
 For the generation of encryption keys and nonces, the key schedule begins with
-the `encryption_secret` and derives a tree of secrets with the same structure as
-the group's ratchet tree. Each leaf in the Secret Tree is associated with the
-same group member as the corresponding leaf in the ratchet tree. Nodes are also
-assigned an index according to their position in the array representation of the
-tree (described in {{tree-math}}). If N is a node index in the Secret Tree then
-left(N) and right(N) denote the children of N (if they exist).
+the `encryption_secret` at the root and derives a tree of secrets with the same
+structure as the group's ratchet tree. Each leaf in the Secret Tree is
+associated with the same group member as the corresponding leaf in the ratchet
+tree. Nodes are also assigned an index according to their position in the array
+representation of the tree (described in {{tree-math}}). If N is a node index in
+the Secret Tree then left(N) and right(N) denote the children of N (if they
+exist).
 
 The secret of any other node in the tree is derived from its parent's secret
 using a call to DeriveTreeSecret:
@@ -1537,8 +1538,8 @@ more than one message.
 Keys, nonces, and the secrets in ratchets are derived using
 DeriveTreeSecret. The context in a given call consists of the index
 of the sender's leaf in the ratchet tree and the current position in
-the ratchet.  In particular, the index of the sender's leaf in the
-ratchet tree is the same as the index of the leaf in the Secret Tree
+the ratchet.  In particular, the node index of the sender's leaf in the
+ratchet tree is the same as the node index of the leaf in the Secret Tree
 used to initialize the sender's ratchet.
 
 ~~~~~
@@ -1561,7 +1562,7 @@ the ciphersuite.
 
 ## Deletion Schedule
 
-It is important to delete all security sensitive values as soon as they are
+It is important to delete all security-sensitive values as soon as they are
 _consumed_. A sensitive value S is said to be _consumed_ if
 
 * S was used to encrypt or (successfully) decrypt a message, or if
@@ -1578,16 +1579,17 @@ forward secrecy for past messages. Members MAY keep unconsumed values around
 for some reasonable amount of time to handle out-of-order message delivery.
 
 For example, suppose a group member encrypts or (successfully) decrypts an
-application message using the j-th key and nonce in the i-th ratchet. Then, for
-that member, at least the following values have been consumed and MUST be
-deleted:
+application message using the j-th key and nonce in the ratchet of node
+index N in some epoch n. Then, for that member, at least the following
+values have been consumed and MUST be deleted:
 
-* the `init_secret`, `commit_secret`, `epoch_secret`, `encryption_secret` of
-that epoch,
+* the `commit_secret`, `joiner_secret`, `member_secret`, `epoch_secret`,
+`encryption_secret` of that epoch n as well as the `init_secret` of the
+previous epoch n-1,
 * all node secrets in the Secret Tree on the path from the root to the leaf with
-index i,
-* the first j secrets in the i-th application data ratchet and
-* `application_ratchet_nonce_[N]_[j]` and `application_ratchet_nonce_[N]_[j]`.
+node index N,
+* the first j secrets in the application data ratchet of node index N and
+* `application_ratchet_nonce_[N]_[j]` and `application_ratchet_key_[N]_[j]`.
 
 Concretely, suppose we have the following Secret Tree and ratchet for
 participant D:
@@ -1612,11 +1614,11 @@ participant D:
 ~~~
 
 Then if a client uses key K1 and nonce N1 during epoch n then it must consume
-(at least) values G, F, D, AR0, K1, N1 as well as the `commit_secret` and
-`init_secret` used to derive G (the `encryption_secret`). The
-client MAY retain (not consume) the values K0 and N0 to
-allow for out-of-order delivery, and SHOULD retain AR2 for
-processing future messages.
+(at least) values G, F, D, AR0, AR1, K1, N1 as well as the key schedule secrets
+used to derive G (the `encryption_secret`), namely `init_secret` of epoch n-1
+and `commit_secret`, `joiner_secret`, `member_secret`, `epoch_secret` of epoch
+n. The client MAY retain (not consume) the values K0 and N0 to allow for
+out-of-order delivery, and SHOULD retain AR2 for processing future messages.
 
 ## Exporters
 
