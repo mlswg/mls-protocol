@@ -1584,10 +1584,10 @@ index N in some epoch n. Then, for that member, at least the following
 values have been consumed and MUST be deleted:
 
 * the `commit_secret`, `joiner_secret`, `member_secret`, `epoch_secret`,
-`encryption_secret` of that epoch n as well as the `init_secret` of the
-previous epoch n-1,
+  `encryption_secret` of that epoch n as well as the `init_secret` of the
+  previous epoch n-1,
 * all node secrets in the Secret Tree on the path from the root to the leaf with
-node index N,
+  node index N,
 * the first j secrets in the application data ratchet of node index N and
 * `application_ratchet_nonce_[N]_[j]` and `application_ratchet_key_[N]_[j]`.
 
