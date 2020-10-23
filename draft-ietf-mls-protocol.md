@@ -135,7 +135,39 @@ RFC EDITOR PLEASE DELETE THIS SECTION.
 
 draft-10
 
+- Allow new members to join via an external Commit (\*)
+
+- Enable proposals to be sent inline in a Commit (\*)
+
 - Re-enable constant-time Add (\*)
+
+- Change expiration extension to lifetime extension (\*)
+
+- Make the tree in the Welcome optional (\*)
+
+- PSK injection, re-init, sub-group branching (\*)
+
+- Require the initial init_secret to be a random value (\*)
+
+- Remove explicit sender data nonce (\*)
+
+- Do not encrypt to joiners in UpdatePath generation (\*)
+
+- Move MLSPlaintext signature under the confirmation tag (\*)
+
+- Explicitly authenticate group membership with MLSPLaintext (\*)
+
+- Clarify X509Credential structure (\*)
+
+- Remove uneeded interim transcript hash from GroupInfo (\*)
+
+- IANA considerations
+
+- Derive an authentication secret
+
+- Use Extract/Expand from HPKE KDF
+
+- Clarify that application messages MUST be encrypted
 
 draft-09
 
