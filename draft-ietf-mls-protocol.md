@@ -2613,7 +2613,7 @@ following information for the group's current epoch:
 
 This information is aggregated in a `PublicGroupState` object as follows:
 
-```
+~~~
 struct {
     CipherSuite cipher_suite;
     opaque group_id<0..255>;
@@ -2622,16 +2622,36 @@ struct {
     opaque interim_transcript_hash<0..255>;
     Extension extensions<0..2^32-1>;
     HPKEPublicKey external_pub;
+    uint32 signer_index;
+    opaque signature<0..2^16-1>;
 } PublicGroupState;
-```
+~~~
 
 Note that the `tree_hash` field is used the same way as in the Welcome message.
 The full tree can be included via the `ratchet_tree` extension
 {{ratchet-tree-extension}}.
 
-The information above are not deemed public data in general, but applications
-can choose to make them available to new members in order to allow External
-Commits.
+The signature MUST verify using the public key taken from the credential in the
+leaf node at position `signer_index`.  The signature covers the following
+structure, comprised of fields from the PublicGroupState object:
+
+~~~~~
+struct {
+    opaque group_id<0..255>;
+    uint64 epoch;
+    HPKEPublicKey external_pub;
+} PublicGroupStateTBS;
+~~~~~
+
+This signature authenticates the HPKE public key, so that the joiner knows that
+the public key was provided by a member of the group.  The fields that are not
+signed are included in the key schedule via the GroupContext object.  If the
+joiner is provided an inaccurate data for these fields, then its external Commit
+will have an incorrect `confirmation_tag` and thus be rejected.
+
+The information in a GroupPublicState is not deemed public in general, but
+applications can choose to make it available to new members in order to allow
+External Commits.
 
 External Commits work like regular Commits, with a few differences:
 
