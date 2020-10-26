@@ -2576,7 +2576,7 @@ following information for the group's current epoch:
 * group extensions
 * external public key
 
-This information is aggregated in a `GroupKeyPackage` object as follows:
+This information is aggregated in a `PublicGroupState` object as follows:
 
 ```
 struct {
