@@ -2587,7 +2587,7 @@ struct {
     opaque interim_transcript_hash<0..255>;
     Extension extensions<0..2^32-1>;
     HPKEPublicKey external_pub;
-} GroupKeyPackage;
+} PublicGroupState;
 ```
 
 Note that the `tree_hash` field is used the same way as in the Welcome message.
