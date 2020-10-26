@@ -1377,7 +1377,7 @@ is joining via an external commit.
 
 In this process, the joiner sends a new `init_secret` value to the group using
 the HPKE export method.  The joiner then uses that `init_secret` with
-information provided in the GroupKeyPackage and an external Commit to initialize
+information provided in the PublicGroupState and an external Commit to initialize
 their copy of the key schedule for the new epoch.
 
 ~~~~~
