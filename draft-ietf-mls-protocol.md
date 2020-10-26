@@ -1393,7 +1393,7 @@ context = SetupBaseR(kem_output, external_priv, PublicGroupState)
 init_secret = context.export("MLS 1.0 external init secret", KDF.Nh)
 ~~~~~
 
-In both cases, the `info` input to HPKE is set to the GroupKeyPackage for the
+In both cases, the `info` input to HPKE is set to the PublicGroupState for the
 previous epoch, encoded using the TLS serialization.
 
 ## Pre-Shared Keys
