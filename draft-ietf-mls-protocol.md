@@ -2752,7 +2752,9 @@ welcome_key = KDF.Expand(welcome_secret, "key", key_length)
     children are non-empty and have the hash of this node set as their
     `parent_hash` value (if the child is another parent) or has a `parent_hash`
     extension in the KeyPackage containing the same value (if the child is a
-    leaf).
+    leaf). If either of the node's children is empty, and in particular does not
+	have a parent hash, then its respective children's `parent_hash` values have
+	to be considered instead.
 
   * For each non-empty leaf node, verify the signature on the KeyPackage.
 
