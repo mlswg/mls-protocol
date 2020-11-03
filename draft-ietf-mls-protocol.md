@@ -1114,8 +1114,15 @@ opaque parent_hash<0..255>;
 
 This extension MUST be present in all Updates that are sent as part of a Commit
 message. If the extension is present, clients MUST verify that `parent_hash`
-matches the hash of the leaf's parent node when represented as a ParentNode
+matches the hash of the leaf's parent node when represented as a ParentHashInput
 struct.
+
+~~~~~
+struct {
+    HPKEPublicKey public_key;
+    opaque parent_hash<0..255>;
+} ParentHashInput;
+~~~~~
 
 <!-- OPEN ISSUE: This scheme, in which the tree hash covers the parent hash, is
 designed to allow for more deniable deployments, since a signature by a member
@@ -1150,9 +1157,8 @@ struct {
 } optional<T>;
 
 struct {
-    HPKEPublicKey public_key;
+    ParentHashInput parent_hash_input;
     uint32 unmerged_leaves<0..2^32-1>;
-    opaque parent_hash<0..255>;
 } ParentNode;
 ~~~~~
 
