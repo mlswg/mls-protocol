@@ -1103,35 +1103,36 @@ opaque key_id<0..2^16-1>;
 
 ## Parent Hash
 
-The `parent_hash` extension serves to bind a KeyPackage to all the nodes
-above it in the group's ratchet tree. This enforces the tree invariant, meaning
-that malicious members can't lie about the state of the ratchet tree when they
-send Welcome messages to new members.
+The `parent_hash` extension serves to contain the adverse effect by a malicous 
+member lying about the state of the ratchet tree when they send Welcome messages 
+to new members. It binds a KeyPackage to all subtrees it is contained in of the 
+group's ratchet tree, enables joining members to verify that each subtree is 
+unmodified from when it has last been refreshed.
 
 ~~~~~
 opaque parent_hash<0..255>;
 ~~~~~
 
-This extension MUST be present in all Updates that are sent as part of a Commit
-message. If the extension is present, clients MUST verify that `parent_hash`
-matches the hash of the leaf's parent node when represented as a ParentHashInput
-struct.
+This extension MUST be present in all KeyPackages that are sent as part of an 
+UpdatePath in a Commit message. If the extension is present, clients MUST verify
+that `parent_hash` matches the expected value.
+
+To compute the parent hash of a node v, the `ParentHashInput` struct is used. It
+consists of v's parent, represented as a `ParentHashNode` struct, and the 
+resolution of v's sibling node, excluding all `unmerged_leaves` from v's parent
+node.
 
 ~~~~~
 struct {
-    HPKEPublicKey public_key;
-    opaque parent_hash<0..255>;
+	HPKEPublicKey public_key;
+	opaque parent_hash<0..255>;
+} ParentHashNode;
+
+struct {
+	ParentHashNode parent_hash_node;
+	HPKEPublicKey merged_sibling_resolution<0..2^32-1>;
 } ParentHashInput;
 ~~~~~
-
-<!-- OPEN ISSUE: This scheme, in which the tree hash covers the parent hash, is
-designed to allow for more deniable deployments, since a signature by a member
-covers only its direct path. The other possible scheme, in which the parent hash
-covers the tree hash, provides better group agreement properties, since a
-member's signature covers the entire membership of the trees it is in. Further
-discussion is needed to determine whether the benefits to deniability justify
-the harm to group agreement properties, or whether there are alternative
-approaches to deniability that could be compatible with the other approach. -->
 
 ## Tree Hashes
 
@@ -1157,7 +1158,7 @@ struct {
 } optional<T>;
 
 struct {
-    ParentHashInput parent_hash_input;
+    ParentHashNode parent_hash_node;
     uint32 unmerged_leaves<0..2^32-1>;
 } ParentNode;
 ~~~~~
