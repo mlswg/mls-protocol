@@ -1120,15 +1120,15 @@ opaque parent_hash<0..255>;
 
 This extension MUST be present in the `leaf_key_package` Key Package field of an
 `UpdatePath` object. When processing a Commit message clients MUST recompute the 
-expected value of `parent_hash` for the commitor's new leaf and verify that it 
+expected value of `parent_hash` for the committer's new leaf and verify that it 
 matches the `parent_hash` value in the `leaf_key_package`. Moreover, when joining
 a group new members MUST verify that if a leaf contains a `parent_hash` value than
 it matches the value obtained by recomputing `parent_hash` of the leaf.
 
-To compute the parent hash of a node v, the `ParentHashInput` struct is used. It
-consists of two fields. The first contains the hash of data taken from v's parent,
-represented as a `ParentNodeData` struct (unless v is the root in which case 
-`parent_node_data` is set to `0`). The second field contains the list of HPKE public
+To compute the parent hash of a non-root node v (the root's `parent_hash` is set 
+to `0`), the `ParentHashInput` struct is used. It consists of two fields. The 
+first contains the hash of data taken from v's parent, represented as a 
+`ParentNodeData` struct. The second field contains the list of HPKE public
 keys to which the HPKE secret key of v's parent was sent. That is, it consists of
 the array of `HPKEPublicKey` values corresponding to the resolution of v's sibling
 node but with the keys v's parent's `unmerged_leaves` omitted. For example, in the
