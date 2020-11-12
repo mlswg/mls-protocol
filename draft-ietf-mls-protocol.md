@@ -1,4 +1,4 @@
----
+--- 
 title: The Messaging Layer Security (MLS) Protocol
 abbrev: MLS
 docname: draft-ietf-mls-protocol-latest
