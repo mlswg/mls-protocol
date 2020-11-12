@@ -1103,7 +1103,7 @@ opaque key_id<0..2^16-1>;
 
 ## Parent Hash
 
-The `parent_hash` extension serves to contain the adverse effect by a malicous 
+The `parent_hash` extension serves to contain the adverse effect of a malicous 
 member lying about the state of the ratchet tree when they send Welcome messages 
 to new members. It binds a KeyPackage to all subtrees it is contained in of the 
 group's ratchet tree, enables joining members to verify that each subtree is 
