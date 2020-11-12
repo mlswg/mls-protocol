@@ -639,7 +639,7 @@ node index.  The leaf indices in the above tree are as follows:
 * 5 = F
 * 6 = G
 
-## Ratchet Tree Nodes
+## Ratchet Tree Nodes {#resolution-example}
 
 A particular instance of a ratchet tree is defined by the same parameters that
 define an instance of HPKE, namely:
@@ -1103,34 +1103,50 @@ opaque key_id<0..2^16-1>;
 
 ## Parent Hash
 
-The `parent_hash` extension serves to contain the adverse effect of a malicous 
-member lying about the state of the ratchet tree when they send Welcome messages 
-to new members. It binds a KeyPackage to all subtrees it is contained in of the 
-group's ratchet tree, enables joining members to verify that each subtree is 
-unmodified from when it has last been refreshed.
+The `parent_hash` extension serves to bind a KeyPackage inserted as part of an
+`UpdatePath` during a commit to the rest of the HPKE keys in that update path.
+Moreover, for each of those keys `parent_hash` also binds the set of parties
+that were told the corresponding secret key. This helps new members joining a group
+verify the tree invariant. That is, it prevents malicious members from
+constructing an artificial ratchet tree with a node v whose HPKE secret key is
+known to the malicious member yet where the member is not assigned a leaf in the
+subtree rooted at v. (Indeed, such a ratchet tree would violate the tree
+invariant.)
+
 
 ~~~~~
 opaque parent_hash<0..255>;
 ~~~~~
 
-This extension MUST be present in all KeyPackages that are sent as part of an 
-UpdatePath in a Commit message. If the extension is present, clients MUST verify
-that `parent_hash` matches the expected value.
+This extension MUST be present in the `leaf_key_package` Key Package field of an
+`UpdatePath` object. When processing a Commit message clients MUST recompute the 
+expected value of `parent_hash` for the commitor's new leaf and verify that it 
+matches the `parent_hash` value in the `leaf_key_package`. Moreover, when joining
+a group new members MUST verify that if a leaf contains a `parent_hash` value than
+it matches the value obtained by recomputing `parent_hash` of the leaf.
 
 To compute the parent hash of a node v, the `ParentHashInput` struct is used. It
-consists of v's parent, represented as a `ParentHashNode` struct, and the 
-resolution of v's sibling node, excluding all `unmerged_leaves` from v's parent
-node.
+consists of two fields. The first contains the hash of data taken from v's parent,
+represented as a `ParentNodeData` struct (unless v is the root in which case 
+`parent_node_data` is set to `0`). The second field contains the list of HPKE public
+keys to which the HPKE secret key of v's parent was sent. That is, it consists of
+the array of `HPKEPublicKey` values corresponding to the resolution of v's sibling
+node but with the keys v's parent's `unmerged_leaves` omitted. For example, in the
+ratchet tree depicted in {{resolution-example}} the `ParentHashInput` struct for
+node 6 would contain an empty array as the sibling of 6 is node 4 which has only
+itself in its resolution and node 4 is also an unmerged leaf for 6's parentl node 5.
+Meanwhile, the `ParentHashInput` of node 1 is an array with the HPKE public key's 
+of nodes 5 and 6.
 
 ~~~~~
 struct {
 	HPKEPublicKey public_key;
 	opaque parent_hash<0..255>;
-} ParentHashNode;
+} ParentNodeData;
 
 struct {
-	ParentHashNode parent_hash_node;
-	HPKEPublicKey merged_sibling_resolution<0..2^32-1>;
+	ParentNodeData parent_node_data;
+	HPKEPublicKey original_sibling_resolution<0..2^32-1>;
 } ParentHashInput;
 ~~~~~
 
@@ -1158,7 +1174,7 @@ struct {
 } optional<T>;
 
 struct {
-    ParentHashNode parent_hash_node;
+    ParentNodeData parent_node_data;
     uint32 unmerged_leaves<0..2^32-1>;
 } ParentNode;
 ~~~~~
