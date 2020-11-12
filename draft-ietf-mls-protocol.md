@@ -1134,7 +1134,7 @@ the array of `HPKEPublicKey` values corresponding to the resolution of v's sibli
 node but with the keys v's parent's `unmerged_leaves` omitted. For example, in the
 ratchet tree depicted in {{resolution-example}} the `ParentHashInput` struct for
 node 6 would contain an empty array as the sibling of 6 is node 4 which has only
-itself in its resolution and node 4 is also an unmerged leaf for 6's parentl node 5.
+itself in its resolution and node 4 is also an unmerged leaf for 6's parent node 5.
 Meanwhile, the `ParentHashInput` of node 1 is an array with the HPKE public key's 
 of nodes 5 and 6.
 
