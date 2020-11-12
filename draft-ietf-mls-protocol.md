@@ -1123,46 +1123,40 @@ This extension MUST be present in the `leaf_key_package` Key Package field of an
 expected value of `parent_hash` for the committer's new leaf and verify that it 
 matches the `parent_hash` value in the `leaf_key_package`. Moreover, when joining
 a group new members MUST verify that if a leaf contains a `parent_hash` value than
-it matches the value obtained by recomputing `parent_hash` of the leaf.
+it matches the value obtained by recomputing `parent_hash` at the leaf.
 
-To compute the parent hash of a non-root node v (the root's `parent_hash` is set 
-to `0`), the `ParentHashInput` struct is used. It consists of two fields. The 
-first contains the hash of data taken from v's parent, represented as a 
-`ParentNodeData` struct. The second field contains the list of HPKE public
+The `parent_hash` at the root is `0`. To compute the parent hash at a non-root
+node v with parent p and sibling u the `ParentHashInput` struct is used. It
+consists of three fields. The first contains the HPKE public key of p. The second
+contains the `parent_hash` at p. The third contains the list of HPKE public
 keys to which the HPKE secret key of v's parent was sent. That is, it consists of
-the array of `HPKEPublicKey` values corresponding to the resolution of v's sibling
-node but with the keys v's parent's `unmerged_leaves` omitted. For example, in the
-ratchet tree depicted in {{resolution-example}} the `ParentHashInput` struct for
-node 6 would contain an empty array as the sibling of 6 is node 4 which has only
-itself in its resolution and node 4 is also an unmerged leaf for 6's parent node 5.
-Meanwhile, the `ParentHashInput` of node 1 is an array with the HPKE public key's 
-of nodes 5 and 6.
+the array of `HPKEPublicKey` values of the nodes in the resolution of u but with
+the keys of p's `unmerged_leaves` omitted. 
+
+For example, in the ratchet tree depicted in {{resolution-example}} the
+`ParentHashInput` struct for node 6 would contain an empty array as the sibling of
+6 is node 4 which has only itself in its resolution and node 4 is also an unmerged
+leaf for 6's parent node 5. Meanwhile, the `ParentHashInput` of node 1 has an
+array with the HPKE public key's of nodes 5 and 6.
 
 ~~~~~
 struct {
-	HPKEPublicKey public_key;
-	opaque parent_hash<0..255>;
-} ParentNodeData;
-
-struct {
-	ParentNodeData parent_node_data;
+	HPKEPublicKey parents_public_key;
+	opaque parents_parent_hash<0..255>;
 	HPKEPublicKey original_sibling_resolution<0..2^32-1>;
 } ParentHashInput;
 ~~~~~
 
 ## Tree Hashes
 
-To allow group members to verify that they agree on the public
-cryptographic state of the group, this section defines a scheme for
-generating a hash value that represents the contents of the group's
-ratchet tree and the members' KeyPackages.
+To allow group members to verify that they agree on the public cryptographic state
+of the group, this section defines a scheme for generating a hash value (called
+the "tree hash") that represents the contents of the group's ratchet tree and the
+members' KeyPackages. The tree hash of a tree is the tree hash of its root node,
+which we define recursively, starting with the leaves. 
 
-The hash of a tree is the hash of its root node, which we define
-recursively, starting with the leaves.
-
-Elements of the ratchet tree are called `Node` objects and
-the leaves contain an optional `KeyPackage`, while the parents contain
-an optional `ParentNode`.
+As some nodes may be blank while others contain data we use the following struct
+to include data if present.
 
 ~~~~~
 struct {
@@ -1172,28 +1166,10 @@ struct {
         case 1: T value;
     }
 } optional<T>;
-
-struct {
-    ParentNodeData parent_node_data;
-    uint32 unmerged_leaves<0..2^32-1>;
-} ParentNode;
 ~~~~~
 
-When computing the hash of a parent node, the `ParentNodeHashInput`
-structure is used:
-
-~~~~~
-struct {
-    uint32 node_index;
-    optional<ParentNode> parent_node;
-    opaque left_hash<0..255>;
-    opaque right_hash<0..255>;
-} ParentNodeHashInput;
-~~~~~
-
-The `left_hash` and `right_hash` fields hold the hashes of the node's
-left and right children, respectively. When computing the hash of
-a leaf node, the hash of a `LeafNodeHashInput` object is used:
+The tree hash a leaf node is the hash of leaf's `LeafNodeHashInput` object which
+might include a Key Package depending on whether or not it is blank.
 
 ~~~~~
 struct {
@@ -1204,6 +1180,28 @@ struct {
 
 Note that the `node_index` field contains the index of the leaf among the nodes
 in the tree, not its index among the leaves; `node_index = 2 * leaf_index`.
+
+Now the tree hash of any non-leaf node is recursively defined to be the hash of
+its `ParentNodeTreeHashInput`. This includes an optional `ParentNodeTreeHashData`
+object depending on if the node is blank or not.
+
+~~~~~
+struct {
+	HPKEPublicKey public_key;
+	opaque parent_hash<0..255>;
+    uint32 unmerged_leaves<0..2^32-1>;
+} ParentNodeTreeHashData;
+
+struct {
+    uint32 node_index;
+    optional<ParentNode> parent_node;
+    opaque left_hash<0..255>;
+    opaque right_hash<0..255>;
+} ParentNodeTreeHashInput;
+~~~~~
+
+The `left_hash` and `right_hash` fields hold the tree hashes of the node's
+left and right children, respectively. 
 
 ## Group State
 
