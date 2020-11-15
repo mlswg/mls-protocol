@@ -2082,11 +2082,6 @@ the current group state.
 In both cases, the `psk_nonce` included in the `PreSharedKeyID` object must be a
 randomly sampled nonce of length `KDF.Nh` to avoid key re-use.
 
-<!-- OPEN ISSUE: We can probably do without a nonce by simply using the GroupID
-of the new group, provided the GroupId is long enough to prevent collisions.
-However, GroupId is currently 'hidden' in the GroupInfo, which is only available
-to the receiver _after_ the PSK would have to be injected. -->
-
 ### Sub-group Branching
 
 If a client wants to create a subgroup of an existing group, they MAY choose to
@@ -2110,12 +2105,6 @@ Commit message is sent and processed.  These states are referred to as "epochs"
 and are uniquely identified among states of the group by eight-octet epoch values.
 When a new group is initialized, its initial state epoch is 0x0000000000000000.  Each time
 a state transition occurs, the epoch number is incremented by one.
-
-<!-- OPEN ISSUE: It would be better to have non-linear epochs, in order to
-tolerate forks in the history. There is a need to discuss whether we
-want to keep lexicographical ordering for the public value we serialize
-in the common framing, as it influence the ability of the DS to order
-messages. -->
 
 ## Proposals
 
@@ -2582,14 +2571,6 @@ MLSPlaintext.confirmation_tag =
     MAC(confirmation_key, GroupContext.confirmed_transcript_hash)
 ~~~~~
 
-<!-- OPEN ISSUE: It is not possible for the recipient of a handshake
-message to verify that ratchet tree information in the message is
-accurate, because each node can only compute the secret and private
-key for nodes in its direct path.  This creates the possibility
-that a malicious participant could cause a denial of service by sending a
-handshake message with invalid values for public keys in the ratchet
-tree. -->
-
 ### External Commits
 
 External Commits are a mechanism for new members (external parties that want to
@@ -2890,19 +2871,7 @@ by all members of the group.
 This document does not define any way for the parameters of the group to change
 once it has been created; such a behavior could be implemented as an extension.
 
-<!-- OPEN ISSUE: Should we put bounds on what an extension can change?  For
-example, should we make an explicit guarantee that as long as you're speaking
-MLS 1.0, the format of the KeyPackage will remain the same?  (Analogous to
-the TLS invariant with regard to ClientHello.)  If we are explicit that
-effectively arbitrary changes can be made to protocol behavior with the consent
-of the members, we will need to note that some such changes can undermine the
-security of the protocol. -->
-
 # Sequencing of State Changes {#sequencing}
-
-<!-- OPEN ISSUE: This section has an initial set of considerations
-regarding sequencing.  It would be good to have some more detailed
-discussion, and hopefully have a mechanism to deal with this issue. -->
 
 Each Commit message is premised on a given starting state,
 indicated by the `epoch` field of the enclosing MLSPlaintext
@@ -3043,15 +3012,6 @@ would provide attackers with information on the size of the plaintext.
 The padding length length_of_padding can be chosen at the time of the message
 encryption by the sender. Recipients can calculate the padding size from knowing
 the total size of the ApplicationPlaintext and the length of the content.
-
-<!-- TODO: A preliminary formal security analysis has yet to be performed on
-this authentication scheme. -->
-
-<!-- OPEN ISSUE: Should the padding be required for handshake messages ?
-Can an adversary get more than the position of a participant in the tree
-without padding ? Should the base ciphertext block length be negotiated or
-is is reasonable to allow to leak a range for the length of the plaintext
-by allowing to send a variable number of ciphertext blocks ? -->
 
 ## Restrictions {#restrictions}
 
