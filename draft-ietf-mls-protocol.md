@@ -1846,12 +1846,13 @@ The following sections describe the encryption and signing processes in detail.
 ## Content Authentication
 
 The `signature` field in an MLSPlaintext object is computed using the signing
-private key corresponding to the credential at the leaf of the tree indicated by
-the sender field. The signature covers the plaintext metadata and message
-content, which is all of MLSPlaintext except for the `signature`, the
-`confirmation_tag` and `membership_tag` fields. If the sender is a member of the
-group, the signature also covers the GroupContext for the current epoch, so that
-signatures are specific to a given group and epoch.
+private key corresponding to the public key, which was authenticated by the
+credential at the leaf of the tree indicated by the sender field. The signature
+covers the plaintext metadata and message content, which is all of MLSPlaintext
+except for the `signature`, the `confirmation_tag` and `membership_tag` fields.
+If the sender is a member of the group, the signature also covers the
+GroupContext for the current epoch, so that signatures are specific to a given
+group and epoch.
 
 ~~~~~
 struct {
