@@ -2633,12 +2633,15 @@ The full tree can be included via the `ratchet_tree` extension
 
 The signature MUST verify using the public key taken from the credential in the
 leaf node at position `signer_index`.  The signature covers the following
-structure, comprised of fields from the PublicGroupState object:
+structure, comprising all the fields in the PublicGroupState above `signer_index`:
 
 ~~~~~
 struct {
     opaque group_id<0..255>;
     uint64 epoch;
+    opaque tree_hash<0..255>;
+    opaque interim_transcript_hash<0..255>;
+    Extension extensions<0..2^32-1>;
     HPKEPublicKey external_pub;
 } PublicGroupStateTBS;
 ~~~~~
@@ -2649,7 +2652,7 @@ signed are included in the key schedule via the GroupContext object.  If the
 joiner is provided an inaccurate data for these fields, then its external Commit
 will have an incorrect `confirmation_tag` and thus be rejected.
 
-The information in a GroupPublicState is not deemed public in general, but
+The information in a PublicGroupState is not deemed public in general, but
 applications can choose to make it available to new members in order to allow
 External Commits.
 
