@@ -1117,6 +1117,14 @@ message. If the extension is present, clients MUST verify that `parent_hash`
 matches the hash of the leaf's parent node when represented as a ParentNode
 struct.
 
+~~~~~
+struct {
+    HPKEPublicKey public_key;
+    uint32 unmerged_leaves<0..2^32-1>;
+    opaque parent_hash<0..255>;
+} ParentNode;
+~~~~~
+
 <!-- OPEN ISSUE: This scheme, in which the tree hash covers the parent hash, is
 designed to allow for more deniable deployments, since a signature by a member
 covers only its direct path. The other possible scheme, in which the parent hash
@@ -1148,12 +1156,6 @@ struct {
         case 1: T value;
     }
 } optional<T>;
-
-struct {
-    HPKEPublicKey public_key;
-    uint32 unmerged_leaves<0..2^32-1>;
-    opaque parent_hash<0..255>;
-} ParentNode;
 ~~~~~
 
 When computing the hash of a parent node, the `ParentNodeHashInput`
