@@ -1118,7 +1118,7 @@ invariant.)
 opaque parent_hash<0..255>;
 ~~~~~
 
-This extension MUST be present in the `leaf_key_package` Key Package field of an
+This extension MUST be present in the `leaf_key_package` field of an
 `UpdatePath` object. When processing a Commit message clients MUST recompute the
 expected value of `parent_hash` for the committer's new leaf and verify that it
 matches the `parent_hash` value in the `leaf_key_package`. Moreover, when joining
