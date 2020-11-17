@@ -2374,9 +2374,13 @@ chooses one and includes only that one in the Commit, considering the rest
 invalid. The committer MUST prefer any Remove received, or the most recent
 Update for the leaf if there are no Removes. If there are multiple Add proposals
 referencing the same `key_package`, the committer again chooses one to include
-and considers the rest invalid. Similarly, if there are multiple Add proposals
-with KeyPackages belonging to the same identity, the committer SHOULD choose one
-and consider the rest invalid.
+and considers the rest invalid.
+
+If there are multiple Add proposals with KeyPackages belonging to the same
+identity, the committer SHOULD choose one and consider the rest invalid.
+Similarly, if there are Add proposals including KeyPackages belonging to an
+identity that is already present as a member of the group, the committer SHOULD
+consider them invalid.
 
 The Commit MUST NOT combine proposals sent within different epochs. In the event
 that a valid proposal is omitted from the next Commit, the sender of the
