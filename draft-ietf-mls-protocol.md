@@ -2185,6 +2185,11 @@ leaf in the tree, for the second Add, the next empty leaf to the right, etc.
   public key from the KeyPackage in the Add, as well as the credential under
   which the KeyPackage was signed
 
+The identity contained in the credential of the `key_package` should be unique
+in the context of the group.  While the proposer can not necessarily know if that
+is the case, the committer of the proposal SHOULD consider the proposal invalid
+if a credential with the same identity is already present in the group.
+
 ### Update
 
 An Update proposal is a similar mechanism to Add with the distinction
@@ -2368,8 +2373,10 @@ If there are multiple proposals that apply to the same leaf, the committer
 chooses one and includes only that one in the Commit, considering the rest
 invalid. The committer MUST prefer any Remove received, or the most recent
 Update for the leaf if there are no Removes. If there are multiple Add proposals
-for the same client, the committer again chooses one to include and considers
-the rest invalid.
+referencing the same `key_package`, the committer again chooses one to include
+and considers the rest invalid. Similarly, if there are multiple Add proposals
+with KeyPackages belonging to the same identity, the committer SHOULD choose one
+and consider the rest invalid.
 
 The Commit MUST NOT combine proposals sent within different epochs. In the event
 that a valid proposal is omitted from the next Commit, the sender of the
