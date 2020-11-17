@@ -1122,16 +1122,16 @@ This extension MUST be present in the `leaf_key_package` Key Package field of an
 `UpdatePath` object. When processing a Commit message clients MUST recompute the 
 expected value of `parent_hash` for the committer's new leaf and verify that it 
 matches the `parent_hash` value in the `leaf_key_package`. Moreover, when joining
-a group new members MUST verify that if a leaf contains a `parent_hash` value than
+a group new members MUST verify that if a leaf contains a `parent_hash` value, then
 it matches the value obtained by recomputing `parent_hash` at the leaf.
 
 The `parent_hash` at the root is `0`. To compute the parent hash at a non-root
-node v with parent p and sibling u the `ParentHashInput` struct is used. It
-consists of three fields. The first contains the HPKE public key of p. The second
-contains the `parent_hash` at p. The third contains the list of HPKE public
-keys to which the HPKE secret key of v's parent was sent. That is, it consists of
+node V with parent P and sibling S, the `ParentHashInput` struct is used. It
+consists of three fields: The first contains the HPKE public key of P. The second
+contains the `parent_hash` at P. The third contains the list of HPKE public
+keys to which the HPKE secret key of P was sent to. That is, it consists of
 the array of `HPKEPublicKey` values of the nodes in the resolution of u but with
-the keys of p's `unmerged_leaves` omitted. 
+the`unmerged_leaves` of P omitted. 
 
 For example, in the ratchet tree depicted in {{resolution-example}} the
 `ParentHashInput` struct for node 6 would contain an empty array as the sibling of
@@ -1168,7 +1168,7 @@ struct {
 } optional<T>;
 ~~~~~
 
-The tree hash a leaf node is the hash of leaf's `LeafNodeHashInput` object which
+The tree hash of a leaf node is the hash of leaf's `LeafNodeHashInput` object which
 might include a Key Package depending on whether or not it is blank.
 
 ~~~~~
