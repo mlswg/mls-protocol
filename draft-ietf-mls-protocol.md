@@ -1,4 +1,4 @@
---- 
+---
 title: The Messaging Layer Security (MLS) Protocol
 abbrev: MLS
 docname: draft-ietf-mls-protocol-latest
@@ -1119,8 +1119,8 @@ opaque parent_hash<0..255>;
 ~~~~~
 
 This extension MUST be present in the `leaf_key_package` Key Package field of an
-`UpdatePath` object. When processing a Commit message clients MUST recompute the 
-expected value of `parent_hash` for the committer's new leaf and verify that it 
+`UpdatePath` object. When processing a Commit message clients MUST recompute the
+expected value of `parent_hash` for the committer's new leaf and verify that it
 matches the `parent_hash` value in the `leaf_key_package`. Moreover, when joining
 a group new members MUST verify that if a leaf contains a `parent_hash` value, then
 it matches the value obtained by recomputing `parent_hash` at the leaf.
@@ -1130,8 +1130,8 @@ node V with parent P and sibling S, the `ParentHashInput` struct is used. It
 consists of three fields: The first contains the HPKE public key of P. The second
 contains the `parent_hash` at P. The third contains the list of HPKE public
 keys to which the HPKE secret key of P was sent to. That is, it consists of
-the array of `HPKEPublicKey` values of the nodes in the resolution of u but with
-the`unmerged_leaves` of P omitted. 
+the array of `HPKEPublicKey` values of the nodes in the resolution of S but with
+the`unmerged_leaves` of P omitted.
 
 For example, in the ratchet tree depicted in {{resolution-example}} the
 `ParentHashInput` struct for node 6 would contain an empty array as the sibling of
@@ -1153,7 +1153,7 @@ To allow group members to verify that they agree on the public cryptographic sta
 of the group, this section defines a scheme for generating a hash value (called
 the "tree hash") that represents the contents of the group's ratchet tree and the
 members' KeyPackages. The tree hash of a tree is the tree hash of its root node,
-which we define recursively, starting with the leaves. 
+which we define recursively, starting with the leaves.
 
 As some nodes may be blank while others contain data we use the following struct
 to include data if present.
@@ -1201,7 +1201,7 @@ struct {
 ~~~~~
 
 The `left_hash` and `right_hash` fields hold the tree hashes of the node's
-left and right children, respectively. 
+left and right children, respectively.
 
 ## Group State
 
