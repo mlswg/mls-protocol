@@ -2421,8 +2421,8 @@ A member of the group creates a Commit message and the corresponding Welcome
 message at the same time, by taking the following steps:
 
 * Construct an initial Commit object with the `proposals`
-  field populated from Proposals received during the current epoch, and empty
-  `key_package` and `path` fields.
+  field populated from Proposals received during the current epoch, and an empty
+  `path` field.
 
 * Generate a provisional GroupContext object by applying the proposals
   referenced in the initial Commit object, as described in {{proposals}}. Update
@@ -2442,11 +2442,12 @@ message at the same time, by taking the following steps:
   based on the proposals that are in the commit (see above), then it MUST be
   populated.  Otherwise, the sender MAY omit the `path` field at its discretion.
 
-* If populating the `path` field: Create a UpdatePath using the new tree. Any
+* If populating the `path` field: Create an UpdatePath using the new tree. Any
   new member (from an add proposal) MUST be exluded from the resolution during
   the computation of the UpdatePath. The GroupContext for this operation uses
   the `group_id`, `epoch`, `tree_hash`, and `confirmed_transcript_hash` values
-  in the initial GroupContext object.
+  in the initial GroupContext object.  The `leaf_key_package` for this
+  UpdatePath must have a `parent_hash` extension.
 
    * Assign this UpdatePath to the `path` field in the Commit.
 
@@ -2458,10 +2459,6 @@ message at the same time, by taking the following steps:
 * If not populating the `path` field: Set the `path` field in the Commit to the
   null optional.  Define `commit_secret` as the all-zero vector of the same
   length as a `path_secret` value would be.
-
-* Generate a new KeyPackage for the Committer's own leaf, with a
-  `parent_hash` extension. Store it in the ratchet tree and assign it to the
-  `key_package` field in the Commit object.
 
 * If one or more PreSharedKey proposals are part of the commit, derive the `psk_secret`
   as specified in {{pre-shared-keys}}, where the order of PSKs in the derivation
@@ -2535,7 +2532,7 @@ A member of the group applies a Commit message by taking the following steps:
   `commit_secret`:
 
   * Apply the UpdatePath to the tree, as described in
-    {{synchronizing-views-of-the-tree}}, and store `key_package` at the
+    {{synchronizing-views-of-the-tree}}, and store `leaf_key_package` at the
     Committer's leaf.
 
   * Verify that the KeyPackage has a `parent_hash` extension and that its value
