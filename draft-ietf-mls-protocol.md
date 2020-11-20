@@ -3127,6 +3127,44 @@ prevent denial of service attacks.  Since an InitKey is needed to add a client
 to a new group, an attacker could prevent a client being added to new groups by
 exhausting all available InitKeys.
 
+## Group Fragmentation by Malicious Insiders
+
+It is possible for a malicious member of a group to "fragment" the group by
+crafting an invalid UpdatePath.  Recall that an UpdatePath encrypts a sequence
+of path secrets to different subtrees of the group's ratchet trees.  These path
+secrets should be derived in a sequence as described in
+{{ratchet-tree-evolution}}, but the UpdatePath syntax allows the sender to
+encrypt arbitrary, unrelated secrets.  The syntax also does not guarantee that
+the encrypted path secret encrypted for a given node corresponds to the public
+key provided for that node.
+
+Both of these types of corruption will cause processing of a Commit to fail for
+some members of the group.  If the public key for a node does not match the path
+secret, then the members that decrypt that path secret will reject the commit
+based on this mismatch.  If the path secret sequence is incorrect at some point,
+then members that can decrypt nodes before that point will compute a different
+public key for the mismatched node than the one in the UpdatePath, which also
+causes the Commit to fail.  Applications SHOULD provide mechanisms for failed
+commits to be reported, so that group members who were not able to recognize the
+error themselves can reject the commit and roll back to a previous state if
+necessary.
+
+Even with such an error reporting mechanism in place, however, it is still
+possible for members to get locked out of the group by a malformed commit.
+Since malformed Commits can only be recognized by certain members of the group,
+in an asynchronous application, it may be the case that all members that could
+detect a fault in a Commit are offline.  In such a case, the Commit will be
+accepted by the group, and the resulting state possibly used as the basis for
+further Commits.  When the affected members come back online, they will reject
+the first commit, and thus be unable to catch up with the group.
+
+Applications can address this risk by requiring certain members of the group to
+acknowledge successful processing of a Commit before the group regards the
+Commit as accepted.  The minimum set of acknowledgements necessary to verify
+that a Commit is well-formed comprises an acknowledgement from one member per
+node in the UpdatePath, that is, one member from each subtree rooted in the
+copath node corresponding to the node in the UpdatePath.
+
 # IANA Considerations
 
 This document requests the creation of the following new IANA registries:
