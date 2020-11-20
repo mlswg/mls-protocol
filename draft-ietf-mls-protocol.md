@@ -1117,6 +1117,14 @@ message. If the extension is present, clients MUST verify that `parent_hash`
 matches the hash of the leaf's parent node when represented as a ParentNode
 struct.
 
+~~~~~
+struct {
+    HPKEPublicKey public_key;
+    uint32 unmerged_leaves<0..2^32-1>;
+    opaque parent_hash<0..255>;
+} ParentNode;
+~~~~~
+
 <!-- OPEN ISSUE: This scheme, in which the tree hash covers the parent hash, is
 designed to allow for more deniable deployments, since a signature by a member
 covers only its direct path. The other possible scheme, in which the parent hash
@@ -1148,12 +1156,6 @@ struct {
         case 1: T value;
     }
 } optional<T>;
-
-struct {
-    HPKEPublicKey public_key;
-    uint32 unmerged_leaves<0..2^32-1>;
-    opaque parent_hash<0..255>;
-} ParentNode;
 ~~~~~
 
 When computing the hash of a parent node, the `ParentNodeHashInput`
@@ -1846,12 +1848,13 @@ The following sections describe the encryption and signing processes in detail.
 ## Content Authentication
 
 The `signature` field in an MLSPlaintext object is computed using the signing
-private key corresponding to the credential at the leaf of the tree indicated by
-the sender field. The signature covers the plaintext metadata and message
-content, which is all of MLSPlaintext except for the `signature`, the
-`confirmation_tag` and `membership_tag` fields. If the sender is a member of the
-group, the signature also covers the GroupContext for the current epoch, so that
-signatures are specific to a given group and epoch.
+private key corresponding to the public key, which was authenticated by the
+credential at the leaf of the tree indicated by the sender field. The signature
+covers the plaintext metadata and message content, which is all of MLSPlaintext
+except for the `signature`, the `confirmation_tag` and `membership_tag` fields.
+If the sender is a member of the group, the signature also covers the
+GroupContext for the current epoch, so that signatures are specific to a given
+group and epoch.
 
 ~~~~~
 struct {
@@ -2407,8 +2410,8 @@ A member of the group creates a Commit message and the corresponding Welcome
 message at the same time, by taking the following steps:
 
 * Construct an initial Commit object with the `proposals`
-  field populated from Proposals received during the current epoch, and empty
-  `key_package` and `path` fields.
+  field populated from Proposals received during the current epoch, and an empty
+  `path` field.
 
 * Generate a provisional GroupContext object by applying the proposals
   referenced in the initial Commit object, as described in {{proposals}}. Update
@@ -2428,11 +2431,12 @@ message at the same time, by taking the following steps:
   based on the proposals that are in the commit (see above), then it MUST be
   populated.  Otherwise, the sender MAY omit the `path` field at its discretion.
 
-* If populating the `path` field: Create a UpdatePath using the new tree. Any
+* If populating the `path` field: Create an UpdatePath using the new tree. Any
   new member (from an add proposal) MUST be exluded from the resolution during
   the computation of the UpdatePath. The GroupContext for this operation uses
   the `group_id`, `epoch`, `tree_hash`, and `confirmed_transcript_hash` values
-  in the initial GroupContext object.
+  in the initial GroupContext object.  The `leaf_key_package` for this
+  UpdatePath must have a `parent_hash` extension.
 
    * Assign this UpdatePath to the `path` field in the Commit.
 
@@ -2444,10 +2448,6 @@ message at the same time, by taking the following steps:
 * If not populating the `path` field: Set the `path` field in the Commit to the
   null optional.  Define `commit_secret` as the all-zero vector of the same
   length as a `path_secret` value would be.
-
-* Generate a new KeyPackage for the Committer's own leaf, with a
-  `parent_hash` extension. Store it in the ratchet tree and assign it to the
-  `key_package` field in the Commit object.
 
 * If one or more PreSharedKey proposals are part of the commit, derive the `psk_secret`
   as specified in {{pre-shared-keys}}, where the order of PSKs in the derivation
@@ -2521,7 +2521,7 @@ A member of the group applies a Commit message by taking the following steps:
   `commit_secret`:
 
   * Apply the UpdatePath to the tree, as described in
-    {{synchronizing-views-of-the-tree}}, and store `key_package` at the
+    {{synchronizing-views-of-the-tree}}, and store `leaf_key_package` at the
     Committer's leaf.
 
   * Verify that the KeyPackage has a `parent_hash` extension and that its value
@@ -2594,7 +2594,7 @@ following information for the group's current epoch:
 
 This information is aggregated in a `PublicGroupState` object as follows:
 
-```
+~~~
 struct {
     CipherSuite cipher_suite;
     opaque group_id<0..255>;
@@ -2603,16 +2603,39 @@ struct {
     opaque interim_transcript_hash<0..255>;
     Extension extensions<0..2^32-1>;
     HPKEPublicKey external_pub;
+    uint32 signer_index;
+    opaque signature<0..2^16-1>;
 } PublicGroupState;
-```
+~~~
 
 Note that the `tree_hash` field is used the same way as in the Welcome message.
 The full tree can be included via the `ratchet_tree` extension
 {{ratchet-tree-extension}}.
 
-The information above are not deemed public data in general, but applications
-can choose to make them available to new members in order to allow External
-Commits.
+The signature MUST verify using the public key taken from the credential in the
+leaf node at position `signer_index`.  The signature covers the following
+structure, comprising all the fields in the PublicGroupState above `signer_index`:
+
+~~~~~
+struct {
+    opaque group_id<0..255>;
+    uint64 epoch;
+    opaque tree_hash<0..255>;
+    opaque interim_transcript_hash<0..255>;
+    Extension extensions<0..2^32-1>;
+    HPKEPublicKey external_pub;
+} PublicGroupStateTBS;
+~~~~~
+
+This signature authenticates the HPKE public key, so that the joiner knows that
+the public key was provided by a member of the group.  The fields that are not
+signed are included in the key schedule via the GroupContext object.  If the
+joiner is provided an inaccurate data for these fields, then its external Commit
+will have an incorrect `confirmation_tag` and thus be rejected.
+
+The information in a PublicGroupState is not deemed public in general, but
+applications can choose to make it available to new members in order to allow
+External Commits.
 
 External Commits work like regular Commits, with a few differences:
 
