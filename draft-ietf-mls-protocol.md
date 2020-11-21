@@ -2085,11 +2085,6 @@ the current group state.
 In both cases, the `psk_nonce` included in the `PreSharedKeyID` object must be a
 randomly sampled nonce of length `KDF.Nh` to avoid key re-use.
 
-<!-- OPEN ISSUE: We can probably do without a nonce by simply using the GroupID
-of the new group, provided the GroupId is long enough to prevent collisions.
-However, GroupId is currently 'hidden' in the GroupInfo, which is only available
-to the receiver _after_ the PSK would have to be injected. -->
-
 ### Sub-group Branching
 
 If a client wants to create a subgroup of an existing group, they MAY choose to
@@ -2113,12 +2108,6 @@ Commit message is sent and processed.  These states are referred to as "epochs"
 and are uniquely identified among states of the group by eight-octet epoch values.
 When a new group is initialized, its initial state epoch is 0x0000000000000000.  Each time
 a state transition occurs, the epoch number is incremented by one.
-
-<!-- OPEN ISSUE: It would be better to have non-linear epochs, in order to
-tolerate forks in the history. There is a need to discuss whether we
-want to keep lexicographical ordering for the public value we serialize
-in the common framing, as it influence the ability of the DS to order
-messages. -->
 
 ## Proposals
 
@@ -2582,14 +2571,6 @@ MLSPlaintext.confirmation_tag =
     MAC(confirmation_key, GroupContext.confirmed_transcript_hash)
 ~~~~~
 
-<!-- OPEN ISSUE: It is not possible for the recipient of a handshake
-message to verify that ratchet tree information in the message is
-accurate, because each node can only compute the secret and private
-key for nodes in its direct path.  This creates the possibility
-that a malicious participant could cause a denial of service by sending a
-handshake message with invalid values for public keys in the ratchet
-tree. -->
-
 ### External Commits
 
 External Commits are a mechanism for new members (external parties that want to
@@ -2913,19 +2894,7 @@ by all members of the group.
 This document does not define any way for the parameters of the group to change
 once it has been created; such a behavior could be implemented as an extension.
 
-<!-- OPEN ISSUE: Should we put bounds on what an extension can change?  For
-example, should we make an explicit guarantee that as long as you're speaking
-MLS 1.0, the format of the KeyPackage will remain the same?  (Analogous to
-the TLS invariant with regard to ClientHello.)  If we are explicit that
-effectively arbitrary changes can be made to protocol behavior with the consent
-of the members, we will need to note that some such changes can undermine the
-security of the protocol. -->
-
 # Sequencing of State Changes {#sequencing}
-
-<!-- OPEN ISSUE: This section has an initial set of considerations
-regarding sequencing.  It would be good to have some more detailed
-discussion, and hopefully have a mechanism to deal with this issue. -->
 
 Each Commit message is premised on a given starting state,
 indicated by the `epoch` field of the enclosing MLSPlaintext
@@ -3067,15 +3036,6 @@ The padding length length_of_padding can be chosen at the time of the message
 encryption by the sender. Recipients can calculate the padding size from knowing
 the total size of the ApplicationPlaintext and the length of the content.
 
-<!-- TODO: A preliminary formal security analysis has yet to be performed on
-this authentication scheme. -->
-
-<!-- OPEN ISSUE: Should the padding be required for handshake messages ?
-Can an adversary get more than the position of a participant in the tree
-without padding ? Should the base ciphertext block length be negotiated or
-is is reasonable to allow to leak a range for the length of the plaintext
-by allowing to send a variable number of ciphertext blocks ? -->
-
 ## Restrictions {#restrictions}
 
 During each epoch senders MUST NOT encrypt more data than permitted by the
@@ -3166,6 +3126,44 @@ An application MAY allow for reuse of a "last resort" InitKey in order to
 prevent denial of service attacks.  Since an InitKey is needed to add a client
 to a new group, an attacker could prevent a client being added to new groups by
 exhausting all available InitKeys.
+
+## Group Fragmentation by Malicious Insiders
+
+It is possible for a malicious member of a group to "fragment" the group by
+crafting an invalid UpdatePath.  Recall that an UpdatePath encrypts a sequence
+of path secrets to different subtrees of the group's ratchet trees.  These path
+secrets should be derived in a sequence as described in
+{{ratchet-tree-evolution}}, but the UpdatePath syntax allows the sender to
+encrypt arbitrary, unrelated secrets.  The syntax also does not guarantee that
+the encrypted path secret encrypted for a given node corresponds to the public
+key provided for that node.
+
+Both of these types of corruption will cause processing of a Commit to fail for
+some members of the group.  If the public key for a node does not match the path
+secret, then the members that decrypt that path secret will reject the commit
+based on this mismatch.  If the path secret sequence is incorrect at some point,
+then members that can decrypt nodes before that point will compute a different
+public key for the mismatched node than the one in the UpdatePath, which also
+causes the Commit to fail.  Applications SHOULD provide mechanisms for failed
+commits to be reported, so that group members who were not able to recognize the
+error themselves can reject the commit and roll back to a previous state if
+necessary.
+
+Even with such an error reporting mechanism in place, however, it is still
+possible for members to get locked out of the group by a malformed commit.
+Since malformed Commits can only be recognized by certain members of the group,
+in an asynchronous application, it may be the case that all members that could
+detect a fault in a Commit are offline.  In such a case, the Commit will be
+accepted by the group, and the resulting state possibly used as the basis for
+further Commits.  When the affected members come back online, they will reject
+the first commit, and thus be unable to catch up with the group.
+
+Applications can address this risk by requiring certain members of the group to
+acknowledge successful processing of a Commit before the group regards the
+Commit as accepted.  The minimum set of acknowledgements necessary to verify
+that a Commit is well-formed comprises an acknowledgement from one member per
+node in the UpdatePath, that is, one member from each subtree rooted in the
+copath node corresponding to the node in the UpdatePath.
 
 # IANA Considerations
 
