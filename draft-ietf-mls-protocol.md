@@ -2085,11 +2085,6 @@ the current group state.
 In both cases, the `psk_nonce` included in the `PreSharedKeyID` object must be a
 randomly sampled nonce of length `KDF.Nh` to avoid key re-use.
 
-<!-- OPEN ISSUE: We can probably do without a nonce by simply using the GroupID
-of the new group, provided the GroupId is long enough to prevent collisions.
-However, GroupId is currently 'hidden' in the GroupInfo, which is only available
-to the receiver _after_ the PSK would have to be injected. -->
-
 ### Sub-group Branching
 
 If a client wants to create a subgroup of an existing group, they MAY choose to
@@ -2113,12 +2108,6 @@ Commit message is sent and processed.  These states are referred to as "epochs"
 and are uniquely identified among states of the group by eight-octet epoch values.
 When a new group is initialized, its initial state epoch is 0x0000000000000000.  Each time
 a state transition occurs, the epoch number is incremented by one.
-
-<!-- OPEN ISSUE: It would be better to have non-linear epochs, in order to
-tolerate forks in the history. There is a need to discuss whether we
-want to keep lexicographical ordering for the public value we serialize
-in the common framing, as it influence the ability of the DS to order
-messages. -->
 
 ## Proposals
 
@@ -2471,8 +2460,8 @@ A member of the group creates a Commit message and the corresponding Welcome
 message at the same time, by taking the following steps:
 
 * Construct an initial Commit object with the `proposals`
-  field populated from Proposals received during the current epoch, and empty
-  `key_package` and `path` fields.
+  field populated from Proposals received during the current epoch, and an empty
+  `path` field.
 
 * Generate a provisional GroupContext object by applying the proposals
   referenced in the initial Commit object, as described in {{proposals}}. Update
@@ -2492,11 +2481,12 @@ message at the same time, by taking the following steps:
   based on the proposals that are in the commit (see above), then it MUST be
   populated.  Otherwise, the sender MAY omit the `path` field at its discretion.
 
-* If populating the `path` field: Create a UpdatePath using the new tree. Any
+* If populating the `path` field: Create an UpdatePath using the new tree. Any
   new member (from an add proposal) MUST be exluded from the resolution during
   the computation of the UpdatePath. The GroupContext for this operation uses
   the `group_id`, `epoch`, `tree_hash`, and `confirmed_transcript_hash` values
-  in the initial GroupContext object.
+  in the initial GroupContext object.  The `leaf_key_package` for this
+  UpdatePath must have a `parent_hash` extension.
 
    * Assign this UpdatePath to the `path` field in the Commit.
 
@@ -2508,10 +2498,6 @@ message at the same time, by taking the following steps:
 * If not populating the `path` field: Set the `path` field in the Commit to the
   null optional.  Define `commit_secret` as the all-zero vector of the same
   length as a `path_secret` value would be.
-
-* Generate a new KeyPackage for the Committer's own leaf, with a
-  `parent_hash` extension. Store it in the ratchet tree and assign it to the
-  `key_package` field in the Commit object.
 
 * If one or more PreSharedKey proposals are part of the commit, derive the `psk_secret`
   as specified in {{pre-shared-keys}}, where the order of PSKs in the derivation
@@ -2585,7 +2571,7 @@ A member of the group applies a Commit message by taking the following steps:
   `commit_secret`:
 
   * Apply the UpdatePath to the tree, as described in
-    {{synchronizing-views-of-the-tree}}, and store `key_package` at the
+    {{synchronizing-views-of-the-tree}}, and store `leaf_key_package` at the
     Committer's leaf.
 
   * Verify that the KeyPackage has a `parent_hash` extension and that its value
@@ -2635,14 +2621,6 @@ MLSPlaintext.confirmation_tag =
     MAC(confirmation_key, GroupContext.confirmed_transcript_hash)
 ~~~~~
 
-<!-- OPEN ISSUE: It is not possible for the recipient of a handshake
-message to verify that ratchet tree information in the message is
-accurate, because each node can only compute the secret and private
-key for nodes in its direct path.  This creates the possibility
-that a malicious participant could cause a denial of service by sending a
-handshake message with invalid values for public keys in the ratchet
-tree. -->
-
 ### External Commits
 
 External Commits are a mechanism for new members (external parties that want to
@@ -2666,7 +2644,7 @@ following information for the group's current epoch:
 
 This information is aggregated in a `PublicGroupState` object as follows:
 
-```
+~~~
 struct {
     CipherSuite cipher_suite;
     opaque group_id<0..255>;
@@ -2675,16 +2653,39 @@ struct {
     opaque interim_transcript_hash<0..255>;
     Extension extensions<0..2^32-1>;
     HPKEPublicKey external_pub;
+    uint32 signer_index;
+    opaque signature<0..2^16-1>;
 } PublicGroupState;
-```
+~~~
 
 Note that the `tree_hash` field is used the same way as in the Welcome message.
 The full tree can be included via the `ratchet_tree` extension
 {{ratchet-tree-extension}}.
 
-The information above are not deemed public data in general, but applications
-can choose to make them available to new members in order to allow External
-Commits.
+The signature MUST verify using the public key taken from the credential in the
+leaf node at position `signer_index`.  The signature covers the following
+structure, comprising all the fields in the PublicGroupState above `signer_index`:
+
+~~~~~
+struct {
+    opaque group_id<0..255>;
+    uint64 epoch;
+    opaque tree_hash<0..255>;
+    opaque interim_transcript_hash<0..255>;
+    Extension extensions<0..2^32-1>;
+    HPKEPublicKey external_pub;
+} PublicGroupStateTBS;
+~~~~~
+
+This signature authenticates the HPKE public key, so that the joiner knows that
+the public key was provided by a member of the group.  The fields that are not
+signed are included in the key schedule via the GroupContext object.  If the
+joiner is provided an inaccurate data for these fields, then its external Commit
+will have an incorrect `confirmation_tag` and thus be rejected.
+
+The information in a PublicGroupState is not deemed public in general, but
+applications can choose to make it available to new members in order to allow
+External Commits.
 
 External Commits work like regular Commits, with a few differences:
 
@@ -2943,19 +2944,7 @@ by all members of the group.
 This document does not define any way for the parameters of the group to change
 once it has been created; such a behavior could be implemented as an extension.
 
-<!-- OPEN ISSUE: Should we put bounds on what an extension can change?  For
-example, should we make an explicit guarantee that as long as you're speaking
-MLS 1.0, the format of the KeyPackage will remain the same?  (Analogous to
-the TLS invariant with regard to ClientHello.)  If we are explicit that
-effectively arbitrary changes can be made to protocol behavior with the consent
-of the members, we will need to note that some such changes can undermine the
-security of the protocol. -->
-
 # Sequencing of State Changes {#sequencing}
-
-<!-- OPEN ISSUE: This section has an initial set of considerations
-regarding sequencing.  It would be good to have some more detailed
-discussion, and hopefully have a mechanism to deal with this issue. -->
 
 Each Commit message is premised on a given starting state,
 indicated by the `epoch` field of the enclosing MLSPlaintext
@@ -3097,15 +3086,6 @@ The padding length length_of_padding can be chosen at the time of the message
 encryption by the sender. Recipients can calculate the padding size from knowing
 the total size of the ApplicationPlaintext and the length of the content.
 
-<!-- TODO: A preliminary formal security analysis has yet to be performed on
-this authentication scheme. -->
-
-<!-- OPEN ISSUE: Should the padding be required for handshake messages ?
-Can an adversary get more than the position of a participant in the tree
-without padding ? Should the base ciphertext block length be negotiated or
-is is reasonable to allow to leak a range for the length of the plaintext
-by allowing to send a variable number of ciphertext blocks ? -->
-
 ## Restrictions {#restrictions}
 
 During each epoch senders MUST NOT encrypt more data than permitted by the
@@ -3196,6 +3176,44 @@ An application MAY allow for reuse of a "last resort" InitKey in order to
 prevent denial of service attacks.  Since an InitKey is needed to add a client
 to a new group, an attacker could prevent a client being added to new groups by
 exhausting all available InitKeys.
+
+## Group Fragmentation by Malicious Insiders
+
+It is possible for a malicious member of a group to "fragment" the group by
+crafting an invalid UpdatePath.  Recall that an UpdatePath encrypts a sequence
+of path secrets to different subtrees of the group's ratchet trees.  These path
+secrets should be derived in a sequence as described in
+{{ratchet-tree-evolution}}, but the UpdatePath syntax allows the sender to
+encrypt arbitrary, unrelated secrets.  The syntax also does not guarantee that
+the encrypted path secret encrypted for a given node corresponds to the public
+key provided for that node.
+
+Both of these types of corruption will cause processing of a Commit to fail for
+some members of the group.  If the public key for a node does not match the path
+secret, then the members that decrypt that path secret will reject the commit
+based on this mismatch.  If the path secret sequence is incorrect at some point,
+then members that can decrypt nodes before that point will compute a different
+public key for the mismatched node than the one in the UpdatePath, which also
+causes the Commit to fail.  Applications SHOULD provide mechanisms for failed
+commits to be reported, so that group members who were not able to recognize the
+error themselves can reject the commit and roll back to a previous state if
+necessary.
+
+Even with such an error reporting mechanism in place, however, it is still
+possible for members to get locked out of the group by a malformed commit.
+Since malformed Commits can only be recognized by certain members of the group,
+in an asynchronous application, it may be the case that all members that could
+detect a fault in a Commit are offline.  In such a case, the Commit will be
+accepted by the group, and the resulting state possibly used as the basis for
+further Commits.  When the affected members come back online, they will reject
+the first commit, and thus be unable to catch up with the group.
+
+Applications can address this risk by requiring certain members of the group to
+acknowledge successful processing of a Commit before the group regards the
+Commit as accepted.  The minimum set of acknowledgements necessary to verify
+that a Commit is well-formed comprises an acknowledgement from one member per
+node in the UpdatePath, that is, one member from each subtree rooted in the
+copath node corresponding to the node in the UpdatePath.
 
 # IANA Considerations
 
@@ -3423,7 +3441,7 @@ MLS DE, that MLS DE SHOULD defer to the judgment of the other MLS DEs.
 
 * Cas Cremers \\
   University of Oxford \\
-  cas.cremers@cs.ox.ac.uk
+  cremers@cispa.de
 
 * Alan Duric \\
   Wire \\
