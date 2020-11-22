@@ -3264,9 +3264,9 @@ compliant curves. The security level of symmetric encryption algorithms and hash
 functions is paired with the security level of the curves.
 
 The mandatory-to-implement ciphersuite for MLS 1.0 is
-`MLS10\_128\_HPKE25519\_AES128GCM\_SHA256\_Ed25519` which uses
-Curve25519 for key exchange, AES-128-GCM for HPKE, HKDF over SHA2-256,
-AES for metadata masking, and Ed25519 for signatures.
+`MLS10_128_DHKEMX25519_AES128GCM_SHA256_Ed25519` which uses
+Curve25519 for key exchange, AES-128-GCM for HPKE, HKDF over SHA2-256, and
+Ed25519 for signatures.
 
 Values with the first byte 255 (decimal) are reserved for Private Use.
 
