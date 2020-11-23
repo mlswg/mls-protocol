@@ -1356,12 +1356,12 @@ proceeds as shown in the following diagram:
     commit_secret -> KDF.Extract = joiner_secret
                          |
                          V
-                   Derive-Secret(., "member")
+                   DeriveSecret(., "member")
                          |
                          V
 psk_secret (or 0) -> KDF.Extract = member_secret
                          |
-                         +--> Derive-Secret(., "welcome")
+                         +--> DeriveSecret(., "welcome")
                          |    = welcome_secret
                          |
                          V
@@ -1370,11 +1370,11 @@ psk_secret (or 0) -> KDF.Extract = member_secret
                          V
                     epoch_secret
                          |
-                         +--> Derive-Secret(., <label>)
+                         +--> DeriveSecret(., <label>)
                          |    = <secret>
                          |
                          V
-                   Derive-Secret(., "init")
+                   DeriveSecret(., "init")
                          |
                          V
                    init_secret_[n]
@@ -2737,7 +2737,7 @@ On receiving a Welcome message, a client processes it using the following steps:
   decrypt the `encrypted_group_info` field.
 
 ~~~~~
-welcome_secret = Derive-Secret(member_secret, "welcome")
+welcome_secret = DeriveSecret(member_secret, "welcome")
 welcome_nonce = KDF.Expand(welcome_secret, "nonce", nonce_length)
 welcome_key = KDF.Expand(welcome_secret, "key", key_length)
 ~~~~~
