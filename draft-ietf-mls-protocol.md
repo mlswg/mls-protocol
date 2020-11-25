@@ -1187,10 +1187,10 @@ object depending on if the node is blank or not.
 
 ~~~~~
 struct {
-	HPKEPublicKey public_key;
-	opaque parent_hash<0..255>;
+    HPKEPublicKey public_key;
+    opaque parent_hash<0..255>;
     uint32 unmerged_leaves<0..2^32-1>;
-} ParentNodeTreeHashData;
+} ParentNode;
 
 struct {
     uint32 node_index;
