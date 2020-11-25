@@ -1141,9 +1141,9 @@ array with the HPKE public key's of nodes 5 and 6.
 
 ~~~~~
 struct {
-	HPKEPublicKey parents_public_key;
-	opaque parents_parent_hash<0..255>;
-	HPKEPublicKey original_sibling_resolution<0..2^32-1>;
+    HPKEPublicKey public_key;
+    opaque parent_hash<0..255>;
+    HPKEPublicKey original_child_resolution<0..2^32-1>;
 } ParentHashInput;
 ~~~~~
 
