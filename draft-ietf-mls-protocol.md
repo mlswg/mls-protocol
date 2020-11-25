@@ -1103,41 +1103,15 @@ opaque key_id<0..2^16-1>;
 
 ## Parent Hash
 
-The `parent_hash` extension serves to bind a KeyPackage inserted as part of an
-`UpdatePath` during a commit to the rest of the HPKE keys in that update path.
-Moreover, for each of those keys `parent_hash` also binds the set of parties
-that were told the corresponding secret key. This helps new members joining a group
-verify the tree invariant. That is, it prevents malicious members from
-constructing an artificial ratchet tree with a node v whose HPKE secret key is
-known to the malicious member yet where the member is not assigned a leaf in the
-subtree rooted at v. (Indeed, such a ratchet tree would violate the tree
-invariant.)
-
-
-~~~~~
-opaque parent_hash<0..255>;
-~~~~~
-
-This extension MUST be present in the `leaf_key_package` field of an
-`UpdatePath` object. When processing a Commit message clients MUST recompute the
-expected value of `parent_hash` for the committer's new leaf and verify that it
-matches the `parent_hash` value in the `leaf_key_package`. Moreover, when joining
-a group new members MUST verify that if a leaf contains a `parent_hash` value, then
-it matches the value obtained by recomputing `parent_hash` at the leaf.
-
-The `parent_hash` at the root is `0`. To compute the parent hash at a non-root
-node V with parent P and sibling S, the `ParentHashInput` struct is used. It
-consists of three fields: The first contains the HPKE public key of P. The second
-contains the `parent_hash` at P. The third contains the list of HPKE public
-keys to which the HPKE secret key of P was sent to. That is, it consists of
-the array of `HPKEPublicKey` values of the nodes in the resolution of S but with
-the `unmerged_leaves` of P omitted.
-
-For example, in the ratchet tree depicted in {{resolution-example}} the
-`ParentHashInput` struct for node 6 would contain an empty array as the sibling of
-6 is node 4 which has only itself in its resolution and node 4 is also an unmerged
-leaf for 6's parent node 5. Meanwhile, the `ParentHashInput` of node 1 has an
-array with the HPKE public key's of nodes 5 and 6.
+Consider a ratchet tree with a parent node P and children V and S. Suppose an
+`UpdatePath` object is applied to a ratchet tree along a path traversing node V.
+This defines a new Parent Hash value for all parent nodes on the updated path
+including P. The new "Parent Hash of P (with Co-Path Child S)" is obtained by hashing
+P's `ParentHashInput` struct using the resolution of S to populate the
+`original_child_resolution` field. P's Parent Hash fixes the new HPKE public keys
+of all nodes on the path from P to the root. Furthermore, for each such key PK the
+hash also binds the set of HPKE public keys to which PK's secret key was encrypted
+in the commit packet that anounced the `UpdatePath` object.
 
 ~~~~~
 struct {
@@ -1146,6 +1120,47 @@ struct {
     HPKEPublicKey original_child_resolution<0..2^32-1>;
 } ParentHashInput;
 ~~~~~
+
+The Parent Hash of P with Co-Path Child S is the hash of a `ParentHashInput` object
+populated as follows. Field `public_key` contains the HPKE public key of P. If P is
+the root then `parent_hash` is set to the all-zeroes vector of size `Nh`. Otherwise
+`parent_hash` is the Parent Hash of P's parent with P's sibling as the co-path child.
+
+Finally, `original_child_resolution` is the array of `HPKEPublicKey` values of the
+nodes in the resolution of S but with the `unmerged_leaves` of P omitted. For
+example, in the ratchet tree depicted in {{resolution-example}} the
+`ParentHashInput` of node 5 with co-path child 4 would contain an empty
+`original_child_resolution` since 4's resolution includes only itself but 4 is also
+an unmerged leaf of 5. Meanwhile, the `ParentHashInput` of node 5 with co-path child
+6 has an array with one element in it; namely the HPKE public key of 6.
+
+### Using Parent Hashes
+
+The Parent Hash of P appears in three types of structs. If V is itself a parent node
+then the P's Parent Hash is stored in the `parent_hash` fields of both V's
+`ParentHashInput` struct and V's `ParentNode` struct. (The `ParentNode` struct is
+used to encapsulate all public information about V that must be conveyed to a new
+member joining the group as well as to define the Tree Hash of node V.)
+
+If, on the other hand, V is a leaf and its KeyPackage contains the `parent_hash`
+extension then the Parent Hash of P (with V's sibling as co-path child) is stored in
+that field. In particular, the extension MUST be present in the `leaf_key_package`
+field of an `UpdatePath` object. (This way, the signature of such a KeyPackage also
+serves to attest to which keys the group member introduced into the ratchet tree and
+to whom the corresponding secret keys were sent. This helps prevent malicious insiders
+from constructing artificial ratchet trees with a node V whose HPKE secret key is
+known to the insider yet where the insider isn't assigned a leaf in the subtree rooted
+at V. Indeed, such a ratchet tree would violate the tree invariant.)
+
+### Verifying Parent Hashes
+
+To this end, when processing a Commit message clients MUST recompute the
+expected value of `parent_hash` for the committer's new leaf and verify that it
+matches the `parent_hash` value in the supplied `leaf_key_package`. Moreover, when
+joining a group, new members MUST authenticate each non-blank parent node P. A parent
+node P is authenticated by checking that it has children V and S such that V's
+`ParentNode` struct has its `parent_hash` field set to the Parent Hash of P with
+Co-Path Child S.
 
 ## Tree Hashes
 
