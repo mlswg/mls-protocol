@@ -1182,7 +1182,7 @@ Note that the `node_index` field contains the index of the leaf among the nodes
 in the tree, not its index among the leaves; `node_index = 2 * leaf_index`.
 
 Now the tree hash of any non-leaf node is recursively defined to be the hash of
-its `ParentNodeTreeHashInput`. This includes an optional `ParentNodeTreeHashData`
+its `ParentNodeTreeHashInput`. This includes an optional `ParentNode`
 object depending on if the node is blank or not.
 
 ~~~~~
