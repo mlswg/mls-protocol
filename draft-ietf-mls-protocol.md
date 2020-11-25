@@ -1131,7 +1131,7 @@ consists of three fields: The first contains the HPKE public key of P. The secon
 contains the `parent_hash` at P. The third contains the list of HPKE public
 keys to which the HPKE secret key of P was sent to. That is, it consists of
 the array of `HPKEPublicKey` values of the nodes in the resolution of S but with
-the`unmerged_leaves` of P omitted.
+the `unmerged_leaves` of P omitted.
 
 For example, in the ratchet tree depicted in {{resolution-example}} the
 `ParentHashInput` struct for node 6 would contain an empty array as the sibling of
