@@ -1122,9 +1122,10 @@ struct {
 ~~~~~
 
 The Parent Hash of P with Co-Path Child S is the hash of a `ParentHashInput` object
-populated as follows. Field `public_key` contains the HPKE public key of P. If P is
-the root then `parent_hash` is set to the all-zeroes vector of size `Nh`. Otherwise
-`parent_hash` is the Parent Hash of P's parent with P's sibling as the co-path child.
+populated as follows. The field `public_key` contains the HPKE public key of P. If P
+is the root then `parent_hash` is set to the all-zeroes vector of size `Nh`.
+Otherwise `parent_hash` is the Parent Hash of P's parent with P's sibling as the
+co-path child.
 
 Finally, `original_child_resolution` is the array of `HPKEPublicKey` values of the
 nodes in the resolution of S but with the `unmerged_leaves` of P omitted. For
