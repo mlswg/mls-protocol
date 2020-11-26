@@ -656,7 +656,8 @@ Each node in a ratchet tree contains up to five values:
 * An ordered list of leaf indices for "unmerged" leaves (see
   {{views}})
 * A credential (only for leaf nodes)
-* A hash of the node's parent, as of the last time the node was changed.
+* A hash of certain information about the node's parent, as of the last time the
+  node was changed (see {{parent-hash}}).
 
 The conditions under which each of these values must or must not be
 present are laid out in {{views}}.
@@ -1101,17 +1102,17 @@ an explicit, application-defined identifier to a KeyPackage.
 opaque key_id<0..2^16-1>;
 ~~~~~
 
-## Parent Hash
+## Parent Hash {#parent-hash}
 
-Consider a ratchet tree with a parent node P and children V and S. Suppose an
-`UpdatePath` object is applied to a ratchet tree along a path traversing node V.
-This defines a new Parent Hash value for all parent nodes on the updated path
-including P. The new "Parent Hash of P (with Co-Path Child S)" is obtained by hashing
-P's `ParentHashInput` struct using the resolution of S to populate the
-`original_child_resolution` field. P's Parent Hash fixes the new HPKE public keys
-of all nodes on the path from P to the root. Furthermore, for each such key PK the
-hash also binds the set of HPKE public keys to which PK's secret key was encrypted
-in the commit packet that anounced the `UpdatePath` object.
+Consider a ratchet tree with a parent node P and children V and S. The parent hash
+of P changes whenever an `UpdatePath` object is applied to the ratchet tree along
+a path traversing node V (and hence also P). The new "Parent Hash of P (with Co-Path
+Child S)" is obtained by hashing P's `ParentHashInput` struct using the resolution
+of S to populate the `original_child_resolution` field. This way, P's Parent Hash
+fixes the new HPKE public keys of all nodes on the path from P to the root.
+Furthermore, for each such key PK the hash also binds the set of HPKE public keys
+to which PK's secret key was encrypted in the commit packet that anounced the
+`UpdatePath` object.
 
 ~~~~~
 struct {
@@ -1121,7 +1122,7 @@ struct {
 } ParentHashInput;
 ~~~~~
 
-The Parent Hash of P with Co-Path Child S is the hash of a `ParentHashInput` object
+The Parent Hash of V with Co-Path Child S is the hash of a `ParentHashInput` object
 populated as follows. The field `public_key` contains the HPKE public key of P. If P
 is the root then `parent_hash` is set to the all-zeroes vector of size `Nh`.
 Otherwise `parent_hash` is the Parent Hash of P's parent with P's sibling as the
