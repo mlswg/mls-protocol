@@ -1122,7 +1122,7 @@ struct {
 } ParentHashInput;
 ~~~~~
 
-The Parent Hash of V with Co-Path Child S is the hash of a `ParentHashInput` object
+The Parent Hash of P with Co-Path Child S is the hash of a `ParentHashInput` object
 populated as follows. The field `public_key` contains the HPKE public key of P. If P
 is the root then `parent_hash` is set to the all-zeroes vector of size `Nh`.
 Otherwise `parent_hash` is the Parent Hash of P's parent with P's sibling as the
