@@ -1353,10 +1353,13 @@ proceeds as shown in the following diagram:
                    init_secret_[n-1]
                          |
                          V
-    commit_secret -> KDF.Extract = joiner_secret
+    commit_secret -> KDF.Extract
                          |
                          V
                    DeriveSecret(., "member")
+                         |
+                         V
+                    joiner_secret
                          |
                          V
 psk_secret (or 0) -> KDF.Extract = member_secret
