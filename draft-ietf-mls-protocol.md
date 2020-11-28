@@ -1362,7 +1362,7 @@ proceeds as shown in the following diagram:
                     joiner_secret
                          |
                          V
-psk_secret (or 0) -> KDF.Extract = member_secret
+psk_secret (or 0) -> KDF.Extract
                          |
                          +--> DeriveSecret(., "welcome")
                          |    = welcome_secret
@@ -1659,9 +1659,8 @@ application message using the j-th key and nonce in the ratchet of node
 index N in some epoch n. Then, for that member, at least the following
 values have been consumed and MUST be deleted:
 
-* the `commit_secret`, `joiner_secret`, `member_secret`, `epoch_secret`,
-  `encryption_secret` of that epoch n as well as the `init_secret` of the
-  previous epoch n-1,
+* the `commit_secret`, `joiner_secret`, `epoch_secret`, `encryption_secret` of
+  that epoch n as well as the `init_secret` of the previous epoch n-1,
 * all node secrets in the Secret Tree on the path from the root to the leaf with
   node index N,
 * the first j secrets in the application data ratchet of node index N and
@@ -1692,9 +1691,9 @@ participant D:
 Then if a client uses key K1 and nonce N1 during epoch n then it must consume
 (at least) values G, F, D, AR0, AR1, K1, N1 as well as the key schedule secrets
 used to derive G (the `encryption_secret`), namely `init_secret` of epoch n-1
-and `commit_secret`, `joiner_secret`, `member_secret`, `epoch_secret` of epoch
-n. The client MAY retain (not consume) the values K0 and N0 to allow for
-out-of-order delivery, and SHOULD retain AR2 for processing future messages.
+and `commit_secret`, `joiner_secret`, `epoch_secret` of epoch n. The client MAY
+retain (not consume) the values K0 and N0 to allow for out-of-order delivery,
+and SHOULD retain AR2 for processing future messages.
 
 ## Exporters
 
@@ -2735,12 +2734,11 @@ On receiving a Welcome message, a client processes it using the following steps:
   possession of the corresponding PSK, return an error.
 
 * From the `joiner_secret` in the decrypted GroupSecrets object and the PSKs
-  specified in the `GroupSecrets`, derive the `member_secret` and using that the
-  `welcome_secret`, `welcome_key`, and `welcome_nonce`. Use the key and nonce to
-  decrypt the `encrypted_group_info` field.
+  specified in the `GroupSecrets`, derive the `welcome_secret` and using that
+  the `welcome_key` and `welcome_nonce`. Use the key and nonce to decrypt the
+  `encrypted_group_info` field.
 
 ~~~~~
-welcome_secret = DeriveSecret(member_secret, "welcome")
 welcome_nonce = KDF.Expand(welcome_secret, "nonce", nonce_length)
 welcome_key = KDF.Expand(welcome_secret, "key", key_length)
 ~~~~~
