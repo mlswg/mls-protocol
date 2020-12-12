@@ -1356,7 +1356,7 @@ proceeds as shown in the following diagram:
     commit_secret -> KDF.Extract
                          |
                          V
-                   DeriveSecret(., "member")
+                   DeriveSecret(., "joiner")
                          |
                          V
                     joiner_secret
