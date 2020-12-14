@@ -2125,6 +2125,7 @@ enum {
     psk(4),
     reinit(5),
     external_init(6),
+    app_ack(7),
     (255)
 } ProposalType;
 
@@ -2137,6 +2138,7 @@ struct {
         case psk:           PreSharedKey;
         case reinit:        ReInit;
         case external_init: ExternalInit;
+        case app_ack:       AppAck;
     };
 } Proposal;
 ~~~~~
@@ -2274,6 +2276,62 @@ struct {
 A member of the group applies an ExternalInit message by initializing the next
 epoch using an init secret computed as described in {{external-initialization}}.
 The `kem_output` field contains the required KEM output.
+
+### AppAck
+
+An AppAck proposal is used to acknowledge receipt of application messages.
+Though this information implies no change to the group, it is structured as a
+Proposal message so that it is included in the group's transcript by being
+included in Commit messages.
+
+~~~~~
+struct {
+    uint32 sender;
+    uint32 first_generation;
+    uint32 last_generation;
+} MessageRange;
+
+struct {
+    MessageRange received_ranges<0..2^32-1>;
+} AppAck;
+~~~~~
+
+An AppAck proposal represents a set of messages received by the sender in the
+current epoch.  Messages are represented by the `sender` and `generation` values
+in the MLSCiphertext for the message.  Each MessageRange represents receipt of a
+span of messages whose `generation` values form a continuous range from
+`first_generation` to `last_generation`, inclusive.
+
+AppAck proposals are sent as a guard against the Delivery Service dropping
+application messages.  The sequential nature of the `generation` field provides
+a degree of loss detection, since gaps in the `generation` sequence indicate
+dropped messages.  AppAck completes this story by addressing the scenario where
+the Delivery Service drops all messages after a certain point, so that a later
+generation is never observed.  Obviously, there is a risk that AppAck messages
+could be suppressed as well, but their inclusion in the transcript means that if
+they are suppressed then the group cannot advance at all.
+
+The schedule on which sending AppAck proposals are sent is up to the application,
+and determines which cases of loss/suppression are detected.  For example:
+
+* The application might have the committer include an AppAck proposal whenever a
+  Commit is sent, so that other members could know when one of their messages
+  did not reach the committer.
+
+* The application could have a client send an AppAck whenever an application
+  message is sent, covering all messages received since its last AppAck.  This
+  would provide a complete view of any losses experienced by active members.
+
+* The application could simply have clients send AppAck proposals on a timer, so
+  that all participants' state would be known.
+
+An application using AppAck proposals to guard against loss/suppression of
+application messages also needs to ensure that AppAck messages and the Commits
+that reference them are not dropped.  One way to do this is to always encrypt
+Proposal and Commit messages, to make it more difficult for the Delivery Service
+to recognize which messages conatain AppAcks.  The application can also have
+clients enforce an AppAck schedule, reporting loss if an AppAck is not received
+at the expected time.
 
 ### External Proposals
 
