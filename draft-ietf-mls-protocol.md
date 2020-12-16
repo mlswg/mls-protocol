@@ -337,7 +337,7 @@ Member:
 
 Key Package:
 : A signed object describing a client's identity and capabilities, and including
-  a hybrid public-key encryption (HPKE {{!I-D.irtf-cfrg-hpke}} ) public key that
+  a hybrid public-key encryption (HPKE {{!I-D.irtf-cfrg-hpke}}) public key that
   can be used to encrypt to that client.
 
 Initialization Key (InitKey):
@@ -897,9 +897,9 @@ following primitives to be used in group key computations:
 * A hash algorithm
 * A signature algorithm
 
-The HPKE parameters are used to instantiate HPKE {{!I-D.irtf-cfrg-hpke}} for the
-purpose of public-key encryption.  The `DeriveKeyPair` function associated to
-the KEM for the ciphersuite maps octet strings to HPKE key pairs.
+MLS uses draft-07 of HPKE {{I-D.irtf-cfrg-hpke}} for public-key encryption.
+The `DeriveKeyPair` function associated to the KEM for the ciphersuite maps
+octet strings to HPKE key pairs.
 
 Ciphersuites are represented with the CipherSuite type. HPKE public keys
 are opaque values in a format defined by the underlying
