@@ -2797,8 +2797,8 @@ On receiving a Welcome message, a client processes it using the following steps:
   `encrypted_group_info` field.
 
 ~~~~~
-welcome_nonce = KDF.Expand(welcome_secret, "nonce", nonce_length)
-welcome_key = KDF.Expand(welcome_secret, "key", key_length)
+welcome_nonce = KDF.Expand(welcome_secret, "nonce", AEAD.Nn)
+welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 ~~~~~
 
 * Verify the signature on the GroupInfo object.  The signature input comprises
