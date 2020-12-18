@@ -2726,12 +2726,12 @@ initiated by the Commit message.
 
 In order to allow the same Welcome message to be sent to all new members,
 information describing the group is encrypted with a symmetric key and nonce
-randomly chosen by the sender.  This key and nonce are then encrypted to each
-new member using HPKE.  In the same encrypted package, the committer transmits
-the path secret for the lowest node contained in the direct paths of both the
-committer and the new member.  This allows the new member to compute private
-keys for nodes in its direct path that are being reset by the corresponding
-Commit.
+derived from the `joiner_secret` for the new epoch.  The `joiner_secret` is
+then encrypted to each new member using HPKE.  In the same encrypted package,
+the committer transmits the path secret for the lowest node contained in the
+direct paths of both the committer and the new member.  This allows the new
+member to compute private keys for nodes in its direct path that are being
+reset by the corresponding Commit.
 
 If the sender of the Welcome message wants the receiving member to include a PSK
 in the derivation of the `epoch_secret`, they can populate the `psks` field indicating which
@@ -2797,8 +2797,8 @@ On receiving a Welcome message, a client processes it using the following steps:
   `encrypted_group_info` field.
 
 ~~~~~
-welcome_nonce = KDF.Expand(welcome_secret, "nonce", nonce_length)
-welcome_key = KDF.Expand(welcome_secret, "key", key_length)
+welcome_nonce = KDF.Expand(welcome_secret, "nonce", AEAD.Nn)
+welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 ~~~~~
 
 * Verify the signature on the GroupInfo object.  The signature input comprises
