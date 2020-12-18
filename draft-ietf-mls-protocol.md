@@ -1160,9 +1160,18 @@ To this end, when processing a Commit message clients MUST recompute the
 expected value of `parent_hash` for the committer's new leaf and verify that it
 matches the `parent_hash` value in the supplied `leaf_key_package`. Moreover, when
 joining a group, new members MUST authenticate each non-blank parent node P. A parent
-node P is authenticated by checking that it has children V and S such that V's
-`ParentNode` struct has its `parent_hash` field set to the Parent Hash of P with
-Co-Path Child S.
+node P is authenticated by performing the following check: 
+
+* Let L and R be the left and right children of P, respectively
+* If L.parent_hash is equal to the Parent Hash of P with Co-Path Child R, the check passes 
+* If R is blank, replace R with its left child until R is either non-blank or a leaf node
+* If R is a leaf node, the check fails
+* If R.parent_hash is equal to the Parent Hash of P with Co-Path Child L, the check passes
+* Otherwise, the check fails
+
+The left-child recursion under the right child of P is necessary because the expansion of 
+the tree to the right due to Add proposals can cause blank nodes to be interposed 
+between a parent node and its right child. 
 
 ## Tree Hashes
 
