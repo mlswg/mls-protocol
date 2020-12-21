@@ -1124,7 +1124,7 @@ struct {
 
 The Parent Hash of P with Co-Path Child S is the hash of a `ParentHashInput` object
 populated as follows. The field `public_key` contains the HPKE public key of P. If P
-is the root then `parent_hash` is set to the all-zeroes vector of size `Nh`.
+is the root, then `parent_hash` is set to a zero-length octet string.
 Otherwise `parent_hash` is the Parent Hash of P's parent with P's sibling as the
 co-path child.
 
@@ -1134,12 +1134,12 @@ example, in the ratchet tree depicted in {{resolution-example}} the
 `ParentHashInput` of node 5 with co-path child 4 would contain an empty
 `original_child_resolution` since 4's resolution includes only itself but 4 is also
 an unmerged leaf of 5. Meanwhile, the `ParentHashInput` of node 5 with co-path child
-6 has an array with one element in it; namely the HPKE public key of 6.
+6 has an array with one element in it: the HPKE public key of 6.
 
 ### Using Parent Hashes
 
 The Parent Hash of P appears in three types of structs. If V is itself a parent node
-then the P's Parent Hash is stored in the `parent_hash` fields of both V's
+then P's Parent Hash is stored in the `parent_hash` fields of both V's
 `ParentHashInput` struct and V's `ParentNode` struct. (The `ParentNode` struct is
 used to encapsulate all public information about V that must be conveyed to a new
 member joining the group as well as to define the Tree Hash of node V.)
