@@ -1160,17 +1160,17 @@ To this end, when processing a Commit message clients MUST recompute the
 expected value of `parent_hash` for the committer's new leaf and verify that it
 matches the `parent_hash` value in the supplied `leaf_key_package`. Moreover, when
 joining a group, new members MUST authenticate each non-blank parent node P. A parent
-node P is authenticated by performing the following check: 
+node P is authenticated by performing the following check:
 
 * Let L and R be the left and right children of P, respectively
-* If L.parent_hash is equal to the Parent Hash of P with Co-Path Child R, the check passes 
+* If L.parent_hash is equal to the Parent Hash of P with Co-Path Child R, the check passes
 * If R is blank, replace R with its left child until R is either non-blank or a leaf node
 * If R is a leaf node, the check fails
 * If R.parent_hash is equal to the Parent Hash of P with Co-Path Child L, the check passes
 * Otherwise, the check fails
 
-The left-child recursion under the right child of P is necessary because the expansion of 
-the tree to the right due to Add proposals can cause blank nodes to be interposed 
+The left-child recursion under the right child of P is necessary because the expansion of
+the tree to the right due to Add proposals can cause blank nodes to be interposed
 between a parent node and its right child.
 
 ## Tree Hashes
@@ -2087,15 +2087,14 @@ The creator of a group MUST take the following steps to initialize the group:
   in these KeyPackages to verify that the
   chosen version and ciphersuite is the best option supported by all members.
 
-* Initialize a one-member group with the following initial values (where "0"
-  represents an all-zero vector of size KDF.Nh):
+* Initialize a one-member group with the following initial values:
   * Ratchet tree: A tree with a single node, a leaf containing an HPKE public
     key and credential for the creator
   * Group ID: A value set by the creator
   * Epoch: 0
   * Tree hash: The root hash of the above ratchet tree
-  * Confirmed transcript hash: 0
-  * Interim transcript hash: 0
+  * Confirmed transcript hash: the zero-length octet string
+  * Interim transcript hash: the zero-length octet string
   * Init secret: a fresh random value of size `KDF.Nh`
 
 * For each member, construct an Add proposal from the KeyPackage for that
