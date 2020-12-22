@@ -133,6 +133,18 @@ shared keys with costs that scale as the log of the group size.
 
 RFC EDITOR PLEASE DELETE THIS SECTION.
 
+draft-11
+
+- Include subtree keys in parent hash (\*)
+
+- Pin HPKE to draft-07 (\*)
+
+- Move joiner secret to the end of the first key schedule epoch (\*)
+
+- Add an AppAck proposal
+
+- Make initializations of transcript hashes consistent
+
 draft-10
 
 - Allow new members to join via an external Commit (\*)
