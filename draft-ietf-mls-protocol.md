@@ -2881,7 +2881,7 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
   * For each non-empty leaf node, verify the signature on the KeyPackage.
 
 * Identify a leaf in the `tree` array (any even-numbered node) whose
-  `key_package` field is identical to the the KeyPackage.  If no such field
+  `key_package` field is identical to the KeyPackage.  If no such field
   exists, return an error.  Let `index` represent the index of this node among
   the leaves in the tree, namely the index of the node in the `tree` array
   divided by two.
