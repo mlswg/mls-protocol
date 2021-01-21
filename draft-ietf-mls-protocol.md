@@ -2548,12 +2548,10 @@ message at the same time, by taking the following steps:
   based on the proposals that are in the commit (see above), then it MUST be
   populated.  Otherwise, the sender MAY omit the `path` field at its discretion.
 
-* If populating the `path` field: Create an UpdatePath using the new tree. Any
-  new member (from an add proposal) MUST be exluded from the resolution during
-  the computation of the UpdatePath. The GroupContext for this operation uses
-  the `group_id`, `epoch`, `tree_hash`, and `confirmed_transcript_hash` values
-  in the initial GroupContext object.  The `leaf_key_package` for this
-  UpdatePath must have a `parent_hash` extension.
+* If populating the `path` field: Create an UpdatePath using the new tree and
+  the provisional GroupContext. Any new member (from an add proposal) MUST be
+  exluded from the resolution during the computation of the UpdatePath.  The
+  `leaf_key_package` for this UpdatePath must have a `parent_hash` extension.
 
    * Assign this UpdatePath to the `path` field in the Commit.
 
@@ -2571,10 +2569,14 @@ message at the same time, by taking the following steps:
   corresponds to the order of PreSharedKey proposals in the `proposals` vector.
   Otherwise, set `psk_secret` to a zero-length octet string.
 
-* Construct an MLSPlaintext object containing the Commit object. Sign the MLSPlaintext
-  using the current epoch's GroupContext as context. Use the signature, the
-  `commit_secret` and the `psk_secret` to advance the key schedule and compute
-  the `confirmation_tag` value in the MLSPlaintext.
+* Use the `commit_secret`, the `psk_secret`, the provisional GroupContext, and
+  the init secret from the previous epoch to compute the epoch secret and
+  derived secrets for the new epoch.
+
+* Construct an MLSPlaintext object containing the Commit object. Sign the
+  MLSPlaintext using the current epoch's GroupContext as context. Use the
+  `confirmation_key` for the new epoch to compute the `confirmation_tag` value
+  in the MLSPlaintext.
 
 * Update the tree in the provisional state by applying the direct path
 
@@ -2633,8 +2635,8 @@ A member of the group applies a Commit message by taking the following steps:
   any Update or Remove proposals, or if it's empty. Otherwise, the `path` value
   MAY be omitted.
 
-* If the `path` value is populated: Process the `path` value using the ratchet
-  tree the provisional GroupContext, to update the ratchet tree and generate the
+* If the `path` value is populated: Process the `path` value using the new ratchet
+  tree and the provisional GroupContext, to update the ratchet tree and generate the
   `commit_secret`:
 
   * Apply the UpdatePath to the tree, as described in
