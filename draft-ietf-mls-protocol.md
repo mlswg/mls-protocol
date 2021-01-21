@@ -1289,6 +1289,7 @@ struct {
     opaque group_id<0..255>;
     uint64 epoch;
     Sender sender;
+    opaque authenticated_data<0..2^32-1>;
     ContentType content_type = commit;
     Commit commit;
     opaque signature<0..2^16-1>;
