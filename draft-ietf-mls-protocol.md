@@ -2812,7 +2812,7 @@ struct {
 struct {
   opaque joiner_secret<1..255>;
   optional<PathSecret> path_secret;
-  optional<PreSharedKeys> psks;
+  PreSharedKeys psks;
 } GroupSecrets;
 
 struct {
