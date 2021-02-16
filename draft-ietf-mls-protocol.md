@@ -3215,7 +3215,7 @@ key derived from the group secrets.
 
 The second form of authentication is that group members can verify a message
 originated from a particular member of the group. This is guaranteed by a
-digital signature on each message from the sender's identity key.
+digital signature on each message from the sender's signature key.
 
 ## Forward Secrecy and Post-Compromise Security
 
