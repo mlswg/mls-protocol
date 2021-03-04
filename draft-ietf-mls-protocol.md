@@ -2542,9 +2542,10 @@ A member of the group applies a Commit message by taking the following steps:
   any Update or Remove proposals, or if it's empty. Otherwise, the `path` value
   MAY be omitted.
 
-* If the `path` value is populated: Process the `path` value using the ratchet
-  tree the provisional GroupContext, to update the ratchet tree and generate the
-  `commit_secret`:
+* If the `path` value is populated: Verify that the identity and signature key
+  of the credential in the new leaf are unique for this group. Then process the
+  `path` value using the ratchet tree the provisional GroupContext, to update
+  the ratchet tree and generate the `commit_secret`:
 
   * Apply the UpdatePath to the tree, as described in
     {{synchronizing-views-of-the-tree}}, and store `key_package` at the
