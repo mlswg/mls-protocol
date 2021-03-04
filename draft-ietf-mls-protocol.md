@@ -448,9 +448,9 @@ directly to the new member (there's no need to send it to the group). Only after
 A has received its Commit message back from the server does it update its state
 to reflect the new member's addition.
 
-Upon receiving the Welcome message and the corresponding Commit, the new member
-will be able to read and send new messages to the group. Messages received
-before the client has joined the group are ignored.
+Upon receiving the Welcome message, the new member will be able to read and send 
+new messages to the group. Messages received before the client has joined the 
+group are ignored.
 
 ~~~~~
                                                                Group
@@ -465,34 +465,34 @@ A              B              C          Directory            Channel
 |--------------------------------------------------------------->|
 |              |              |              |                   |
 |  Welcome(B)  |              |              |                   |
-|------------->|state.init()  |              |                   |
+|------------->|state.join()  |              |                   |
 |              |              |              |                   |
 |              |              |              | Add(A->AB)        |
 |              |              |              | Commit(Add)       |
 |<---------------------------------------------------------------|
-|state.add(B)  |<------------------------------------------------|
-|              |state.join()  |              |                   |
+|state.add(B)  |              |              |                   |
+|              |              |              |                   |
 |              |              |              |                   |
 |              |              |              | Add(AB->ABC)      |
 |              |              |              | Commit(Add)       |
 |--------------------------------------------------------------->|
 |              |              |              |                   |
 |              |  Welcome(C)  |              |                   |
-|---------------------------->|state.init()  |                   |
+|---------------------------->|state.join()  |                   |
 |              |              |              |                   |
 |              |              |              | Add(AB->ABC)      |
 |              |              |              | Commit(Add)       |
 |<---------------------------------------------------------------|
 |state.add(C)  |<------------------------------------------------|
-|              |state.add(C)  |<---------------------------------|
-|              |              |state.join()  |                   |
+|              |state.add(C)  |              |                   |
+|              |              |              |                   |
 ~~~~~
 
 Subsequent additions of group members proceed in the same way.  Any
 member of the group can download a KeyPackage for a new client
 and broadcast an Add message that the current group can use to update
 their state, and a Welcome message that the new client can use to
-initialize its state.
+initialize its state and join the group.
 
 To enforce the forward secrecy and post-compromise security of messages,
 each member periodically updates their leaf secret.
