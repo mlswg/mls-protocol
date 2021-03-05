@@ -1177,7 +1177,7 @@ node P is authenticated by performing the following check:
 * Let L and R be the left and right children of P, respectively
 * If L.parent_hash is equal to the Parent Hash of P with Co-Path Child R, the check passes
 * If R is blank, replace R with its left child until R is either non-blank or a leaf node
-* If R is a leaf node, the check fails
+* If R is a blank leaf node, the check fails
 * If R.parent_hash is equal to the Parent Hash of P with Co-Path Child L, the check passes
 * Otherwise, the check fails
 
