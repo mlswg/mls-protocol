@@ -2270,6 +2270,8 @@ A member of the group applies a Remove message by taking the following steps:
 
 * Blank the intermediate nodes along the path from the removed leaf to the root
 
+* Truncate the tree by reducing the size of tree until the rightmost non-blank leaf node
+
 ### PreSharedKey
 
 A PreSharedKey proposal can be used to request that a pre-shared key be
