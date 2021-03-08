@@ -2369,7 +2369,7 @@ generation is never observed.  Obviously, there is a risk that AppAck messages
 could be suppressed as well, but their inclusion in the transcript means that if
 they are suppressed then the group cannot advance at all.
 
-The schedule on which sending AppAck proposals are sent is up to the application,
+The schedule on which sending AppAck messages are sent is up to the application,
 and determines which cases of loss/suppression are detected.  For example:
 
 * The application might have the committer include an AppAck proposal whenever a
@@ -2382,14 +2382,6 @@ and determines which cases of loss/suppression are detected.  For example:
 
 * The application could simply have clients send AppAck proposals on a timer, so
   that all participants' state would be known.
-
-An application using AppAck proposals to guard against loss/suppression of
-application messages also needs to ensure that AppAck messages and the Commits
-that reference them are not dropped.  One way to do this is to always encrypt
-Proposal and Commit messages, to make it more difficult for the Delivery Service
-to recognize which messages conatain AppAcks.  The application can also have
-clients enforce an AppAck schedule, reporting loss if an AppAck is not received
-at the expected time.
 
 ### External Proposals
 
