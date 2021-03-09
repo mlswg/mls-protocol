@@ -3412,6 +3412,7 @@ Template:
 
   * KP: KeyPackage messages
   * GI: GroupInfo objects
+  * GC: GroupContext objects
 
 * Recommended: Whether support for this extension is recommended by the IETF MLS
   WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
