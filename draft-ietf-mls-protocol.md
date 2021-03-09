@@ -1266,6 +1266,9 @@ The fields in this state have the following semantics:
   group, as described in {{tree-hashes}}.
 * The `confirmed_transcript_hash` field contains a running hash over
   the messages that led to this state.
+* The `extensions` field is populated by the extensions set upon creation of the
+  group. In particular, this pertains to extensions that have the `Message` type
+  `GC` (see {{mls-extension-types}}).
 
 When a new member is added to the group, an existing member of the
 group provides the new member with a Welcome message.  The Welcome
