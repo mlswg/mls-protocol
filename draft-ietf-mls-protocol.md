@@ -3286,64 +3286,95 @@ copath node corresponding to the node in the UpdatePath.
 
 ## Improving Resiliance to Poor Random Number Generators
 
-The security of a group hinges on the fact that every member has access to a
-good source of entropy. To make the protocol more robust in environments with
-weak sources of entropy or even compromised random number generators, each MLS
-implementation MUST maintain an `entropy_pool_secret`. The `entropy_pool_secret`
-serves as a source of entropy, which is used to derive fresh secrets whenever
-needed, for example when generating a new KeyPackage for an Update operation.
+The security of a group hinges on every member having access to a good source of
+entropy. To make the protocol more robust in environments with only weak,
+intermitent (or even no) external sources of entropy, each MLS client MUST maintain
+a persistant `uint64 entropy_pool` value which is initialized to a uniform random
+value; e.g. using the operating system's Random Number Generator (RNG). The pool
+serves as a cache continuously accumulating entropy over the lifetime of
+the client.
 
-To ensure that Post-Compromise Security (PCS) can be achieved, the
-`entropy_pool_secret` must be injected with fresh entropy from some other
-source, such as the Random Number Generator (RNG) of the operating system.
+Clients can repeatedly perform two types of operations with their entropy pool.
+First, they can "mix in" fresh inputs into their pool to accumulate any entropy
+the input contains. Second, whenever MLS calls for sampling a value at random
+clients can obtain the value by "extracting" it from their entropy pool (e.g.
+when generating a new KeyPackage or fresh `leaf_secret`).
 
-To achieve Forward Secrecy, the `entropy_pool_secret` is additionally "ratcheted
-forward" after each extraction of a fresh secret.
+Whenever enough entropy has accumulated in a pool all subsequent values extracted
+from it will look as if they were sampled from a truly uniform random and independant
+entropy source. This holds even if an adversary can control all inputs mixed into the
+pool after is has accumulated enough entropy. Pools can accumulate sufficient entropy
+either by being initialized using a good source of randomness or by having sufficient
+entropy mixed in (possibly accumulated over a number of inputs). To achieve Forward
+Secrecy, the `entropy_pool` is "ratcheted forward" as part of the process of
+extracting a value. Conversely, to ensure that Post-Compromise Security (PCS) can be
+achieved again after `entropy_pool` was leaked to an adversary, fresh entropy must be
+regularly mixed in to the pool.
+
+Clients obtain inputs to mix in to their pool both from external sources (such as th
+OS's RNG) and internal sources (i.e. exported from key schedules of ongoing MLS
+sessions). Mixing in internal sources can allow clients with no local source of
+entropy to piggyback off of the entropy sources of other members in a secure group
+chat. A pool SHOULD be shared between all MLS sessions on the client as this can lead
+to more diverse sources of internal input improving the likelyhood that, at any given
+moment, the pool contains sufficient entropy. 
+
+To extract a fresh value (denoted `fresh_secret`) for use in an MLS session clients
+MUST first mix in a new `uint64 external_entropy` sampled from an external RNG.
 
 ~~~~~
-             entropy_pool_secret_[n-1]
+             entropy_pool_[n-1]
                         |
                         V
-fresh_randomness -> KDF.Extract = intermediate_secret
+external_entropy -> KDF.Extract = intermediate_secret
                         |
                         +--> DeriveSecret(., "mls_secret")
                         |    = fresh_secret
                         |
                         V
-                  DeriveSecret(., "entropy_pool_secret")
-                  = entropy_pool_secret_[n]
+                  DeriveSecret(., "entropy_pool")
+                  = entropy_pool_[n]
 ~~~~~
 
-The entropy gathered in the `entropy_pool_secret`, can be further increased by
-injecting addtional entropy whenever a group is updated by another party.
-
-If that is the case, the each party that did not perform the update operation
-themselves can update their `entropy_pool_secret` by injecting a secret derived
-from the updated group's key schedule. To that end, they first derive an
-`external_secret` as follows, where `epoch_secret` is the taken from the group's
-key schedule and `leaf_id` is the index of the party's leaf in the group:
+Besides inputs from external sources, clients also mix in entropy from internal
+sources. That is, when processing an incoming welcome or commit packet sent by
+another group member clients derive a fresh `internal_entropy` value from the new
+epochs key schedule and mix it in to their `entropy_pool`. To do this, the
+`InternalInputContext internal_input_context` variable is populated using the
+`group_id` and new `epoch_id` of the new epoch while `node_index` is the index of
+the client's leaf in the new epoch.
 
 ~~~~~
-external_secret =
-    ExpandWithLabel(`epoch_secret`, "entropy_pool_update", leaf_id, KDF.Nh)
+struct {
+	opaque group_id<0..255>;
+    uint64 epoch;
+	uint32 leaf_index;
+} InternalInputContext
+
+internal_entropy =
+    ExpandWithLabel(`epoch_secret`, "internal_update", internal_input_context, KDF.Nh)
 ~~~~~
 
-The resulting `external_secret` can then be injected into the entropy pool as follows.
+The resulting `internal_entropy` is mixed in to the entropy pool as follows.
+
 ~~~~~
-             entropy_pool_secret_[n-1]
+             entropy_pool_[n-1]
                         |
                         V
-external_secret -> KDF.Extract = intermediate_secret
+internal_entropy -> KDF.Extract = intermediate_secret
                         |
                         V
-                  DeriveSecret(., "entropy_pool_secret")
-                  = entropy_pool_secret_[n]
+                  DeriveSecret(., "entropy_pool")
+                  = entropy_pool_[n]
 ~~~~~
 
-Even though each group member can derive the `external_secret` for every other
-member of the group, the resulting `entropy_pool_secret_[n]` is still secure as
-long as the preceding `entropy_pool_secret_[n-1]` was secure. As a consequence,
-this operation strictly improves the quality of the gathered entropy.
+In particular, when an `internal_entropy` input derived from a secure epoch is
+mixed in this way then the resulting `entropy_pool_[n]` has sufficient entropy
+regardless of the entropy in the preceding `entropy_pool_[n-1]`. Meanwhile, if
+`entropy_pool_[n-1]` already had sufficient entropy than so does
+`entropy_pool_[n]`, even when the adversary knows the value of
+`internal_entropy`. As a consequence, this operation strictly improves the
+quality of the gathered entropy.
 
 
 # IANA Considerations
