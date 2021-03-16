@@ -448,8 +448,8 @@ directly to the new member (there's no need to send it to the group). Only after
 A has received its Commit message back from the server does it update its state
 to reflect the new member's addition.
 
-Upon receiving the Welcome message, the new member will be able to read and send 
-new messages to the group. Messages received before the client has joined the 
+Upon receiving the Welcome message, the new member will be able to read and send
+new messages to the group. Messages received before the client has joined the
 group are ignored.
 
 ~~~~~
@@ -3301,7 +3301,7 @@ clients can obtain the value by "extracting" it from their entropy pool (e.g.
 when generating a new KeyPackage or fresh `leaf_secret`).
 
 Whenever enough entropy has accumulated in a pool all subsequent values extracted
-from it will look as if they were sampled from a truly uniform random and independant
+from it will look as if they were sampled from a truly uniform random and independent
 entropy source. This holds even if an adversary can control all inputs mixed into the
 pool after is has accumulated enough entropy. Pools can accumulate sufficient entropy
 either by being initialized using a good source of randomness or by having sufficient
@@ -3311,13 +3311,13 @@ extracting a value. Conversely, to ensure that Post-Compromise Security (PCS) ca
 achieved again after `entropy_pool` was leaked to an adversary, fresh entropy must be
 regularly mixed in to the pool.
 
-Clients obtain inputs to mix in to their pool both from external sources (such as th
+Clients obtain inputs to mix in to their pool both from external sources (such as the
 OS's RNG) and internal sources (i.e. exported from key schedules of ongoing MLS
-sessions). Mixing in internal sources can allow clients with no local source of
+groups). Mixing in internal sources can allow clients with no local source of
 entropy to piggyback off of the entropy sources of other members in a secure group
 chat. A pool SHOULD be shared between all MLS sessions on the client as this can lead
 to more diverse sources of internal input improving the likelyhood that, at any given
-moment, the pool contains sufficient entropy. 
+moment, the pool contains sufficient entropy.
 
 To extract a fresh value (denoted `fresh_secret`) for use in an MLS session clients
 MUST first mix in a new `uint64 external_entropy` sampled from an external RNG.
@@ -3346,9 +3346,9 @@ the client's leaf in the new epoch.
 
 ~~~~~
 struct {
-	opaque group_id<0..255>;
+  opaque group_id<0..255>;
     uint64 epoch;
-	uint32 leaf_index;
+  uint32 leaf_index;
 } InternalInputContext
 
 internal_entropy =
