@@ -448,8 +448,8 @@ directly to the new member (there's no need to send it to the group). Only after
 A has received its Commit message back from the server does it update its state
 to reflect the new member's addition.
 
-Upon receiving the Welcome message, the new member will be able to read and send 
-new messages to the group. Messages received before the client has joined the 
+Upon receiving the Welcome message, the new member will be able to read and send
+new messages to the group. Messages received before the client has joined the
 group are ignored.
 
 ~~~~~
@@ -1042,7 +1042,7 @@ uint16 ExtensionType;
 
 struct {
     ExtensionType extension_type;
-    opaque extension_data<0..2^16-1>;
+    opaque extension_data<0..2^32-1>;
 } Extension;
 
 struct {
@@ -1115,6 +1115,13 @@ opaque key_id<0..2^16-1>;
 ~~~~~
 
 ## Parent Hash {#parent-hash}
+
+The `parent_hash` extension carries information to authenticate the structure of
+the tree, as described below.
+
+~~~~~
+opaque parent_hash<0..255>;
+~~~~~
 
 Consider a ratchet tree with a parent node P and children V and S. The parent hash
 of P changes whenever an `UpdatePath` object is applied to the ratchet tree along
@@ -1289,13 +1296,14 @@ struct {
     opaque group_id<0..255>;
     uint64 epoch;
     Sender sender;
+    opaque authenticated_data<0..2^32-1>;
     ContentType content_type = commit;
     Commit commit;
     opaque signature<0..2^16-1>;
 } MLSPlaintextCommitContent;
 
 struct {
-    MAC confirmation_tag;
+    optional<MAC> confirmation_tag;
 } MLSPlaintextCommitAuthData;
 
 interim_transcript_hash_[0] = ""; // zero-length octet string
