@@ -448,9 +448,9 @@ directly to the new member (there's no need to send it to the group). Only after
 A has received its Commit message back from the server does it update its state
 to reflect the new member's addition.
 
-Upon receiving the Welcome message and the corresponding Commit, the new member
-will be able to read and send new messages to the group. Messages received
-before the client has joined the group are ignored.
+Upon receiving the Welcome message, the new member will be able to read and send 
+new messages to the group. Messages received before the client has joined the 
+group are ignored.
 
 ~~~~~
                                                                Group
@@ -465,34 +465,34 @@ A              B              C          Directory            Channel
 |--------------------------------------------------------------->|
 |              |              |              |                   |
 |  Welcome(B)  |              |              |                   |
-|------------->|state.init()  |              |                   |
+|------------->|state.join()  |              |                   |
 |              |              |              |                   |
 |              |              |              | Add(A->AB)        |
 |              |              |              | Commit(Add)       |
 |<---------------------------------------------------------------|
-|state.add(B)  |<------------------------------------------------|
-|              |state.join()  |              |                   |
+|state.add(B)  |              |              |                   |
+|              |              |              |                   |
 |              |              |              |                   |
 |              |              |              | Add(AB->ABC)      |
 |              |              |              | Commit(Add)       |
 |--------------------------------------------------------------->|
 |              |              |              |                   |
 |              |  Welcome(C)  |              |                   |
-|---------------------------->|state.init()  |                   |
+|---------------------------->|state.join()  |                   |
 |              |              |              |                   |
 |              |              |              | Add(AB->ABC)      |
 |              |              |              | Commit(Add)       |
 |<---------------------------------------------------------------|
 |state.add(C)  |<------------------------------------------------|
-|              |state.add(C)  |<---------------------------------|
-|              |              |state.join()  |                   |
+|              |state.add(C)  |              |                   |
+|              |              |              |                   |
 ~~~~~
 
 Subsequent additions of group members proceed in the same way.  Any
 member of the group can download a KeyPackage for a new client
 and broadcast an Add message that the current group can use to update
 their state, and a Welcome message that the new client can use to
-initialize its state.
+initialize its state and join the group.
 
 To enforce the forward secrecy and post-compromise security of messages,
 each member periodically updates their leaf secret.
@@ -1177,7 +1177,7 @@ node P is authenticated by performing the following check:
 * Let L and R be the left and right children of P, respectively
 * If L.parent_hash is equal to the Parent Hash of P with Co-Path Child R, the check passes
 * If R is blank, replace R with its left child until R is either non-blank or a leaf node
-* If R is a leaf node, the check fails
+* If R is a blank leaf node, the check fails
 * If R.parent_hash is equal to the Parent Hash of P with Co-Path Child L, the check passes
 * Otherwise, the check fails
 
@@ -2271,6 +2271,8 @@ A member of the group applies a Remove message by taking the following steps:
 
 * Blank the intermediate nodes along the path from the removed leaf to the root
 
+* Truncate the tree by reducing the size of tree until the rightmost non-blank leaf node
+
 ### PreSharedKey
 
 A PreSharedKey proposal can be used to request that a pre-shared key be
@@ -3218,7 +3220,7 @@ key derived from the group secrets.
 
 The second form of authentication is that group members can verify a message
 originated from a particular member of the group. This is guaranteed by a
-digital signature on each message from the sender's identity key.
+digital signature on each message from the sender's signature key.
 
 ## Forward Secrecy and Post-Compromise Security
 
