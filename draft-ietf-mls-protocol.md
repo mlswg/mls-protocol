@@ -3331,7 +3331,7 @@ The columns in the registry are as follows:
 
 * Name: The name of the ciphersuite
 
-* Recommended: Whether support for this extension is recommended by the IETF MLS
+* Recommended: Whether support for this ciphersuite is recommended by the IETF MLS
   WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
   value of "N" unless explicitly requested, and adding a value with a
   "Recommended" value of "Y" requires Standards Action [RFC8126].  IESG Approval
@@ -3434,8 +3434,8 @@ Initial contents:
 ## MLS Credential Types
 
 This registry lists identifiers for types of credentials that can be used for
-authentication in the MLS protocol.  The extension type field is two bytes wide,
-so valid extension type values are in the range 0x0000 to 0xffff.
+authentication in the MLS protocol.  The credential type field is two bytes wide,
+so valid credential type values are in the range 0x0000 to 0xffff.
 
 Template:
 
@@ -3443,13 +3443,13 @@ Template:
 
 * Name: The name of the credential type
 
-* Recommended: Whether support for this extension is recommended by the IETF MLS
+* Recommended: Whether support for this credential is recommended by the IETF MLS
   WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
   value of "N" unless explicitly requested, and adding a value with a
   "Recommended" value of "Y" requires Standards Action [RFC8126].  IESG Approval
   is REQUIRED for a Y->N transition.
 
-* Reference: The document where this extension is defined
+* Reference: The document where this credential is defined
 
 Initial contents:
 
