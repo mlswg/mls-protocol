@@ -448,8 +448,8 @@ directly to the new member (there's no need to send it to the group). Only after
 A has received its Commit message back from the server does it update its state
 to reflect the new member's addition.
 
-Upon receiving the Welcome message, the new member will be able to read and send 
-new messages to the group. Messages received before the client has joined the 
+Upon receiving the Welcome message, the new member will be able to read and send
+new messages to the group. Messages received before the client has joined the
 group are ignored.
 
 ~~~~~
@@ -2516,9 +2516,9 @@ uses:
 1. An "empty" Commit that references no proposals, which updates the committer's
    contribution to the group and provides PCS with regard to the committer.
 
-2. An "add-only" Commit that references only Add proposals, in which the path is
-   optional.  Such a commit provides PCS with regard to the committer only if
-   the path field is present.
+2. A "partial" Commit that references Add, PreSharedKey, or ReInit proposals but
+   where the path is empty. Such a commit doesn't provide PCS with regard to the
+   committer.
 
 3. A "full" Commit that references proposals of any type, which provides FS with
    regard to any removed members and PCS for the committer and any updated
