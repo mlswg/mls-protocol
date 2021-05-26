@@ -910,7 +910,7 @@ following primitives to be used in group key computations:
 * A hash algorithm
 * A signature algorithm
 
-MLS uses draft-07 of HPKE {{I-D.irtf-cfrg-hpke}} for public-key encryption.
+MLS uses draft-08 of HPKE {{I-D.irtf-cfrg-hpke}} for public-key encryption.
 The `DeriveKeyPair` function associated to the KEM for the ciphersuite maps
 octet strings to HPKE key pairs.
 
