@@ -18,7 +18,7 @@ author:
     email: rlb@ipv.sx
  -  ins: B. Beurdouche
     name: Benjamin Beurdouche
-    organization: Inria
+    organization: Inria & Mozilla
     email: benjamin.beurdouche@inria.fr
  -
     ins: J. Millican
