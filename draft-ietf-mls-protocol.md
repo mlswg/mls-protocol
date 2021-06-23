@@ -20,12 +20,12 @@ author:
     ins: B. Beurdouche
     name: Benjamin Beurdouche
     organization: Inria & Mozilla
-    email: benjamin.beurdouche@inria.fr
+    email: ietf@beurdouche.com
  -
     ins: R. Robert
     name: Raphael Robert
     organization: Wire
-    email: raphael@wire.com
+    email: ietf@raphaelrobert.com
  -
     ins: J. Millican
     name: Jon Millican
