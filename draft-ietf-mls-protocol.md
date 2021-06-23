@@ -16,10 +16,16 @@ author:
     name: Richard Barnes
     organization: Cisco
     email: rlb@ipv.sx
- -  ins: B. Beurdouche
+ -
+    ins: B. Beurdouche
     name: Benjamin Beurdouche
     organization: Inria & Mozilla
     email: benjamin.beurdouche@inria.fr
+ -
+    ins: R. Robert
+    name: Raphael Robert
+    organization: Wire
+    email: raphael@wire.com
  -
     ins: J. Millican
     name: Jon Millican
@@ -35,11 +41,6 @@ author:
     name: Katriel Cohn-Gordon
     organization: University of Oxford
     email: me@katriel.co.uk
- -
-    ins: R. Robert
-    name: Raphael Robert
-    organization: Wire
-    email: raphael@wire.com
 
 informative:
   art:
