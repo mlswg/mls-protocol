@@ -5,7 +5,7 @@
 Network Working Group                                          R. Barnes
 Internet-Draft                                                     Cisco
 Intended status: Informational                             B. Beurdouche
-Expires: 25 December 2021                                Inria & Mozilla
+Expires: 20 January 2022                                 Inria & Mozilla
                                                                R. Robert
                                                                     Wire
                                                              J. Millican
@@ -14,7 +14,7 @@ Expires: 25 December 2021                                Inria & Mozilla
                                                                   Google
                                                           K. Cohn-Gordon
                                                     University of Oxford
-                                                            23 June 2021
+                                                            19 July 2021
 
 
               The Messaging Layer Security (MLS) Protocol
@@ -56,7 +56,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 25 December 2021.
+   This Internet-Draft will expire on 20 January 2022.
 
 Copyright Notice
 
@@ -2040,6 +2040,10 @@ psk_secret     = psk_secret_[0] || ... || psk_secret_[n-1]
        select (MLSPlaintextTBS.sender.sender_type) {
            case member:
                GroupContext context;
+
+           case preconfigured:
+           case new_member:
+               struct{};
        }
 
        opaque group_id<0..255>;
@@ -3815,9 +3819,9 @@ sender_data_nonce = ExpandWithLabel(sender_data_secret, "nonce", ciphertext_samp
    [I-D.irtf-cfrg-hpke]
               Barnes, R. L., Bhargavan, K., Lipp, B., and C. A. Wood,
               "Hybrid Public Key Encryption", Work in Progress,
-              Internet-Draft, draft-irtf-cfrg-hpke-09, 26 May 2021,
+              Internet-Draft, draft-irtf-cfrg-hpke-10, 7 July 2021,
               <https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-
-              hpke-09.txt>.
+              hpke-10>.
 
    [RFC2104]  Krawczyk, H., Bellare, M., and R. Canetti, "HMAC: Keyed-
               Hashing for Message Authentication", RFC 2104,
@@ -3876,14 +3880,14 @@ sender_data_nonce = ExpandWithLabel(sender_data_secret, "nonce", ciphertext_samp
               Architecture", Work in Progress, Internet-Draft, draft-
               ietf-mls-architecture-06, 8 March 2021,
               <https://datatracker.ietf.org/doc/html/draft-ietf-mls-
-              architecture-06.txt>.
+              architecture-06>.
 
    [I-D.ietf-trans-rfc6962-bis]
               Laurie, B., Langley, A., Kasper, E., Messeri, E., and R.
               Stradling, "Certificate Transparency Version 2.0", Work in
               Progress, Internet-Draft, draft-ietf-trans-rfc6962-bis-39,
               17 May 2021, <https://datatracker.ietf.org/doc/html/draft-
-              ietf-trans-rfc6962-bis-39.txt>.
+              ietf-trans-rfc6962-bis-39>.
 
    [RFC8032]  Josefsson, S. and I. Liusvaara, "Edwards-Curve Digital
               Signature Algorithm (EdDSA)", RFC 8032,
