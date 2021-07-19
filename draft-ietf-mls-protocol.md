@@ -1929,6 +1929,10 @@ struct {
     select (MLSPlaintextTBS.sender.sender_type) {
         case member:
             GroupContext context;
+
+        case preconfigured:
+        case new_member:
+            struct{};
     }
 
     opaque group_id<0..255>;
