@@ -1,6 +1,6 @@
 {
   "magic": "E!vIA5L86J2I",
-  "timestamp": "2021-07-04T00:59:20.556874+00:00",
+  "timestamp": "2021-07-20T01:03:21.257123+00:00",
   "repo": "mlswg/mls-protocol",
   "labels": [
     {
@@ -33811,6 +33811,48 @@
           "body": "",
           "createdAt": "2021-05-26T15:48:31Z",
           "updatedAt": "2021-05-26T15:48:31Z",
+          "comments": []
+        }
+      ]
+    },
+    {
+      "number": 474,
+      "id": "MDExOlB1bGxSZXF1ZXN0NjkyNjk5MTQ4",
+      "title": "Explicit blank cases in MLSPlaintextTBS",
+      "url": "https://github.com/mlswg/mls-protocol/pull/474",
+      "state": "MERGED",
+      "author": "eiqo",
+      "authorAssociation": "CONTRIBUTOR",
+      "assignees": [],
+      "labels": [],
+      "body": "The  `select` based on `MLSPlaintextTBS.sender.sender_type` seems ambiguous, as it does not state what happens to cases other than `member`. The TLS presentation language does not say anything on the matter.",
+      "createdAt": "2021-07-19T15:16:10Z",
+      "updatedAt": "2021-07-19T15:46:19Z",
+      "baseRepository": "mlswg/mls-protocol",
+      "baseRefName": "main",
+      "baseRefOid": "5c5663ca170c7a7bee73395cee42468e271479b7",
+      "headRepository": "eiqo/mls-protocol",
+      "headRefName": "blank",
+      "headRefOid": "88de926913e2add40e4ee320925b220752998d29",
+      "closedAt": "2021-07-19T15:46:19Z",
+      "mergedAt": "2021-07-19T15:46:19Z",
+      "mergedBy": "bifurcation",
+      "mergeCommit": {
+        "oid": "3c690fdc85114061b98ec56e3a6c605de0706d4d"
+      },
+      "comments": [],
+      "reviews": [
+        {
+          "id": "MDE3OlB1bGxSZXF1ZXN0UmV2aWV3NzA5Njc2MzM0",
+          "commit": {
+            "abbreviatedOid": "88de926"
+          },
+          "author": "bifurcation",
+          "authorAssociation": "COLLABORATOR",
+          "state": "APPROVED",
+          "body": "",
+          "createdAt": "2021-07-19T15:17:28Z",
+          "updatedAt": "2021-07-19T15:17:28Z",
           "comments": []
         }
       ]
