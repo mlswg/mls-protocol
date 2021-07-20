@@ -997,7 +997,7 @@ Elliptic-Curve-Point-to-Octet-String conversion according to {{SECG}}.
 
 The signatures used throughout this document are encoded as specified in
 {{?RFC8446}. In particular, ECDSA signatures are DER-encoded and EdDSA signatures
-are defined `r||s` as defined in {{?RFC8032}}.
+are defined as the concatenation of `r` and `s` as specified in {{?RFC8032}}.
 
 Note that each new credential that has not already been validated
 by the application MUST be validated against the Authentication
