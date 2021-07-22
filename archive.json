@@ -1,6 +1,6 @@
 {
   "magic": "E!vIA5L86J2I",
-  "timestamp": "2021-07-20T01:03:21.257123+00:00",
+  "timestamp": "2021-07-22T01:00:51.300071+00:00",
   "repo": "mlswg/mls-protocol",
   "labels": [
     {
@@ -33854,6 +33854,106 @@
           "createdAt": "2021-07-19T15:17:28Z",
           "updatedAt": "2021-07-19T15:17:28Z",
           "comments": []
+        }
+      ]
+    },
+    {
+      "number": 475,
+      "id": "MDExOlB1bGxSZXF1ZXN0NjkzNTMyNzc4",
+      "title": "Clarify signature encoding",
+      "url": "https://github.com/mlswg/mls-protocol/pull/475",
+      "state": "OPEN",
+      "author": "franziskuskiefer",
+      "authorAssociation": "CONTRIBUTOR",
+      "assignees": [],
+      "labels": [],
+      "body": "The spec doesn't say anything about the signature encoding yet.\r\nThis PR adds a paragraph clarifying that signature encoding is done like in TLS.",
+      "createdAt": "2021-07-20T14:50:03Z",
+      "updatedAt": "2021-07-21T06:56:35Z",
+      "baseRepository": "mlswg/mls-protocol",
+      "baseRefName": "main",
+      "baseRefOid": "3c690fdc85114061b98ec56e3a6c605de0706d4d",
+      "headRepository": "franziskuskiefer/mls-protocol",
+      "headRefName": "patch-4",
+      "headRefOid": "e0b3a4ac91756e29d5277bf3654b2308be250177",
+      "closedAt": null,
+      "mergedAt": null,
+      "mergedBy": null,
+      "mergeCommit": null,
+      "comments": [],
+      "reviews": [
+        {
+          "id": "MDE3OlB1bGxSZXF1ZXN0UmV2aWV3NzEwNzY1MDY1",
+          "commit": {
+            "abbreviatedOid": "e2d4c76"
+          },
+          "author": "bifurcation",
+          "authorAssociation": "COLLABORATOR",
+          "state": "APPROVED",
+          "body": "",
+          "createdAt": "2021-07-20T16:07:51Z",
+          "updatedAt": "2021-07-20T16:07:51Z",
+          "comments": []
+        },
+        {
+          "id": "MDE3OlB1bGxSZXF1ZXN0UmV2aWV3NzEwNzY5NTU1",
+          "commit": {
+            "abbreviatedOid": "e2d4c76"
+          },
+          "author": "bifurcation",
+          "authorAssociation": "COLLABORATOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2021-07-20T16:09:49Z",
+          "updatedAt": "2021-07-20T16:10:00Z",
+          "comments": [
+            {
+              "originalPosition": 5,
+              "body": "I think the CI error we're getting might require this to be `{{!RFC8446}}` (`? -> !`)\r\n",
+              "createdAt": "2021-07-20T16:09:49Z",
+              "updatedAt": "2021-07-20T16:10:00Z"
+            }
+          ]
+        },
+        {
+          "id": "MDE3OlB1bGxSZXF1ZXN0UmV2aWV3NzExMzE0Mzc0",
+          "commit": {
+            "abbreviatedOid": "e0b3a4a"
+          },
+          "author": "raphaelrobert",
+          "authorAssociation": "MEMBER",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2021-07-21T06:55:45Z",
+          "updatedAt": "2021-07-21T06:55:45Z",
+          "comments": [
+            {
+              "originalPosition": 6,
+              "body": "There is still a '?' here.",
+              "createdAt": "2021-07-21T06:55:45Z",
+              "updatedAt": "2021-07-21T06:55:45Z"
+            }
+          ]
+        },
+        {
+          "id": "MDE3OlB1bGxSZXF1ZXN0UmV2aWV3NzExMzE0OTY2",
+          "commit": {
+            "abbreviatedOid": "e0b3a4a"
+          },
+          "author": "franziskuskiefer",
+          "authorAssociation": "CONTRIBUTOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2021-07-21T06:56:35Z",
+          "updatedAt": "2021-07-21T06:56:35Z",
+          "comments": [
+            {
+              "originalPosition": 6,
+              "body": "yeah, that should be fine",
+              "createdAt": "2021-07-21T06:56:35Z",
+              "updatedAt": "2021-07-21T06:56:35Z"
+            }
+          ]
         }
       ]
     }
