@@ -2532,7 +2532,7 @@ uses:
    regard to any removed members and PCS for the committer and any updated
    members.
 
-When processing a Commit, three different GroupContexts are used:
+When creating or processing a Commit, three different GroupContexts are used:
 
 1. The "old GroupContext" is the GroupContext for the epoch before the commit.
    This is used when signing the MLSPlainText so that existing group members
