@@ -2532,21 +2532,23 @@ uses:
    regard to any removed members and PCS for the committer and any updated
    members.
 
-When creating or processing a Commit, three different GroupContexts are used:
+When creating or processing a Commit, three different ratchet trees and
+their associated GroupContexts are used:
 
-1. The "old GroupContext" is the GroupContext for the epoch before the commit.
-   This is used when signing the MLSPlainText so that existing group members
-   can verify the signature before processing the commit.
-2. The "provisional GroupContext" is the GroupContext constructed after
-   applying the proposals that are referenced by the Commit.  This GroupContext
-   uses the epoch number for the new epoch, and the old confirmed transcript
-   hash.  This is used when creating the UpdatePath, if the UpdatePath is
-   needed.
-3. The "new GroupContext" is the GroupContext constructed after applying the
-   proposals and the UpdatePath (if any).  This GroupContext uses the epoch
-   number for the new epoch, and the new confirmed transcript hash.  This is
-   used when deriving the new epoch secrets, and is the only GroupContext that
-   newly-added members will have.
+1. "Old" refers to the ratchet tree and GroupContext for the epoch before the
+   commit.  The old GroupContext is used when signing the MLSPlainText so that
+   existing group members can verify the signature before processing the
+   commit.
+2. "Provisional" refers to the ratchet tree and GroupContext constructed after
+   applying the proposals that are referenced by the Commit.  The provisional
+   GroupContext uses the epoch number for the new epoch, and the old confirmed
+   transcript hash.  This is used when creating the UpdatePath, if the
+   UpdatePath is needed.
+3. "New" refers to the ratchet tree and GroupContext constructed after applying
+   the proposals and the UpdatePath (if any).  The new GroupContext uses the
+   epoch number for the new epoch, and the new confirmed transcript hash.  This
+   is used when deriving the new epoch secrets, and is the only GroupContext
+   that newly-added members will have.
 
 A member of the group creates a Commit message and the corresponding Welcome
 message at the same time, by taking the following steps:
@@ -2555,7 +2557,7 @@ message at the same time, by taking the following steps:
   field populated from Proposals received during the current epoch, and an empty
   `path` field.
 
-* Generate a provisional GroupContext object by applying the proposals
+* Generate the provisional ratchet tree and GroupContext by applying the proposals
   referenced in the initial Commit object, as described in {{proposals}}. Update
   proposals are applied first, followed by Remove proposals, and then finally
   Add proposals. Add proposals are applied in the order listed in the
@@ -2573,37 +2575,41 @@ message at the same time, by taking the following steps:
   based on the proposals that are in the commit (see above), then it MUST be
   populated.  Otherwise, the sender MAY omit the `path` field at its discretion.
 
-* If populating the `path` field: Create an UpdatePath using the new tree and
-  the provisional GroupContext. Any new member (from an add proposal) MUST be
+* If populating the `path` field: Create an UpdatePath using the provisional
+  ratchet tree and GroupContext. Any new member (from an add proposal) MUST be
   exluded from the resolution during the computation of the UpdatePath.  The
   `leaf_key_package` for this UpdatePath must have a `parent_hash` extension.
 
    * Assign this UpdatePath to the `path` field in the Commit.
 
    * Apply the UpdatePath to the tree, as described in
-     {{synchronizing-views-of-the-tree}}. Define `commit_secret` as the value
-     `path_secret[n+1]` derived from the `path_secret[n]` value assigned to
-     the root node.
+     {{synchronizing-views-of-the-tree}}, creating the new ratchet tree. Define
+     `commit_secret` as the value `path_secret[n+1]` derived from the
+     `path_secret[n]` value assigned to the root node.
 
 * If not populating the `path` field: Set the `path` field in the Commit to the
   null optional.  Define `commit_secret` as the all-zero vector of the same
-  length as a `path_secret` value would be.
+  length as a `path_secret` value would be.  In this case, the new ratchet tree
+  is the same as the provisional ratchet tree.
 
 * If one or more PreSharedKey proposals are part of the commit, derive the `psk_secret`
   as specified in {{pre-shared-keys}}, where the order of PSKs in the derivation
   corresponds to the order of PreSharedKey proposals in the `proposals` vector.
   Otherwise, set `psk_secret` to a zero-length octet string.
 
-* Use the `init_secret` from the previous epoch, the `commit_secret` and the
-  `psk_secret` as defined in the previous steps, and the new GroupContext to
-  compute the new `joiner_secret`, `welcome_secret`, `epoch_secret`, and
-  derived secrets for the new epoch.
-
 * Construct an MLSPlaintext object containing the Commit object. Sign the
-  MLSPlaintext using the old GroupContext as context. Use the
-  `confirmation_key` for the new epoch to compute the `confirmation_tag` value,
-  and the `membership_key` for the old epoch to compute the `membership_tag`
-  value in the MLSPlaintext.
+  MLSPlaintext using the old GroupContext as context.
+  * Use the MLSPlaintext to update the confirmed transcript hash and generate
+    the new GroupContext.
+  * Use the `init_secret` from the previous epoch, the `commit_secret` and the
+    `psk_secret` as defined in the previous steps, and the new GroupContext to
+    compute the new `joiner_secret`, `welcome_secret`, `epoch_secret`, and
+    derived secrets for the new epoch.
+  * Use the `confirmation_key` for the new epoch to compute the
+    `confirmation_tag` value, and the `membership_key` for the old epoch to
+    compute the `membership_tag` value in the MLSPlaintext.
+  * Calculate the interim transcript hash using the new confirmed transcript
+    hash and the `confirmation_tag` from the MLSPlaintext.
 
 * Construct a GroupInfo reflecting the new state:
   * Group ID, epoch, tree, confirmed transcript hash, and interim transcript
@@ -2645,7 +2651,7 @@ A member of the group applies a Commit message by taking the following steps:
 * Verify that all PSKs specified in any PreSharedKey proposals in the `proposals` vector
   are available.
 
-* Generate a provisional GroupContext object by applying the proposals
+* Generate the provisional ratchet tree and GroupContext by applying the proposals
   referenced in the initial Commit object, as described in {{proposals}}. Update
   proposals are applied first, followed by Remove proposals, and then finally
   Add proposals. Add proposals are applied in the order listed in the
@@ -2660,9 +2666,9 @@ A member of the group applies a Commit message by taking the following steps:
   any Update or Remove proposals, or if it's empty. Otherwise, the `path` value
   MAY be omitted.
 
-* If the `path` value is populated: Process the `path` value using the new ratchet
-  tree and the provisional GroupContext, to update the ratchet tree and generate the
-  `commit_secret`:
+* If the `path` value is populated: Process the `path` value using the
+  provisional ratchet tree and GroupContext, to generate the new ratchet tree
+  and the `commit_secret`:
 
   * Apply the UpdatePath to the tree, as described in
     {{synchronizing-views-of-the-tree}}, and store `leaf_key_package` at the
@@ -2677,8 +2683,8 @@ A member of the group applies a Commit message by taking the following steps:
 * If the `path` value is not populated: Define `commit_secret` as the all-zero
   vector of the same length as a `path_secret` value would be.
 
-* Update the new GroupContext's confirmed and interim transcript hashes using the
-  new Commit.
+* Update the confirmed and interim transcript hashes using the new Commit, and
+  generate the new GroupContext.
 
 * If the `proposals` vector contains any PreSharedKey proposals, derive the
   `psk_secret` as specified in {{pre-shared-keys}}, where the order of PSKs in
@@ -2694,7 +2700,7 @@ A member of the group applies a Commit message by taking the following steps:
   for this message, as described below, and verify that it is the same as the
   `confirmation_tag` field in the MLSPlaintext object.
 
-* If the above checks are successful, consider the updated GroupContext object
+* If the above checks are successful, consider the new GroupContext object
   as the current state of the group.
 
 * If the Commit included a ReInit proposal, the client MUST NOT use the group to
