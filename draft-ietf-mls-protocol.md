@@ -2258,6 +2258,11 @@ struct {
 } Update;
 ~~~~~
 
+The KeyPackage contained in an `Update` proposal MUST share the values of the
+following fields with the KeyPackage it replaces in the tree: `version`,
+`cipher_suite`, `credential.identity`, `endpoint_id`. However, it MUST NOT share
+a signature key with any other KeyPackage in the tree.
+
 A member of the group applies an Update message by taking the following steps:
 
 * Replace the sender's leaf KeyPackage with the one contained in
