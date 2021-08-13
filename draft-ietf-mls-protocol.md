@@ -2261,7 +2261,8 @@ struct {
 The KeyPackage contained in an `Update` proposal MUST share the values of the
 following fields with the KeyPackage it replaces in the tree: `version`,
 `cipher_suite`, `credential.identity`, `endpoint_id`. However, it MUST NOT share
-a signature key with any other KeyPackage in the tree.
+a signature key with any other KeyPackage in the tree and it MUST NOT contain
+the same `hpke_init_key` as the KeyPackage it replaces.
 
 A member of the group applies an Update message by taking the following steps:
 
@@ -2498,7 +2499,8 @@ proposals that contain KeyPackages with an `(credential.identity, endpoint_id)`
 tuple that matches that of an existing KeyPackage in the group MUST be
 considered invalid. The comitter MUST consider invalid any Add or Update
 proposal if the Credential in the contained KeyPackage shares the same signature
-key with a Credential in any leaf of the group.
+key with a Credential in any leaf of the group, or indeed if the KeyPackage
+shares the same `hpke_init_key` with another KeyPackage in the group.
 
 The Commit MUST NOT combine proposals sent within different epochs. In the event
 that a valid proposal is omitted from the next Commit, the sender of the
