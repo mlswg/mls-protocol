@@ -1007,13 +1007,11 @@ provide some public information about a user. KeyPackage
 structures provide information about a client that any existing
 member can use to add this client to the group asynchronously.
 
-A KeyPackage object specifies a ciphersuite that the client
-supports, as well as providing a public key that others can use
-for key agreement. The client's signature key can be updated
-throughout the lifetime of the group by sending a new KeyPackage
-with a new Credential. However, the identity MUST be the same in
-both Credentials and the new Credential MUST be validated by the
-authentication service.
+A KeyPackage object specifies a ciphersuite that the client supports, as well as
+providing a public key that others can use for key agreement.
+
+The `identity` arising from the credential, together with the `endpoint_id` in
+the KeyPackage serve to uniquely identify a client in a group.
 
 When used as InitKeys, KeyPackages are intended to be used only once and SHOULD NOT
 be reused except in case of last resort. (See {{initkey-reuse}}).
@@ -1050,6 +1048,7 @@ struct {
     ProtocolVersion version;
     CipherSuite cipher_suite;
     HPKEPublicKey hpke_init_key;
+    opaque endpoint_id<0..255>;
     Credential credential;
     Extension extensions<8..2^32-1>;
     opaque signature<0..2^16-1>;
