@@ -2492,8 +2492,13 @@ If there are multiple proposals that apply to the same leaf, the committer
 chooses one and includes only that one in the Commit, considering the rest
 invalid. The committer MUST prefer any Remove received, or the most recent
 Update for the leaf if there are no Removes. If there are multiple Add proposals
-for the same client, the committer again chooses one to include and considers
-the rest invalid.
+containing KeyPackages with the same tuple `(credential.identity, endpoint_id)`
+the committer again chooses one to include and considers the rest invalid. Add
+proposals that contain KeyPackages with an `(credential.identity, endpoint_id)`
+tuple that matches that of an existing KeyPackage in the group MUST be
+considered invalid. The comitter MUST consider invalid any Add or Update
+proposal if the Credential in the contained KeyPackage shares the same signature
+key with a Credential in any leaf of the group.
 
 The Commit MUST NOT combine proposals sent within different epochs. In the event
 that a valid proposal is omitted from the next Commit, the sender of the
@@ -2570,8 +2575,11 @@ message at the same time, by taking the following steps:
   new member (from an add proposal) MUST be exluded from the resolution during
   the computation of the UpdatePath. The GroupContext for this operation uses
   the `group_id`, `epoch`, `tree_hash`, and `confirmed_transcript_hash` values
-  in the initial GroupContext object.  The `leaf_key_package` for this
-  UpdatePath must have a `parent_hash` extension.
+  in the initial GroupContext object. The `leaf_key_package` for this UpdatePath
+  must have a `parent_hash` extension. Note, that the KeyPackage in the
+  `UpdatePath` effectively updates an existing KeyPackage in the group and thus
+  MUST adhere to the same restrictions as KeyPackages used in `Update`
+  proposals.
 
    * Assign this UpdatePath to the `path` field in the Commit.
 
