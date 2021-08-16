@@ -448,8 +448,8 @@ directly to the new member (there's no need to send it to the group). Only after
 A has received its Commit message back from the server does it update its state
 to reflect the new member's addition.
 
-Upon receiving the Welcome message, the new member will be able to read and send 
-new messages to the group. Messages received before the client has joined the 
+Upon receiving the Welcome message, the new member will be able to read and send
+new messages to the group. Messages received before the client has joined the
 group are ignored.
 
 ~~~~~
@@ -1286,6 +1286,7 @@ The following general rules apply:
 
 ~~~~~
 struct {
+    WireFormat wire_format;
     opaque group_id<0..255>;
     uint64 epoch;
     Sender sender;
@@ -1844,7 +1845,14 @@ struct {
     opaque mac_value<0..255>;
 } MAC;
 
+enum {
+  mls_plaintext(0),
+  mls_ciphertext(1),
+  (255)
+} WireFormat;
+
 struct {
+    WireFormat wire_format;
     opaque group_id<0..255>;
     uint64 epoch;
     Sender sender;
@@ -1868,6 +1876,7 @@ struct {
 } MLSPlaintext;
 
 struct {
+    WireFormat wire_format = mls_ciphertext;
     opaque group_id<0..255>;
     uint64 epoch;
     ContentType content_type;
@@ -1922,6 +1931,7 @@ struct {
             GroupContext context;
     }
 
+    WireFormat wire_format;
     opaque group_id<0..255>;
     uint64 epoch;
     Sender sender;
@@ -1957,8 +1967,9 @@ membership_tag = MAC(membership_key, MLSPlaintextTBM);
 ~~~~~
 
 Note that the `membership_tag` only needs to be computed for MLSPlaintext
-messages that will be sent over the wire, and isn't needed for those that will
-be encrypted and transmitted as MLSCiphertext messages.
+messages that will be sent over the wire (`wire_format == mls_plaintext`).  It
+isn't needed for messages that will be encrypted and transmitted as
+MLSCiphertext messages (`wire_format == mls_ciphertext`).
 
 ## Content Encryption
 
