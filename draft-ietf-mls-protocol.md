@@ -995,6 +995,10 @@ the format specified {{?RFC8032}}.  For ciphersuites using ECDSA with the NIST
 curves P-256 or P-521, the public key is the output of the uncompressed
 Elliptic-Curve-Point-to-Octet-String conversion according to {{SECG}}.
 
+The signatures used throughout this document are encoded as specified in
+{{!RFC8446}}. In particular, ECDSA signatures are DER-encoded and EdDSA signatures
+are defined as the concatenation of `r` and `s` as specified in {{?RFC8032}}.
+
 Note that each new credential that has not already been validated
 by the application MUST be validated against the Authentication
 Service.
