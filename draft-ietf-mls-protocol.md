@@ -2391,6 +2391,26 @@ to recognize which messages conatain AppAcks.  The application can also have
 clients enforce an AppAck schedule, reporting loss if an AppAck is not received
 at the expected time.
 
+### GroupContextExtensions
+
+A GroupContextExtensions proposal is used to update the list of extensions in
+the GroupContext for the group.
+
+```
+struct {
+  Extension extensions<0..2^32-1>;
+} GroupContextExtensions;
+```
+
+A member of the group applies a GroupContextExtensions proposal by removing all
+of the existing extensions from the GroupContext object for the group and
+replacing them with the list of extensions in the proposal.  (This is a
+wholesale replacement, not a merge.  An extension is only carried over if the
+sender of the proposal includes it in the new list.)  Note that once the
+GroupContext is updated, its inclusion in the confirmation_tag by way of the key
+schedule will confirm that all members of the group agree on the extensions in
+use.
+
 ### External Proposals
 
 Add and Remove proposals can be constructed and sent to the group by a party
