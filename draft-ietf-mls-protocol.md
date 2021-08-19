@@ -2182,19 +2182,21 @@ enum {
     reinit(5),
     external_init(6),
     app_ack(7),
+    group_context_extensions(8),
     (255)
 } ProposalType;
 
 struct {
     ProposalType msg_type;
     select (Proposal.msg_type) {
-        case add:           Add;
-        case update:        Update;
-        case remove:        Remove;
-        case psk:           PreSharedKey;
-        case reinit:        ReInit;
-        case external_init: ExternalInit;
-        case app_ack:       AppAck;
+        case add:                      Add;
+        case update:                   Update;
+        case remove:                   Remove;
+        case psk:                      PreSharedKey;
+        case reinit:                   ReInit;
+        case external_init:            ExternalInit;
+        case app_ack:                  AppAck;
+        case group_context_extensions: GroupContextExtensions;
     };
 } Proposal;
 ~~~~~
