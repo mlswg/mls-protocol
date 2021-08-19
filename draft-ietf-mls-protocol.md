@@ -448,8 +448,8 @@ directly to the new member (there's no need to send it to the group). Only after
 A has received its Commit message back from the server does it update its state
 to reflect the new member's addition.
 
-Upon receiving the Welcome message, the new member will be able to read and send 
-new messages to the group. Messages received before the client has joined the 
+Upon receiving the Welcome message, the new member will be able to read and send
+new messages to the group. Messages received before the client has joined the
 group are ignored.
 
 ~~~~~
@@ -1539,6 +1539,7 @@ enum {
   external(1),
   reinit(2),
   branch(3),
+  resync(4)
   (255)
 } PSKType;
 
@@ -1554,6 +1555,9 @@ struct {
 
     case branch:
       opaque psk_group_id<0..255>;
+      uint64 psk_epoch;
+
+    case resync:
       uint64 psk_epoch;
   }
   opaque psk_nonce<0..255>;
@@ -2757,21 +2761,34 @@ External Commits.
 
 External Commits work like regular Commits, with a few differences:
 
-* External Commits MUST reference an Add Proposal that adds the issuing new
-  member to the group
+* The proposals included by value in an External Commit MUST meet the following
+  conditions:
+  * There MUST be a single Add proposal that adds the new issuing new member to
+    the group
+  * There MUST be a single ExternalInit proposal
+  * There MUST NOT be any Update proposals
+  * If a Remove proposal is present, then:
+    * The identity of the removed leaf MUST be the same as the identity in the
+      Add KeyPackage (in the same sense as for an Update)
+    * There MUST be a PSK proposal of type ReInit, referencing an earlier epoch
+      of this group.
+* The proposals included by reference in an External Commit MUST meet the following
+  conditions:
+  * There MUST NOT be any ExternalInit proposals
 * External Commits MUST contain a `path` field (and is therefore a "full"
   Commit)
 * External Commits MUST be signed by the new member.  In particular, the
   signature on the enclosing MLSPlaintext MUST verify using the public key for
   the credential in the `leaf_key_package` of the `path` field.
-* An external commit MUST reference no more than one ExternalInit proposal, and the
-  ExternalInit proposal MUST be supplied by value, not by reference. When
-  processing a Commit, both existing and new members MUST use the external init
-  secret as described in {{external-initialization}}.
+* When processing a Commit, both existing and new members MUST use the external
+  init secret as described in {{external-initialization}}.
 * The sender type for the MLSPlaintext encapsulating the External Commit MUST be
   `new_member`
-* If the Add Proposal is also issued by the new member, its member SenderType
-  MUST be `new_member`
+
+In other words, External Commits come in two "flavors" -- a "join" commit that
+adds the sender to the group or a "resync" commit that replaces a member's prior
+appearance with a new one.  In the latter case, the member's prior membership is
+demonstrated by the inclusion of a PSK proposal.
 
 ### Welcoming New Members
 
