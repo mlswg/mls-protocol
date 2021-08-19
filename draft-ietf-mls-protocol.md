@@ -1422,7 +1422,7 @@ proceeds as shown in the following diagram:
     commit_secret -> KDF.Extract
                          |
                          V
-                   DeriveSecret(., "joiner")
+                   ExpandWithLabel(., "joiner", GroupContext_[n], KDF.Nh)
                          |
                          V
                     joiner_secret
