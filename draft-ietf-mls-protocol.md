@@ -448,8 +448,8 @@ directly to the new member (there's no need to send it to the group). Only after
 A has received its Commit message back from the server does it update its state
 to reflect the new member's addition.
 
-Upon receiving the Welcome message, the new member will be able to read and send 
-new messages to the group. Messages received before the client has joined the 
+Upon receiving the Welcome message, the new member will be able to read and send
+new messages to the group. Messages received before the client has joined the
 group are ignored.
 
 ~~~~~
@@ -1355,8 +1355,8 @@ encryption to the respective resolution node.
 The HPKECiphertext values are computed as
 
 ~~~~~
-kem_output, context = SetupBaseS(node_public_key, "")
-ciphertext = context.Seal(group_context, path_secret)
+kem_output, context = SetupBaseS(node_public_key, group_context)
+ciphertext = context.Seal("", path_secret)
 ~~~~~
 
 where `node_public_key` is the public key of the node that the path
