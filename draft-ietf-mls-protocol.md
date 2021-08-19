@@ -448,8 +448,8 @@ directly to the new member (there's no need to send it to the group). Only after
 A has received its Commit message back from the server does it update its state
 to reflect the new member's addition.
 
-Upon receiving the Welcome message, the new member will be able to read and send 
-new messages to the group. Messages received before the client has joined the 
+Upon receiving the Welcome message, the new member will be able to read and send
+new messages to the group. Messages received before the client has joined the
 group are ignored.
 
 ~~~~~
@@ -1312,8 +1312,8 @@ interim_transcript_hash_[n+1] =
 Thus the `confirmed_transcript_hash` field in a GroupContext object represents a
 transcript over the whole history of MLSPlaintext Commit messages, up to the
 confirmation tag field in the current MLSPlaintext message.  The confirmation tag
-is then included in the transcript for the next epoch.  The interim transcript
-hash is passed to new members in the GroupInfo struct, and enables existing
+is then included in the transcript for the next epoch.  The is computed new
+members using the confirmation tag in the GroupInfo struct, and enables existing
 members to incorporate a Commit message into the transcript without having to
 store the whole MLSPlaintextCommitAuthData structure.
 
@@ -2580,9 +2580,10 @@ message at the same time, by taking the following steps:
 * Update the tree in the provisional state by applying the direct path
 
 * Construct a GroupInfo reflecting the new state:
-  * Group ID, epoch, tree, confirmed transcript hash, and interim transcript
-    hash from the new state
+  * Group ID, epoch, tree, confirmed transcript hash, interim transcript
+    hash, and group context extensions from the new state
   * The confirmation_tag from the MLSPlaintext object
+  * Other extensions as defined by the application
   * Sign the GroupInfo using the member's private signing key
   * Encrypt the GroupInfo using the key and nonce derived from the `joiner_secret`
     for the new epoch (see {{welcoming-new-members}})
@@ -2801,7 +2802,8 @@ struct {
   uint64 epoch;
   opaque tree_hash<0..255>;
   opaque confirmed_transcript_hash<0..255>;
-  Extension extensions<0..2^32-1>;
+  Extension group_context_extensions<0..2^32-1>;
+  Extension other_extensions<0..2^32-1>;
   MAC confirmation_tag;
   uint32 signer_index;
   opaque signature<0..2^16-1>;
@@ -2886,9 +2888,11 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
   divided by two.
 
 * Construct a new group state using the information in the GroupInfo object.
-  The new member's position in the tree is `index`, as defined above.  In
-  particular, the confirmed transcript hash for the new state is the
-  `prior_confirmed_transcript_hash` in the GroupInfo object.
+    * The GroupContext contains the `group_id`, `epoch`, `tree_hash`,
+      `confirmed`transcript_hash`, and `group_context_extensions` fields from
+      the GroupInfo object.
+
+    * The new member's position in the tree is `index`, as defined above.
 
     * Update the leaf at index `index` with the private key corresponding to the
       public key in the node.
@@ -3408,7 +3412,9 @@ Template:
   list:
 
   * KP: KeyPackage messages
-  * GI: GroupInfo objects
+  * GC: GroupContext objects (and the `group_context_extensions` field of
+    GroupInfo objects)
+  * GI: The `other_extensions` field of GroupInfo objects
 
 * Recommended: Whether support for this extension is recommended by the IETF MLS
   WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
