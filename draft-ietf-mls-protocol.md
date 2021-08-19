@@ -448,8 +448,8 @@ directly to the new member (there's no need to send it to the group). Only after
 A has received its Commit message back from the server does it update its state
 to reflect the new member's addition.
 
-Upon receiving the Welcome message, the new member will be able to read and send 
-new messages to the group. Messages received before the client has joined the 
+Upon receiving the Welcome message, the new member will be able to read and send
+new messages to the group. Messages received before the client has joined the
 group are ignored.
 
 ~~~~~
@@ -618,22 +618,7 @@ A   B   C   D   E   F   G
 
 Each node in the tree is assigned a _node index_, starting at zero and
 running from left to right.  A node is a leaf node if and only if it
-has an even index.  The node indices for the nodes in the above tree
-are as follows:
-
-* 0 = A
-* 1 = AB
-* 2 = B
-* 3 = ABCD
-* 4 = C
-* 5 = CD
-* 6 = D
-* 7 = ABCDEFG
-* 8 = E
-* 9 = EF
-* 10 = F
-* 11 = EFG
-* 12 = G
+has an even index.
 
 The leaves of the tree are indexed separately, using a _leaf index_,
 since the protocol messages only need to refer to leaves in the
@@ -641,15 +626,25 @@ tree.  Like nodes, leaves are numbered left to right.  The node with
 leaf index `k` is also called the `k-th` leaf.  Note that
 given the above numbering, a node is a leaf node if and only if it
 has an even node index, and a leaf node's leaf index is half its
-node index.  The leaf indices in the above tree are as follows:
+node index.
 
-* 0 = A
-* 1 = B
-* 2 = C
-* 3 = D
-* 4 = E
-* 5 = F
-* 6 = G
+The node and leaf indices in the above tree are as follows:
+
+| Node    | Node Index | Leaf Index |
+|:--------|:----------:|:----------:|
+| A       | 0          | 0          |
+| AB      | 1          |            |
+| B       | 2          | 1          |
+| ABCD    | 3          |            |
+| C       | 4          | 2          |
+| CD      | 5          |            |
+| D       | 6          | 3          |
+| ABCDEFG | 7          |            |
+| E       | 8          | 4          |
+| EF      | 9          |            |
+| F       | 10         | 5          |
+| EFG     | 11         |            |
+| G       | 12         | 6          |
 
 ## Ratchet Tree Nodes {#resolution-example}
 
@@ -1211,7 +1206,7 @@ might include a Key Package depending on whether or not it is blank.
 
 ~~~~~
 struct {
-    uint32 node_index;
+    uint32 node_index; // node index
     optional<KeyPackage> key_package;
 } LeafNodeHashInput;
 ~~~~~
@@ -1231,7 +1226,7 @@ struct {
 } ParentNode;
 
 struct {
-    uint32 node_index;
+    uint32 node_index; // node index
     optional<ParentNode> parent_node;
     opaque left_hash<0..255>;
     opaque right_hash<0..255>;
@@ -1573,9 +1568,9 @@ computed as follows:
 
 ~~~~~
 struct {
-    PreSharedKeyID id;
-    uint16 index;
-    uint16 count;
+    PreSharedKeyID psk_id;
+    uint16 psk_index;       // i
+    uint16 count;           // n
 } PSKLabel;
 
 psk_input_[i] = KDF.Extract(0, psk_[i])
@@ -1610,7 +1605,7 @@ DeriveTreeSecret(Secret, Label, Node, Generation, Length) =
 Where TreeContext is specified as:
 
 struct {
-    uint32 node = Node;
+    uint32 node = Node; // node index
     uint32 generation = Generation;
 } TreeContext;
 ~~~~
@@ -1669,7 +1664,7 @@ they send during that epoch. Each key/nonce pair MUST NOT be used to encrypt
 more than one message.
 
 Keys, nonces, and the secrets in ratchets are derived using
-DeriveTreeSecret. The context in a given call consists of the index
+DeriveTreeSecret. The context in a given call consists of the node index
 of the sender's leaf in the ratchet tree and the current position in
 the ratchet.  In particular, the node index of the sender's leaf in the
 ratchet tree is the same as the node index of the leaf in the Secret Tree
@@ -2078,10 +2073,10 @@ struct {
 } MLSSenderDataAAD;
 ~~~~~
 
-When parsing a SenderData struct as part of message decryption, the
-recipient MUST verify that the sender field represents an occupied
-leaf in the ratchet tree.  In particular, the sender index value
-MUST be less than the number of leaves in the tree.
+When parsing a SenderData struct as part of message decryption, if the
+SenderType is `member`,  the recipient MUST verify that the sender field
+represents an occupied leaf in the ratchet tree.  In particular, the sender
+index value MUST be less than the number of leaves in the tree.
 
 # Group Creation
 
@@ -2255,12 +2250,12 @@ A member of the group applies an Update message by taking the following steps:
 
 ### Remove
 
-A Remove proposal requests that the client at a specified index in the tree be
-removed from the group.
+A Remove proposal requests that the client at a specified leaf index in the tree
+be removed from the group.
 
 ~~~~~
 struct {
-    uint32 removed;
+    uint32 removed; // leaf index
 } Remove;
 ~~~~~
 
@@ -2721,7 +2716,7 @@ struct {
     opaque interim_transcript_hash<0..255>;
     Extension extensions<0..2^32-1>;
     HPKEPublicKey external_pub;
-    uint32 signer_index;
+    uint32 signer_index; // leaf index
     opaque signature<0..2^16-1>;
 } PublicGroupState;
 ~~~
@@ -2803,7 +2798,7 @@ struct {
   opaque confirmed_transcript_hash<0..255>;
   Extension extensions<0..2^32-1>;
   MAC confirmation_tag;
-  uint32 signer_index;
+  uint32 signer_index; // leaf index
   opaque signature<0..2^16-1>;
 } GroupInfo;
 
@@ -2881,9 +2876,7 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 
 * Identify a leaf in the `tree` array (any even-numbered node) whose
   `key_package` field is identical to the the KeyPackage.  If no such field
-  exists, return an error.  Let `index` represent the index of this node among
-  the leaves in the tree, namely the index of the node in the `tree` array
-  divided by two.
+  exists, return an error.  Let `index` represent the leaf index of this node.
 
 * Construct a new group state using the information in the GroupInfo object.
   The new member's position in the tree is `index`, as defined above.  In
@@ -3613,7 +3606,7 @@ def node_width(n):
     else:
         return 2*(n - 1) + 1
 
-# The index of the root node of a tree with n leaves.
+# The node index of the root node of a tree with n leaves.
 def root(n):
     w = node_width(n)
     return (1 << log2(w)) - 1
