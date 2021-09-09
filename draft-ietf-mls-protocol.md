@@ -1311,11 +1311,12 @@ interim_transcript_hash_[n+1] =
 
 Thus the `confirmed_transcript_hash` field in a GroupContext object represents a
 transcript over the whole history of MLSPlaintext Commit messages, up to the
-confirmation tag field in the current MLSPlaintext message.  The confirmation tag
-is then included in the transcript for the next epoch.  The is computed new
-members using the confirmation tag in the GroupInfo struct, and enables existing
-members to incorporate a Commit message into the transcript without having to
-store the whole MLSPlaintextCommitAuthData structure.
+confirmation tag field in the current MLSPlaintext message.  The confirmation
+tag is then included in the transcript for the next epoch.  The interim
+transcript hash is computed by new members using the confirmation tag in the
+GroupInfo struct, and enables existing members to incorporate a Commit message
+into the transcript without having to store the whole MLSPlaintextCommitAuthData
+structure.
 
 As shown above, when a new group is created, the `interim_transcript_hash` field
 is set to the zero-length octet string.
@@ -2911,7 +2912,7 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 
 * Construct a new group state using the information in the GroupInfo object.
     * The GroupContext contains the `group_id`, `epoch`, `tree_hash`,
-      `confirmed`transcript_hash`, and `group_context_extensions` fields from
+      `confirmed_transcript_hash`, and `group_context_extensions` fields from
       the GroupInfo object.
 
     * The new member's position in the tree is `index`, as defined above.
