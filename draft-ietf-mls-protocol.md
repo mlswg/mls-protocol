@@ -1569,8 +1569,8 @@ computed as follows:
 ~~~~~
 struct {
     PreSharedKeyID psk_id;
-    uint16 psk_index;       // i
-    uint16 count;           // n
+    uint16 psk_index;       // i in the below notation
+    uint16 count;           // n in the below notation
 } PSKLabel;
 
 psk_input_[i] = KDF.Extract(0, psk_[i])
@@ -2037,7 +2037,7 @@ encrypted, the sender data is encoded as an object of the following form:
 
 ~~~~~
 struct {
-    uint32 sender;
+    uint32 sender; // leaf index
     uint32 generation;
     opaque reuse_guard[4];
 } MLSSenderData;
@@ -2072,11 +2072,6 @@ struct {
     ContentType content_type;
 } MLSSenderDataAAD;
 ~~~~~
-
-When parsing a SenderData struct as part of message decryption, if the
-SenderType is `member`,  the recipient MUST verify that the sender field
-represents an occupied leaf in the ratchet tree.  In particular, the sender
-index value MUST be less than the number of leaves in the tree.
 
 # Group Creation
 
