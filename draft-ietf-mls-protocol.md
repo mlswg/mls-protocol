@@ -1538,8 +1538,7 @@ enum {
   reserved(0),
   external(1),
   reinit(2),
-  branch(3),
-  resync(4)
+  branch(3)
   (255)
 } PSKType;
 
@@ -1555,9 +1554,6 @@ struct {
 
     case branch:
       opaque psk_group_id<0..255>;
-      uint64 psk_epoch;
-
-    case resync:
       uint64 psk_epoch;
   }
   opaque psk_nonce<0..255>;
@@ -2767,11 +2763,9 @@ External Commits work like regular Commits, with a few differences:
     the group
   * There MUST be a single ExternalInit proposal
   * There MUST NOT be any Update proposals
-  * If a Remove proposal is present, then:
-    * The identity of the removed leaf MUST be the same as the identity in the
-      Add KeyPackage (in the same sense as for an Update)
-    * There MUST be a PSK proposal of type ReInit, referencing an earlier epoch
-      of this group.
+  * If a Remove proposal is present, then identity and endpoint ID of the
+    removed leaf MUST be the same as the corresponding values in the Add
+    KeyPackage.
 * The proposals included by reference in an External Commit MUST meet the following
   conditions:
   * There MUST NOT be any ExternalInit proposals
@@ -2787,8 +2781,7 @@ External Commits work like regular Commits, with a few differences:
 
 In other words, External Commits come in two "flavors" -- a "join" commit that
 adds the sender to the group or a "resync" commit that replaces a member's prior
-appearance with a new one.  In the latter case, the member's prior membership is
-demonstrated by the inclusion of a PSK proposal.
+appearance with a new one.
 
 ### Welcoming New Members
 
@@ -3235,6 +3228,24 @@ key derived from the group secrets.
 The second form of authentication is that group members can verify a message
 originated from a particular member of the group. This is guaranteed by a
 digital signature on each message from the sender's signature key.
+
+The signature keys held by group members are critical to the security of MLS
+against active attacks.  If a member's signature key is compromised, then an
+attacker can create KeyPackages impersonating the member; depending on the
+application, this can then allow the attacker to join the group with the
+compromised member's identity.  For example, if a group has enabled external
+parties to join via external commits, then an attacker that has compromised a
+member's signature key could use an external commit to insert themselves into
+the group -- even using a "resync"-style external commit to replace the
+compromised member in the group.
+
+Applications can mitigate the risks of signature key compromise using pre-shared
+keys.  If a group requires joiners to know a PSK in addition to authenticating
+with a credential, then in order to mount an impersonation attack, the attacker
+would need to compromise the relevant PSK as well as the victim's signature key.
+The cost of this mitigation is that the application needs some external
+arrangement that ensures that the legitimate members of the group to have the
+required PSKs.
 
 ## Forward Secrecy and Post-Compromise Security
 
