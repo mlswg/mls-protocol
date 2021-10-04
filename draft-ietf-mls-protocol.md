@@ -1011,13 +1011,11 @@ provide some public information about a user. KeyPackage
 structures provide information about a client that any existing
 member can use to add this client to the group asynchronously.
 
-A KeyPackage object specifies a ciphersuite that the client
-supports, as well as providing a public key that others can use
-for key agreement. The client's signature key can be updated
-throughout the lifetime of the group by sending a new KeyPackage
-with a new Credential. However, the identity MUST be the same in
-both Credentials and the new Credential MUST be validated by the
-authentication service.
+A KeyPackage object specifies a ciphersuite that the client supports, as well as
+providing a public key that others can use for key agreement.
+
+The `identity` arising from the credential, together with the `endpoint_id` in
+the KeyPackage serve to uniquely identify a client in a group.
 
 When used as InitKeys, KeyPackages are intended to be used only once and SHOULD NOT
 be reused except in case of last resort. (See {{initkey-reuse}}).
@@ -1054,6 +1052,7 @@ struct {
     ProtocolVersion version;
     CipherSuite cipher_suite;
     HPKEPublicKey hpke_init_key;
+    opaque endpoint_id<0..255>;
     Credential credential;
     Extension extensions<8..2^32-1>;
     opaque signature<0..2^16-1>;
@@ -2263,6 +2262,14 @@ struct {
 } Update;
 ~~~~~
 
+The values in the following fields of the KeyPackage contained in an `Update`
+proposal MUST be the same as those of the KeyPackage it replaces in the tree.
+`version`, `cipher_suite`, `credential.identity`, `endpoint_id`. However, the
+value of the `credential.signature_key` field of the new KeyPackage MUST be
+different from that of all other KeyPackages in the tree. Furthermore, the value
+of the `hpke_init_key` field of the new KeyPackage MUST be different from that
+of the KeyPackage it replaces.
+
 A member of the group applies an Update message by taking the following steps:
 
 * Replace the sender's leaf KeyPackage with the one contained in
@@ -2492,8 +2499,14 @@ If there are multiple proposals that apply to the same leaf, the committer
 chooses one and includes only that one in the Commit, considering the rest
 invalid. The committer MUST prefer any Remove received, or the most recent
 Update for the leaf if there are no Removes. If there are multiple Add proposals
-for the same client, the committer again chooses one to include and considers
-the rest invalid.
+containing KeyPackages with the same tuple `(credential.identity, endpoint_id)`
+the committer again chooses one to include and considers the rest invalid. Add
+proposals that contain KeyPackages with an `(credential.identity, endpoint_id)`
+tuple that matches that of an existing KeyPackage in the group MUST be
+considered invalid. The comitter MUST consider invalid any Add or Update
+proposal if the Credential in the contained KeyPackage shares the same signature
+key with a Credential in any leaf of the group, or indeed if the KeyPackage
+shares the same `hpke_init_key` with another KeyPackage in the group.
 
 The Commit MUST NOT combine proposals sent within different epochs. In the event
 that a valid proposal is omitted from the next Commit, the sender of the
@@ -2588,6 +2601,9 @@ message at the same time, by taking the following steps:
   ratchet tree and GroupContext. Any new member (from an add proposal) MUST be
   exluded from the resolution during the computation of the UpdatePath.  The
   `leaf_key_package` for this UpdatePath must have a `parent_hash` extension.
+  Note that the KeyPackage in the `UpdatePath` effectively updates an existing
+  KeyPackage in the group and thus MUST adhere to the same restrictions as 
+  KeyPackages used in `Update` proposals.
 
    * Assign this UpdatePath to the `path` field in the Commit.
 
