@@ -1502,9 +1502,15 @@ where having a full run of updates across members is too expensive, or if
 the external group key establishment mechanism provides
 stronger security against classical or quantum adversaries.
 
-Note that, as a PSK may have a different lifetime than an update, it
-does not necessarily provide the same Forward Secrecy (FS) or Post-Compromise
-Security (PCS) guarantees as a Commit message.
+Note that, as a PSK may have a different lifetime than an update, it does not
+necessarily provide the same Forward Secrecy (FS) or Post-Compromise Security
+(PCS) guarantees as a Commit message.  Unlike the key pairs populated in the
+tree by an Update or Commit, which always freshly generated, PSKs may be
+pre-distributed and stored. This creates the risk that a PSK may be compromised
+in the process of distribution and storage. The security that the group gets
+from injecting a PSK thus depends on both the entropy of the PSK and the risk of
+compromise.  These factors are outside of the scope of this document, but should
+be considered by application designers relying on PSKs.
 
 Each PSK in MLS has a type that designates how it was provisioned.
 External PSKs are provided by the application, while recovery and re-init PSKs
