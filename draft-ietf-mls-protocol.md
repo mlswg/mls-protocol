@@ -2132,9 +2132,10 @@ The creator of a group MUST take the following steps to initialize the group:
   * Group ID: A value set by the creator
   * Epoch: 0
   * Tree hash: The root hash of the above ratchet tree
-  * Confirmed transcript hash: the zero-length octet string
-  * Interim transcript hash: the zero-length octet string
-  * Init secret: a fresh random value of size `KDF.Nh`
+  * Confirmed transcript hash: The zero-length octet string
+  * Interim transcript hash: The zero-length octet string
+  * Init secret: A fresh random value of size `KDF.Nh`
+  * Extensions: Any values of the creator's choosing
 
 * For each member, construct an Add proposal from the KeyPackage for that
   member (see {{add}})
@@ -2157,6 +2158,28 @@ unnecessary choices, by which, for example, bad randomness could be
 introduced.  The only choices the creator makes here are its own
 KeyPackage, the leaf secret from which the Commit is built, and the
 intermediate key pairs along the direct path to the root.
+
+## Required Capabilities
+
+The configuration of a group imposes certain requirements on clients in the
+group.  At a minimum, all members of the group need to support the ciphersuite
+and protocol version in use.  Additional requirements can be imposed by
+including a `required_capabilities` extension in the GroupContext.
+
+~~~~~
+struct {
+    ExtensionType extensions<0..255>;
+    ProposalType proposals<0..255>;
+} RequiredCapabilities;
+~~~~~
+
+This extension lists the extensions and proposal types that must be supported by
+all members of the group.  For new members, it is enforced during the
+application of Add commits.  Existing members should of course be in compliance
+already.  In order to ensure this continues to be the case even as the group's
+extensions can be updated, a GroupContextExtensions proposal is invalid if it
+contains a `required_capabilities` extension that requires capabililities not
+supported by all current members.
 
 ## Linking a New Group to an Existing Group
 
@@ -2226,7 +2249,8 @@ retrieved by hash (as a ProposalOrRef object) in a later Commit message.
 ### Add
 
 An Add proposal requests that a client with a specified KeyPackage be added
-to the group.
+to the group.  The proposer of the Add MUST validate the KeyPackage in the same
+way as receipients are required to do below.
 
 ~~~~~
 struct {
@@ -2242,6 +2266,25 @@ An Add is applied after being included in a Commit message.  The position of the
 Add in the list of proposals determines the leaf index `index` where the new member
 will be added.  For the first Add in the Commit, `index` is the leftmost empty
 leaf in the tree, for the second Add, the next empty leaf to the right, etc.
+
+* Validate the KeyPackage:
+
+    * Verify that the signature on the KeyPackage is valid using the public key
+      in the KeyPackage's credential
+
+    * Verify that the following fields in the KeyPackage are unique among the
+      members of the group (including any other members added in the same
+      Commit):
+
+        * `(credential.identity, endpoint_id)` tuple
+        * `credential.signature_key`
+        * `hpke_init_key`
+
+    * Verify that the KeyPackage is compatible with the group's parameters.  The
+      ciphersuite and protocol version of the KeyPackage must match those in
+      use in the group.  If the GroupContext has a `required_capabilities`
+      extension, then the required extensions and proposals MUST be listed in
+      the KeyPackage's `capabilities` extension.
 
 * If necessary, extend the tree to the right until it has at least index + 1
   leaves
@@ -2429,14 +2472,21 @@ struct {
 } GroupContextExtensions;
 ```
 
-A member of the group applies a GroupContextExtensions proposal by removing all
-of the existing extensions from the GroupContext object for the group and
-replacing them with the list of extensions in the proposal.  (This is a
-wholesale replacement, not a merge.  An extension is only carried over if the
-sender of the proposal includes it in the new list.)  Note that once the
-GroupContext is updated, its inclusion in the confirmation_tag by way of the key
-schedule will confirm that all members of the group agree on the extensions in
-use.
+A member of the group applies a GroupContextExtensions proposal with the
+following steps:
+
+* If the new extensions include a `required_capabilities` extension, verify that
+  all members of the group support the required capabilities (including those
+  added in the same commit, and excluding those removed).
+
+* Remove all of the existing extensions from the GroupContext object for the
+  group and replacing them with the list of extensions in the proposal.  (This
+  is a wholesale replacement, not a merge.  An extension is only carried over if
+  the sender of the proposal includes it in the new list.)
+
+Note that once the GroupContext is updated, its inclusion in the
+confirmation_tag by way of the key schedule will confirm that all members of the
+group agree on the extensions in use.
 
 ### External Proposals
 
