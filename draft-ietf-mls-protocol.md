@@ -2743,7 +2743,8 @@ struct {
     uint64 epoch;
     opaque tree_hash<0..255>;
     opaque interim_transcript_hash<0..255>;
-    Extension extensions<0..2^32-1>;
+    Extension group_context_extensions<0..2^32-1>;
+    Extension other_extensions<0..2^32-1>;
     HPKEPublicKey external_pub;
     uint32 signer_index;
     opaque signature<0..2^16-1>;
@@ -2764,7 +2765,8 @@ struct {
     uint64 epoch;
     opaque tree_hash<0..255>;
     opaque interim_transcript_hash<0..255>;
-    Extension extensions<0..2^32-1>;
+    Extension group_context_extensions<0..2^32-1>;
+    Extension other_extensions<0..2^32-1>;
     HPKEPublicKey external_pub;
 } PublicGroupStateTBS;
 ~~~~~
@@ -2998,14 +3000,18 @@ places:
 * In KeyPackages, to describe client capabilities and aspects of their
   participation in the group (once in the ratchet tree)
 * In the Welcome message, to tell new members of a group what parameters are
-  being used by the group
+  being used by the group, and to provide any additional details required to
+  join the group
 * In the GroupContext object, to ensure that all members of the group have the
   same view of the parameters in use
 
-In other words, clients advertise their capabilities in KeyPackage
-extensions, the creator of the group expresses its choices for the group in
-Welcome extensions, and the GroupContext confirms that all members of the group
-have the same view of the group's extensions.
+In other words, an application can use GroupContext extensions to ensure that
+all members of the group agree on a set of parameters.  Clients indicate
+their support for parameters in KeyPackage extensions.  New members of a
+group are informed of the group's GroupContext extensions via the
+`group_context_extensions` field in the GroupInfo or PublicGroupState object.
+The `other_extensions` field in a GroupInfo object can be used to provide
+additional parameters to new joiners that are used to join the group.
 
 This extension mechanism is designed to allow for secure and forward-compatible
 negotiation of extensions.  For this to work, implementations MUST correctly
