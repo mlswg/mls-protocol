@@ -2262,11 +2262,13 @@ struct {
 } Update;
 ~~~~~
 
-The KeyPackage contained in an `Update` proposal MUST share the values of the
-following fields with the KeyPackage it replaces in the tree: `version`,
-`cipher_suite`, `credential.identity`, `endpoint_id`. However, it MUST NOT share
-a signature key with any other KeyPackage in the tree and it MUST NOT contain
-the same `hpke_init_key` as the KeyPackage it replaces.
+The values in the following fields of the KeyPackage contained in an `Update`
+proposal MUST be the same as those of the KeyPackage it replaces in the tree.
+`version`, `cipher_suite`, `credential.identity`, `endpoint_id`. However, the
+value of the `credential.signature_key` field of the new KeyPackage MUST be
+different from that of all other KeyPackages in the tree. Furthermore, the value
+of the `hpke_init_key` field of the new KeyPackage MUST be different from that
+of the KeyPackage it replaces.
 
 A member of the group applies an Update message by taking the following steps:
 
