@@ -1594,13 +1594,34 @@ struct {
     uint16 count;
 } PSKLabel;
 
-psk_input_[i] = KDF.Extract(0, psk_[i])
-psk_secret_[i] = ExpandWithLabel(psk_input_[i], "derived psk", PSKLabel, KDF.Nh)
-psk_secret     = psk_secret_[0] || ... || psk_secret_[n-1]
+psk_extracted_[i] = KDF.Extract(0, psk_[i])
+psk_input_[i] = ExpandWithLabel(psk_extracted_[i], "derived psk", PSKLabel, KDF.Nh)
+
+psk_secret_[0] = 0
+psk_secret_[i] = KDF.Extract(psk_input[i-1], psk_secret_[i-1])
+psk_secret     = psk_secret[n]
 ~~~~~
 
 The `index` field in `PSKLabel` corresponds to the index of the PSK in the `psk`
-array, while the `count` field contains the total number of PSKs.
+array, while the `count` field contains the total number of PSKs.  In other
+words, the PSKs are chained together with KDF.Extract invocations, as follows:
+
+~~~~~
+                0                                   0       = psk_secret_[0]
+                |                                   |
+                V                                   V
+psk_[0] --> KDF.Extract --> ExpandWithLabel --> KDF.Extract = psk_secret_[1]
+                                                    |
+                0                                   |
+                |                                   |
+                V                                   V
+psk_[1] --> KDF.Extract --> ExpandWithLabel --> KDF.Extract = psk_secret_[1]
+                                                    |
+                0                                  ...
+                |                                   |
+                V                                   V
+psk_[n] --> KDF.Extract --> ExpandWithLabel --> KDF.Extract = psk_secret_[n]
+~~~~~
 
 ## Secret Tree {#secret-tree}
 
