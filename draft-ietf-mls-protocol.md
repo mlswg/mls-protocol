@@ -829,16 +829,16 @@ local tree state as described in the prior section, the generator must broadcast
 this update to other members of the group in a Commit message, who
 apply it to keep their local views of the tree in
 sync with the sender's.  More specifically, when a member commits a change to
-the tree (e.g., to add or remove a member), it transmits an UpdatePath message
-containing a set of public and encrypted private
-values for intermediate nodes in the direct path of a leaf. The
+the tree (e.g., to add or remove a member), it transmits an UpdatePath
+containing a set of public keys and encrypted path secrets
+for intermediate nodes in the direct path of its leaf. The
 other members of the group use these values to update
 their view of the tree, aligning their copy of the tree to the
 sender's.
 
-To transmit this update, the sender broadcasts to the group
+An UpdatePath contains
 the following information for each node in the direct path of the
-leaf, including the root:
+sender's leaf, including the root:
 
 * The public key for the node
 * Zero or more encrypted copies of the path secret corresponding to
@@ -846,11 +846,11 @@ leaf, including the root:
 
 The path secret value for a given node is encrypted for the subtree
 corresponding to the parent's non-updated child, that is, the child
-on the copath of the leaf node.
-There is one encrypted path secret for each public key in the resolution
+on the copath of the sender's leaf node.
+There is one encryption of the path secret to each public key in the resolution
 of the non-updated child.
 
-The recipient of a path update processes it with the following steps:
+The recipient of an UpdatePath processes it with the following steps:
 
 1. Compute the updated path secrets.
    * Identify a node in the direct path for which the local member
