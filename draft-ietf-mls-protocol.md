@@ -1518,16 +1518,15 @@ where having a full run of updates across members is too expensive, or if
 the external group key establishment mechanism provides
 stronger security against classical or quantum adversaries.
 
-Note that, as a PSK may have a different lifetime than an update, it
-does not necessarily provide the same Forward Secrecy (FS) or Post-Compromise
-Security (PCS) guarantees as a Commit message.
-
-<!-- OPEN ISSUE: Clarify lifetime vs security level mandated above. E.g. if
-the PSK security expires before the next update (shorter PSK lifetime than
-update), does that constitute a weaker security level -->
-
-<!-- OPEN ISSUE: Define "security level", and what it means to match the
-security level of the ciphersuite used in the group. -->
+Note that, as a PSK may have a different lifetime than an update, it does not
+necessarily provide the same Forward Secrecy (FS) or Post-Compromise Security
+(PCS) guarantees as a Commit message.  Unlike the key pairs populated in the
+tree by an Update or Commit, which always freshly generated, PSKs may be
+pre-distributed and stored. This creates the risk that a PSK may be compromised
+in the process of distribution and storage. The security that the group gets
+from injecting a PSK thus depends on both the entropy of the PSK and the risk of
+compromise.  These factors are outside of the scope of this document, but should
+be considered by application designers relying on PSKs.
 
 Each PSK in MLS has a type that designates how it was provisioned.
 External PSKs are provided by the application, while recovery and re-init PSKs
@@ -1601,9 +1600,6 @@ psk_secret     = psk_secret_[0] || ... || psk_secret_[n-1]
 
 The `index` field in `PSKLabel` corresponds to the index of the PSK in the `psk`
 array, while the `count` field contains the total number of PSKs.
-
-<!-- OPEN ISSUE: How to combine multiple PSKs such that the final PSK, is
-pseudorandom if at least one of the PSKs used is pseudorandom. -->
 
 ## Secret Tree {#secret-tree}
 
@@ -2451,9 +2447,6 @@ An external proposal MUST be sent as an MLSPlaintext
 object, since the sender will not have the keys necessary to construct an
 MLSCiphertext object.
 
-<!-- TODO: Should recognized external signers be added to some object that the
-group explicitly agrees on, e.g., as an extension to the GroupContext? -->
-
 ## Commit
 
 A Commit message initiates a new epoch for the group, based on a collection of
@@ -3247,10 +3240,6 @@ For usability, MLS clients might be required to keep the AEAD key
 and nonce for a certain amount of time to retain the ability to decrypt
 delayed or out of order messages, possibly still in transit while a
 decryption is being done.
-
-<!-- TODO: Describe here or in the Architecture spec the details. Depending
-on which Secret or key is kept alive, the security guarantees will vary. -->
-
 
 # Security Considerations
 
