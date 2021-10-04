@@ -650,7 +650,7 @@ Each node in a ratchet tree contains up to five values:
 
 * A private key (only within the member's direct path, see below)
 * A public key
-* An ordered list of leaf indices for "unmerged" leaves (see
+* An ordered list of node indices for "unmerged" leaves (see
   {{views}})
 * A credential (only for leaf nodes)
 * A hash of certain information about the node's parent, as of the last time the
@@ -672,7 +672,8 @@ of the node.
   of its right child, in that order
 
 For example, consider the following tree, where the "\_" character
-represents a blank node:
+represents a blank node and unmerged leaves are indicated in square
+brackets:
 
 ~~~~~
       _
@@ -767,13 +768,14 @@ node_priv[n], node_pub[n] = KEM.DeriveKeyPair(node_secret[n])
 For example, suppose there is a group with four members:
 
 ~~~~~
-      G
-     / \
-    /   \
-   /     \
-  E       _
+     ABCD
+    /    \
+   /      \
+  AB      CD
  / \     / \
 A   B   C   D
+
+0 1 2 3 4 5 6
 ~~~~~
 
 If member B subsequently generates an UpdatePath based on a secret
@@ -792,15 +794,21 @@ leaf_secret    --> leaf_node_secret --> leaf_priv, leaf_pub
 ~~~~~
 
 After applying the UpdatePath, the tree will have the following structure, where
-"np\[i\]" represents the node_priv values generated as described
-above:
+`lp` and `np[i]` represent the leaf_priv and node_priv values generated as
+described above:
 
 ~~~~~
-          np[1]
-         /     \
-     np[0]      _
-     /  \      / \
-    A    B    C   D
+   np[1] -> ABCD
+           /    \
+          /      \
+np[0] -> AB      CD
+        / \     / \
+       A   B   C   D
+           ^
+           |
+           lp
+
+       0 1 2 3 4 5 6
 ~~~~~
 
 After performing these operations, the generator of the UpdatePath MUST
@@ -863,10 +871,10 @@ For example, in order to communicate the example update described in
 the previous section, the sender would transmit the following
 values:
 
-| Public Key   | Ciphertext(s)                        |
-|:-------------|:-------------------------------------|
-| pk(ns\[1\])  | E(pk(C), ps\[1\]), E(pk(D), ps\[1\]) |
-| pk(ns\[0\])  | E(pk(A), ps\[0\])                    |
+| Public Key    | Ciphertext(s)               |
+|:--------------|:----------------------------|
+| node_pub\[1\] | E(pk(CD), path_secret\[1\]) |
+| node_pub\[0\] | E(pk(A), path_secret\[0\])  |
 
 In this table, the value pk(ns\[X\]) represents the public key
 derived from the node secret X, whereas pk(X) represents the public leaf key
