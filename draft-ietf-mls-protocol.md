@@ -2605,7 +2605,7 @@ message at the same time, by taking the following steps:
   exluded from the resolution during the computation of the UpdatePath.  The
   `leaf_key_package` for this UpdatePath must have a `parent_hash` extension.
   Note that the KeyPackage in the `UpdatePath` effectively updates an existing
-  KeyPackage in the group and thus MUST adhere to the same restrictions as 
+  KeyPackage in the group and thus MUST adhere to the same restrictions as
   KeyPackages used in `Update` proposals.
 
    * Assign this UpdatePath to the `path` field in the Commit.
@@ -3520,6 +3520,7 @@ Initial contents:
 | 0x0005           | reinit                   | Y           | RFC XXXX  |
 | 0x0006           | external_init            | Y           | RFC XXXX  |
 | 0x0007           | app_ack                  | Y           | RFC XXXX  |
+| 0x0008           | group_context_extensions | Y           | RFC XXXX  |
 | 0xff00  - 0xffff | Reserved for Private Use | N/A         | RFC XXXX  |
 
 ## MLS Credential Types
