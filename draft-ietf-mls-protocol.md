@@ -829,8 +829,8 @@ this update to other members of the group in a Commit message, who
 apply it to keep their local views of the tree in
 sync with the sender's.  More specifically, when a member commits a change to
 the tree (e.g., to add or remove a member), it transmits an UpdatePath
-containing a set of public keys and encrypted private
-keys for intermediate nodes in the direct path of its leaf. The
+containing a set of public keys and encrypted path secrets
+for intermediate nodes in the direct path of its leaf. The
 other members of the group use these values to update
 their view of the tree, aligning their copy of the tree to the
 sender's.
