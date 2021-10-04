@@ -1368,8 +1368,8 @@ encryption to the respective resolution node.
 The HPKECiphertext values are computed as
 
 ~~~~~
-kem_output, context = SetupBaseS(node_public_key, "")
-ciphertext = context.Seal(group_context, path_secret)
+kem_output, context = SetupBaseS(node_public_key, group_context)
+ciphertext = context.Seal("", path_secret)
 ~~~~~
 
 where `node_public_key` is the public key of the node that the path
