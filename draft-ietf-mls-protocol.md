@@ -1327,11 +1327,12 @@ interim_transcript_hash_[n+1] =
 
 Thus the `confirmed_transcript_hash` field in a GroupContext object represents a
 transcript over the whole history of MLSPlaintext Commit messages, up to the
-confirmation tag field in the current MLSPlaintext message.  The confirmation tag
-is then included in the transcript for the next epoch.  The interim transcript
-hash is passed to new members in the GroupInfo struct, and enables existing
-members to incorporate a Commit message into the transcript without having to
-store the whole MLSPlaintextCommitAuthData structure.
+confirmation tag field in the current MLSPlaintext message.  The confirmation
+tag is then included in the transcript for the next epoch.  The interim
+transcript hash is computed by new members using the confirmation tag in the
+GroupInfo struct, and enables existing members to incorporate a Commit message
+into the transcript without having to store the whole MLSPlaintextCommitAuthData
+structure.
 
 As shown above, when a new group is created, the `interim_transcript_hash` field
 is set to the zero-length octet string.
@@ -2205,13 +2206,14 @@ uint16 ProposalType;
 struct {
     ProposalType msg_type;
     select (Proposal.msg_type) {
-        case add:           Add;
-        case update:        Update;
-        case remove:        Remove;
-        case psk:           PreSharedKey;
-        case reinit:        ReInit;
-        case external_init: ExternalInit;
-        case app_ack:       AppAck;
+        case add:                      Add;
+        case update:                   Update;
+        case remove:                   Remove;
+        case psk:                      PreSharedKey;
+        case reinit:                   ReInit;
+        case external_init:            ExternalInit;
+        case app_ack:                  AppAck;
+        case group_context_extensions: GroupContextExtensions;
     };
 } Proposal;
 ~~~~~
@@ -2415,6 +2417,26 @@ Proposal and Commit messages, to make it more difficult for the Delivery Service
 to recognize which messages conatain AppAcks.  The application can also have
 clients enforce an AppAck schedule, reporting loss if an AppAck is not received
 at the expected time.
+
+### GroupContextExtensions
+
+A GroupContextExtensions proposal is used to update the list of extensions in
+the GroupContext for the group.
+
+```
+struct {
+  Extension extensions<0..2^32-1>;
+} GroupContextExtensions;
+```
+
+A member of the group applies a GroupContextExtensions proposal by removing all
+of the existing extensions from the GroupContext object for the group and
+replacing them with the list of extensions in the proposal.  (This is a
+wholesale replacement, not a merge.  An extension is only carried over if the
+sender of the proposal includes it in the new list.)  Note that once the
+GroupContext is updated, its inclusion in the confirmation_tag by way of the key
+schedule will confirm that all members of the group agree on the extensions in
+use.
 
 ### External Proposals
 
@@ -2640,9 +2662,10 @@ message at the same time, by taking the following steps:
     hash and the `confirmation_tag` from the MLSPlaintext.
 
 * Construct a GroupInfo reflecting the new state:
-  * Group ID, epoch, tree, confirmed transcript hash, and interim transcript
-    hash from the new state
+  * Group ID, epoch, tree, confirmed transcript hash, interim transcript
+    hash, and group context extensions from the new state
   * The confirmation_tag from the MLSPlaintext object
+  * Other extensions as defined by the application
   * Sign the GroupInfo using the member's private signing key
   * Encrypt the GroupInfo using the key and nonce derived from the `joiner_secret`
     for the new epoch (see {{welcoming-new-members}})
@@ -2780,7 +2803,8 @@ struct {
     uint64 epoch;
     opaque tree_hash<0..255>;
     opaque interim_transcript_hash<0..255>;
-    Extension extensions<0..2^32-1>;
+    Extension group_context_extensions<0..2^32-1>;
+    Extension other_extensions<0..2^32-1>;
     HPKEPublicKey external_pub;
     uint32 signer_index;
     opaque signature<0..2^16-1>;
@@ -2801,7 +2825,8 @@ struct {
     uint64 epoch;
     opaque tree_hash<0..255>;
     opaque interim_transcript_hash<0..255>;
-    Extension extensions<0..2^32-1>;
+    Extension group_context_extensions<0..2^32-1>;
+    Extension other_extensions<0..2^32-1>;
     HPKEPublicKey external_pub;
 } PublicGroupStateTBS;
 ~~~~~
@@ -2862,7 +2887,8 @@ struct {
   uint64 epoch;
   opaque tree_hash<0..255>;
   opaque confirmed_transcript_hash<0..255>;
-  Extension extensions<0..2^32-1>;
+  Extension group_context_extensions<0..2^32-1>;
+  Extension other_extensions<0..2^32-1>;
   MAC confirmation_tag;
   uint32 signer_index;
   opaque signature<0..2^16-1>;
@@ -2947,9 +2973,11 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
   divided by two.
 
 * Construct a new group state using the information in the GroupInfo object.
-  The new member's position in the tree is `index`, as defined above.  In
-  particular, the confirmed transcript hash for the new state is the
-  `prior_confirmed_transcript_hash` in the GroupInfo object.
+    * The GroupContext contains the `group_id`, `epoch`, `tree_hash`,
+      `confirmed_transcript_hash`, and `group_context_extensions` fields from
+      the GroupInfo object.
+
+    * The new member's position in the tree is `index`, as defined above.
 
     * Update the leaf at index `index` with the private key corresponding to the
       public key in the node.
@@ -3032,14 +3060,18 @@ places:
 * In KeyPackages, to describe client capabilities and aspects of their
   participation in the group (once in the ratchet tree)
 * In the Welcome message, to tell new members of a group what parameters are
-  being used by the group
+  being used by the group, and to provide any additional details required to
+  join the group
 * In the GroupContext object, to ensure that all members of the group have the
   same view of the parameters in use
 
-In other words, clients advertise their capabilities in KeyPackage
-extensions, the creator of the group expresses its choices for the group in
-Welcome extensions, and the GroupContext confirms that all members of the group
-have the same view of the group's extensions.
+In other words, an application can use GroupContext extensions to ensure that
+all members of the group agree on a set of parameters.  Clients indicate
+their support for parameters in KeyPackage extensions.  New members of a
+group are informed of the group's GroupContext extensions via the
+`group_context_extensions` field in the GroupInfo or PublicGroupState object.
+The `other_extensions` field in a GroupInfo object can be used to provide
+additional parameters to new joiners that are used to join the group.
 
 This extension mechanism is designed to allow for secure and forward-compatible
 negotiation of extensions.  For this to work, implementations MUST correctly
@@ -3466,7 +3498,9 @@ Template:
   list:
 
   * KP: KeyPackage messages
-  * GI: GroupInfo objects
+  * GC: GroupContext objects (and the `group_context_extensions` field of
+    GroupInfo objects)
+  * GI: The `other_extensions` field of GroupInfo objects
 
 * Recommended: Whether support for this extension is recommended by the IETF MLS
   WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
