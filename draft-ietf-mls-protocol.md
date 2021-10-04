@@ -1074,14 +1074,17 @@ at any time and in particular in the case of a newcomer joining the group.
 
 ## Client Capabilities
 
-The `capabilities` extension indicates what protocol versions, ciphersuites, and
-protocol extensions are supported by a client.
+The `capabilities` extension indicates what protocol versions, ciphersuites,
+protocol extensions, and non-default proposal types are supported by a client.
+Proposal types defined in this document are considered "default" and thus need
+not be listed.
 
 ~~~~~
 struct {
     ProtocolVersion versions<0..255>;
     CipherSuite ciphersuites<0..255>;
     ExtensionType extensions<0..255>;
+    ProposalType proposals<0..255>;
 } Capabilities;
 ~~~~~
 
@@ -2200,17 +2203,8 @@ Proposals are included in an MLSPlaintext by way of a Proposal structure that
 indicates their type:
 
 ~~~~~
-enum {
-    reserved(0),
-    add(1),
-    update(2),
-    remove(3),
-    psk(4),
-    reinit(5),
-    external_init(6),
-    app_ack(7),
-    (255)
-} ProposalType;
+// See IANA registry for registered values
+uint16 ProposalType;
 
 struct {
     ProposalType msg_type;
@@ -2506,6 +2500,11 @@ The sender of a Commit MUST include all valid proposals that it has received
 during the current epoch. Invalid proposals include, for example, proposals with
 an invalid signature or proposals that are semantically invalid, such as an Add
 when the sender does not have the application-level permission to add new users.
+Proposals with a non-default proposal type MUST NOT be included in a commit
+unless the proposal type is supported by all the members of the group that will
+process the Commit (i.e., not including any members being added or removed by
+the Commit).
+
 If there are multiple proposals that apply to the same leaf, the committer
 chooses one and includes only that one in the Commit, considering the rest
 invalid. The committer MUST prefer any Remove received, or the most recent
@@ -3359,6 +3358,7 @@ This document requests the creation of the following new IANA registries:
 
 * MLS Ciphersuites ({{mls-ciphersuites}})
 * MLS Extension Types ({{mls-extension-types}})
+* MLS Proposal Types ({{mls-proposal-types}})
 * MLS Credential Types ({{mls-credential-types}})
 
 All of these registries should be under a heading of "Messaging Layer Security",
@@ -3499,6 +3499,39 @@ Initial contents:
 | 0x0005           | ratchet_tree             | GI         | Y           | RFC XXXX  |
 | 0xff00  - 0xffff | Reserved for Private Use | N/A        | N/A         | RFC XXXX  |
 
+## MLS Proposal Types
+
+This registry lists identifiers for types of proposals that can be made for
+changes to an MLS group.  The extension type field is two bytes wide, so valid
+extension type values are in the range 0x0000 to 0xffff.
+
+Template:
+
+* Value: The numeric value of the proposal type
+
+* Name: The name of the proposal type
+
+* Recommended: Whether support for this extension is recommended by the IETF MLS
+  WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
+  value of "N" unless explicitly requested, and adding a value with a
+  "Recommended" value of "Y" requires Standards Action [RFC8126].  IESG Approval
+  is REQUIRED for a Y->N transition.
+
+* Reference: The document where this extension is defined
+
+Initial contents:
+
+| Value            | Name                     | Recommended | Reference |
+|:=================|:=========================|:============|:==========|
+| 0x0000           | RESERVED                 | N/A         | RFC XXXX  |
+| 0x0001           | add                      | Y           | RFC XXXX  |
+| 0x0002           | update                   | Y           | RFC XXXX  |
+| 0x0003           | remove                   | Y           | RFC XXXX  |
+| 0x0004           | psk                      | Y           | RFC XXXX  |
+| 0x0005           | reinit                   | Y           | RFC XXXX  |
+| 0x0006           | external_init            | Y           | RFC XXXX  |
+| 0x0007           | app_ack                  | Y           | RFC XXXX  |
+| 0xff00  - 0xffff | Reserved for Private Use | N/A         | RFC XXXX  |
 
 ## MLS Credential Types
 
