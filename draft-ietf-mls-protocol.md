@@ -617,7 +617,7 @@ A   B   C   D   E   F   G
 0 1 2 3 4 5 6 7 8 9 0 1 2
 ~~~~~
 
-Each node in the tree is assigned a _node index_, starting at zero and
+Each node in the tree is assigned an _index_, starting at zero and
 running from left to right.  A node is a leaf node if and only if it
 has an even index.  The node indices for the nodes in the above tree
 are as follows:
@@ -635,22 +635,6 @@ are as follows:
 * 10 = F
 * 11 = EFG
 * 12 = G
-
-The leaves of the tree are indexed separately, using a _leaf index_,
-since the protocol messages only need to refer to leaves in the
-tree.  Like nodes, leaves are numbered left to right.  The node with
-leaf index `k` is also called the `k-th` leaf.  Note that
-given the above numbering, a node is a leaf node if and only if it
-has an even node index, and a leaf node's leaf index is half its
-node index.  The leaf indices in the above tree are as follows:
-
-* 0 = A
-* 1 = B
-* 2 = C
-* 3 = D
-* 4 = E
-* 5 = F
-* 6 = G
 
 ## Ratchet Tree Nodes {#resolution-example}
 
@@ -1230,12 +1214,9 @@ struct {
 } LeafNodeHashInput;
 ~~~~~
 
-Note that the `node_index` field contains the index of the leaf among the nodes
-in the tree, not its index among the leaves; `node_index = 2 * leaf_index`.
-
 Now the tree hash of any non-leaf node is recursively defined to be the hash of
 its `ParentNodeTreeHashInput`. This includes an optional `ParentNode`
-object depending on if the node is blank or not.
+object depending on whether the node is blank or not.
 
 ~~~~~
 struct {
@@ -2106,8 +2087,7 @@ struct {
 
 When parsing a SenderData struct as part of message decryption, the
 recipient MUST verify that the sender field represents an occupied
-leaf in the ratchet tree.  In particular, the sender index value
-MUST be less than the number of leaves in the tree.
+leaf in the ratchet tree.
 
 # Group Creation
 
@@ -2237,9 +2217,10 @@ new member is added.  Instead, the sender of the Commit message chooses a
 location for each added member and states it in the Commit message.
 
 An Add is applied after being included in a Commit message.  The position of the
-Add in the list of proposals determines the leaf index `index` where the new member
-will be added.  For the first Add in the Commit, `index` is the leftmost empty
-leaf in the tree, for the second Add, the next empty leaf to the right, etc.
+Add in the list of proposals determines the node index `index` of the leaf node
+where the new member will be added.  For the first Add in the Commit, `index` is
+the leftmost empty leaf in the tree, for the second Add, the next empty leaf to
+the right, etc.
 
 * If necessary, extend the tree to the right until it has at least index + 1
   leaves
@@ -2290,6 +2271,9 @@ struct {
 ~~~~~
 
 A member of the group applies a Remove message by taking the following steps:
+
+* Verify that the node index `removed` corresponds to a leaf node (i.e., that it
+  is divisible by two) and the leaf at that node is populated.
 
 * Replace the leaf node at position `removed` with a blank node
 
@@ -2605,7 +2589,7 @@ message at the same time, by taking the following steps:
   exluded from the resolution during the computation of the UpdatePath.  The
   `leaf_key_package` for this UpdatePath must have a `parent_hash` extension.
   Note that the KeyPackage in the `UpdatePath` effectively updates an existing
-  KeyPackage in the group and thus MUST adhere to the same restrictions as 
+  KeyPackage in the group and thus MUST adhere to the same restrictions as
   KeyPackages used in `Update` proposals.
 
    * Assign this UpdatePath to the `path` field in the Commit.
@@ -2793,7 +2777,7 @@ The full tree can be included via the `ratchet_tree` extension
 
 The signature MUST verify using the public key taken from the credential in the
 leaf node at position `signer_index`.  The signature covers the following
-structure, comprising all the fields in the PublicGroupState above `signer_index`:
+structure, comprising all the fields in the PublicGroupState above `signature`:
 
 ~~~~~
 struct {
@@ -2803,6 +2787,7 @@ struct {
     opaque interim_transcript_hash<0..255>;
     Extension extensions<0..2^32-1>;
     HPKEPublicKey external_pub;
+    uint32 signer_index;
 } PublicGroupStateTBS;
 ~~~~~
 
@@ -2923,7 +2908,8 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 * Verify the signature on the GroupInfo object.  The signature input comprises
   all of the fields in the GroupInfo object except the signature field.  The
   public key and algorithm are taken from the credential in the leaf node at
-  position `signer_index`.  If this verification fails, return an error.
+  position `signer_index`.  If the node at position `signer_index` is not a leaf
+  node, or if signature verification fails, return an error.
 
 * Verify the integrity of the ratchet tree.
 
@@ -2942,9 +2928,8 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 
 * Identify a leaf in the `tree` array (any even-numbered node) whose
   `key_package` field is identical to the KeyPackage.  If no such field
-  exists, return an error.  Let `index` represent the index of this node among
-  the leaves in the tree, namely the index of the node in the `tree` array
-  divided by two.
+  exists, return an error.  Let `index` represent the index of this node in the
+  tree.
 
 * Construct a new group state using the information in the GroupInfo object.
   The new member's position in the tree is `index`, as defined above.  In
