@@ -1849,8 +1849,13 @@ enum {
 } SenderType;
 
 struct {
+    opaque sender_identity;
+    opaque sender_endpoint_id;
+} Client
+
+struct {
     SenderType sender_type;
-    uint32 sender;
+    Client sender;
 } Sender;
 
 struct {
@@ -2069,7 +2074,7 @@ encrypted, the sender data is encoded as an object of the following form:
 
 ~~~~~
 struct {
-    uint32 sender;
+    Client sender;
     uint32 generation;
     opaque reuse_guard[4];
 } MLSSenderData;
@@ -2105,10 +2110,9 @@ struct {
 } MLSSenderDataAAD;
 ~~~~~
 
-When parsing a SenderData struct as part of message decryption, the
-recipient MUST verify that the sender field represents an occupied
-leaf in the ratchet tree.  In particular, the sender index value
-MUST be less than the number of leaves in the tree.
+When parsing a SenderData struct as part of message decryption, the recipient
+MUST verify that the `Client` populating the `sender` field is a member of the
+group.
 
 # Group Creation
 
@@ -2282,20 +2286,20 @@ A member of the group applies an Update message by taking the following steps:
 
 ### Remove
 
-A Remove proposal requests that the client at a specified index in the tree be
-removed from the group.
+A Remove proposal requests that the `Client` `removed` be removed from the
+group.
 
 ~~~~~
 struct {
-    uint32 removed;
+    Client removed;
 } Remove;
 ~~~~~
 
 A member of the group applies a Remove message by taking the following steps:
 
-* Replace the leaf node at position `removed` with a blank node
+* Replace the leaf node of the group member `removed` with a blank node
 
-* Blank the intermediate nodes along the path from the removed leaf to the root
+* Blank the intermediate nodes along the path from that leaf to the root
 
 * Truncate the tree by reducing the size of tree until the rightmost non-blank leaf node
 
@@ -2371,7 +2375,7 @@ included in Commit messages.
 
 ~~~~~
 struct {
-    uint32 sender;
+    Client sender;
     uint32 first_generation;
     uint32 last_generation;
 } MessageRange;
@@ -2806,7 +2810,7 @@ struct {
     Extension group_context_extensions<0..2^32-1>;
     Extension other_extensions<0..2^32-1>;
     HPKEPublicKey external_pub;
-    uint32 signer_index;
+    Client signer;
     opaque signature<0..2^16-1>;
 } PublicGroupState;
 ~~~
@@ -2815,9 +2819,9 @@ Note that the `tree_hash` field is used the same way as in the Welcome message.
 The full tree can be included via the `ratchet_tree` extension
 {{ratchet-tree-extension}}.
 
-The signature MUST verify using the public key taken from the credential in the
-leaf node at position `signer_index`.  The signature covers the following
-structure, comprising all the fields in the PublicGroupState above `signer_index`:
+The signature MUST verify using the public key taken from the credential of the
+`signer`. The signature covers the following structure, comprising all the
+fields in the PublicGroupState above `signer`:
 
 ~~~~~
 struct {
@@ -2890,7 +2894,7 @@ struct {
   Extension group_context_extensions<0..2^32-1>;
   Extension other_extensions<0..2^32-1>;
   MAC confirmation_tag;
-  uint32 signer_index;
+  Client signer;
   opaque signature<0..2^16-1>;
 } GroupInfo;
 
@@ -2946,10 +2950,10 @@ welcome_nonce = KDF.Expand(welcome_secret, "nonce", AEAD.Nn)
 welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 ~~~~~
 
-* Verify the signature on the GroupInfo object.  The signature input comprises
-  all of the fields in the GroupInfo object except the signature field.  The
-  public key and algorithm are taken from the credential in the leaf node at
-  position `signer_index`.  If this verification fails, return an error.
+* Verify the signature on the GroupInfo object. The signature input comprises
+  all of the fields in the GroupInfo object except the signature field. The
+  public key and algorithm are taken from the credential of the `signer`. If
+  this verification fails, return an error.
 
 * Verify the integrity of the ratchet tree.
 
@@ -2983,9 +2987,9 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
       public key in the node.
 
     * If the `path_secret` value is set in the GroupSecrets object: Identify the
-      lowest common ancestor of the leaves at `index` and at
-      `GroupInfo.signer_index`.  Set the private key for this node to the
-      private key derived from the `path_secret`.
+      lowest common ancestor of the leaves at `index` and at the leaf index of
+      the `GroupInfo.signer`. Set the private key for this node to the private
+      key derived from the `path_secret`.
 
     * For each parent of the common ancestor, up to the root of the tree, derive
       a new path secret and set the private key for the node to the private key
