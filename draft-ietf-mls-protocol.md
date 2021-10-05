@@ -1858,8 +1858,9 @@ struct {
 } MAC;
 
 enum {
-  mls_plaintext(0),
-  mls_ciphertext(1),
+  reserved(0),
+  mls_plaintext(1),
+  mls_ciphertext(2),
   (255)
 } WireFormat;
 
