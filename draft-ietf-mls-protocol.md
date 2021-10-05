@@ -602,14 +602,13 @@ For example, in the below tree:
 * The copath of C is (D, AB, EFG)
 
 ~~~~~
-            ABCDEFG
-           /      \
-          /        \
-         /          \
-     ABCD            EFG
-    /    \          /  \
-   /      \        /    \
-  AB      CD      EF    |
+              7 = root
+        ______|______
+       /             \
+      3              11
+    __|__           __|
+   /     \         /   \
+  1       5       9     |
  / \     / \     / \    |
 A   B   C   D   E   F   G
 
@@ -677,9 +676,9 @@ brackets:
 
 ~~~~~
       _
-    /   \
+    __|__
    /     \
-  _       CD[C]
+  _       5[C]
  / \     / \
 A   _   C   D
 
@@ -765,13 +764,14 @@ leaf_priv, leaf_pub = KEM.DeriveKeyPair(leaf_node_secret)
 node_priv[n], node_pub[n] = KEM.DeriveKeyPair(node_secret[n])
 ~~~~~
 
-For example, suppose there is a group with four members:
+For example, suppose there is a group with four members, with C an unmerged leaf
+at node 5:
 
 ~~~~~
-     ABCD
-    /    \
-   /      \
-  AB      CD
+      3
+    __|__
+   /     \
+  1       5[C]
  / \     / \
 A   B   C   D
 
@@ -798,10 +798,10 @@ After applying the UpdatePath, the tree will have the following structure, where
 described above:
 
 ~~~~~
-   np[1] -> ABCD
-           /    \
-          /      \
-np[0] -> AB      CD
+    np[1] -> 3
+           __|__
+          /     \
+np[0] -> 1       5[C]
         / \     / \
        A   B   C   D
            ^
@@ -871,16 +871,16 @@ For example, in order to communicate the example update described in
 the previous section, the sender would transmit the following
 values:
 
-| Public Key    | Ciphertext(s)               |
-|:--------------|:----------------------------|
-| node_pub\[1\] | E(pk(CD), path_secret\[1\]) |
-| node_pub\[0\] | E(pk(A), path_secret\[0\])  |
+| Public Key    | Ciphertext(s)                                           |
+|:--------------|:--------------------------------------------------------|
+| node_pub\[1\] | E(pk(5), path_secret\[1\]), E(pk(C), path_secret\[1\])  |
+| node_pub\[0\] | E(pk(A), path_secret\[0\])                              |
 
 In this table, the value pk(ns\[X\]) represents the public key
 derived from the node secret X, whereas pk(X) represents the public leaf key
 for user X.  The value E(K, S) represents
 the public-key encryption of the path secret S to the
-public key K.
+public key K (using HPKE).
 
 After processing the update, each recipient MUST delete outdated key material,
 specifically:
