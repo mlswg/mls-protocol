@@ -2299,7 +2299,8 @@ struct {
 
 A member of the group applies a Remove message by taking the following steps:
 
-* Replace the leaf node of the group member `removed` with a blank node
+* Replace the leaf node of the group member with `MemberId` `removed` with a
+  blank node
 
 * Blank the intermediate nodes along the path from that leaf to the root
 
@@ -2821,9 +2822,10 @@ Note that the `tree_hash` field is used the same way as in the Welcome message.
 The full tree can be included via the `ratchet_tree` extension
 {{ratchet-tree-extension}}.
 
-The signature MUST verify using the public key taken from the credential of the
-`signer`. The signature covers the following structure, comprising all the
-fields in the PublicGroupState above `signer`:
+The signature MUST verify using the public key taken from the credential in the
+leaf node of the member with `MemberId` `signer`. The signature covers the
+following structure, comprising all the fields in the PublicGroupState above
+`signer`:
 
 ~~~~~
 struct {
@@ -2954,8 +2956,8 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 
 * Verify the signature on the GroupInfo object. The signature input comprises
   all of the fields in the GroupInfo object except the signature field. The
-  public key and algorithm are taken from the credential of the `signer`. If
-  this verification fails, return an error.
+  public key and algorithm are taken from the credential in the leaf node of the
+  member with `MemberId` `signer`. If this verification fails, return an error.
 
 * Verify the integrity of the ratchet tree.
 
@@ -2990,8 +2992,8 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 
     * If the `path_secret` value is set in the GroupSecrets object: Identify the
       lowest common ancestor of the leaves at `index` and at the leaf index of
-      the `GroupInfo.signer`. Set the private key for this node to the private
-      key derived from the `path_secret`.
+      the member with `MemberId` `GroupInfo.signer`. Set the private key for
+      this node to the private key derived from the `path_secret`.
 
     * For each parent of the common ancestor, up to the root of the tree, derive
       a new path secret and set the private key for the node to the private key
