@@ -2111,7 +2111,7 @@ struct {
 ~~~~~
 
 When parsing a SenderData struct as part of message decryption, the recipient
-MUST verify that the `Client` populating the `sender` field is a member of the
+MUST verify that the `Client` indicated in the `sender` field is a member of the
 group.
 
 # Group Creation
