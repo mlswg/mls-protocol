@@ -16,10 +16,16 @@ author:
     name: Richard Barnes
     organization: Cisco
     email: rlb@ipv.sx
- -  ins: B. Beurdouche
+ -
+    ins: B. Beurdouche
     name: Benjamin Beurdouche
-    organization: Inria
-    email: benjamin.beurdouche@inria.fr
+    organization: Inria & Mozilla
+    email: ietf@beurdouche.com
+ -
+    ins: R. Robert
+    name: Raphael Robert
+    organization: Wire
+    email: ietf@raphaelrobert.com
  -
     ins: J. Millican
     name: Jon Millican
@@ -35,11 +41,6 @@ author:
     name: Katriel Cohn-Gordon
     organization: University of Oxford
     email: me@katriel.co.uk
- -
-    ins: R. Robert
-    name: Raphael Robert
-    organization: Wire
-    email: raphael@wire.com
 
 informative:
   art:
@@ -828,16 +829,16 @@ local tree state as described in the prior section, the generator must broadcast
 this update to other members of the group in a Commit message, who
 apply it to keep their local views of the tree in
 sync with the sender's.  More specifically, when a member commits a change to
-the tree (e.g., to add or remove a member), it transmits an UpdatePath message
-containing a set of public and encrypted private
-values for intermediate nodes in the direct path of a leaf. The
+the tree (e.g., to add or remove a member), it transmits an UpdatePath
+containing a set of public keys and encrypted path secrets
+for intermediate nodes in the direct path of its leaf. The
 other members of the group use these values to update
 their view of the tree, aligning their copy of the tree to the
 sender's.
 
-To transmit this update, the sender broadcasts to the group
+An UpdatePath contains
 the following information for each node in the direct path of the
-leaf, including the root:
+sender's leaf, including the root:
 
 * The public key for the node
 * Zero or more encrypted copies of the path secret corresponding to
@@ -845,11 +846,11 @@ leaf, including the root:
 
 The path secret value for a given node is encrypted for the subtree
 corresponding to the parent's non-updated child, that is, the child
-on the copath of the leaf node.
-There is one encrypted path secret for each public key in the resolution
+on the copath of the sender's leaf node.
+There is one encryption of the path secret to each public key in the resolution
 of the non-updated child.
 
-The recipient of a path update processes it with the following steps:
+The recipient of an UpdatePath processes it with the following steps:
 
 1. Compute the updated path secrets.
    * Identify a node in the direct path for which the local member
@@ -910,7 +911,7 @@ following primitives to be used in group key computations:
 * A hash algorithm
 * A signature algorithm
 
-MLS uses draft-07 of HPKE {{I-D.irtf-cfrg-hpke}} for public-key encryption.
+MLS uses draft-08 of HPKE {{I-D.irtf-cfrg-hpke}} for public-key encryption.
 The `DeriveKeyPair` function associated to the KEM for the ciphersuite maps
 octet strings to HPKE key pairs.
 
@@ -994,6 +995,10 @@ the format specified {{?RFC8032}}.  For ciphersuites using ECDSA with the NIST
 curves P-256 or P-521, the public key is the output of the uncompressed
 Elliptic-Curve-Point-to-Octet-String conversion according to {{SECG}}.
 
+The signatures used throughout this document are encoded as specified in
+{{!RFC8446}}. In particular, ECDSA signatures are DER-encoded and EdDSA signatures
+are defined as the concatenation of `r` and `s` as specified in {{?RFC8032}}.
+
 Note that each new credential that has not already been validated
 by the application MUST be validated against the Authentication
 Service.
@@ -1006,13 +1011,11 @@ provide some public information about a user. KeyPackage
 structures provide information about a client that any existing
 member can use to add this client to the group asynchronously.
 
-A KeyPackage object specifies a ciphersuite that the client
-supports, as well as providing a public key that others can use
-for key agreement. The client's signature key can be updated
-throughout the lifetime of the group by sending a new KeyPackage
-with a new Credential. However, the identity MUST be the same in
-both Credentials and the new Credential MUST be validated by the
-authentication service.
+A KeyPackage object specifies a ciphersuite that the client supports, as well as
+providing a public key that others can use for key agreement.
+
+The `identity` arising from the credential, together with the `endpoint_id` in
+the KeyPackage serve to uniquely identify a client in a group.
 
 When used as InitKeys, KeyPackages are intended to be used only once and SHOULD NOT
 be reused except in case of last resort. (See {{initkey-reuse}}).
@@ -1042,13 +1045,14 @@ uint16 ExtensionType;
 
 struct {
     ExtensionType extension_type;
-    opaque extension_data<0..2^16-1>;
+    opaque extension_data<0..2^32-1>;
 } Extension;
 
 struct {
     ProtocolVersion version;
     CipherSuite cipher_suite;
     HPKEPublicKey hpke_init_key;
+    opaque endpoint_id<0..255>;
     Credential credential;
     Extension extensions<8..2^32-1>;
     opaque signature<0..2^16-1>;
@@ -1070,14 +1074,17 @@ at any time and in particular in the case of a newcomer joining the group.
 
 ## Client Capabilities
 
-The `capabilities` extension indicates what protocol versions, ciphersuites, and
-protocol extensions are supported by a client.
+The `capabilities` extension indicates what protocol versions, ciphersuites,
+protocol extensions, and non-default proposal types are supported by a client.
+Proposal types defined in this document are considered "default" and thus need
+not be listed.
 
 ~~~~~
 struct {
     ProtocolVersion versions<0..255>;
     CipherSuite ciphersuites<0..255>;
     ExtensionType extensions<0..255>;
+    ProposalType proposals<0..255>;
 } Capabilities;
 ~~~~~
 
@@ -1115,6 +1122,13 @@ opaque key_id<0..2^16-1>;
 ~~~~~
 
 ## Parent Hash {#parent-hash}
+
+The `parent_hash` extension carries information to authenticate the structure of
+the tree, as described below.
+
+~~~~~
+opaque parent_hash<0..255>;
+~~~~~
 
 Consider a ratchet tree with a parent node P and children V and S. The parent hash
 of P changes whenever an `UpdatePath` object is applied to the ratchet tree along
@@ -1286,16 +1300,18 @@ The following general rules apply:
 
 ~~~~~
 struct {
+    WireFormat wire_format;
     opaque group_id<0..255>;
     uint64 epoch;
     Sender sender;
+    opaque authenticated_data<0..2^32-1>;
     ContentType content_type = commit;
     Commit commit;
     opaque signature<0..2^16-1>;
 } MLSPlaintextCommitContent;
 
 struct {
-    MAC confirmation_tag;
+    optional<MAC> confirmation_tag;
 } MLSPlaintextCommitAuthData;
 
 interim_transcript_hash_[0] = ""; // zero-length octet string
@@ -1311,11 +1327,12 @@ interim_transcript_hash_[n+1] =
 
 Thus the `confirmed_transcript_hash` field in a GroupContext object represents a
 transcript over the whole history of MLSPlaintext Commit messages, up to the
-confirmation tag field in the current MLSPlaintext message.  The confirmation tag
-is then included in the transcript for the next epoch.  The interim transcript
-hash is passed to new members in the GroupInfo struct, and enables existing
-members to incorporate a Commit message into the transcript without having to
-store the whole MLSPlaintextCommitAuthData structure.
+confirmation tag field in the current MLSPlaintext message.  The confirmation
+tag is then included in the transcript for the next epoch.  The interim
+transcript hash is computed by new members using the confirmation tag in the
+GroupInfo struct, and enables existing members to incorporate a Commit message
+into the transcript without having to store the whole MLSPlaintextCommitAuthData
+structure.
 
 As shown above, when a new group is created, the `interim_transcript_hash` field
 is set to the zero-length octet string.
@@ -1355,8 +1372,8 @@ encryption to the respective resolution node.
 The HPKECiphertext values are computed as
 
 ~~~~~
-kem_output, context = SetupBaseS(node_public_key, "")
-ciphertext = context.Seal(group_context, path_secret)
+kem_output, context = SetupBaseS(node_public_key, group_context)
+ciphertext = context.Seal("", path_secret)
 ~~~~~
 
 where `node_public_key` is the public key of the node that the path
@@ -1413,7 +1430,7 @@ proceeds as shown in the following diagram:
     commit_secret -> KDF.Extract
                          |
                          V
-                   DeriveSecret(., "joiner")
+                   ExpandWithLabel(., "joiner", GroupContext_[n], KDF.Nh)
                          |
                          V
                     joiner_secret
@@ -1502,16 +1519,15 @@ where having a full run of updates across members is too expensive, or if
 the external group key establishment mechanism provides
 stronger security against classical or quantum adversaries.
 
-Note that, as a PSK may have a different lifetime than an update, it
-does not necessarily provide the same Forward Secrecy (FS) or Post-Compromise
-Security (PCS) guarantees as a Commit message.
-
-<!-- OPEN ISSUE: Clarify lifetime vs security level mandated above. E.g. if
-the PSK security expires before the next update (shorter PSK lifetime than
-update), does that constitute a weaker security level -->
-
-<!-- OPEN ISSUE: Define "security level", and what it means to match the
-security level of the ciphersuite used in the group. -->
+Note that, as a PSK may have a different lifetime than an update, it does not
+necessarily provide the same Forward Secrecy (FS) or Post-Compromise Security
+(PCS) guarantees as a Commit message.  Unlike the key pairs populated in the
+tree by an Update or Commit, which always freshly generated, PSKs may be
+pre-distributed and stored. This creates the risk that a PSK may be compromised
+in the process of distribution and storage. The security that the group gets
+from injecting a PSK thus depends on both the entropy of the PSK and the risk of
+compromise.  These factors are outside of the scope of this document, but should
+be considered by application designers relying on PSKs.
 
 Each PSK in MLS has a type that designates how it was provisioned.
 External PSKs are provided by the application, while recovery and re-init PSKs
@@ -1585,9 +1601,6 @@ psk_secret     = psk_secret_[0] || ... || psk_secret_[n-1]
 
 The `index` field in `PSKLabel` corresponds to the index of the PSK in the `psk`
 array, while the `count` field contains the total number of PSKs.
-
-<!-- OPEN ISSUE: How to combine multiple PSKs such that the final PSK, is
-pseudorandom if at least one of the PSKs used is pseudorandom. -->
 
 ## Secret Tree {#secret-tree}
 
@@ -1844,7 +1857,15 @@ struct {
     opaque mac_value<0..255>;
 } MAC;
 
+enum {
+  reserved(0),
+  mls_plaintext(1),
+  mls_ciphertext(2),
+  (255)
+} WireFormat;
+
 struct {
+    WireFormat wire_format;
     opaque group_id<0..255>;
     uint64 epoch;
     Sender sender;
@@ -1868,6 +1889,7 @@ struct {
 } MLSPlaintext;
 
 struct {
+    WireFormat wire_format = mls_ciphertext;
     opaque group_id<0..255>;
     uint64 epoch;
     ContentType content_type;
@@ -1920,8 +1942,13 @@ struct {
     select (MLSPlaintextTBS.sender.sender_type) {
         case member:
             GroupContext context;
+
+        case preconfigured:
+        case new_member:
+            struct{};
     }
 
+    WireFormat wire_format;
     opaque group_id<0..255>;
     uint64 epoch;
     Sender sender;
@@ -1957,8 +1984,9 @@ membership_tag = MAC(membership_key, MLSPlaintextTBM);
 ~~~~~
 
 Note that the `membership_tag` only needs to be computed for MLSPlaintext
-messages that will be sent over the wire, and isn't needed for those that will
-be encrypted and transmitted as MLSCiphertext messages.
+messages that will be sent over the wire (`wire_format == mls_plaintext`).  It
+isn't needed for messages that will be encrypted and transmitted as
+MLSCiphertext messages (`wire_format == mls_ciphertext`).
 
 ## Content Encryption
 
@@ -2173,28 +2201,20 @@ Proposals are included in an MLSPlaintext by way of a Proposal structure that
 indicates their type:
 
 ~~~~~
-enum {
-    reserved(0),
-    add(1),
-    update(2),
-    remove(3),
-    psk(4),
-    reinit(5),
-    external_init(6),
-    app_ack(7),
-    (255)
-} ProposalType;
+// See IANA registry for registered values
+uint16 ProposalType;
 
 struct {
     ProposalType msg_type;
     select (Proposal.msg_type) {
-        case add:           Add;
-        case update:        Update;
-        case remove:        Remove;
-        case psk:           PreSharedKey;
-        case reinit:        ReInit;
-        case external_init: ExternalInit;
-        case app_ack:       AppAck;
+        case add:                      Add;
+        case update:                   Update;
+        case remove:                   Remove;
+        case psk:                      PreSharedKey;
+        case reinit:                   ReInit;
+        case external_init:            ExternalInit;
+        case app_ack:                  AppAck;
+        case group_context_extensions: GroupContextExtensions;
     };
 } Proposal;
 ~~~~~
@@ -2245,6 +2265,14 @@ struct {
     KeyPackage key_package;
 } Update;
 ~~~~~
+
+The values in the following fields of the KeyPackage contained in an `Update`
+proposal MUST be the same as those of the KeyPackage it replaces in the tree.
+`version`, `cipher_suite`, `credential.identity`, `endpoint_id`. However, the
+value of the `credential.signature_key` field of the new KeyPackage MUST be
+different from that of all other KeyPackages in the tree. Furthermore, the value
+of the `hpke_init_key` field of the new KeyPackage MUST be different from that
+of the KeyPackage it replaces.
 
 A member of the group applies an Update message by taking the following steps:
 
@@ -2391,6 +2419,26 @@ to recognize which messages conatain AppAcks.  The application can also have
 clients enforce an AppAck schedule, reporting loss if an AppAck is not received
 at the expected time.
 
+### GroupContextExtensions
+
+A GroupContextExtensions proposal is used to update the list of extensions in
+the GroupContext for the group.
+
+```
+struct {
+  Extension extensions<0..2^32-1>;
+} GroupContextExtensions;
+```
+
+A member of the group applies a GroupContextExtensions proposal by removing all
+of the existing extensions from the GroupContext object for the group and
+replacing them with the list of extensions in the proposal.  (This is a
+wholesale replacement, not a merge.  An extension is only carried over if the
+sender of the proposal includes it in the new list.)  Note that once the
+GroupContext is updated, its inclusion in the confirmation_tag by way of the key
+schedule will confirm that all members of the group agree on the extensions in
+use.
+
 ### External Proposals
 
 Add and Remove proposals can be constructed and sent to the group by a party
@@ -2421,9 +2469,6 @@ have the same mapping and apply the same policies to external proposals.
 An external proposal MUST be sent as an MLSPlaintext
 object, since the sender will not have the keys necessary to construct an
 MLSCiphertext object.
-
-<!-- TODO: Should recognized external signers be added to some object that the
-group explicitly agrees on, e.g., as an extension to the GroupContext? -->
 
 ## Commit
 
@@ -2471,12 +2516,23 @@ The sender of a Commit MUST include all valid proposals that it has received
 during the current epoch. Invalid proposals include, for example, proposals with
 an invalid signature or proposals that are semantically invalid, such as an Add
 when the sender does not have the application-level permission to add new users.
+Proposals with a non-default proposal type MUST NOT be included in a commit
+unless the proposal type is supported by all the members of the group that will
+process the Commit (i.e., not including any members being added or removed by
+the Commit).
+
 If there are multiple proposals that apply to the same leaf, the committer
 chooses one and includes only that one in the Commit, considering the rest
 invalid. The committer MUST prefer any Remove received, or the most recent
 Update for the leaf if there are no Removes. If there are multiple Add proposals
-for the same client, the committer again chooses one to include and considers
-the rest invalid.
+containing KeyPackages with the same tuple `(credential.identity, endpoint_id)`
+the committer again chooses one to include and considers the rest invalid. Add
+proposals that contain KeyPackages with an `(credential.identity, endpoint_id)`
+tuple that matches that of an existing KeyPackage in the group MUST be
+considered invalid. The comitter MUST consider invalid any Add or Update
+proposal if the Credential in the contained KeyPackage shares the same signature
+key with a Credential in any leaf of the group, or indeed if the KeyPackage
+shares the same `hpke_init_key` with another KeyPackage in the group.
 
 The Commit MUST NOT combine proposals sent within different epochs. In the event
 that a valid proposal is omitted from the next Commit, the sender of the
@@ -2516,13 +2572,31 @@ uses:
 1. An "empty" Commit that references no proposals, which updates the committer's
    contribution to the group and provides PCS with regard to the committer.
 
-2. An "add-only" Commit that references only Add proposals, in which the path is
-   optional.  Such a commit provides PCS with regard to the committer only if
-   the path field is present.
+2. A "partial" Commit that references Add, PreSharedKey, or ReInit proposals but
+   where the path is empty. Such a commit doesn't provide PCS with regard to the
+   committer.
 
 3. A "full" Commit that references proposals of any type, which provides FS with
    regard to any removed members and PCS for the committer and any updated
    members.
+
+When creating or processing a Commit, three different ratchet trees and
+their associated GroupContexts are used:
+
+1. "Old" refers to the ratchet tree and GroupContext for the epoch before the
+   commit.  The old GroupContext is used when signing the MLSPlainText so that
+   existing group members can verify the signature before processing the
+   commit.
+2. "Provisional" refers to the ratchet tree and GroupContext constructed after
+   applying the proposals that are referenced by the Commit.  The provisional
+   GroupContext uses the epoch number for the new epoch, and the old confirmed
+   transcript hash.  This is used when creating the UpdatePath, if the
+   UpdatePath is needed.
+3. "New" refers to the ratchet tree and GroupContext constructed after applying
+   the proposals and the UpdatePath (if any).  The new GroupContext uses the
+   epoch number for the new epoch, and the new confirmed transcript hash.  This
+   is used when deriving the new epoch secrets, and is the only GroupContext
+   that newly-added members will have.
 
 A member of the group creates a Commit message and the corresponding Welcome
 message at the same time, by taking the following steps:
@@ -2531,7 +2605,7 @@ message at the same time, by taking the following steps:
   field populated from Proposals received during the current epoch, and an empty
   `path` field.
 
-* Generate a provisional GroupContext object by applying the proposals
+* Generate the provisional ratchet tree and GroupContext by applying the proposals
   referenced in the initial Commit object, as described in {{proposals}}. Update
   proposals are applied first, followed by Remove proposals, and then finally
   Add proposals. Add proposals are applied in the order listed in the
@@ -2549,40 +2623,50 @@ message at the same time, by taking the following steps:
   based on the proposals that are in the commit (see above), then it MUST be
   populated.  Otherwise, the sender MAY omit the `path` field at its discretion.
 
-* If populating the `path` field: Create an UpdatePath using the new tree. Any
-  new member (from an add proposal) MUST be exluded from the resolution during
-  the computation of the UpdatePath. The GroupContext for this operation uses
-  the `group_id`, `epoch`, `tree_hash`, and `confirmed_transcript_hash` values
-  in the initial GroupContext object.  The `leaf_key_package` for this
-  UpdatePath must have a `parent_hash` extension.
+* If populating the `path` field: Create an UpdatePath using the provisional
+  ratchet tree and GroupContext. Any new member (from an add proposal) MUST be
+  exluded from the resolution during the computation of the UpdatePath.  The
+  `leaf_key_package` for this UpdatePath must have a `parent_hash` extension.
+  Note that the KeyPackage in the `UpdatePath` effectively updates an existing
+  KeyPackage in the group and thus MUST adhere to the same restrictions as
+  KeyPackages used in `Update` proposals.
 
    * Assign this UpdatePath to the `path` field in the Commit.
 
    * Apply the UpdatePath to the tree, as described in
-     {{synchronizing-views-of-the-tree}}. Define `commit_secret` as the value
-     `path_secret[n+1]` derived from the `path_secret[n]` value assigned to
-     the root node.
+     {{synchronizing-views-of-the-tree}}, creating the new ratchet tree. Define
+     `commit_secret` as the value `path_secret[n+1]` derived from the
+     `path_secret[n]` value assigned to the root node.
 
 * If not populating the `path` field: Set the `path` field in the Commit to the
   null optional.  Define `commit_secret` as the all-zero vector of the same
-  length as a `path_secret` value would be.
+  length as a `path_secret` value would be.  In this case, the new ratchet tree
+  is the same as the provisional ratchet tree.
 
 * If one or more PreSharedKey proposals are part of the commit, derive the `psk_secret`
   as specified in {{pre-shared-keys}}, where the order of PSKs in the derivation
   corresponds to the order of PreSharedKey proposals in the `proposals` vector.
   Otherwise, set `psk_secret` to a zero-length octet string.
 
-* Construct an MLSPlaintext object containing the Commit object. Sign the MLSPlaintext
-  using the current epoch's GroupContext as context. Use the signature, the
-  `commit_secret` and the `psk_secret` to advance the key schedule and compute
-  the `confirmation_tag` value in the MLSPlaintext.
-
-* Update the tree in the provisional state by applying the direct path
+* Construct an MLSPlaintext object containing the Commit object. Sign the
+  MLSPlaintext using the old GroupContext as context.
+  * Use the MLSPlaintext to update the confirmed transcript hash and generate
+    the new GroupContext.
+  * Use the `init_secret` from the previous epoch, the `commit_secret` and the
+    `psk_secret` as defined in the previous steps, and the new GroupContext to
+    compute the new `joiner_secret`, `welcome_secret`, `epoch_secret`, and
+    derived secrets for the new epoch.
+  * Use the `confirmation_key` for the new epoch to compute the
+    `confirmation_tag` value, and the `membership_key` for the old epoch to
+    compute the `membership_tag` value in the MLSPlaintext.
+  * Calculate the interim transcript hash using the new confirmed transcript
+    hash and the `confirmation_tag` from the MLSPlaintext.
 
 * Construct a GroupInfo reflecting the new state:
-  * Group ID, epoch, tree, confirmed transcript hash, and interim transcript
-    hash from the new state
+  * Group ID, epoch, tree, confirmed transcript hash, interim transcript
+    hash, and group context extensions from the new state
   * The confirmation_tag from the MLSPlaintext object
+  * Other extensions as defined by the application
   * Sign the GroupInfo using the member's private signing key
   * Encrypt the GroupInfo using the key and nonce derived from the `joiner_secret`
     for the new epoch (see {{welcoming-new-members}})
@@ -2619,7 +2703,7 @@ A member of the group applies a Commit message by taking the following steps:
 * Verify that all PSKs specified in any PreSharedKey proposals in the `proposals` vector
   are available.
 
-* Generate a provisional GroupContext object by applying the proposals
+* Generate the provisional ratchet tree and GroupContext by applying the proposals
   referenced in the initial Commit object, as described in {{proposals}}. Update
   proposals are applied first, followed by Remove proposals, and then finally
   Add proposals. Add proposals are applied in the order listed in the
@@ -2634,9 +2718,9 @@ A member of the group applies a Commit message by taking the following steps:
   any Update or Remove proposals, or if it's empty. Otherwise, the `path` value
   MAY be omitted.
 
-* If the `path` value is populated: Process the `path` value using the ratchet
-  tree the provisional GroupContext, to update the ratchet tree and generate the
-  `commit_secret`:
+* If the `path` value is populated: Process the `path` value using the
+  provisional ratchet tree and GroupContext, to generate the new ratchet tree
+  and the `commit_secret`:
 
   * Apply the UpdatePath to the tree, as described in
     {{synchronizing-views-of-the-tree}}, and store `leaf_key_package` at the
@@ -2651,23 +2735,24 @@ A member of the group applies a Commit message by taking the following steps:
 * If the `path` value is not populated: Define `commit_secret` as the all-zero
   vector of the same length as a `path_secret` value would be.
 
-* Update the new GroupContext's confirmed and interim transcript hashes using the
-  new Commit.
+* Update the confirmed and interim transcript hashes using the new Commit, and
+  generate the new GroupContext.
 
 * If the `proposals` vector contains any PreSharedKey proposals, derive the
   `psk_secret` as specified in {{pre-shared-keys}}, where the order of PSKs in
   the derivation corresponds to the order of PreSharedKey proposals in the
   `proposals` vector. Otherwise, set `psk_secret` to 0.
 
-* Use the `commit_secret`, the `psk_secret`, the provisional GroupContext, and
-  the init secret from the previous epoch to compute the epoch secret and
+* Use the `init_secret` from the previous epoch, the `commit_secret` and the
+  `psk_secret` as defined in the previous steps, and the new GroupContext to
+  compute the new `joiner_secret`, `welcome_secret`, `epoch_secret`, and
   derived secrets for the new epoch.
 
 * Use the `confirmation_key` for the new epoch to compute the confirmation tag
   for this message, as described below, and verify that it is the same as the
   `confirmation_tag` field in the MLSPlaintext object.
 
-* If the above checks are successful, consider the updated GroupContext object
+* If the above checks are successful, consider the new GroupContext object
   as the current state of the group.
 
 * If the Commit included a ReInit proposal, the client MUST NOT use the group to
@@ -2719,7 +2804,8 @@ struct {
     uint64 epoch;
     opaque tree_hash<0..255>;
     opaque interim_transcript_hash<0..255>;
-    Extension extensions<0..2^32-1>;
+    Extension group_context_extensions<0..2^32-1>;
+    Extension other_extensions<0..2^32-1>;
     HPKEPublicKey external_pub;
     uint32 signer_index;
     opaque signature<0..2^16-1>;
@@ -2740,7 +2826,8 @@ struct {
     uint64 epoch;
     opaque tree_hash<0..255>;
     opaque interim_transcript_hash<0..255>;
-    Extension extensions<0..2^32-1>;
+    Extension group_context_extensions<0..2^32-1>;
+    Extension other_extensions<0..2^32-1>;
     HPKEPublicKey external_pub;
 } PublicGroupStateTBS;
 ~~~~~
@@ -2811,7 +2898,8 @@ struct {
   uint64 epoch;
   opaque tree_hash<0..255>;
   opaque confirmed_transcript_hash<0..255>;
-  Extension extensions<0..2^32-1>;
+  Extension group_context_extensions<0..2^32-1>;
+  Extension other_extensions<0..2^32-1>;
   MAC confirmation_tag;
   uint32 signer_index;
   opaque signature<0..2^16-1>;
@@ -2824,7 +2912,7 @@ struct {
 struct {
   opaque joiner_secret<1..255>;
   optional<PathSecret> path_secret;
-  optional<PreSharedKeys> psks;
+  PreSharedKeys psks;
 } GroupSecrets;
 
 struct {
@@ -2890,15 +2978,17 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
   * For each non-empty leaf node, verify the signature on the KeyPackage.
 
 * Identify a leaf in the `tree` array (any even-numbered node) whose
-  `key_package` field is identical to the the KeyPackage.  If no such field
+  `key_package` field is identical to the KeyPackage.  If no such field
   exists, return an error.  Let `index` represent the index of this node among
   the leaves in the tree, namely the index of the node in the `tree` array
   divided by two.
 
 * Construct a new group state using the information in the GroupInfo object.
-  The new member's position in the tree is `index`, as defined above.  In
-  particular, the confirmed transcript hash for the new state is the
-  `prior_confirmed_transcript_hash` in the GroupInfo object.
+    * The GroupContext contains the `group_id`, `epoch`, `tree_hash`,
+      `confirmed_transcript_hash`, and `group_context_extensions` fields from
+      the GroupInfo object.
+
+    * The new member's position in the tree is `index`, as defined above.
 
     * Update the leaf at index `index` with the private key corresponding to the
       public key in the node.
@@ -2981,14 +3071,18 @@ places:
 * In KeyPackages, to describe client capabilities and aspects of their
   participation in the group (once in the ratchet tree)
 * In the Welcome message, to tell new members of a group what parameters are
-  being used by the group
+  being used by the group, and to provide any additional details required to
+  join the group
 * In the GroupContext object, to ensure that all members of the group have the
   same view of the parameters in use
 
-In other words, clients advertise their capabilities in KeyPackage
-extensions, the creator of the group expresses its choices for the group in
-Welcome extensions, and the GroupContext confirms that all members of the group
-have the same view of the group's extensions.
+In other words, an application can use GroupContext extensions to ensure that
+all members of the group agree on a set of parameters.  Clients indicate
+their support for parameters in KeyPackage extensions.  New members of a
+group are informed of the group's GroupContext extensions via the
+`group_context_extensions` field in the GroupInfo or PublicGroupState object.
+The `other_extensions` field in a GroupInfo object can be used to provide
+additional parameters to new joiners that are used to join the group.
 
 This extension mechanism is designed to allow for secure and forward-compatible
 negotiation of extensions.  For this to work, implementations MUST correctly
@@ -3190,10 +3284,6 @@ and nonce for a certain amount of time to retain the ability to decrypt
 delayed or out of order messages, possibly still in transit while a
 decryption is being done.
 
-<!-- TODO: Describe here or in the Architecture spec the details. Depending
-on which Secret or key is kept alive, the security guarantees will vary. -->
-
-
 # Security Considerations
 
 The security goals of MLS are described in {{?I-D.ietf-mls-architecture}}.
@@ -3318,6 +3408,7 @@ This document requests the creation of the following new IANA registries:
 
 * MLS Ciphersuites ({{mls-ciphersuites}})
 * MLS Extension Types ({{mls-extension-types}})
+* MLS Proposal Types ({{mls-proposal-types}})
 * MLS Credential Types ({{mls-credential-types}})
 
 All of these registries should be under a heading of "Messaging Layer Security",
@@ -3359,7 +3450,7 @@ The columns in the registry are as follows:
 
 * Name: The name of the ciphersuite
 
-* Recommended: Whether support for this extension is recommended by the IETF MLS
+* Recommended: Whether support for this ciphersuite is recommended by the IETF MLS
   WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
   value of "N" unless explicitly requested, and adding a value with a
   "Recommended" value of "Y" requires Standards Action [RFC8126].  IESG Approval
@@ -3436,7 +3527,9 @@ Template:
   list:
 
   * KP: KeyPackage messages
-  * GI: GroupInfo objects
+  * GC: GroupContext objects (and the `group_context_extensions` field of
+    GroupInfo objects)
+  * GI: The `other_extensions` field of GroupInfo objects
 
 * Recommended: Whether support for this extension is recommended by the IETF MLS
   WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
@@ -3458,18 +3551,17 @@ Initial contents:
 | 0x0005           | ratchet_tree             | GI         | Y           | RFC XXXX  |
 | 0xff00  - 0xffff | Reserved for Private Use | N/A        | N/A         | RFC XXXX  |
 
+## MLS Proposal Types
 
-## MLS Credential Types
-
-This registry lists identifiers for types of credentials that can be used for
-authentication in the MLS protocol.  The extension type field is two bytes wide,
-so valid extension type values are in the range 0x0000 to 0xffff.
+This registry lists identifiers for types of proposals that can be made for
+changes to an MLS group.  The extension type field is two bytes wide, so valid
+extension type values are in the range 0x0000 to 0xffff.
 
 Template:
 
-* Value: The numeric value of the credential type
+* Value: The numeric value of the proposal type
 
-* Name: The name of the credential type
+* Name: The name of the proposal type
 
 * Recommended: Whether support for this extension is recommended by the IETF MLS
   WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
@@ -3478,6 +3570,41 @@ Template:
   is REQUIRED for a Y->N transition.
 
 * Reference: The document where this extension is defined
+
+Initial contents:
+
+| Value            | Name                     | Recommended | Reference |
+|:=================|:=========================|:============|:==========|
+| 0x0000           | RESERVED                 | N/A         | RFC XXXX  |
+| 0x0001           | add                      | Y           | RFC XXXX  |
+| 0x0002           | update                   | Y           | RFC XXXX  |
+| 0x0003           | remove                   | Y           | RFC XXXX  |
+| 0x0004           | psk                      | Y           | RFC XXXX  |
+| 0x0005           | reinit                   | Y           | RFC XXXX  |
+| 0x0006           | external_init            | Y           | RFC XXXX  |
+| 0x0007           | app_ack                  | Y           | RFC XXXX  |
+| 0x0008           | group_context_extensions | Y           | RFC XXXX  |
+| 0xff00  - 0xffff | Reserved for Private Use | N/A         | RFC XXXX  |
+
+## MLS Credential Types
+
+This registry lists identifiers for types of credentials that can be used for
+authentication in the MLS protocol.  The credential type field is two bytes wide,
+so valid credential type values are in the range 0x0000 to 0xffff.
+
+Template:
+
+* Value: The numeric value of the credential type
+
+* Name: The name of the credential type
+
+* Recommended: Whether support for this credential is recommended by the IETF MLS
+  WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
+  value of "N" unless explicitly requested, and adding a value with a
+  "Recommended" value of "Y" requires Standards Action [RFC8126].  IESG Approval
+  is REQUIRED for a Y->N transition.
+
+* Reference: The document where this credential is defined
 
 Initial contents:
 
