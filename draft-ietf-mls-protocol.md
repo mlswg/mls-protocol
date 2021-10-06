@@ -2113,8 +2113,8 @@ struct {
 ~~~~~
 
 When parsing a SenderData struct as part of message decryption, the recipient
-MUST verify that the `MemberId` populating the `sender` field is a member of the
-group.
+MUST verify that the `MemberId` indicated in the `sender` field represents a
+member of the group.
 
 # Group Creation
 
