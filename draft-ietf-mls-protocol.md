@@ -1849,15 +1849,17 @@ enum {
 } SenderType;
 
 struct {
-    opaque sender_identity;
-    opaque sender_endpoint_id;
-} Client
+    uint8 KeyPackageID<0..255>;
+} MemberId
 
 struct {
     SenderType sender_type;
-    Client sender;
+    switch (sender_type) {
+        case member:        MemberId member;
+        case preconfigured: opaque key_id<0..255>;
+        case new_member:    struct{};
+    }
 } Sender;
-
 struct {
     opaque mac_value<0..255>;
 } MAC;
@@ -1913,7 +1915,7 @@ The remainder of this section describes how to compute the signature of an
 MLSPlaintext object and how to convert it to an MLSCiphertext object for
 `member` sender types.  The steps are:
 
-* Set group_id, epoch, content_type and authenticated_data fields from the
+* Set `group_id`, `epoch`, `content_type` and `authenticated_data` fields from the
   MLSPlaintext object directly
 
 * Identify the key and key generation depending on the content type
@@ -2074,7 +2076,7 @@ encrypted, the sender data is encoded as an object of the following form:
 
 ~~~~~
 struct {
-    Client sender;
+    MemberId sender;
     uint32 generation;
     opaque reuse_guard[4];
 } MLSSenderData;
@@ -2111,7 +2113,7 @@ struct {
 ~~~~~
 
 When parsing a SenderData struct as part of message decryption, the recipient
-MUST verify that the `Client` populating the `sender` field is a member of the
+MUST verify that the `MemberId` populating the `sender` field is a member of the
 group.
 
 # Group Creation
@@ -2286,12 +2288,12 @@ A member of the group applies an Update message by taking the following steps:
 
 ### Remove
 
-A Remove proposal requests that the `Client` `removed` be removed from the
-group.
+A Remove proposal requests that the member with `MemberId` `removed` be removed
+from the group.
 
 ~~~~~
 struct {
-    Client removed;
+    MemberId removed;
 } Remove;
 ~~~~~
 
@@ -2375,7 +2377,7 @@ included in Commit messages.
 
 ~~~~~
 struct {
-    Client sender;
+    MemberId sender;
     uint32 first_generation;
     uint32 last_generation;
 } MessageRange;
@@ -2810,7 +2812,7 @@ struct {
     Extension group_context_extensions<0..2^32-1>;
     Extension other_extensions<0..2^32-1>;
     HPKEPublicKey external_pub;
-    Client signer;
+    MemberId signer;
     opaque signature<0..2^16-1>;
 } PublicGroupState;
 ~~~
@@ -2894,7 +2896,7 @@ struct {
   Extension group_context_extensions<0..2^32-1>;
   Extension other_extensions<0..2^32-1>;
   MAC confirmation_tag;
-  Client signer;
+  MemberId signer;
   opaque signature<0..2^16-1>;
 } GroupInfo;
 
