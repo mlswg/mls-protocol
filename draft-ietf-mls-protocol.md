@@ -2850,8 +2850,8 @@ External Commits work like regular Commits, with a few differences:
     the group
   * There MUST be a single ExternalInit proposal
   * There MUST NOT be any Update proposals
-  * If a Remove proposal is present, then identity and endpoint ID of the
-    removed leaf MUST be the same as the corresponding values in the Add
+  * If a Remove proposal is present, then the `credential` and `endpoint_id` of
+    the removed leaf MUST be the same as the corresponding values in the Add
     KeyPackage.
 * The proposals included by reference in an External Commit MUST meet the following
   conditions:
@@ -2869,6 +2869,18 @@ External Commits work like regular Commits, with a few differences:
 In other words, External Commits come in two "flavors" -- a "join" commit that
 adds the sender to the group or a "resync" commit that replaces a member's prior
 appearance with a new one.
+
+Note that the "resync" operation allows an attacker that has compromised a
+member's signature private key to introduce themselves into the group and remove the
+prior, legitimate member in a single Commit.  Without resync, this
+can still be done, but requires two operations, the external Commit to join and
+a second Commit to remove the old appearance.  Applications for whom this
+distinction is salient can choose to disallow external commits that contain a
+Remove, or to allow such resync commits only if they contain a "reinit" PSK
+proposal that demonstrates the joining member's presence in a prior epoch of the
+group.  With the latter approach, the attacke would need to compromise the PSK
+as well as the signing key, but the application will need to ensure that
+continuing, non-resync'ing members have the required PSK.
 
 ### Welcoming New Members
 
