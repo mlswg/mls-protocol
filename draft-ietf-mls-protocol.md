@@ -1849,17 +1849,18 @@ enum {
 } SenderType;
 
 struct {
-    uint8 KeyPackageID<0..255>;
-} MemberId
+    opaque KeyPackageHash<0..255>;
+} KeyPackageID
 
 struct {
     SenderType sender_type;
     switch (sender_type) {
-        case member:        MemberId member;
+        case member:        KeyPackageID member;
         case preconfigured: opaque key_id<0..255>;
         case new_member:    struct{};
     }
 } Sender;
+
 struct {
     opaque mac_value<0..255>;
 } MAC;
@@ -2076,7 +2077,7 @@ encrypted, the sender data is encoded as an object of the following form:
 
 ~~~~~
 struct {
-    MemberId sender;
+    KeyPackageID sender;
     uint32 generation;
     opaque reuse_guard[4];
 } MLSSenderData;
@@ -2113,7 +2114,7 @@ struct {
 ~~~~~
 
 When parsing a SenderData struct as part of message decryption, the recipient
-MUST verify that the `MemberId` indicated in the `sender` field represents a
+MUST verify that the KeyPackageID indicated in the `sender` field corresponds a
 member of the group.
 
 # Group Creation
@@ -2288,21 +2289,24 @@ A member of the group applies an Update message by taking the following steps:
 
 ### Remove
 
-A Remove proposal requests that the member with `MemberId` `removed` be removed
+A Remove proposal requests that the member with KeyPackageID `removed` be removed
 from the group.
 
 ~~~~~
 struct {
-    MemberId removed;
+    KeyPackageID removed;
 } Remove;
 ~~~~~
 
 A member of the group applies a Remove message by taking the following steps:
 
-* Replace the leaf node of the group member with `MemberId` `removed` with a
-  blank node
 
-* Blank the intermediate nodes along the path from that leaf to the root
+* Identify a leaf node containing a key package matching `removed`. Let
+  `removed_index` be the node index of this leaf node.
+
+* Replace the leaf node at index with a blank node
+
+* Blank the intermediate nodes along the path from `index` to the root
 
 * Truncate the tree by reducing the size of tree until the rightmost non-blank leaf node
 
@@ -2378,7 +2382,7 @@ included in Commit messages.
 
 ~~~~~
 struct {
-    MemberId sender;
+    KeyPackageID sender;
     uint32 first_generation;
     uint32 last_generation;
 } MessageRange;
@@ -2813,7 +2817,7 @@ struct {
     Extension group_context_extensions<0..2^32-1>;
     Extension other_extensions<0..2^32-1>;
     HPKEPublicKey external_pub;
-    MemberId signer;
+    KeyPackageID signer;
     opaque signature<0..2^16-1>;
 } PublicGroupState;
 ~~~
@@ -2823,7 +2827,7 @@ The full tree can be included via the `ratchet_tree` extension
 {{ratchet-tree-extension}}.
 
 The signature MUST verify using the public key taken from the credential in the
-leaf node of the member with `MemberId` `signer`. The signature covers the
+leaf node of the member with KeyPackageID `signer`. The signature covers the
 following structure, comprising all the fields in the PublicGroupState above
 `signer`:
 
@@ -2898,7 +2902,7 @@ struct {
   Extension group_context_extensions<0..2^32-1>;
   Extension other_extensions<0..2^32-1>;
   MAC confirmation_tag;
-  MemberId signer;
+  KeyPackageID signer;
   opaque signature<0..2^16-1>;
 } GroupInfo;
 
@@ -2957,7 +2961,7 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 * Verify the signature on the GroupInfo object. The signature input comprises
   all of the fields in the GroupInfo object except the signature field. The
   public key and algorithm are taken from the credential in the leaf node of the
-  member with `MemberId` `signer`. If this verification fails, return an error.
+  member with KeyPackageID `signer`. If this verification fails, return an error.
 
 * Verify the integrity of the ratchet tree.
 
@@ -2991,9 +2995,9 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
       public key in the node.
 
     * If the `path_secret` value is set in the GroupSecrets object: Identify the
-      lowest common ancestor of the leaves at `index` and at the leaf index of
-      the member with `MemberId` `GroupInfo.signer`. Set the private key for
-      this node to the private key derived from the `path_secret`.
+      lowest common ancestor of the leaf node index `index` and at the leaf
+      index of the member with KeyPackageID `GroupInfo.signer`. Set the private
+      key for this node to the private key derived from the `path_secret`.
 
     * For each parent of the common ancestor, up to the root of the tree, derive
       a new path secret and set the private key for the node to the private key
