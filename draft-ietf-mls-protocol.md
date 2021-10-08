@@ -1072,6 +1072,24 @@ modification of its content MUST be reflected by a change of its
 signature. This allow other members to control the validity of the KeyPackage
 at any time and in particular in the case of a newcomer joining the group.
 
+## Key Package IDs
+
+When it is necessary to refer to a specific KeyPackage, protocol messages
+incorporate a KeyPackageID:
+
+```
+struct {
+    opaque KeyPackageHash<0..255>;
+} KeyPackageID
+```
+
+This value is the hash of the KeyPackage, using the hash indicated by the
+`cipher_suite` field. KeyPackage hashes are used in a Welcome message to
+indicate which KeyPackage is being used to include the new member. Since members
+of a group are uniquely identified by their leaf KeyPackages, messages within a
+group use the hash of this key package to refer to group members, e.g., to
+specify the target of a Remove proposal or the signer of an MLSPlaintext.
+
 ## Client Capabilities
 
 The `capabilities` extension indicates what protocol versions, ciphersuites,
@@ -1114,11 +1132,11 @@ This extension MUST always be present in a KeyPackage.
 ## KeyPackage Identifiers
 
 Within MLS, a KeyPackage is identified by its hash (see, e.g.,
-{{welcoming-new-members}}).  The `key_id` extension allows applications to add
+{{welcoming-new-members}}).  The `external_key_id` extension allows applications to add
 an explicit, application-defined identifier to a KeyPackage.
 
 ~~~~~
-opaque key_id<0..2^16-1>;
+opaque external_key_id<0..2^16-1>;
 ~~~~~
 
 ## Parent Hash {#parent-hash}
@@ -1849,14 +1867,10 @@ enum {
 } SenderType;
 
 struct {
-    opaque KeyPackageHash<0..255>;
-} KeyPackageID
-
-struct {
     SenderType sender_type;
     switch (sender_type) {
         case member:        KeyPackageID member;
-        case preconfigured: opaque key_id<0..255>;
+        case preconfigured: opaque external_key_id<0..255>;
         case new_member:    struct{};
     }
 } Sender;
@@ -3529,7 +3543,7 @@ Initial contents:
 | 0x0000           | RESERVED                 | N/A        | N/A         | RFC XXXX  |
 | 0x0001           | capabilities             | KP         | Y           | RFC XXXX  |
 | 0x0002           | lifetime                 | KP         | Y           | RFC XXXX  |
-| 0x0003           | key_id                   | KP         | Y           | RFC XXXX  |
+| 0x0003           | external_key_id          | KP         | Y           | RFC XXXX  |
 | 0x0004           | parent_hash              | KP         | Y           | RFC XXXX  |
 | 0x0005           | ratchet_tree             | GI         | Y           | RFC XXXX  |
 | 0xff00  - 0xffff | Reserved for Private Use | N/A        | N/A         | RFC XXXX  |
