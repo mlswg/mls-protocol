@@ -2304,9 +2304,9 @@ A member of the group applies a Remove message by taking the following steps:
 * Identify a leaf node containing a key package matching `removed`. Let
   `removed_index` be the node index of this leaf node.
 
-* Replace the leaf node at index with a blank node
+* Replace the leaf node at `removed_index` with a blank node
 
-* Blank the intermediate nodes along the path from `index` to the root
+* Blank the intermediate nodes along the path from `removed_index` to the root
 
 * Truncate the tree by reducing the size of tree until the rightmost non-blank leaf node
 
