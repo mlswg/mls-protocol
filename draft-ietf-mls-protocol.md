@@ -1501,7 +1501,7 @@ Members of the group receive the `kem_output` in an ExternalInit proposal and
 preform the corresponding calculation to retrieve the `init_secret` value.
 
 ~~~~~
-context = SetupBaseR(kem_output, external_priv, PublicGroupStateTBS)
+context = SetupBaseR(kem_output, external_priv, "")
 init_secret = context.export("MLS 1.0 external init secret", KDF.Nh)
 ~~~~~
 
