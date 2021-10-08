@@ -2301,8 +2301,11 @@ struct {
 A member of the group applies a Remove message by taking the following steps:
 
 
-* Identify a leaf node containing a key package matching `removed`. Let
-  `removed_index` be the node index of this leaf node.
+* Identify a leaf node containing a key package matching `removed`.  This 
+  lookup MUST be done on the tree before any non-Remove proposals have
+  been applied (the "old" tree in the terminology of {{commit}}), since 
+  proposals such as Update can change the KeyPackage stored at a leaf. 
+  Let `removed_index` be the node index of this leaf node.
 
 * Replace the leaf node at `removed_index` with a blank node
 
