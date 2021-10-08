@@ -1849,7 +1849,7 @@ enum {
 } SenderType;
 
 struct {
-    opaque KeyPackageHash<0..255>;
+    opaque key_package_hash<0..255>;
 } KeyPackageID
 
 struct {
