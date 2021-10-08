@@ -24,7 +24,7 @@ author:
  -
     ins: R. Robert
     name: Raphael Robert
-    organization: Wire
+    organization:
     email: ietf@raphaelrobert.com
  -
     ins: J. Millican
