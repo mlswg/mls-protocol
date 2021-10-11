@@ -1424,6 +1424,7 @@ the below diagram:
 * KDF.Extract takes its salt argument from the top and its IKM
   argument from the left
 * DeriveSecret takes its Secret argument from the incoming arrow
+* `0` represents an all-zero byte string of length `KDF.Nh`.
 
 When processing a handshake message, a client combines the
 following information to derive new epoch secrets:
@@ -1614,7 +1615,7 @@ psk_secret_[i] = KDF.Extract(psk_input[i-1], psk_secret_[i-1])
 psk_secret     = psk_secret[n]
 ~~~~~
 
-Here `0` represents the all-zero vector of length KDF.Nh. The `index` field in
+Here `0` represents the all-zero vector of length `KDF.Nh`. The `index` field in
 `PSKLabel` corresponds to the index of the PSK in the `psk` array, while the
 `count` field contains the total number of PSKs.  In other words, the PSKs are
 chained together with KDF.Extract invocations, as follows:
@@ -2736,9 +2737,9 @@ message at the same time, by taking the following steps:
      `path_secret[n]` value assigned to the root node.
 
 * If not populating the `path` field: Set the `path` field in the Commit to the
-  null optional.  Define `commit_secret` as the all-zero vector of the same
-  length as a `path_secret` value would be.  In this case, the new ratchet tree
-  is the same as the provisional ratchet tree.
+  null optional.  Define `commit_secret` as the all-zero vector of length
+  `KDF.Nh` (the same length as a `path_secret` value would be).  In this case,
+  the new ratchet tree is the same as the provisional ratchet tree.
 
 * Derive the `psk_secret` as specified in {{pre-shared-keys}}, where the order
   of PSKs in the derivation corresponds to the order of PreSharedKey proposals
@@ -2829,7 +2830,7 @@ A member of the group applies a Commit message by taking the following steps:
     `path_secret[n]` value assigned to the root node.
 
 * If the `path` value is not populated: Define `commit_secret` as the all-zero
-  vector of the same length as a `path_secret` value would be.
+  vector of length `KDF.Nh` (the same length as a `path_secret` value would be).
 
 * Update the confirmed and interim transcript hashes using the new Commit, and
   generate the new GroupContext.
