@@ -1493,7 +1493,7 @@ information provided in the PublicGroupState and an external Commit to initializ
 their copy of the key schedule for the new epoch.
 
 ~~~~~
-kem_output, context = SetupBaseS(external_pub, PublicGroupState)
+kem_output, context = SetupBaseS(external_pub, "")
 init_secret = context.export("MLS 1.0 external init secret", KDF.Nh)
 ~~~~~
 
@@ -1501,7 +1501,7 @@ Members of the group receive the `kem_output` in an ExternalInit proposal and
 preform the corresponding calculation to retrieve the `init_secret` value.
 
 ~~~~~
-context = SetupBaseR(kem_output, external_priv, PublicGroupState)
+context = SetupBaseR(kem_output, external_priv, "")
 init_secret = context.export("MLS 1.0 external init secret", KDF.Nh)
 ~~~~~
 
