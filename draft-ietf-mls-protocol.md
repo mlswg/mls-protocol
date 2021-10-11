@@ -602,14 +602,13 @@ For example, in the below tree:
 * The copath of C is (D, AB, EFG)
 
 ~~~~~
-            ABCDEFG
-           /      \
-          /        \
-         /          \
-     ABCD            EFG
-    /    \          /  \
-   /      \        /    \
-  AB      CD      EF    |
+              7 = root
+        ______|______
+       /             \
+      3              11
+    __|__           __|
+   /     \         /   \
+  1       5       9     |
  / \     / \     / \    |
 A   B   C   D   E   F   G
 
@@ -617,7 +616,7 @@ A   B   C   D   E   F   G
 0 1 2 3 4 5 6 7 8 9 0 1 2
 ~~~~~
 
-Each node in the tree is assigned a _node index_, starting at zero and
+Each node in the tree is assigned an _index_, starting at zero and
 running from left to right.  A node is a leaf node if and only if it
 has an even index.  The node indices for the nodes in the above tree
 are as follows:
@@ -636,21 +635,10 @@ are as follows:
 * 11 = EFG
 * 12 = G
 
-The leaves of the tree are indexed separately, using a _leaf index_,
-since the protocol messages only need to refer to leaves in the
-tree.  Like nodes, leaves are numbered left to right.  The node with
-leaf index `k` is also called the `k-th` leaf.  Note that
-given the above numbering, a node is a leaf node if and only if it
-has an even node index, and a leaf node's leaf index is half its
-node index.  The leaf indices in the above tree are as follows:
-
-* 0 = A
-* 1 = B
-* 2 = C
-* 3 = D
-* 4 = E
-* 5 = F
-* 6 = G
+A tree with `n` leaves has `2*n - 1` nodes.  For example, the above tree has 7
+leaves (A, B, C, D, E, F, G) and 13 nodes.  The root of a tree with `n` leaves
+is always the node with index `2^k - 1`, where `k` is the largest number such
+that `2^k < n`.
 
 ## Ratchet Tree Nodes {#resolution-example}
 
@@ -666,7 +654,7 @@ Each node in a ratchet tree contains up to five values:
 
 * A private key (only within the member's direct path, see below)
 * A public key
-* An ordered list of leaf indices for "unmerged" leaves (see
+* An ordered list of node indices for "unmerged" leaves (see
   {{views}})
 * A credential (only for leaf nodes)
 * A hash of certain information about the node's parent, as of the last time the
@@ -688,13 +676,14 @@ of the node.
   of its right child, in that order
 
 For example, consider the following tree, where the "\_" character
-represents a blank node:
+represents a blank node and unmerged leaves are indicated in square
+brackets:
 
 ~~~~~
       _
-    /   \
+    __|__
    /     \
-  _       CD[C]
+  _       5[C]
  / \     / \
 A   _   C   D
 
@@ -780,16 +769,18 @@ leaf_priv, leaf_pub = KEM.DeriveKeyPair(leaf_node_secret)
 node_priv[n], node_pub[n] = KEM.DeriveKeyPair(node_secret[n])
 ~~~~~
 
-For example, suppose there is a group with four members:
+For example, suppose there is a group with four members, with C an unmerged leaf
+at node 5:
 
 ~~~~~
-      G
-     / \
-    /   \
+      3
+    __|__
    /     \
-  E       _
+  1       5[C]
  / \     / \
 A   B   C   D
+
+0 1 2 3 4 5 6
 ~~~~~
 
 If member B subsequently generates an UpdatePath based on a secret
@@ -808,15 +799,21 @@ leaf_secret    --> leaf_node_secret --> leaf_priv, leaf_pub
 ~~~~~
 
 After applying the UpdatePath, the tree will have the following structure, where
-"np\[i\]" represents the node_priv values generated as described
-above:
+`lp` and `np[i]` represent the leaf_priv and node_priv values generated as
+described above:
 
 ~~~~~
-          np[1]
-         /     \
-     np[0]      _
-     /  \      / \
-    A    B    C   D
+    np[1] -> 3
+           __|__
+          /     \
+np[0] -> 1       5[C]
+        / \     / \
+       A   B   C   D
+           ^
+           |
+           lp
+
+       0 1 2 3 4 5 6
 ~~~~~
 
 After performing these operations, the generator of the UpdatePath MUST
@@ -879,16 +876,16 @@ For example, in order to communicate the example update described in
 the previous section, the sender would transmit the following
 values:
 
-| Public Key   | Ciphertext(s)                        |
-|:-------------|:-------------------------------------|
-| pk(ns\[1\])  | E(pk(C), ps\[1\]), E(pk(D), ps\[1\]) |
-| pk(ns\[0\])  | E(pk(A), ps\[0\])                    |
+| Public Key    | Ciphertext(s)                                           |
+|:--------------|:--------------------------------------------------------|
+| node_pub\[1\] | E(pk(5), path_secret\[1\]), E(pk(C), path_secret\[1\])  |
+| node_pub\[0\] | E(pk(A), path_secret\[0\])                              |
 
 In this table, the value pk(ns\[X\]) represents the public key
 derived from the node secret X, whereas pk(X) represents the public leaf key
 for user X.  The value E(K, S) represents
 the public-key encryption of the path secret S to the
-public key K.
+public key K (using HPKE).
 
 After processing the update, each recipient MUST delete outdated key material,
 specifically:
@@ -1230,12 +1227,9 @@ struct {
 } LeafNodeHashInput;
 ~~~~~
 
-Note that the `node_index` field contains the index of the leaf among the nodes
-in the tree, not its index among the leaves; `node_index = 2 * leaf_index`.
-
 Now the tree hash of any non-leaf node is recursively defined to be the hash of
 its `ParentNodeTreeHashInput`. This includes an optional `ParentNode`
-object depending on if the node is blank or not.
+object depending on whether the node is blank or not.
 
 ~~~~~
 struct {
@@ -2133,8 +2127,7 @@ struct {
 
 When parsing a SenderData struct as part of message decryption, the
 recipient MUST verify that the sender field represents an occupied
-leaf in the ratchet tree.  In particular, the sender index value
-MUST be less than the number of leaves in the tree.
+leaf in the ratchet tree.
 
 # Group Creation
 
@@ -2265,9 +2258,10 @@ new member is added.  Instead, the sender of the Commit message chooses a
 location for each added member and states it in the Commit message.
 
 An Add is applied after being included in a Commit message.  The position of the
-Add in the list of proposals determines the leaf index `index` where the new member
-will be added.  For the first Add in the Commit, `index` is the leftmost empty
-leaf in the tree, for the second Add, the next empty leaf to the right, etc.
+Add in the list of proposals determines the node index `index` of the leaf node
+where the new member will be added.  For the first Add in the Commit, `index` is
+the leftmost empty leaf in the tree, for the second Add, the next empty leaf to
+the right, etc.
 
 * If necessary, extend the tree to the right until it has at least index + 1
   leaves
@@ -2318,6 +2312,9 @@ struct {
 ~~~~~
 
 A member of the group applies a Remove message by taking the following steps:
+
+* Verify that the node index `removed` corresponds to a leaf node (i.e., that it
+  is divisible by two) and the leaf at that node is populated.
 
 * Replace the leaf node at position `removed` with a blank node
 
@@ -2841,7 +2838,7 @@ The full tree can be included via the `ratchet_tree` extension
 
 The signature MUST verify using the public key taken from the credential in the
 leaf node at position `signer_index`.  The signature covers the following
-structure, comprising all the fields in the PublicGroupState above `signer_index`:
+structure, comprising all the fields in the PublicGroupState above `signature`:
 
 ~~~~~
 struct {
@@ -2852,6 +2849,7 @@ struct {
     Extension group_context_extensions<0..2^32-1>;
     Extension other_extensions<0..2^32-1>;
     HPKEPublicKey external_pub;
+    uint32 signer_index;
 } PublicGroupStateTBS;
 ~~~~~
 
@@ -2973,7 +2971,8 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 * Verify the signature on the GroupInfo object.  The signature input comprises
   all of the fields in the GroupInfo object except the signature field.  The
   public key and algorithm are taken from the credential in the leaf node at
-  position `signer_index`.  If this verification fails, return an error.
+  position `signer_index`.  If the node at position `signer_index` is not a leaf
+  node, or if signature verification fails, return an error.
 
 * Verify the integrity of the ratchet tree.
 
@@ -2992,9 +2991,8 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 
 * Identify a leaf in the `tree` array (any even-numbered node) whose
   `key_package` field is identical to the KeyPackage.  If no such field
-  exists, return an error.  Let `index` represent the index of this node among
-  the leaves in the tree, namely the index of the node in the `tree` array
-  divided by two.
+  exists, return an error.  Let `index` represent the index of this node in the
+  tree.
 
 * Construct a new group state using the information in the GroupInfo object.
     * The GroupContext contains the `group_id`, `epoch`, `tree_hash`,
