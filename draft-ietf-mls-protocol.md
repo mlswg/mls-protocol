@@ -2934,7 +2934,7 @@ struct {
 } GroupSecrets;
 
 struct {
-  opaque key_package_hash<1..255>;
+  KeyPackageID new_member<1..255>;
   HPKECiphertext encrypted_group_secrets;
 } EncryptedGroupSecrets;
 
@@ -2954,7 +2954,7 @@ processing the Welcome.
 
 On receiving a Welcome message, a client processes it using the following steps:
 
-* Identify an entry in the `secrets` array where the `key_package_hash`
+* Identify an entry in the `secrets` array where the `new_member`
   value corresponds to one of this client's KeyPackages, using the hash
   indicated by the `cipher_suite` field. If no such field exists, or if the
   ciphersuite indicated in the KeyPackage does not match the one in the
