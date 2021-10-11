@@ -134,6 +134,52 @@ shared keys with costs that scale as the log of the group size.
 
 RFC EDITOR PLEASE DELETE THIS SECTION.
 
+draft-12
+
+- Use the GroupContext to derive the joiner_secret (\*)
+
+- Make PreSharedKeys non optional in GroupSecrets (\*)
+
+- Update name for this particular key (\*)
+
+- Truncate tree size on removal (\*)
+
+- Use HPKE draft-08 (\*)
+
+- Clarify requirements around identity in MLS groups (\*)
+
+- Signal the intended wire format for MLS messages (\*)
+
+- Inject GroupContext as HPKE info instead of AAD (\*)
+
+- Clarify extension handling and make extension updatable (\*)
+
+- Improve extensibility of Proposals (\*)
+
+- Constrain proposal in External Commit (\*)
+
+- Remove the notion of a 'leaf index' (\*)
+
+- Add group_context_extensions proposal ID (\*)
+
+- Add RequiredCapabilities extension (\*)
+
+- Use cascaded KDF instead of concatenation to consolidate PSKs (\*)
+
+- Use key package hash to index clients in message structs (\*)
+
+- Don't require PublicGroupState for external init (\*)
+
+- Make ratchet tree section clearer.
+
+- Handle non-member sender cases in MLSPlaintextTBS
+
+- Clarify encoding of signatures with NIST curves
+
+- Remove OPEN ISSUEs and TODOs
+
+- Normalize the description of the zero vector
+
 draft-11
 
 - Include subtree keys in parent hash (\*)
