@@ -1602,9 +1602,10 @@ psk_secret_[i] = KDF.Extract(psk_input[i-1], psk_secret_[i-1])
 psk_secret     = psk_secret[n]
 ~~~~~
 
-The `index` field in `PSKLabel` corresponds to the index of the PSK in the `psk`
-array, while the `count` field contains the total number of PSKs.  In other
-words, the PSKs are chained together with KDF.Extract invocations, as follows:
+Here `0` represents the all-zero vector of length KDF.Nh. The `index` field in
+`PSKLabel` corresponds to the index of the PSK in the `psk` array, while the
+`count` field contains the total number of PSKs.  In other words, the PSKs are
+chained together with KDF.Extract invocations, as follows:
 
 ~~~~~
                 0                                   0       = psk_secret_[0]
@@ -1622,6 +1623,9 @@ psk_[1] --> KDF.Extract --> ExpandWithLabel --> KDF.Extract = psk_secret_[1]
                 V                                   V
 psk_[n] --> KDF.Extract --> ExpandWithLabel --> KDF.Extract = psk_secret_[n]
 ~~~~~
+
+In particular, if there are no PreSharedKey proposals in a given Commit, then
+the resulting `psk_secret` is `psk_secret_[0]`, the all-zero vector.
 
 ## Secret Tree {#secret-tree}
 
@@ -2663,10 +2667,9 @@ message at the same time, by taking the following steps:
   length as a `path_secret` value would be.  In this case, the new ratchet tree
   is the same as the provisional ratchet tree.
 
-* If one or more PreSharedKey proposals are part of the commit, derive the `psk_secret`
-  as specified in {{pre-shared-keys}}, where the order of PSKs in the derivation
-  corresponds to the order of PreSharedKey proposals in the `proposals` vector.
-  Otherwise, set `psk_secret` to a zero-length octet string.
+* Derive the `psk_secret` as specified in {{pre-shared-keys}}, where the order
+  of PSKs in the derivation corresponds to the order of PreSharedKey proposals
+  in the `proposals` vector.
 
 * Construct an MLSPlaintext object containing the Commit object. Sign the
   MLSPlaintext using the old GroupContext as context.
@@ -2758,10 +2761,9 @@ A member of the group applies a Commit message by taking the following steps:
 * Update the confirmed and interim transcript hashes using the new Commit, and
   generate the new GroupContext.
 
-* If the `proposals` vector contains any PreSharedKey proposals, derive the
-  `psk_secret` as specified in {{pre-shared-keys}}, where the order of PSKs in
-  the derivation corresponds to the order of PreSharedKey proposals in the
-  `proposals` vector. Otherwise, set `psk_secret` to 0.
+* Derive the `psk_secret` as specified in {{pre-shared-keys}}, where the order
+  of PSKs in the derivation corresponds to the order of PreSharedKey proposals
+  in the `proposals` vector.
 
 * Use the `init_secret` from the previous epoch, the `commit_secret` and the
   `psk_secret` as defined in the previous steps, and the new GroupContext to
