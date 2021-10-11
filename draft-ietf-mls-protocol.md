@@ -1566,7 +1566,7 @@ enum {
   reserved(0),
   external(1),
   reinit(2),
-  branch(3),
+  branch(3)
   (255)
 } PSKType;
 
@@ -2941,21 +2941,43 @@ External Commits.
 
 External Commits work like regular Commits, with a few differences:
 
-* External Commits MUST reference an Add Proposal that adds the issuing new
-  member to the group
+* The proposals included by value in an External Commit MUST meet the following
+  conditions:
+  * There MUST be a single Add proposal that adds the new issuing new member to
+    the group
+  * There MUST be a single ExternalInit proposal
+  * There MUST NOT be any Update proposals
+  * If a Remove proposal is present, then the `credential` and `endpoint_id` of
+    the removed leaf MUST be the same as the corresponding values in the Add
+    KeyPackage.
+* The proposals included by reference in an External Commit MUST meet the following
+  conditions:
+  * There MUST NOT be any ExternalInit proposals
 * External Commits MUST contain a `path` field (and is therefore a "full"
   Commit)
 * External Commits MUST be signed by the new member.  In particular, the
   signature on the enclosing MLSPlaintext MUST verify using the public key for
   the credential in the `leaf_key_package` of the `path` field.
-* An external commit MUST reference no more than one ExternalInit proposal, and the
-  ExternalInit proposal MUST be supplied by value, not by reference. When
-  processing a Commit, both existing and new members MUST use the external init
-  secret as described in {{external-initialization}}.
+* When processing a Commit, both existing and new members MUST use the external
+  init secret as described in {{external-initialization}}.
 * The sender type for the MLSPlaintext encapsulating the External Commit MUST be
   `new_member`
-* If the Add Proposal is also issued by the new member, its member SenderType
-  MUST be `new_member`
+
+In other words, External Commits come in two "flavors" -- a "join" commit that
+adds the sender to the group or a "resync" commit that replaces a member's prior
+appearance with a new one.
+
+Note that the "resync" operation allows an attacker that has compromised a
+member's signature private key to introduce themselves into the group and remove the
+prior, legitimate member in a single Commit.  Without resync, this
+can still be done, but requires two operations, the external Commit to join and
+a second Commit to remove the old appearance.  Applications for whom this
+distinction is salient can choose to disallow external commits that contain a
+Remove, or to allow such resync commits only if they contain a "reinit" PSK
+proposal that demonstrates the joining member's presence in a prior epoch of the
+group.  With the latter approach, the attacke would need to compromise the PSK
+as well as the signing key, but the application will need to ensure that
+continuing, non-resync'ing members have the required PSK.
 
 ### Welcoming New Members
 
@@ -3405,6 +3427,24 @@ key derived from the group secrets.
 The second form of authentication is that group members can verify a message
 originated from a particular member of the group. This is guaranteed by a
 digital signature on each message from the sender's signature key.
+
+The signature keys held by group members are critical to the security of MLS
+against active attacks.  If a member's signature key is compromised, then an
+attacker can create KeyPackages impersonating the member; depending on the
+application, this can then allow the attacker to join the group with the
+compromised member's identity.  For example, if a group has enabled external
+parties to join via external commits, then an attacker that has compromised a
+member's signature key could use an external commit to insert themselves into
+the group -- even using a "resync"-style external commit to replace the
+compromised member in the group.
+
+Applications can mitigate the risks of signature key compromise using pre-shared
+keys.  If a group requires joiners to know a PSK in addition to authenticating
+with a credential, then in order to mount an impersonation attack, the attacker
+would need to compromise the relevant PSK as well as the victim's signature key.
+The cost of this mitigation is that the application needs some external
+arrangement that ensures that the legitimate members of the group to have the
+required PSKs.
 
 ## Forward Secrecy and Post-Compromise Security
 
