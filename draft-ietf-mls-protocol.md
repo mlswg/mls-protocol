@@ -635,6 +635,11 @@ are as follows:
 * 11 = EFG
 * 12 = G
 
+A tree with `n` leaves has `2*n - 1` nodes.  For example, the above tree has 7
+leaves (A, B, C, D, E, F, G) and 13 nodes.  The root of a tree with `n` leaves
+is always the node with index `2^k - 1`, where `k` is the largest number such
+that `2^k < n`.
+
 ## Ratchet Tree Nodes {#resolution-example}
 
 A particular instance of a ratchet tree is defined by the same parameters that
