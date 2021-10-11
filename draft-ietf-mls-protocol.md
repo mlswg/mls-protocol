@@ -3012,9 +3012,9 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
       public key in the node.
 
     * If the `path_secret` value is set in the GroupSecrets object: Identify the
-      lowest common ancestor of the leaf node index `index` and at the leaf
-      index of the member with KeyPackageID `GroupInfo.signer`. Set the private
-      key for this node to the private key derived from the `path_secret`.
+      lowest common ancestor of the node index `index` and of the node index of
+      the member with KeyPackageID `GroupInfo.signer`. Set the private key for
+      this node to the private key derived from the `path_secret`.
 
     * For each parent of the common ancestor, up to the root of the tree, derive
       a new path secret and set the private key for the node to the private key
