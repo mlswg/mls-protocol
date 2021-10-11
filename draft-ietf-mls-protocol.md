@@ -1069,6 +1069,24 @@ modification of its content MUST be reflected by a change of its
 signature. This allow other members to control the validity of the KeyPackage
 at any time and in particular in the case of a newcomer joining the group.
 
+## Key Package IDs
+
+When it is necessary to refer to a specific KeyPackage, protocol messages
+incorporate a KeyPackageID:
+
+```
+struct {
+    opaque key_package_hash<0..255>;
+} KeyPackageID
+```
+
+This value is the hash of the KeyPackage, using the hash indicated by the
+`cipher_suite` field. KeyPackage hashes are used in a Welcome message to
+indicate which KeyPackage is being used to include the new member. Since members
+of a group are uniquely identified by their leaf KeyPackages, messages within a
+group use the hash of this key package to refer to group members, e.g., to
+specify the target of a Remove proposal or the signer of an MLSPlaintext.
+
 ## Client Capabilities
 
 The `capabilities` extension indicates what protocol versions, ciphersuites,
@@ -1111,11 +1129,11 @@ This extension MUST always be present in a KeyPackage.
 ## KeyPackage Identifiers
 
 Within MLS, a KeyPackage is identified by its hash (see, e.g.,
-{{welcoming-new-members}}).  The `key_id` extension allows applications to add
+{{welcoming-new-members}}).  The `external_key_id` extension allows applications to add
 an explicit, application-defined identifier to a KeyPackage.
 
 ~~~~~
-opaque key_id<0..2^16-1>;
+opaque external_key_id<0..2^16-1>;
 ~~~~~
 
 ## Parent Hash {#parent-hash}
@@ -1869,7 +1887,11 @@ enum {
 
 struct {
     SenderType sender_type;
-    uint32 sender;
+    switch (sender_type) {
+        case member:        KeyPackageID member;
+        case preconfigured: opaque external_key_id<0..255>;
+        case new_member:    struct{};
+    }
 } Sender;
 
 struct {
@@ -1928,7 +1950,7 @@ The remainder of this section describes how to compute the signature of an
 MLSPlaintext object and how to convert it to an MLSCiphertext object for
 `member` sender types.  The steps are:
 
-* Set group_id, epoch, content_type and authenticated_data fields from the
+* Set `group_id`, `epoch`, `content_type` and `authenticated_data` fields from the
   MLSPlaintext object directly
 
 * Identify the key and key generation depending on the content type
@@ -2089,7 +2111,7 @@ encrypted, the sender data is encoded as an object of the following form:
 
 ~~~~~
 struct {
-    uint32 sender;
+    KeyPackageID sender;
     uint32 generation;
     opaque reuse_guard[4];
 } MLSSenderData;
@@ -2125,9 +2147,9 @@ struct {
 } MLSSenderDataAAD;
 ~~~~~
 
-When parsing a SenderData struct as part of message decryption, the
-recipient MUST verify that the sender field represents an occupied
-leaf in the ratchet tree.
+When parsing a SenderData struct as part of message decryption, the recipient
+MUST verify that the KeyPackageID indicated in the `sender` field identifies a
+member of the group.
 
 # Group Creation
 
@@ -2302,23 +2324,26 @@ A member of the group applies an Update message by taking the following steps:
 
 ### Remove
 
-A Remove proposal requests that the client at a specified index in the tree be
-removed from the group.
+A Remove proposal requests that the member with KeyPackageID `removed` be removed
+from the group.
 
 ~~~~~
 struct {
-    uint32 removed;
+    KeyPackageID removed;
 } Remove;
 ~~~~~
 
 A member of the group applies a Remove message by taking the following steps:
 
-* Verify that the node index `removed` corresponds to a leaf node (i.e., that it
-  is divisible by two) and the leaf at that node is populated.
+* Identify a leaf node containing a key package matching `removed`.  This
+  lookup MUST be done on the tree before any non-Remove proposals have
+  been applied (the "old" tree in the terminology of {{commit}}), since
+  proposals such as Update can change the KeyPackage stored at a leaf.
+  Let `removed_index` be the node index of this leaf node.
 
-* Replace the leaf node at position `removed` with a blank node
+* Replace the leaf node at `removed_index` with a blank node
 
-* Blank the intermediate nodes along the path from the removed leaf to the root
+* Blank the intermediate nodes along the path from `removed_index` to the root
 
 * Truncate the tree by reducing the size of tree until the rightmost non-blank leaf node
 
@@ -2394,7 +2419,7 @@ included in Commit messages.
 
 ~~~~~
 struct {
-    uint32 sender;
+    KeyPackageID sender;
     uint32 first_generation;
     uint32 last_generation;
 } MessageRange;
@@ -2827,7 +2852,7 @@ struct {
     Extension group_context_extensions<0..2^32-1>;
     Extension other_extensions<0..2^32-1>;
     HPKEPublicKey external_pub;
-    uint32 signer_index;
+    KeyPackageID signer;
     opaque signature<0..2^16-1>;
 } PublicGroupState;
 ~~~
@@ -2837,8 +2862,9 @@ The full tree can be included via the `ratchet_tree` extension
 {{ratchet-tree-extension}}.
 
 The signature MUST verify using the public key taken from the credential in the
-leaf node at position `signer_index`.  The signature covers the following
-structure, comprising all the fields in the PublicGroupState above `signature`:
+leaf node of the member with KeyPackageID `signer`. The signature covers the
+following structure, comprising all the fields in the PublicGroupState above
+`signature`:
 
 ~~~~~
 struct {
@@ -2849,7 +2875,7 @@ struct {
     Extension group_context_extensions<0..2^32-1>;
     Extension other_extensions<0..2^32-1>;
     HPKEPublicKey external_pub;
-    uint32 signer_index;
+    KeyPackageID signer;
 } PublicGroupStateTBS;
 ~~~~~
 
@@ -2912,7 +2938,7 @@ struct {
   Extension group_context_extensions<0..2^32-1>;
   Extension other_extensions<0..2^32-1>;
   MAC confirmation_tag;
-  uint32 signer_index;
+  KeyPackageID signer;
   opaque signature<0..2^16-1>;
 } GroupInfo;
 
@@ -2927,7 +2953,7 @@ struct {
 } GroupSecrets;
 
 struct {
-  opaque key_package_hash<1..255>;
+  KeyPackageID new_member<1..255>;
   HPKECiphertext encrypted_group_secrets;
 } EncryptedGroupSecrets;
 
@@ -2947,7 +2973,7 @@ processing the Welcome.
 
 On receiving a Welcome message, a client processes it using the following steps:
 
-* Identify an entry in the `secrets` array where the `key_package_hash`
+* Identify an entry in the `secrets` array where the `new_member`
   value corresponds to one of this client's KeyPackages, using the hash
   indicated by the `cipher_suite` field. If no such field exists, or if the
   ciphersuite indicated in the KeyPackage does not match the one in the
@@ -2968,11 +2994,11 @@ welcome_nonce = KDF.Expand(welcome_secret, "nonce", AEAD.Nn)
 welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 ~~~~~
 
-* Verify the signature on the GroupInfo object.  The signature input comprises
-  all of the fields in the GroupInfo object except the signature field.  The
-  public key and algorithm are taken from the credential in the leaf node at
-  position `signer_index`.  If the node at position `signer_index` is not a leaf
-  node, or if signature verification fails, return an error.
+* Verify the signature on the GroupInfo object. The signature input comprises
+  all of the fields in the GroupInfo object except the signature field. The
+  public key and algorithm are taken from the credential in the leaf node of the
+  member with KeyPackageID `signer`. If there is no matching leaf node, or if
+  signature verification fails, return an error.
 
 * Verify the integrity of the ratchet tree.
 
@@ -3005,9 +3031,9 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
       public key in the node.
 
     * If the `path_secret` value is set in the GroupSecrets object: Identify the
-      lowest common ancestor of the leaves at `index` and at
-      `GroupInfo.signer_index`.  Set the private key for this node to the
-      private key derived from the `path_secret`.
+      lowest common ancestor of the node index `index` and of the node index of
+      the member with KeyPackageID `GroupInfo.signer`. Set the private key for
+      this node to the private key derived from the `path_secret`.
 
     * For each parent of the common ancestor, up to the root of the tree, derive
       a new path secret and set the private key for the node to the private key
@@ -3539,7 +3565,7 @@ Initial contents:
 | 0x0000           | RESERVED                 | N/A        | N/A         | RFC XXXX  |
 | 0x0001           | capabilities             | KP         | Y           | RFC XXXX  |
 | 0x0002           | lifetime                 | KP         | Y           | RFC XXXX  |
-| 0x0003           | key_id                   | KP         | Y           | RFC XXXX  |
+| 0x0003           | external_key_id          | KP         | Y           | RFC XXXX  |
 | 0x0004           | parent_hash              | KP         | Y           | RFC XXXX  |
 | 0x0005           | ratchet_tree             | GI         | Y           | RFC XXXX  |
 | 0xff00  - 0xffff | Reserved for Private Use | N/A        | N/A         | RFC XXXX  |
