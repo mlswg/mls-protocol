@@ -2965,6 +2965,7 @@ following structure, comprising all the fields in the PublicGroupState above
 
 ~~~~~
 struct {
+    CipherSuite cipher_suite;
     opaque group_id<0..255>;
     uint64 epoch;
     opaque tree_hash<0..255>;
