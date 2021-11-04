@@ -1198,10 +1198,10 @@ co-path child.
 Finally, `original_child_resolution` is the array of `HPKEPublicKey` values of the
 nodes in the resolution of S but with the `unmerged_leaves` of P omitted. For
 example, in the ratchet tree depicted in {{resolution-example}} the
-`ParentHashInput` of node 5 with co-path child 4 would contain an empty
-`original_child_resolution` since 4's resolution includes only itself but 4 is also
-an unmerged leaf of 5. Meanwhile, the `ParentHashInput` of node 5 with co-path child
-6 has an array with one element in it: the HPKE public key of 6.
+`ParentHashInput` of node CD with co-path child C would contain an empty
+`original_child_resolution` since C's resolution includes only itself but C is also
+an unmerged leaf of CD. Meanwhile, the `ParentHashInput` of node CD with co-path child
+D has an array with one element in it: the HPKE public key of D.
 
 ### Using Parent Hashes
 
@@ -2315,15 +2315,12 @@ struct {
 } Add;
 ~~~~~
 
-The proposer of the Add does not control where in the group's ratchet tree the
-new member is added.  Instead, the sender of the Commit message chooses a
-location for each added member and states it in the Commit message.
-
 An Add is applied after being included in a Commit message.  The position of the
-Add in the list of proposals determines the leaf index `index` of the leaf node
-where the new member will be added.  For the first Add in the Commit, `index` is
-the leftmost empty leaf in the tree, for the second Add, the next empty leaf to
-the right, etc.
+Add in the list of proposals determines the leaf node where the new member will
+be added.  For the first Add in the Commit, the corresponding new member will be
+placed in the leftmost empty leaf in the tree, for the second Add, the next
+empty leaf to the right, etc. If not empty leaf exists, the tree is extended to
+the right.
 
 * Validate the KeyPackage:
 
@@ -2344,15 +2341,16 @@ the right, etc.
       extension, then the required extensions and proposals MUST be listed in
       the KeyPackage's `capabilities` extension.
 
-* If necessary, extend the tree to the right until it has at least index + 1
-  leaves
+* Identify the leaf L for the new member: if there are empty leaves in the tree,
+  L is the leftmost empty leaf.  Otherwise, the tree is extended to the right
+  and L is the new leaf.
 
-* For each non-blank intermediate node along the path from the leaf at position
-  `index` to the root, add `index` to the `unmerged_leaves` list for the node.
+* For each non-blank intermediate node along the path from the leaf L
+  to the root, add L's leaf index to the `unmerged_leaves` list for the node.
 
-* Set the leaf node in the tree at position `index` to a new node containing the
-  public key from the KeyPackage in the Add, as well as the credential under
-  which the KeyPackage was signed
+* Set the leaf node L to a new node containing the public key from the
+  KeyPackage in the Add, as well as the credential under which the KeyPackage
+  was signed.
 
 ### Update
 
