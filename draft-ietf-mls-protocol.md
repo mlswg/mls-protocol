@@ -3705,6 +3705,7 @@ Initial contents:
 | 0x0003           | external_key_id          | KP         | Y           | RFC XXXX  |
 | 0x0004           | parent_hash              | KP         | Y           | RFC XXXX  |
 | 0x0005           | ratchet_tree             | GI         | Y           | RFC XXXX  |
+| 0x0006           | required_capabilities    | GC         | Y           | RFC XXXX  |
 | 0xff00  - 0xffff | Reserved for Private Use | N/A        | N/A         | RFC XXXX  |
 
 ## MLS Proposal Types
