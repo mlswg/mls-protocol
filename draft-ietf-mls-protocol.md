@@ -952,6 +952,7 @@ following primitives to be used in group key computations:
   * A Key Derivation Function (KDF)
   * An AEAD encryption algorithm
 * A hash algorithm
+* A MAC algorithm
 * A signature algorithm
 
 MLS uses draft-08 of HPKE {{I-D.irtf-cfrg-hpke}} for public-key encryption.
@@ -974,6 +975,26 @@ KeyPackage objects in the leaves of the tree (including the InitKeys
 used to add new members).
 
 The ciphersuites are defined in section {{mls-ciphersuites}}.
+
+## Hash-Based Identifiers
+
+Some MLS messages refer to other MLS objects by hash.  For example, Welcome
+messages refer to KeyPackages for the members being welcomed, and Commits refer
+to Proposals they cover.  These identifiers are computed as follows:
+
+~~~~~
+opaque HashReference[16];
+
+MakeHashRef(value) = KDF.expand(KDF.extract("", value), "MLS 1.0 ref", 16)
+
+HashReference KeyPackageRef;
+HashReference ProposalRef;
+~~~~~
+
+For a KeyPackageRef, the `value` input is the encoded KeyPackage, and the
+ciphersuite specified in the KeyPackage determines the KDF used.  For a
+ProposalRef, the `value` input is the MLSPlaintext carrying the proposal, and
+the KDF is determined by the group's ciphersuite.
 
 ## Credentials
 
@@ -1114,24 +1135,6 @@ Tree and updated depending on the evolution of this tree, each
 modification of its content MUST be reflected by a change of its
 signature. This allow other members to control the validity of the KeyPackage
 at any time and in particular in the case of a newcomer joining the group.
-
-## Key Package IDs
-
-When it is necessary to refer to a specific KeyPackage, protocol messages
-incorporate a KeyPackageID:
-
-```
-struct {
-    opaque key_package_hash<0..255>;
-} KeyPackageID
-```
-
-This value is the hash of the KeyPackage, using the hash indicated by the
-`cipher_suite` field. KeyPackage hashes are used in a Welcome message to
-indicate which KeyPackage is being used to include the new member. Since members
-of a group are uniquely identified by their leaf KeyPackages, messages within a
-group use the hash of this key package to refer to group members, e.g., to
-specify the target of a Remove proposal or the signer of an MLSPlaintext.
 
 ## Client Capabilities
 
@@ -1935,7 +1938,7 @@ enum {
 struct {
     SenderType sender_type;
     switch (sender_type) {
-        case member:        KeyPackageID member;
+        case member:        KeyPackageRef member;
         case preconfigured: opaque external_key_id<0..255>;
         case new_member:    struct{};
     }
@@ -2158,7 +2161,7 @@ encrypted, the sender data is encoded as an object of the following form:
 
 ~~~~~
 struct {
-    KeyPackageID sender;
+    KeyPackageRef sender;
     uint32 generation;
     opaque reuse_guard[4];
 } MLSSenderData;
@@ -2195,7 +2198,7 @@ struct {
 ~~~~~
 
 When parsing a SenderData struct as part of message decryption, the recipient
-MUST verify that the KeyPackageID indicated in the `sender` field identifies a
+MUST verify that the KeyPackageRef indicated in the `sender` field identifies a
 member of the group.
 
 # Group Creation
@@ -2414,12 +2417,12 @@ A member of the group applies an Update message by taking the following steps:
 
 ### Remove
 
-A Remove proposal requests that the member with KeyPackageID `removed` be removed
+A Remove proposal requests that the member with KeyPackageRef `removed` be removed
 from the group.
 
 ~~~~~
 struct {
-    KeyPackageID removed;
+    KeyPackageRef removed;
 } Remove;
 ~~~~~
 
@@ -2509,7 +2512,7 @@ included in Commit messages.
 
 ~~~~~
 struct {
-    KeyPackageID sender;
+    KeyPackageRef sender;
     uint32 first_generation;
     uint32 last_generation;
 } MessageRange;
@@ -2624,10 +2627,10 @@ Each proposal covered by the Commit is included by a ProposalOrRef value, which
 identifies the proposal to be applied by value or by reference.  Proposals
 supplied by value are included directly in the Commit object.  Proposals
 supplied by reference are specified by including the hash of the MLSPlaintext in
-which the Proposal was sent, using the hash function from the group's
-ciphersuite.  For proposals supplied by value, the sender of the proposal is the
-same as the sender of the Commit.  Conversely, proposals sent by people other
-than the committer MUST be included by reference.
+which the Proposal was sent (see {{hash-based-identifiers}}).  For proposals
+supplied by value, the sender of the proposal is the same as the sender of the
+Commit.  Conversely, proposals sent by people other than the committer MUST be
+included by reference.
 
 ~~~~~
 enum {
@@ -2641,7 +2644,7 @@ struct {
   ProposalOrRefType type;
   select (ProposalOrRef.type) {
     case proposal:  Proposal proposal;
-    case reference: opaque hash<0..255>;
+    case reference: ProposalRef reference;
   }
 } ProposalOrRef;
 
@@ -2949,7 +2952,7 @@ struct {
     Extension group_context_extensions<0..2^32-1>;
     Extension other_extensions<0..2^32-1>;
     HPKEPublicKey external_pub;
-    KeyPackageID signer;
+    KeyPackageRef signer;
     opaque signature<0..2^16-1>;
 } PublicGroupState;
 ~~~
@@ -2959,7 +2962,7 @@ The full tree can be included via the `ratchet_tree` extension
 {{ratchet-tree-extension}}.
 
 The signature MUST verify using the public key taken from the credential in the
-leaf node of the member with KeyPackageID `signer`. The signature covers the
+leaf node of the member with KeyPackageRef `signer`. The signature covers the
 following structure, comprising all the fields in the PublicGroupState above
 `signature`:
 
@@ -2972,7 +2975,7 @@ struct {
     Extension group_context_extensions<0..2^32-1>;
     Extension other_extensions<0..2^32-1>;
     HPKEPublicKey external_pub;
-    KeyPackageID signer;
+    KeyPackageRef signer;
 } PublicGroupStateTBS;
 ~~~~~
 
@@ -3057,7 +3060,7 @@ struct {
   Extension group_context_extensions<0..2^32-1>;
   Extension other_extensions<0..2^32-1>;
   MAC confirmation_tag;
-  KeyPackageID signer;
+  KeyPackageRef signer;
   opaque signature<0..2^16-1>;
 } GroupInfo;
 
@@ -3072,7 +3075,7 @@ struct {
 } GroupSecrets;
 
 struct {
-  KeyPackageID new_member<1..255>;
+  KeyPackageRef new_member<1..255>;
   HPKECiphertext encrypted_group_secrets;
 } EncryptedGroupSecrets;
 
@@ -3116,7 +3119,7 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 * Verify the signature on the GroupInfo object. The signature input comprises
   all of the fields in the GroupInfo object except the signature field. The
   public key and algorithm are taken from the credential in the leaf node of the
-  member with KeyPackageID `signer`. If there is no matching leaf node, or if
+  member with KeyPackageRef `signer`. If there is no matching leaf node, or if
   signature verification fails, return an error.
 
 * Verify the integrity of the ratchet tree.
@@ -3151,7 +3154,7 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 
     * If the `path_secret` value is set in the GroupSecrets object: Identify the
       lowest common ancestor of the node index `index` and of the node index of
-      the member with KeyPackageID `GroupInfo.signer`. Set the private key for
+      the member with KeyPackageRef `GroupInfo.signer`. Set the private key for
       this node to the private key derived from the `path_secret`.
 
     * For each parent of the common ancestor, up to the root of the tree, derive
