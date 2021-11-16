@@ -984,7 +984,19 @@ used with:
 
 * The public key of a signature key pair matching the SignatureScheme specified
   by the CipherSuite of the group
-* The identity of the holder of the private key
+* One or more identifiers of the holder of the private key
+
+Note that a Credential can provide multiple identifiers for the client.  If an
+application wishes to decided whether a credential represents the correct
+identifier for a participant in a given context, it is up to the application to
+decide what the correct value is and compare it to the credential.  For example,
+a certificate in an X509Credential may attest to several domain names or email
+addresses in its subjectAltName extension.  An application may decide to
+present all of these to a user, or if it knows a "desired" domain name or email
+address, it can check that the desired identifier is among those attested.
+Using the terminology from {{?RFC6125}}, a Credential provides "presented
+identifiers", and it is up to the application to supply a "reference identifier"
+for the authenticated client, if any.
 
 Credentials MAY also include information that allows a relying party
 to verify the identity / signing key binding.
@@ -1025,6 +1037,10 @@ A BasicCredential is a raw, unauthenticated assertion of an identity/key
 binding. The format of the key in the `public_key` field is defined by the
 relevant ciphersuite: the group ciphersuite for a credential in a ratchet tree,
 the KeyPackage ciphersuite for a credential in a KeyPackage object.
+For ciphersuites using Ed25519 or Ed448 signature schemes, the public key is in
+the format specified {{?RFC8032}}.  For ciphersuites using ECDSA with the NIST
+curves P-256 or P-521, the public key is the output of the uncompressed
+Elliptic-Curve-Point-to-Octet-String conversion according to {{SECG}}.
 
 For X509Credential, each entry in the chain represents a single DER-encoded
 X509 certificate. The chain is ordered such that the first entry (chain[0])
@@ -1033,14 +1049,9 @@ MUST be the issuer of the previous certificate. The algorithm for the
 `public_key` in the end-entity certificate MUST match the relevant
 ciphersuite.
 
-For ciphersuites using Ed25519 or Ed448 signature schemes, the public key is in
-the format specified {{?RFC8032}}.  For ciphersuites using ECDSA with the NIST
-curves P-256 or P-521, the public key is the output of the uncompressed
-Elliptic-Curve-Point-to-Octet-String conversion according to {{SECG}}.
-
-The signatures used throughout this document are encoded as specified in
-{{!RFC8446}}. In particular, ECDSA signatures are DER-encoded and EdDSA signatures
-are defined as the concatenation of `r` and `s` as specified in {{?RFC8032}}.
+The signatures used in this document are encoded as specified in {{!RFC8446}}.
+In particular, ECDSA signatures are DER-encoded and EdDSA signatures are defined
+as the concatenation of `r` and `s` as specified in {{?RFC8032}}.
 
 Note that each new credential that has not already been validated
 by the application MUST be validated against the Authentication
@@ -1056,9 +1067,6 @@ member can use to add this client to the group asynchronously.
 
 A KeyPackage object specifies a ciphersuite that the client supports, as well as
 providing a public key that others can use for key agreement.
-
-The `identity` arising from the credential, together with the `endpoint_id` in
-the KeyPackage serve to uniquely identify a client in a group.
 
 When used as InitKeys, KeyPackages are intended to be used only once and SHOULD NOT
 be reused except in case of last resort. (See {{initkey-reuse}}).
@@ -1095,7 +1103,6 @@ struct {
     ProtocolVersion version;
     CipherSuite cipher_suite;
     HPKEPublicKey hpke_init_key;
-    opaque endpoint_id<0..255>;
     Credential credential;
     Extension extensions<8..2^32-1>;
     opaque signature<0..2^16-1>;
@@ -2365,7 +2372,6 @@ the right, etc.
       members of the group (including any other members added in the same
       Commit):
 
-        * `(credential.identity, endpoint_id)` tuple
         * `credential.signature_key`
         * `hpke_init_key`
 
@@ -2397,15 +2403,31 @@ struct {
 } Update;
 ~~~~~
 
-The values in the following fields of the KeyPackage contained in an `Update`
-proposal MUST be the same as those of the KeyPackage it replaces in the tree.
-`version`, `cipher_suite`, `credential.identity`, `endpoint_id`. However, the
-value of the `credential.signature_key` field of the new KeyPackage MUST be
-different from that of all other KeyPackages in the tree. Furthermore, the value
-of the `hpke_init_key` field of the new KeyPackage MUST be different from that
-of the KeyPackage it replaces.
-
 A member of the group applies an Update message by taking the following steps:
+
+* Validate the KeyPackage:
+
+    * Verify that the signature on the KeyPackage is valid using the public key
+      in the KeyPackage's credential
+
+    * Verify that the following fields in the KeyPackage are unique among the
+      members of the group (including any other members added in the same
+      Commit):
+
+        * `credential.signature_key`
+        * `hpke_init_key`
+
+    * Verify that the following fields in the new KeyPackage are the same as the
+      one being replaced:
+
+        * `version`
+        * `cipher_suite`
+
+    * Verify that the `hpke_init_key` value is different from the corresponding
+      field in the KeyPackage being replaced.
+
+    * Verify that the set of identities attested by the credential is acceptable
+      to the application for the participant being updated.
 
 * Replace the sender's leaf KeyPackage with the one contained in
   the Update proposal
@@ -2668,15 +2690,11 @@ the Commit).
 If there are multiple proposals that apply to the same leaf, the committer
 chooses one and includes only that one in the Commit, considering the rest
 invalid. The committer MUST prefer any Remove received, or the most recent
-Update for the leaf if there are no Removes. If there are multiple Add proposals
-containing KeyPackages with the same tuple `(credential.identity, endpoint_id)`
-the committer again chooses one to include and considers the rest invalid. Add
-proposals that contain KeyPackages with an `(credential.identity, endpoint_id)`
-tuple that matches that of an existing KeyPackage in the group MUST be
-considered invalid. The comitter MUST consider invalid any Add or Update
-proposal if the Credential in the contained KeyPackage shares the same signature
-key with a Credential in any leaf of the group, or indeed if the KeyPackage
-shares the same `hpke_init_key` with another KeyPackage in the group.
+Update for the leaf if there are no Removes. The comitter MUST consider invalid
+any Add or Update proposal if the Credential in the contained KeyPackage shares
+the same signature key with a Credential in any leaf of the group, or indeed if
+the KeyPackage shares the same `hpke_init_key` with another KeyPackage in the
+group.
 
 The Commit MUST NOT combine proposals sent within different epochs. In the event
 that a valid proposal is omitted from the next Commit, the sender of the
@@ -2994,9 +3012,9 @@ External Commits work like regular Commits, with a few differences:
     the group
   * There MUST be a single ExternalInit proposal
   * There MUST NOT be any Update proposals
-  * If a Remove proposal is present, then the `credential` and `endpoint_id` of
-    the removed leaf MUST be the same as the corresponding values in the Add
-    KeyPackage.
+  * If a Remove proposal is present, then the `credential` of the Add KeyPackage
+    MUST present a set of identifiers that is acceptable to the application for
+    the removed participant (as if this were an Update for that participant).
 * The proposals included by reference in an External Commit MUST meet the following
   conditions:
   * There MUST NOT be any ExternalInit proposals
