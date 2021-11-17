@@ -1205,7 +1205,7 @@ to which PK's secret key was encrypted in the commit packet that anounced the
 struct {
     HPKEPublicKey public_key;
     opaque parent_hash<0..255>;
-    HPKEPublicKey original_child_resolution<0..2^32-1>;
+    opaque original_sibling_tree_hash<0..255>;
 } ParentHashInput;
 ~~~~~
 
@@ -1215,13 +1215,34 @@ is the root, then `parent_hash` is set to a zero-length octet string.
 Otherwise `parent_hash` is the Parent Hash of P's parent with P's sibling as the
 co-path child.
 
-Finally, `original_child_resolution` is the array of `HPKEPublicKey` values of the
-nodes in the resolution of S but with the `unmerged_leaves` of P omitted. For
-example, in the ratchet tree depicted in {{resolution-example}} the
-`ParentHashInput` of node 5 with co-path child 4 would contain an empty
-`original_child_resolution` since 4's resolution includes only itself but 4 is also
-an unmerged leaf of 5. Meanwhile, the `ParentHashInput` of node 5 with co-path child
-6 has an array with one element in it: the HPKE public key of 6.
+Finally, `original_sibling_tree_hash` is the original tree hash of S. The
+original tree hash corresponds to the tree hash of S the last time P was
+updated. It can be computed as the tree hash of S modified the following way:
+
+* reset the leaves in P.unmerged_leaves to blanks
+* remove P.unmerged_leaves from all unmerged_leaves lists
+
+For example, in the following tree:
+
+~~~~~
+    ABCD[C]
+    __|__
+   /     \
+  AB      CD[C]
+ / \     / \
+A   B   C   D
+~~~~~
+
+With P = ABCD and S = CD, `original_sibling_tree_hash` is the tree hash of the
+following tree:
+
+~~~~~
+  CD
+ / \
+_   D
+~~~~~
+
+Because ABCD.unmerged_leaves = [C], C is removed from CD.unmerged_leaves and C is replaced with a blank leaf.
 
 ### Using Parent Hashes
 
