@@ -1774,16 +1774,16 @@ forward secrecy for past messages. Members MAY keep unconsumed values around
 for some reasonable amount of time to handle out-of-order message delivery.
 
 For example, suppose a group member encrypts or (successfully) decrypts an
-application message using the j-th key and nonce in the ratchet of node
-N in some epoch n. Then, for that member, at least the following
+application message using the j-th key and nonce in the ratchet of leaf node
+L in some epoch n. Then, for that member, at least the following
 values have been consumed and MUST be deleted:
 
 * the `commit_secret`, `joiner_secret`, `epoch_secret`, `encryption_secret` of
   that epoch n as well as the `init_secret` of the previous epoch n-1,
 * all node secrets in the Secret Tree on the path from the root to the leaf with
-  node N,
-* the first j secrets in the application data ratchet of node N and
-* `application_ratchet_nonce_[N]_[j]` and `application_ratchet_key_[N]_[j]`.
+  node L,
+* the first j secrets in the application data ratchet of node L and
+* `application_ratchet_nonce_[L]_[j]` and `application_ratchet_key_[L]_[j]`.
 
 Concretely, suppose we have the following Secret Tree and ratchet for
 participant D:
