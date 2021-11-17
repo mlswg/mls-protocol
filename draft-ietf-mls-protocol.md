@@ -1733,13 +1733,9 @@ in the ratchet.
 
 ~~~~
 DeriveTreeSecret(Secret, Label, Generation, Length) =
-    ExpandWithLabel(Secret, Label, RatchetContext, Length)
+    ExpandWithLabel(Secret, Label, Generation, Length)
 
-Where RatchetContext is specified as:
-
-struct {
-    uint32 generation = Generation;
-} RatchetContext;
+Where Generation is encoded as a uint32.
 ~~~~
 ~~~~~
 ratchet_secret_[N]_[j]
