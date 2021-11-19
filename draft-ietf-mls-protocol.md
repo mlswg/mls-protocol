@@ -601,7 +601,22 @@ A              B     ...      Z          Directory       Channel
 # Ratchet Trees
 
 The protocol uses "ratchet trees" for deriving shared secrets among
-a group of clients.
+a group of clients.  A ratchet tree is a distribution of secrets among the
+members of a group in a way that allows for secrets to be efficiently updated to
+reflect changes in the group.
+
+The unique power of a ratchet tree is that it allows a group to efficiently
+remove a member, because it allows a group member to efficiently encrypt new
+entropy to a subset of the group.  A ratchet tree assigns shared keys to
+subgroups of the overall group, so that, for example, encrypting to all but one
+member of the group requires only log(N) encryptions, instead of the N-1
+encryptions that would be needed to encrypt to each participant individually
+(where N is the number of members in the group).
+
+This efficient remove operation allows MLS to efficiently achieve
+post-compromise security.  In an Update or Commit message, an old, possibly
+compromised representation of a member is effeciently removed from the group and
+replaced with a freshly generated instance.
 
 ## Tree Computation Terminology
 
