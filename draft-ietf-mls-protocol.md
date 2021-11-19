@@ -600,8 +600,8 @@ A              B     ...      Z          Directory       Channel
 
 # Ratchet Trees
 
-The protocol uses "ratchet trees" for deriving shared secrets among
-a group of clients.  A ratchet tree is a distribution of secrets among the
+The protocol uses "ratchet trees" for deriving shared secrets among a group of
+clients.  A ratchet tree is an arrangement of secrets and key pairs among the
 members of a group in a way that allows for secrets to be efficiently updated to
 reflect changes in the group.
 
@@ -724,10 +724,11 @@ Each node in a ratchet tree contains up to five values:
 The conditions under which each of these values must or must not be
 present are laid out in {{views}}.
 
-A node in the tree may also be _blank_, indicating that no value is
-present at that node.  The _resolution_ of a node is an ordered list
-of non-blank nodes that collectively cover all non-blank descendants
-of the node.
+A node in the tree may also be _blank_, indicating that no value is present at
+that node.  The _resolution_ of a node is an ordered list of non-blank nodes
+that collectively cover all non-blank descendants of the node.  The resolution
+of a node is effectively a depth-first, left-first enumeration of the nearest
+non-blank nodes below the node:
 
 * The resolution of a non-blank node comprises the node itself,
   followed by its list of unmerged leaves, if any
@@ -794,6 +795,35 @@ give it access to all of the nodes above it in the tree.  Leaves are "merged" as
 they receive the private keys for nodes, as described in
 {{ratchet-tree-evolution}}.
 
+For example, consider a four-member group (A, B, C, D) where the node above the
+right two members is blank.  (This is what it would look like if A created a
+group with B, C, and D.)  Then the public state of the tree and the views of the
+private keys of the tree held be each participant would be as follows, where `_`
+represents a blank node, `?` represents an unknown private key, and `pk(X)`
+represents the public key corresponding to the private key `X`:
+
+~~~~~
+         Public Tree
+============================
+            pk(ABCD)
+          /          \
+    pk(AB)            _
+     / \             / \
+pk(A)   pk(B)   pk(C)   pk(D)
+
+
+ Private @ A       Private @ B       Private @ C       Private @ D
+=============     =============     =============     =============
+     ABCD              ABCD              ABCD              ABCD
+    /   \             /   \             /   \             /   \
+  AB      _         AB      _         ?       _         ?       _
+ / \     / \       / \     / \       / \     / \       / \     / \
+A   ?   ?   ?     ?   B   ?   ?     ?   ?   C   ?     ?   ?   ?   D
+~~~~~
+
+Note how the tree invariant applies: Each member knows only their own leaf, and
+the private key AB is known only to A and B.
+
 ## Ratchet Tree Evolution
 
 A member of an MLS group advances the key schedule to provide forward secrecy
@@ -829,6 +859,10 @@ node_secret[n] = DeriveSecret(path_secret[n], "node")
 leaf_priv, leaf_pub = KEM.DeriveKeyPair(leaf_node_secret)
 node_priv[n], node_pub[n] = KEM.DeriveKeyPair(node_secret[n])
 ~~~~~
+
+The node secret is derived as a temporary intermediate secret so that each
+secret is only used with one algorithm: The path secret is used as an input to
+DeriveSecret and the node secret is used as an input to DeriveKeyPair.
 
 For example, suppose there is a group with four members, with C an unmerged leaf
 at node 5:
@@ -969,9 +1003,11 @@ following primitives to be used in group key computations:
 * A hash algorithm
 * A signature algorithm
 
-MLS uses draft-08 of HPKE {{I-D.irtf-cfrg-hpke}} for public-key encryption.
-The `DeriveKeyPair` function associated to the KEM for the ciphersuite maps
-octet strings to HPKE key pairs.
+MLS uses draft-08 of HPKE {{I-D.irtf-cfrg-hpke}} for public-key encryption.  The
+`DeriveKeyPair` function associated to the KEM for the ciphersuite maps octet
+strings to HPKE key pairs.  As in HPKE, MLS assumes that an AEAD algorithm
+produces a single ciphertext output from AEAD encryption (aligning with
+{{?RFC5116}}), as opposed to a separate ciphertext and tag.
 
 Ciphersuites are represented with the CipherSuite type. HPKE public keys
 are opaque values in a format defined by the underlying
@@ -2450,7 +2486,8 @@ A member of the group applies a Remove message by taking the following steps:
 
 * Blank the intermediate nodes along the path from `removed_index` to the root
 
-* Truncate the tree by reducing the size of tree until the rightmost non-blank leaf node
+* Truncate the tree by removing leaves from the right side of the tree until the
+  rightmost leaf node is not blank.
 
 ### PreSharedKey
 
