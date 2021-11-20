@@ -2941,6 +2941,7 @@ This information is aggregated in a `PublicGroupState` object as follows:
 
 ~~~
 struct {
+    ProtocolVersion version = mls10;
     CipherSuite cipher_suite;
     opaque group_id<0..255>;
     uint64 epoch;
