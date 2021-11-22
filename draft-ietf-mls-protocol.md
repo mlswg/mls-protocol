@@ -644,17 +644,17 @@ siblings of all the nodes in its direct path, excluding the root.
 
 For example, in the below tree:
 
-* The direct path of C is (CD, ABCD, ABCDEFG)
-* The copath of C is (D, AB, EFG)
+* The direct path of C is (W, V, X)
+* The copath of C is (D, U, Z)
 
 ~~~~~
-           ABCDEFG = root
+              X = root
         ______|______
        /             \
-     ABCD            EFG
+      V               Z
     __|__           __|
    /     \         /   \
-  AB     CD       EF    |
+  U       W       Y     |
  / \     / \     / \    |
 A   B   C   D   E   F   G
 
