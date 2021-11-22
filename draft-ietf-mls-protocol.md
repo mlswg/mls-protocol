@@ -3166,8 +3166,58 @@ struct {
 optional<Node> ratchet_tree<1..2^32-1>;
 ~~~~~
 
-The nodes are listed in the in-order trasversal of the ratchet tree: each node
-is listed between its left subtree and its right subtree.
+The nodes are listed in the order specified by a left-to-right in-order
+traversal of the rachet tree. Each node is listed between its left subtree and
+its right subtree. The leaves of the tree are stored in even-numbered entries in
+the array (the leaf with index L in array position 2*L). The root node of the
+tree is at position 2^k - 1 of the array, where k is the largest number such
+that 2^k is smaller than the length of the array. Intermediate parent nodes can
+be identified by performing the same calculation to the subarrays to the left
+and right of the root, following something like the following algorithm:
+
+~~~~~
+# Assuming a class Node that has left and right members
+def subtree_root(nodes):
+    # If there is only one node in the array return it
+    if len(nodes) == 1:
+        return Node(nodes[0])
+
+    # Otherwise, the length of the array MUST be odd
+    if len(nodes) % 2 == 0:
+        raise Exception("Malformed node array {}", len(nodes))
+
+    # Identify the root of the subtree
+    k = 0
+    while (2**(k+1)) < len(nodes):
+       k += 1
+    R = 2**k - 1
+    root = Node(nodes[R])
+    root.left = subtree_root(nodes[:R])
+    root.right = subtree_root(nodes[(R+1):])
+    return root
+~~~~~
+
+The example tree in {{tree-computation-terminology}} would be represented as an
+array of nodes in the following form, where R represents the "subtree root" for
+a given subarray of the node array:
+
+~~~~~
+              7
+        ______|______
+       /             \
+      3              11
+    __|__           __|
+   /     \         /   \
+  1       5       9     |
+ / \     / \     / \    |
+A   B   C   D   E   F   G
+
+                    1 1 1
+0 1 2 3 4 5 6 7 8 9 0 1 2
+<-----------> R <------->
+<---> R <--->   <---> R -
+- R -   - R -   - R -
+~~~~~
 
 The presence of a `ratchet_tree` extension in a GroupInfo message does not
 result in any changes to the GroupContext extensions for the group.  The ratchet
