@@ -1591,9 +1591,9 @@ be considered by application designers relying on PSKs.
 Each PSK in MLS has a type that designates how it was provisioned.
 External PSKs are provided by the application, while recovery and re-init PSKs
 are derived from the MLS key schedule and used in cases where it is
-necessary to authenticate a member's participation in a prior group state.
-In particular, in addition to external PSK types, a PSK derived from within MLS
-may be used in the following cases:
+necessary to authenticate a member's participation in a prior group state.  In
+particular, in addition to external PSK types, a "resumption" PSK derived from
+within MLS may be used to prove membership in a prior group, for example:
 
   - Re-Initialization: If during the lifetime of a group, the group members
     decide to switch to a more secure ciphersuite or newer protocol version,
@@ -1612,8 +1612,7 @@ Welcome message sent to new members added in that epoch.
 enum {
   reserved(0),
   external(1),
-  reinit(2),
-  branch(3)
+  resumption(2),
   (255)
 } PSKType;
 
@@ -1623,11 +1622,7 @@ struct {
     case external:
       opaque psk_id<0..255>;
 
-    case reinit:
-      opaque psk_group_id<0..255>;
-      uint64 psk_epoch;
-
-    case branch:
+    case resumption:
       opaque psk_group_id<0..255>;
       uint64 psk_epoch;
   }
@@ -2281,13 +2276,10 @@ the current group state.
 In both cases, the `psk_nonce` included in the `PreSharedKeyID` object must be a
 randomly sampled nonce of length `KDF.Nh` to avoid key re-use.
 
-### Sub-group Branching
-
-If a client wants to create a subgroup of an existing group, they MAY choose to
-include a `PreSharedKeyID` in the `GroupSecrets` object of the Welcome message choosing
-the `psktype` `branch`, the `group_id` of the group from which a subgroup is to
-be branched, as well as an epoch within the number of epochs for which a
-`resumption_secret` is kept.
+If a client wants to create a subgroup of an existing group, they MAY link the
+new group to the old group by including a PreSharedKey of type `resumption` in
+the Welcome message adding participants to the group, specifying the group and
+epoch from which the new group was branched.
 
 # Group Evolution
 
@@ -2473,11 +2465,11 @@ struct {
 A member of the group applies a ReInit proposal by waiting for the committer to
 send the Welcome message and by checking that the `group_id` and the parameters
 of the new group corresponds to the ones specified in the proposal. The Welcome
-message MUST specify exactly one pre-shared key with `psktype = reinit`, and with
+message MUST specify exactly one pre-shared key with `psktype = resumption`, and with
 `psk_group_id` and `psk_epoch` equal to the `group_id` and `epoch` of the
 existing group after the Commit containing the `reinit` Proposal was processed.
 The Welcome message may specify the inclusion of other pre-shared keys with a
-`psktype` different from `reinit`.
+`psktype` different from `resumption`.
 
 If a ReInit proposal is included in a Commit, it MUST be the only proposal
 referenced by the Commit. If other non-ReInit proposals have been sent during
@@ -2831,7 +2823,7 @@ message at the same time, by taking the following steps:
   group with the parameters specified in the ReInit proposal,
   and with the same members as the original group.
   The Welcome message MUST include a `PreSharedKeyID` with `psktype`
-  `reinit` and with `psk_group_id` and `psk_epoch` corresponding to the current
+  `resumption` and with `psk_group_id` and `psk_epoch` corresponding to the current
   group and the epoch after the commit was processed.
 
 A member of the group applies a Commit message by taking the following steps:
@@ -2905,7 +2897,7 @@ A member of the group applies a Commit message by taking the following steps:
     corresponds to the ones in the `ReInit` proposal, and that the `version`
     is greater than or equal to that of the original group.
   * The `psks` field in the Welcome message includes a `PreSharedKeyID` with
-    `psktype` = `reinit`, and `psk_epoch` and `psk_group_id` equal to the epoch
+    `psktype = resumption`, and `psk_epoch` and `psk_group_id` equal to the epoch
     and group ID of the original group after processing the Commit.
 
 The confirmation tag value confirms that the members of the group have arrived
@@ -3023,7 +3015,7 @@ prior, legitimate member in a single Commit.  Without resync, this
 can still be done, but requires two operations, the external Commit to join and
 a second Commit to remove the old appearance.  Applications for whom this
 distinction is salient can choose to disallow external commits that contain a
-Remove, or to allow such resync commits only if they contain a "reinit" PSK
+Remove, or to allow such resync commits only if they contain a "resumption" PSK
 proposal that demonstrates the joining member's presence in a prior epoch of the
 group.  With the latter approach, the attacke would need to compromise the PSK
 as well as the signing key, but the application will need to ensure that
