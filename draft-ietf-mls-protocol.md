@@ -1003,7 +1003,7 @@ following primitives to be used in group key computations:
 * A hash algorithm
 * A signature algorithm
 
-MLS uses draft-08 of HPKE {{I-D.irtf-cfrg-hpke}} for public-key encryption.  The
+MLS uses HPKE for public-key encryption {{I-D.irtf-cfrg-hpke}}.  The
 `DeriveKeyPair` function associated to the KEM for the ciphersuite maps octet
 strings to HPKE key pairs.  As in HPKE, MLS assumes that an AEAD algorithm
 produces a single ciphertext output from AEAD encryption (aligning with
@@ -2993,6 +2993,7 @@ This information is aggregated in a `PublicGroupState` object as follows:
 
 ~~~
 struct {
+    ProtocolVersion version = mls10;
     CipherSuite cipher_suite;
     opaque group_id<0..255>;
     uint64 epoch;
