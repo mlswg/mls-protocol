@@ -3627,7 +3627,7 @@ Initial contents:
 | 0x0004          | MLS10_256_DHKEMX448_AES256GCM_SHA512_Ed448            | Y           | RFC XXXX  |
 | 0x0005          | MLS10_256_DHKEMP521_AES256GCM_SHA512_P521             | Y           | RFC XXXX  |
 | 0x0006          | MLS10_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     | Y           | RFC XXXX  |
-| 0x0007          | MLS10_256_DHKEMP384_AES256GCM_SHA384_P384.           | Y           | RFC XXXX  |
+| 0x0007          | MLS10_256_DHKEMP384_AES256GCM_SHA384_P384.            | Y           | RFC XXXX  |
 | 0xff00 - 0xffff | Reserved for Private Use                              | N/A         | RFC XXXX  |
 
 All of these ciphersuites use HMAC {{!RFC2104}} as their MAC function, with
