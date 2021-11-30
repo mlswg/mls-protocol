@@ -2665,6 +2665,11 @@ unless the proposal type is supported by all the members of the group that will
 process the Commit (i.e., not including any members being added or removed by
 the Commit).
 
+The sender of a Commit SHOULD NOT include any Update proposals that the sender
+themselves generated.  If sender generated one or more Update proposals during
+an epoch, then it SHOULD instead update its leaf and direct path by sending
+`path` field in the Commit.
+
 If there are multiple proposals that apply to the same leaf, the committer
 chooses one and includes only that one in the Commit, considering the rest
 invalid. The committer MUST prefer any Remove received, or the most recent
