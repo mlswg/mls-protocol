@@ -613,8 +613,8 @@ member of the group requires only log(N) encryptions, instead of the N-1
 encryptions that would be needed to encrypt to each participant individually
 (where N is the number of members in the group).
 
-This efficient remove operation allows MLS to efficiently achieve
-post-compromise security.  In an Update or Commit message, an old, possibly
+This remove operation allows MLS to efficiently achieve
+post-compromise security.  In an Update proposal or a full Commit message, an old, possibly
 compromised representation of a member is effeciently removed from the group and
 replaced with a freshly generated instance.
 
@@ -798,7 +798,7 @@ they receive the private keys for nodes, as described in
 For example, consider a four-member group (A, B, C, D) where the node above the
 right two members is blank.  (This is what it would look like if A created a
 group with B, C, and D.)  Then the public state of the tree and the views of the
-private keys of the tree held be each participant would be as follows, where `_`
+private keys of the tree held by each participant would be as follows, where `_`
 represents a blank node, `?` represents an unknown private key, and `pk(X)`
 represents the public key corresponding to the private key `X`:
 
