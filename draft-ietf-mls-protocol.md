@@ -3633,6 +3633,7 @@ Initial contents:
 | 0x0004          | MLS10_256_DHKEMX448_AES256GCM_SHA512_Ed448            | Y           | RFC XXXX  |
 | 0x0005          | MLS10_256_DHKEMP521_AES256GCM_SHA512_P521             | Y           | RFC XXXX  |
 | 0x0006          | MLS10_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     | Y           | RFC XXXX  |
+| 0x0007          | MLS10_256_DHKEMP384_AES256GCM_SHA384_P384.            | Y           | RFC XXXX  |
 | 0xff00 - 0xffff | Reserved for Private Use                              | N/A         | RFC XXXX  |
 
 All of these ciphersuites use HMAC {{!RFC2104}} as their MAC function, with
@@ -3648,14 +3649,16 @@ primitives, HMAC hash functions, and TLS signature schemes is as follows
 | 0x0004 | 0x0021 | 0x0003 | 0x0002 | SHA512 | ed448                  |
 | 0x0005 | 0x0012 | 0x0003 | 0x0002 | SHA512 | ecdsa_secp521r1_sha512 |
 | 0x0006 | 0x0021 | 0x0003 | 0x0003 | SHA512 | ed448                  |
+| 0x0007 | 0x0011 | 0x0002 | 0x0002 | SHA384 | ecdsa_secp384r1_sha384 |
+
 
 The hash used for the MLS transcript hash is the one referenced in the
-ciphersuite name.  In the ciphersuites defined above, "SHA256" and "SHA512"
-refer to the SHA-256 and SHA-512 functions defined in {{SHS}}.
+ciphersuite name.  In the ciphersuites defined above, "SHA256", "SHA384", and "SHA512"
+refer to the SHA-256, SHA-384, and SHA-512 functions defined in {{SHS}}.
 
 It is advisable to keep the number of ciphersuites low to increase the chances
 clients can interoperate in a federated environment, therefore the ciphersuites
-only inlcude modern, yet well-established algorithms.  Depending on their
+only include modern, yet well-established algorithms.  Depending on their
 requirements, clients can choose between two security levels (roughly 128-bit
 and 256-bit). Within the security levels clients can choose between faster
 X25519/X448 curves and FIPS 140-2 compliant curves for Diffie-Hellman key
