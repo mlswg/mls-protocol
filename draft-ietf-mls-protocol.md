@@ -388,7 +388,11 @@ Client:
   cryptographic keys it holds.
 
 Group:
-: A collection of clients with shared cryptographic state.
+: A linear sequence of epochs in which each epoch depends on its predecessor.
+
+Epoch:
+: A state of a group in which a specific set of authenticated clients hold
+shared cryptographic state.
 
 Member:
 : A client that is included in the shared state of a group, hence
@@ -406,55 +410,137 @@ Initialization Key (InitKey):
 Signature Key:
 : A signing key pair used to authenticate the sender of a message.
 
+Handshake Message:
+: An MLSPlaintext or MLSCiphertext message carrying an MLS message, as opposed
+to application data.
+
+Application Message:
+: An MLSCiphertext message carrying application data.
+
 Terminology specific to tree computations is described in
 {{ratchet-trees}}.
 
 We use the TLS presentation language {{!RFC8446}} to
 describe the structure of protocol messages.
 
+# Operating Context
 
-# Basic Assumptions
+MLS is designed to operate in the context described in
+{{?I-D.ietf-mls-architecture}}.  In particular, we assume that the following
+services are provided:
 
-This protocol is designed to execute in the context of a Service Provider (SP)
-as described in {{?I-D.ietf-mls-architecture}}.  In particular, we assume
-the SP provides the following services:
+* A Delivery Service that routes MLS messages among the participants in the
+  protocol.  The following types of delivery are typically required:
 
-* A signature key provider which allows clients to authenticate
-  protocol messages in a group.
+  * Pre-publication of KeyPackage objects for clients
+  * Broadcast delivery of Proposal and Commit messages to members of a group
+  * Unicast delivery of Welcome messages to new members of a group
 
-* A broadcast channel, for each group, which will relay a message to all members
-  of a group.  For the most part, we assume that this channel delivers messages
-  in the same order to all participants.  (See {{sequencing}} for further
-  considerations.)
-
-* A directory to which clients can publish key packages and download
-  key packages for other participants.
-
+* An Authentication Service that enables group members to authenticate the
+  credentials presented by other group members.
 
 # Protocol Overview
 
-The goal of this protocol is to allow a group of clients to exchange
-confidential and authenticated messages. It does so by deriving a sequence
-of secrets and keys known only to members. Those should be secret against an
-active network adversary and should have both forward secrecy and
-post-compromise security with respect to compromise of any members.
+The core functionality of MLS is continuous group authenticated key exchange
+(AKE).  As with other authenticated key exchange protocols (such as TLS), the
+participants in the protocol agree on a common secret value, and each
+participant can verify the identity of the other participants.  MLS provides
+group AKE in the sense that there can be more than two participants in the
+protocol, and continuous group AKE in the sense that the set of participants in
+the protocol can change over time.
 
-We describe the information stored by each client as _state_, which includes
-both public and private data. An initial state is set up by a group creator,
-which is a group containing only itself. The creator then sends _Add_
-proposals for each client in the initial set of members, followed by a _Commit_
-message which incorporates all of the _Adds_ into the group state. Finally, the
-group creator generates a _Welcome_ message corresponding to the Commit and
-sends this directly to all the new members, who can use the information
-it contains to set up their own group state and derive a shared
-secret. Members exchange Commit messages for post-compromise security, to add new
-members, and to remove existing members. These messages produce new shared
-secrets which are causally linked to their predecessors, forming a logical
-Directed Acyclic Graph (DAG) of states.
+The core organizing principles of MLS are _groups_ and _epochs_.  A group
+represents a linear sequence of epochs.  In each epoch, a set of authenticated
+_members_ agree on an _epoch secret_ that is known only to the members of the
+group in that epoch.  The set of members involved in the group can change from
+one epoch to the next, and MLS assures that only the members in the current
+epoch have access to the epoch secret.  From the epoch secret, members derive
+further shared secrets for message encryption, group membership authentication,
+etc.
 
-The protocol algorithms we specify here follow. Each algorithm specifies
-both (i) how a client performs the operation and (ii) how other clients
-update their state based on it.
+~~~~~
+                           epoch_secret
+                                |
+|\ Ratchet                      |                            Secret /|
+| \ Tree                        |                             Tree / |
+|  \                            |                                 /  |
+|   \                           V                                /   |
+|    --> commit_secret --> epoch_secret --> encryption_secret -->    |
+|   /                           |                                \   |
+|  /                            |                                 \  |
+| /                             |                                  \ |
+|/                              |                                   \|
+                                V
+                           epoch_secret
+~~~~~
+{: title="Overview of MLS group evolution"}
+
+The creator of an MLS group creates the group's first epoch unilaterally, with
+no protocol interactions.  Thereafter, the members of the group advance their
+shared cryptographic state from one epoch to another by exchanging MLS messages:
+
+* A _KeyPackage_ object describes a client's capabilities and provides keys that
+  can be used to add the client to a group.
+* A _Proposal_ message proposes a change to be made in the next epoch, such as
+  adding or removing a member
+* A _Commit_ message initiates a new epoch by instructing members of the group
+  to implement a collection of proposals
+* A _Welcome_ message provides a new member to the group with the information to
+  initialize their state for the epoch in which they were added
+* A _PublicGroupState_ object provides potential new group members with
+  information about the state of a group at an epoch, to allow a new member to
+  add themselves to the group.
+
+MLS also provides a common framing layer for sending Proposal messages, Commit
+messages, and application data.  An _MLSPlaintext_ message provides sender
+authentication for unencrypted Proposal and Commit messages.  An _MLSCiphertext_
+message provides encryption and authentication for both Proposal/Commit message
+and application data.
+
+## Cryptographic State and Evolution
+
+There are two types of cryptographic state at the core of MLS:
+
+* A _key schedule_ that represents the shared secret state of the group and its
+  evolution from one epoch to the next.
+* A _ratchet tree_ that represents the membership of the group, providing group
+  members a way to authenticate each other and efficiently encrypt messages to
+  subsets of the group.  Each epoch has a distinct ratchet tree.
+
+Each member of the group maintains a view of these two facets of the group's
+state.  MLS messages are used to intialize these views and keep them in sync as
+the group transitions between epochs.
+
+Each new epoch is initiated with a Commit message.  The Commit instructs
+existing members of the group to update their views of ratchet tree by applying
+a set of Proposals, and uses the updated ratchet tree to distribute fresh
+entropy to the group.  This fresh entropy is provided only to members in the new
+epoch, not to members who have been removed, so it maintains the confidentiality
+of the epoch secret (in other words, it provides post-compromise security with
+respect to those members).
+
+For each Commit, there is a corresponding Welcome message.  The Welcome message
+provides new members with the information they need to initialize their views of
+the key schedule and ratchet tree, so that these views are equivalent to the
+views held by other members of the group in this epoch.
+
+In addition to defining how one epoch secret leads to the next, the key schedule
+also defines a collection of secrets that are derived from the epoch secret.
+For example:
+
+* An _encryption secret_ that is used to initialize a _secret tree_, which
+  provides keys for encrypting handshake and application messages and providing
+  forward secrecy for these messages within an epoch.
+
+* A _confirmation key_ that is used to confirm that all members agree on the
+  shared state of the group.
+
+* A _resumption secret_ that members can use to prove their membership in the
+  group, e.g., in the case of branching a subgroup.
+
+Finally, an _init secret_ is derived that is used to initialize the next epoch.
+
+## Example Protocol Execution
 
 There are three major operations in the lifecycle of a group:
 
@@ -467,7 +553,9 @@ type (Add / Update / Remove).  The state of the group is not changed, however,
 until a Commit message is sent to provide the group with fresh entropy.  In this
 section, we show each proposal being committed immediately, but in more advanced
 deployment cases an application might gather several proposals before
-committing them all at once.
+committing them all at once.  In the illustrations below, we show the Proposal
+and Commit messages directly, while in reality they would be sent encapsulated in
+MLSPlaintext or MLSCiphertext objects.
 
 Before the initialization of a group, clients publish InitKeys (as KeyPackage
 objects) to a directory provided by the Service Provider.
@@ -486,6 +574,7 @@ A                B                C            Directory       Channel
 |                |                |--------------->|              |
 |                |                |                |              |
 ~~~~~
+{: title="Clients A, B, and C publish KeyPackages to the directory"}
 
 When a client A wants to establish a group with B and C, it first initializes a
 group state containing only itself and downloads KeyPackages for B and C. For
@@ -505,19 +594,17 @@ A              B              C          Directory            Channel
 |              |              |              |                   |
 |         KeyPackageB, KeyPackageC           |                   |
 |<-------------------------------------------|                   |
-|state.init()  |              |              |                   |
 |              |              |              |                   |
 |              |              |              | Add(A->AB)        |
 |              |              |              | Commit(Add)       |
 |--------------------------------------------------------------->|
 |              |              |              |                   |
 |  Welcome(B)  |              |              |                   |
-|------------->|state.join()  |              |                   |
+|------------->|              |              |                   |
 |              |              |              |                   |
 |              |              |              | Add(A->AB)        |
 |              |              |              | Commit(Add)       |
 |<---------------------------------------------------------------|
-|state.add(B)  |              |              |                   |
 |              |              |              |                   |
 |              |              |              |                   |
 |              |              |              | Add(AB->ABC)      |
@@ -525,27 +612,27 @@ A              B              C          Directory            Channel
 |--------------------------------------------------------------->|
 |              |              |              |                   |
 |              |  Welcome(C)  |              |                   |
-|---------------------------->|state.join()  |                   |
+|---------------------------->|              |                   |
 |              |              |              |                   |
 |              |              |              | Add(AB->ABC)      |
 |              |              |              | Commit(Add)       |
 |<---------------------------------------------------------------|
-|state.add(C)  |<------------------------------------------------|
-|              |state.add(C)  |              |                   |
+|              |<------------------------------------------------|
 |              |              |              |                   |
 ~~~~~
+{: title="Client A creates a group with clients B and C"}
 
 Subsequent additions of group members proceed in the same way.  Any
 member of the group can download a KeyPackage for a new client
-and broadcast an Add message that the current group can use to update
+and broadcast Add and Commit message that the current group can use to update
 their state, and a Welcome message that the new client can use to
 initialize its state and join the group.
 
-To enforce the forward secrecy and post-compromise security of messages,
-each member periodically updates their leaf secret.
-Any member can update this information at any time by generating a fresh
-KeyPackage and sending an Update message followed by a Commit message.
-Once all members have processed both, the group's secrets will be unknown to an
+To enforce the forward secrecy and post-compromise security of messages, each
+member periodically updates their leaf secret.  A member can update this message
+by sending a Commit (possibly with no proposals), or by sending an Update
+message that is committed by another member.  Once the other members of the
+group have processed these messages, the group's secrets will be unknown to an
 attacker that had compromised the sender's prior leaf secret.
 
 Update messages should be sent at regular intervals of time as long as the group
@@ -565,16 +652,19 @@ A              B     ...      Z          Directory        Channel
 |              |              |              | Update(B)    |
 |              |              |              | Commit(Upd)  |
 |<----------------------------------------------------------|
-|state.upd(B)  |<-------------------------------------------|
-|              |state.upd(B)  |<----------------------------|
-|              |              |state.upd(B)  |              |
+|              |<-------------------------------------------|
+|              |              |<----------------------------|
 |              |              |              |              |
 ~~~~~
+{: title="Client B proposes to update its key, and client A commits the
+proposal.  As a result, the keys for both B and A updated, so the group has
+post-compromise security with respect to both of them."}
 
 Members are removed from the group in a similar way.
 Any member of the group can send a Remove proposal followed by a
-Commit message, which adds new entropy to the group state
-that's known to all except the removed member.
+Commit message.  The Commit message provides new entropy to all members of the
+group except the removed member.  This new entropy is added to the epoch secret
+for the new epoch, so that it is not known to the removed member.
 Note that this does not necessarily imply that any member
 is actually allowed to evict other members; groups can
 enforce access control policies on top of these
@@ -591,12 +681,10 @@ A              B     ...      Z          Directory       Channel
 |              |              |              | Remove(B)    |
 |              |              |              | Commit(Rem)  |
 |<----------------------------------------------------------|
-|state.rem(B)  |              |<----------------------------|
-|              |              |state.rem(B)  |              |
-|              |              |              |              |
+|              |              |<----------------------------|
 |              |              |              |              |
 ~~~~~
-
+{: title="Client Z removes client B from the group"}
 
 # Ratchet Trees
 
@@ -3603,7 +3691,7 @@ uint16 CipherSuite;
 |:----------|:-----------------------------------------------------------------------|
 | MLS       | The string "MLS" followed by the major and minor version, e.g. "MLS10" |
 | LVL       | The security level                                                     |
-| KEM       | The KEM algorithm used for HPKE in TreeKEM group operations            |
+| KEM       | The KEM algorithm used for HPKE in ratchet tree operations             |
 | AEAD      | The AEAD algorithm used for HPKE and message protection                |
 | HASH      | The hash algorithm used for HPKE and the MLS transcript hash           |
 | SIG       | The Signature algorithm used for message authentication                |
