@@ -3925,8 +3925,7 @@ MLS DE, that MLS DE SHOULD defer to the judgment of the other MLS DEs.
 
 --- back
 
-
-# Tree Math {#tree-math}
+# Node Relationships based on Indices {#tree-math}
 
 One benefit of using left-balanced trees is that they admit a simple
 flat array representation.  In this representation, leaf nodes are
@@ -4091,4 +4090,119 @@ def common_ancestor_direct(x, y, _):
        xn, yn = xn >> 1, yn >> 1
        k += 1
     return (xn << k) + (1 << (k-1)) - 1
+~~~~~
+
+
+# Extending and Truncating Link-Based Trees
+
+An implementation may choose to store ratchet trees in a "link-based"
+representation, where each node stores references to its parents and/or
+children.   (As opposed to the array-based representation suggested above, where
+these relationships are computed from relationships between nodes' indices in
+the array.)  Such an implementation needs to update these links to maintain the
+left-balanced structure of the tree as the tree is extended to add new members,
+or truncated when memebers are removed.
+
+This appendix provides example algorithms for adding a single leaf and removing
+a single leaf from a link-based tree.  These algorithms can be repeated as
+necessary to implement the tree modifications required to apply Add and Remove
+proposals.
+
+To add a leaf node N to the right side of the tree:
+
+* Let X = the rightmost leaf of the tree
+* While X is full and X is not the root, let X = parent(X)
+  * Recall that a node is full if the subtree under it has a number of leaves
+    under it that is a power of two (see {{tree-computation-terminology}})
+* If X is not full:
+  * Set R = right(X)
+  * Set right(X) to a new blank parent node Y with left child R and right child N
+* If X is full (and thus X is the root)
+  * Add a new root node Y with left child X and right child N
+
+To remove the rightmost leaf of the tree:
+
+* Let X = the rightmost leaf of the tree
+* Let P = parent(X)
+* If P is the root, set the root of the tree to left(P)
+* Otherwise:
+  * Let Q = parent(P)
+  * Set right(Q) = left(P)
+* Delete X and P
+
+The following code snippet shows how these algorithms could be implemented in
+Python.
+
+~~~~~
+class Node:
+    def __init__(self, value, parent=None, left=None, right=None):
+        self.value = value    # Value of the node
+        self.parent = parent  # Parent node
+        self.left = left      # Left child node
+        self.right = right    # Right child node
+
+    def leaf(self):
+        return self.left == None and self.right == None
+
+    def span(self):
+        if self.leaf():
+            return 1
+        return self.left.span() + self.right.span()
+
+    def full(self):
+        span = self.span()
+        while span % 2 == 0:
+            span >>= 1
+        return span == 1
+
+    def rightmost_leaf(self):
+        X = self
+        while X.right != None:
+            X = X.right
+        return X
+
+class Tree:
+    def __init__(self):
+        self.root = None  # Root node of the tree, initially empty
+
+    def extend(self, N):
+        if self.root == None:
+            self.root = N
+            return
+
+        X = self.root.rightmost_leaf()
+
+        while X.full() and X != self.root:
+            X = X.parent
+
+        if not X.full():
+            R = X.right
+            Y = Node("_", parent=X, left=R, right=N)
+            R.parent = Y
+            N.parent = Y
+            X.right = Y
+            return
+
+        self.root = Node("_", left=self.root, right=N)
+        self.root.left.parent = self.root
+        N.parent = self.root
+        return
+
+    def truncate(self):
+        X = self.root.rightmost_leaf()
+        if X == self.root:
+            self.root = None
+            return
+
+        P = X.parent
+
+        if P == self.root:
+            self.root = P.left
+            self.root.parent = None
+            return
+
+        Q = P.parent
+        Q.right = P.left
+        P.left.parent = Q
+        return
 ~~~~~
