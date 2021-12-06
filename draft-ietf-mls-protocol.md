@@ -859,10 +859,10 @@ For example, suppose there is a group with four members, with C an unmerged leaf
 at node 5:
 
 ~~~~~
-      3
+      Y
     __|__
    /     \
-  1       5[C]
+  X       Z[C]
  / \     / \
 A   B   C   D
 
@@ -889,10 +889,10 @@ After applying the UpdatePath, the tree will have the following structure, where
 described above:
 
 ~~~~~
-    np[1] -> 3
+    np[1] -> Y'
            __|__
           /     \
-np[0] -> 1       5[C]
+np[0] -> X'      Z[C]
         / \     / \
        A   B   C   D
            ^
