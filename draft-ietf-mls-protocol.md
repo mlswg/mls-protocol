@@ -679,7 +679,18 @@ A   B   C   D   E   F   G
 A tree with `n` leaves has `2*n - 1` nodes.  For example, the above tree has 7
 leaves (A, B, C, D, E, F, G) and 13 nodes.
 
-Leaves are given an index, starting at 0 from the left to n-1 at the right.
+Each leaf is given an _index_ (or _leaf index_), starting at `0` from the left to
+`n-1` at the right.
+
+There are multiple ways that an implementation might represent a ratchet tree in
+memory.  For example, left-balanced binary trees can be represented as an array
+of nodes, with node relationships computed based on nodes' indices in the array.
+Or a more traditional representation of linked node objects may be used.
+{{array-based-trees}} and {{link-based-trees}} provide some details on how to
+implement the tree operations required for MLS in these representations.
+MLS places no requirements on implementations' internal representations
+of ratchet trees.  An implementation MAY use any tree representation and
+associated algorithms, as long as they produce correct protocol messages.
 
 ## Ratchet Tree Nodes {#resolution-example}
 
@@ -725,7 +736,7 @@ brackets:
       _
     __|__
    /     \
-  _      CD[C]
+  _       Z[C]
  / \     / \
 A   _   C   D
 
@@ -734,7 +745,7 @@ A   _   C   D
 
 In this tree, we can see all of the above rules in play:
 
-* The resolution of node CD is the list \[CD, C\]
+* The resolution of node Z is the list \[Z, C\]
 * The resolution of leaf 1 is the empty list \[\]
 * The resolution of root node is the list \[A, CD, C\]
 
@@ -893,6 +904,58 @@ np[0] -> 1       5[C]
 
 After performing these operations, the generator of the UpdatePath MUST
 delete the leaf_secret.
+
+## Adding and Removing Leaves
+
+In addition to the path-based updates to the tree described above, it is also
+necessary to add and remove leaves of the tree in order to reflect members being
+added to or removed from the group.  Leaves are always added and removed at the
+right edge of the tree: Either a new rightmost leaf is added, or the rightmost
+leaf is removed.  Nodes' parent/child node relationships are then updated to
+maintain the tree's left-balanced structure.  These operations are also known as
+_extending_ and _truncating_ the tree.
+
+To add a new leaf: Add leaf as the new rightmost leaf of the tree.  Add a blank
+parent node whose right child is the new leaf.  The parent is attached to the
+tree as the right child of the appropriate node to make the updated tree
+left-balanced (or set as a new root).  The former right child of the parent's
+parent becomes the parent's left child (or the old root becomes the left child).
+
+~~~~~
+                   _ <-- new parent              _
+                 __|_                          __|__
+                /    \                        /     \
+  X    ===>    X     |               ===>    X       _ <-- new parent
+ / \          / \    |                      / \     / \
+A   B        A   B   C <-- new leaf        A   B   C   D <-- new leaf
+~~~~~
+
+To remove the rightmost leaf: Remove the rightmost leaf node and its parent
+node.  If the parent node was the root of the tree, the parent node's left child
+is now the root of the tree.  Otherwise, set the right child of the parent's parent
+(formerly the parent itself) to be the parent's left child.
+
+~~~~~
+      Y                                    Y
+    __|__                                __|_
+   /     \                              /    \
+  X       Z <-- remove parent  ===>    X     | <-- reassign child
+ / \     / \                          / \    |
+A   B   C   D <-- remove leaf        A   B   C
+
+
+      Y <-- remove parent
+    __|_
+   /    \
+  X     |                  ===>    X <-- reassign root
+ / \    |                         / \
+A   B   C <-- remove leaf        A   B
+~~~~~
+
+Concrete algorithms for these operations on array-based and link-based trees are
+provided in {{array-based-trees}} and {{link-based-trees}}.  The concrete
+algorithms are non-normative.  An implementation MAY use any algorithm that
+produces the correct tree in its internal representation.
 
 ## Synchronizing Views of the Tree
 
@@ -1252,9 +1315,9 @@ co-path child.
 Finally, `original_child_resolution` is the array of `HPKEPublicKey` values of the
 nodes in the resolution of S but with the `unmerged_leaves` of P omitted. For
 example, in the ratchet tree depicted in {{resolution-example}} the
-`ParentHashInput` of node CD with co-path child C would contain an empty
+`ParentHashInput` of node Z with co-path child C would contain an empty
 `original_child_resolution` since C's resolution includes only itself but C is also
-an unmerged leaf of CD. Meanwhile, the `ParentHashInput` of node CD with co-path child
+an unmerged leaf of Z. Meanwhile, the `ParentHashInput` of node Z with co-path child
 D has an array with one element in it: the HPKE public key of D.
 
 ### Using Parent Hashes
@@ -1725,11 +1788,10 @@ For the generation of encryption keys and nonces, the key schedule begins with
 the `encryption_secret` at the root and derives a tree of secrets with the same
 structure as the group's ratchet tree. Each leaf in the Secret Tree is
 associated with the same group member as the corresponding leaf in the ratchet
-tree.  If N is a node in the Secret Tree then left(N) and right(N) denote the
-children of N (if they exist).
+tree.
 
-If N is a node in the Secret Tree then the secrets of the children
-of N are defined to be:
+If N is a parent node in the Secret Tree then the secrets of the children of N
+are defined as follows (where left(N) and right(N) denote the children of N):
 
 ~~~~
 tree_node_[N]_secret
@@ -1785,12 +1847,13 @@ Keys, nonces, and the secrets in ratchets are derived using
 DeriveTreeSecret. The context in a given call consists of the current position
 in the ratchet.
 
-~~~~
+~~~~~
 DeriveTreeSecret(Secret, Label, Generation, Length) =
     ExpandWithLabel(Secret, Label, Generation, Length)
 
 Where Generation is encoded as a uint32.
-~~~~
+~~~~~
+
 ~~~~~
 ratchet_secret_[N]_[j]
       |
@@ -2393,7 +2456,7 @@ the right.
 
 * Identify the leaf L for the new member: if there are empty leaves in the tree,
   L is the leftmost empty leaf.  Otherwise, the tree is extended to the right
-  and L is the new leaf.
+  by one leaf node and L is the new leaf.
 
 * For each non-blank intermediate node along the path from the leaf L
   to the root, add L's leaf index to the `unmerged_leaves` list for the node.
@@ -2446,11 +2509,11 @@ A member of the group applies a Remove message by taking the following steps:
   lookup MUST be done on the tree before any non-Remove proposals have
   been applied (the "old" tree in the terminology of {{commit}}), since
   proposals such as Update can change the KeyPackage stored at a leaf.
-  Let `removed_leaf` be this leaf node.
+  Let L be this leaf node.
 
-* Replace the leaf node `removed_leaf` with a blank node
+* Replace the leaf node L with a blank node
 
-* Blank the intermediate nodes along the path from `removed_leaf` to the root
+* Blank the intermediate nodes along the path from L to the root
 
 * Truncate the tree by removing leaves from the right side of the tree until the
   rightmost leaf node is not blank.
@@ -3228,7 +3291,10 @@ optional<Node> ratchet_tree<1..2^32-1>;
 
 The nodes are listed in the order specified by a left-to-right in-order
 traversal of the rachet tree. Each node is listed between its left subtree and
-its right subtree. The leaves of the tree are stored in even-numbered entries in
+its right subtree.  (This is the same ordering as specified for the array-based
+trees outlined in {{array-based-trees}}.)
+
+The leaves of the tree are stored in even-numbered entries in
 the array (the leaf with index L in array position 2*L). The root node of the
 tree is at position 2^k - 1 of the array, where k is the largest number such
 that 2^k is smaller than the length of the array. Intermediate parent nodes can
@@ -3262,13 +3328,13 @@ array of nodes in the following form, where R represents the "subtree root" for
 a given subarray of the node array:
 
 ~~~~~
-              7
+              X
         ______|______
        /             \
-      3              11
+      V               Z
     __|__           __|
    /     \         /   \
-  1       5       9     |
+  U       W       Y     |
  / \     / \     / \    |
 A   B   C   D   E   F   G
 
@@ -3290,6 +3356,10 @@ channel is provided with security protections equivalent to the protections that
 are afforded to Proposal and Commit messages.  For example, an application that
 encrypts Proposal and Commit messages might distribute ratchet trees encrypted
 using a key exchanged over the MLS channel.
+
+Regardless of how the client obtains the tree, the client MUST verify that the
+root hash of the ratchet tree matches the `tree_hash` of the GroupContext before
+using the tree for MLS operations.
 
 # Extensibility
 
@@ -3941,36 +4011,42 @@ MLS DE, that MLS DE SHOULD defer to the judgment of the other MLS DEs.
 
 --- back
 
-# Node Relationships based on Indices {#tree-math}
+# Array-Based Trees
 
 One benefit of using left-balanced trees is that they admit a simple
 flat array representation.  In this representation, leaf nodes are
 even-numbered nodes, with the n-th leaf at 2\*n.  Intermediate nodes
-are held in odd-numbered nodes.  For example, an 11-element tree has
+are held in odd-numbered nodes.  For example, tree with 11 leaves has
 the following structure:
 
 ~~~~~
-                                             X
-                     X
-         X                       X                       X
-   X           X           X           X           X
-X     X     X     X     X     X     X     X     X     X     X
-0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20
+                                                   X
+                           X
+               X                       X                       X
+         X           X           X           X           X
+      X     X     X     X     X     X     X     X     X     X     X
+Node: 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20
+Leaf: 0     1     2     3     4     5     6     7     8     9    10
 ~~~~~
 
 This allows us to compute relationships between tree nodes simply by
-manipulating indices, rather than having to maintain complicated
-structures in memory, even for partial trees. The basic
-rule is that the high-order bits of parent and child nodes have the
-following relation (where `x` is an arbitrary bit string):
+manipulating indices, rather than having to maintain complicated structures in
+memory. The basic rule is that the high-order bits of parent and child nodes
+indices have the following relation (where `x` is an arbitrary bit string):
 
 ~~~~~
 parent=01x => left=00x, right=10x
 ~~~~~
 
-The following python code demonstrates the tree computations
-necessary for MLS.  Test vectors can be derived from the diagram
-above.
+Since node relationships are implicit, the algorithms for adding and removing
+nodes at the right edge of the tree are quite simple:
+
+* Add: Append a blank parent node to the array of nodes, then append the new
+  leaf node
+* Remove: Remove the rightmost two nodes from the array of nodes
+
+The following python code demonstrates the tree computations necessary to use an
+array-based tree for MLS.
 
 ~~~~~
 # The exponent of the largest power of 2 less than x. Equivalent to:
@@ -4109,7 +4185,7 @@ def common_ancestor_direct(x, y, _):
 ~~~~~
 
 
-# Extending and Truncating Link-Based Trees
+# Link-Based Trees
 
 An implementation may choose to store ratchet trees in a "link-based"
 representation, where each node stores references to its parents and/or
@@ -4118,33 +4194,6 @@ these relationships are computed from relationships between nodes' indices in
 the array.)  Such an implementation needs to update these links to maintain the
 left-balanced structure of the tree as the tree is extended to add new members,
 or truncated when memebers are removed.
-
-This appendix provides example algorithms for adding a single leaf and removing
-a single leaf from a link-based tree.  These algorithms can be repeated as
-necessary to implement the tree modifications required to apply Add and Remove
-proposals.
-
-To add a leaf node N to the right side of the tree:
-
-* Let X = the rightmost leaf of the tree
-* While X is full and X is not the root, let X = parent(X)
-  * Recall that a node is full if the subtree under it has a number of leaves
-    under it that is a power of two (see {{tree-computation-terminology}})
-* If X is not full:
-  * Set R = right(X)
-  * Set right(X) to a new blank parent node Y with left child R and right child N
-* If X is full (and thus X is the root)
-  * Add a new root node Y with left child X and right child N
-
-To remove the rightmost leaf of the tree:
-
-* Let X = the rightmost leaf of the tree
-* Let P = parent(X)
-* If P is the root, set the root of the tree to left(P)
-* Otherwise:
-  * Let Q = parent(P)
-  * Set right(Q) = left(P)
-* Delete X and P
 
 The following code snippet shows how these algorithms could be implemented in
 Python.
@@ -4186,22 +4235,25 @@ class Tree:
             self.root = N
             return
 
+        # Identify the proper point to insert the new parent node
         X = self.root.rightmost_leaf()
-
         while X.full() and X != self.root:
             X = X.parent
 
+        # If X is not full, insert the new parent under X
+        P = Node("_", right=N)
+        N.parent = P
         if not X.full():
-            R = X.right
-            Y = Node("_", parent=X, left=R, right=N)
-            R.parent = Y
-            N.parent = Y
-            X.right = Y
+            P.parent = X
+            P.left = X.right
+            X.right.parent = P
+            X.right = P
             return
 
-        self.root = Node("_", left=self.root, right=N)
-        self.root.left.parent = self.root
-        N.parent = self.root
+        # If X is full, then X is the root, so P replaces the root
+        P.left = self.root
+        self.root.parent = P
+        self.root = P
         return
 
     def truncate(self):
@@ -4210,15 +4262,15 @@ class Tree:
             self.root = None
             return
 
-        P = X.parent
-
-        if P == self.root:
-            self.root = P.left
+        # If X's parent is the root, then shift the root to the left
+        if X.parent == self.root:
+            self.root = self.root.left
             self.root.parent = None
             return
 
-        Q = P.parent
-        Q.right = P.left
-        P.left.parent = Q
+        # Otherwise, reassign the right child of the parent's parent
+        Q = X.parent.parent
+        Q.right = X.parent.left
+        Q.right.parent = Q
         return
 ~~~~~
