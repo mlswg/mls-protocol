@@ -659,47 +659,27 @@ siblings of all the nodes in its direct path, excluding the root.
 
 For example, in the below tree:
 
-* The direct path of C is (CD, ABCD, ABCDEFG)
-* The copath of C is (D, AB, EFG)
+* The direct path of C is (W, V, X)
+* The copath of C is (D, U, Z)
 
 ~~~~~
-              7 = root
+              X = root
         ______|______
        /             \
-      3              11
+      V               Z
     __|__           __|
    /     \         /   \
-  1       5       9     |
+  U       W       Y     |
  / \     / \     / \    |
 A   B   C   D   E   F   G
 
-                    1 1 1
-0 1 2 3 4 5 6 7 8 9 0 1 2
+0   1   2   3   4   5   6
 ~~~~~
 
-Each node in the tree is assigned an _index_, starting at zero and
-running from left to right.  A node is a leaf node if and only if it
-has an even index.  The node indices for the nodes in the above tree
-are as follows:
-
-* 0 = A
-* 1 = AB
-* 2 = B
-* 3 = ABCD
-* 4 = C
-* 5 = CD
-* 6 = D
-* 7 = ABCDEFG
-* 8 = E
-* 9 = EF
-* 10 = F
-* 11 = EFG
-* 12 = G
-
 A tree with `n` leaves has `2*n - 1` nodes.  For example, the above tree has 7
-leaves (A, B, C, D, E, F, G) and 13 nodes.  The root of a tree with `n` leaves
-is always the node with index `2^k - 1`, where `k` is the largest number such
-that `2^k < n`.
+leaves (A, B, C, D, E, F, G) and 13 nodes.
+
+Leaves are given an index, starting at 0 from the left to n-1 at the right.
 
 ## Ratchet Tree Nodes {#resolution-example}
 
@@ -715,7 +695,7 @@ Each node in a ratchet tree contains up to five values:
 
 * A private key (only within the member's direct path, see below)
 * A public key
-* An ordered list of node indices for "unmerged" leaves (see
+* An ordered list of leaf indices for "unmerged" leaves (see
   {{views}})
 * A credential (only for leaf nodes)
 * A hash of certain information about the node's parent, as of the last time the
@@ -745,18 +725,18 @@ brackets:
       _
     __|__
    /     \
-  _       5[C]
+  _      CD[C]
  / \     / \
 A   _   C   D
 
-0 1 2 3 4 5 6
+0   1   2   3
 ~~~~~
 
 In this tree, we can see all of the above rules in play:
 
-* The resolution of node 5 is the list \[CD, C\]
-* The resolution of node 2 is the empty list \[\]
-* The resolution of node 3 is the list \[A, CD, C\]
+* The resolution of node CD is the list \[CD, C\]
+* The resolution of leaf 1 is the empty list \[\]
+* The resolution of root node is the list \[A, CD, C\]
 
 Every node, regardless of whether the node is blank or populated, has
 a corresponding _hash_ that summarizes the contents of the subtree
@@ -1272,10 +1252,10 @@ co-path child.
 Finally, `original_child_resolution` is the array of `HPKEPublicKey` values of the
 nodes in the resolution of S but with the `unmerged_leaves` of P omitted. For
 example, in the ratchet tree depicted in {{resolution-example}} the
-`ParentHashInput` of node 5 with co-path child 4 would contain an empty
-`original_child_resolution` since 4's resolution includes only itself but 4 is also
-an unmerged leaf of 5. Meanwhile, the `ParentHashInput` of node 5 with co-path child
-6 has an array with one element in it: the HPKE public key of 6.
+`ParentHashInput` of node CD with co-path child C would contain an empty
+`original_child_resolution` since C's resolution includes only itself but C is also
+an unmerged leaf of CD. Meanwhile, the `ParentHashInput` of node CD with co-path child
+D has an array with one element in it: the HPKE public key of D.
 
 ### Using Parent Hashes
 
@@ -1340,7 +1320,7 @@ might include a Key Package depending on whether or not it is blank.
 
 ~~~~~
 struct {
-    uint32 node_index;
+    uint32 leaf_index;
     optional<KeyPackage> key_package;
 } LeafNodeHashInput;
 ~~~~~
@@ -1357,7 +1337,6 @@ struct {
 } ParentNode;
 
 struct {
-    uint32 node_index;
     optional<ParentNode> parent_node;
     opaque left_hash<0..255>;
     opaque right_hash<0..255>;
@@ -1746,37 +1725,20 @@ For the generation of encryption keys and nonces, the key schedule begins with
 the `encryption_secret` at the root and derives a tree of secrets with the same
 structure as the group's ratchet tree. Each leaf in the Secret Tree is
 associated with the same group member as the corresponding leaf in the ratchet
-tree. Nodes are also assigned an index according to their position in the array
-representation of the tree (described in {{tree-math}}). If N is a node index in
-the Secret Tree then left(N) and right(N) denote the children of N (if they
-exist).
+tree.  If N is a node in the Secret Tree then left(N) and right(N) denote the
+children of N (if they exist).
 
-The secret of any other node in the tree is derived from its parent's secret
-using a call to DeriveTreeSecret:
-
-~~~~
-DeriveTreeSecret(Secret, Label, Node, Generation, Length) =
-    ExpandWithLabel(Secret, Label, TreeContext, Length)
-
-Where TreeContext is specified as:
-
-struct {
-    uint32 node = Node;
-    uint32 generation = Generation;
-} TreeContext;
-~~~~
-
-If N is a node index in the Secret Tree then the secrets of the children
+If N is a node in the Secret Tree then the secrets of the children
 of N are defined to be:
 
 ~~~~
 tree_node_[N]_secret
         |
         |
-        +--> DeriveTreeSecret(., "tree", left(N), 0, KDF.Nh)
+        +--> ExpandWithLabel(., "tree", "left", KDF.Nh)
         |    = tree_node_[left(N)]_secret
         |
-        +--> DeriveTreeSecret(., "tree", right(N), 0, KDF.Nh)
+        +--> ExpandWithLabel(., "tree", "right", KDF.Nh)
              = tree_node_[right(N)]_secret
 ~~~~
 
@@ -1788,10 +1750,10 @@ described in {{encryption-keys}}. The root of each ratchet is computed as:
 tree_node_[N]_secret
         |
         |
-        +--> DeriveTreeSecret(., "handshake", N, 0, KDF.Nh)
+        +--> ExpandWithLabel(., "handshake", "", KDF.Nh)
         |    = handshake_ratchet_secret_[N]_[0]
         |
-        +--> DeriveTreeSecret(., "application", N, 0, KDF.Nh)
+        +--> ExpandWithLabel(., "application", "", KDF.Nh)
              = application_ratchet_secret_[N]_[0]
 ~~~~
 
@@ -1820,23 +1782,26 @@ they send during that epoch. Each key/nonce pair MUST NOT be used to encrypt
 more than one message.
 
 Keys, nonces, and the secrets in ratchets are derived using
-DeriveTreeSecret. The context in a given call consists of the index
-of the sender's leaf in the ratchet tree and the current position in
-the ratchet.  In particular, the node index of the sender's leaf in the
-ratchet tree is the same as the node index of the leaf in the Secret Tree
-used to initialize the sender's ratchet.
+DeriveTreeSecret. The context in a given call consists of the current position
+in the ratchet.
 
+~~~~
+DeriveTreeSecret(Secret, Label, Generation, Length) =
+    ExpandWithLabel(Secret, Label, Generation, Length)
+
+Where Generation is encoded as a uint32.
+~~~~
 ~~~~~
 ratchet_secret_[N]_[j]
       |
-      +--> DeriveTreeSecret(., "nonce", N, j, AEAD.Nn)
+      +--> DeriveTreeSecret(., "nonce", j, AEAD.Nn)
       |    = ratchet_nonce_[N]_[j]
       |
-      +--> DeriveTreeSecret(., "key", N, j, AEAD.Nk)
+      +--> DeriveTreeSecret(., "key", j,  AEAD.Nk)
       |    = ratchet_key_[N]_[j]
       |
       V
-DeriveTreeSecret(., "secret", N, j, KDF.Nh)
+DeriveTreeSecret(., "secret", j, KDF.Nh)
 = ratchet_secret_[N]_[j+1]
 ~~~~~
 
@@ -1863,16 +1828,16 @@ forward secrecy for past messages. Members MAY keep unconsumed values around
 for some reasonable amount of time to handle out-of-order message delivery.
 
 For example, suppose a group member encrypts or (successfully) decrypts an
-application message using the j-th key and nonce in the ratchet of node
-index N in some epoch n. Then, for that member, at least the following
+application message using the j-th key and nonce in the ratchet of leaf node
+L in some epoch n. Then, for that member, at least the following
 values have been consumed and MUST be deleted:
 
 * the `commit_secret`, `joiner_secret`, `epoch_secret`, `encryption_secret` of
   that epoch n as well as the `init_secret` of the previous epoch n-1,
 * all node secrets in the Secret Tree on the path from the root to the leaf with
-  node index N,
-* the first j secrets in the application data ratchet of node index N and
-* `application_ratchet_nonce_[N]_[j]` and `application_ratchet_key_[N]_[j]`.
+  node L,
+* the first j secrets in the application data ratchet of node L and
+* `application_ratchet_nonce_[L]_[j]` and `application_ratchet_key_[L]_[j]`.
 
 Concretely, suppose we have the following Secret Tree and ratchet for
 participant D:
@@ -2400,15 +2365,12 @@ struct {
 } Add;
 ~~~~~
 
-The proposer of the Add does not control where in the group's ratchet tree the
-new member is added.  Instead, the sender of the Commit message chooses a
-location for each added member and states it in the Commit message.
-
 An Add is applied after being included in a Commit message.  The position of the
-Add in the list of proposals determines the node index `index` of the leaf node
-where the new member will be added.  For the first Add in the Commit, `index` is
-the leftmost empty leaf in the tree, for the second Add, the next empty leaf to
-the right, etc.
+Add in the list of proposals determines the leaf node where the new member will
+be added.  For the first Add in the Commit, the corresponding new member will be
+placed in the leftmost empty leaf in the tree, for the second Add, the next
+empty leaf to the right, etc. If not empty leaf exists, the tree is extended to
+the right.
 
 * Validate the KeyPackage:
 
@@ -2429,15 +2391,16 @@ the right, etc.
       extension, then the required extensions and proposals MUST be listed in
       the KeyPackage's `capabilities` extension.
 
-* If necessary, extend the tree to the right until it has at least index + 1
-  leaves
+* Identify the leaf L for the new member: if there are empty leaves in the tree,
+  L is the leftmost empty leaf.  Otherwise, the tree is extended to the right
+  and L is the new leaf.
 
-* For each non-blank intermediate node along the path from the leaf at position
-  `index` to the root, add `index` to the `unmerged_leaves` list for the node.
+* For each non-blank intermediate node along the path from the leaf L
+  to the root, add L's leaf index to the `unmerged_leaves` list for the node.
 
-* Set the leaf node in the tree at position `index` to a new node containing the
-  public key from the KeyPackage in the Add, as well as the credential under
-  which the KeyPackage was signed
+* Set the leaf node L to a new node containing the public key from the
+  KeyPackage in the Add, as well as the credential under which the KeyPackage
+  was signed.
 
 ### Update
 
@@ -2483,11 +2446,11 @@ A member of the group applies a Remove message by taking the following steps:
   lookup MUST be done on the tree before any non-Remove proposals have
   been applied (the "old" tree in the terminology of {{commit}}), since
   proposals such as Update can change the KeyPackage stored at a leaf.
-  Let `removed_index` be the node index of this leaf node.
+  Let `removed_leaf` be this leaf node.
 
-* Replace the leaf node at `removed_index` with a blank node
+* Replace the leaf node `removed_leaf` with a blank node
 
-* Blank the intermediate nodes along the path from `removed_index` to the root
+* Blank the intermediate nodes along the path from `removed_leaf` to the root
 
 * Truncate the tree by removing leaves from the right side of the tree until the
   rightmost leaf node is not blank.
@@ -3196,22 +3159,22 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 
 * Identify a leaf in the `tree` array (any even-numbered node) whose
   `key_package` field is identical to the KeyPackage.  If no such field
-  exists, return an error.  Let `index` represent the index of this node in the
-  tree.
+  exists, return an error.  Let `my_leaf` represent this leaf in the tree.
 
 * Construct a new group state using the information in the GroupInfo object.
     * The GroupContext contains the `group_id`, `epoch`, `tree_hash`,
       `confirmed_transcript_hash`, and `group_context_extensions` fields from
       the GroupInfo object.
 
-    * The new member's position in the tree is `index`, as defined above.
+    * The new member's position in the tree is at the leaf `my_leaf`, as defined
+      above.
 
-    * Update the leaf at index `index` with the private key corresponding to the
+    * Update the leaf `my_leaf` with the private key corresponding to the
       public key in the node.
 
     * If the `path_secret` value is set in the GroupSecrets object: Identify the
-      lowest common ancestor of the node index `index` and of the node index of
-      the member with KeyPackageRef `GroupInfo.signer`. Set the private key for
+      lowest common ancestor of the leaf node `my_leaf` and of the node of
+      the member with KeyPackageID `GroupInfo.signer`. Set the private key for
       this node to the private key derived from the `path_secret`.
 
     * For each parent of the common ancestor, up to the root of the tree, derive
@@ -3261,6 +3224,59 @@ struct {
 } Node;
 
 optional<Node> ratchet_tree<1..2^32-1>;
+~~~~~
+
+The nodes are listed in the order specified by a left-to-right in-order
+traversal of the rachet tree. Each node is listed between its left subtree and
+its right subtree. The leaves of the tree are stored in even-numbered entries in
+the array (the leaf with index L in array position 2*L). The root node of the
+tree is at position 2^k - 1 of the array, where k is the largest number such
+that 2^k is smaller than the length of the array. Intermediate parent nodes can
+be identified by performing the same calculation to the subarrays to the left
+and right of the root, following something like the following algorithm:
+
+~~~~~
+# Assuming a class Node that has left and right members
+def subtree_root(nodes):
+    # If there is only one node in the array return it
+    if len(nodes) == 1:
+        return Node(nodes[0])
+
+    # Otherwise, the length of the array MUST be odd
+    if len(nodes) % 2 == 0:
+        raise Exception("Malformed node array {}", len(nodes))
+
+    # Identify the root of the subtree
+    k = 0
+    while (2**(k+1)) < len(nodes):
+       k += 1
+    R = 2**k - 1
+    root = Node(nodes[R])
+    root.left = subtree_root(nodes[:R])
+    root.right = subtree_root(nodes[(R+1):])
+    return root
+~~~~~
+
+The example tree in {{tree-computation-terminology}} would be represented as an
+array of nodes in the following form, where R represents the "subtree root" for
+a given subarray of the node array:
+
+~~~~~
+              7
+        ______|______
+       /             \
+      3              11
+    __|__           __|
+   /     \         /   \
+  1       5       9     |
+ / \     / \     / \    |
+A   B   C   D   E   F   G
+
+                    1 1 1
+0 1 2 3 4 5 6 7 8 9 0 1 2
+<-----------> R <------->
+<---> R <--->   <---> R -
+- R -   - R -   - R -
 ~~~~~
 
 The presence of a `ratchet_tree` extension in a GroupInfo message does not
