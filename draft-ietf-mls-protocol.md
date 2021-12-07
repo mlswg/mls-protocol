@@ -747,7 +747,7 @@ In this tree, we can see all of the above rules in play:
 
 * The resolution of node Z is the list \[Z, C\]
 * The resolution of leaf 1 is the empty list \[\]
-* The resolution of root node is the list \[A, CD, C\]
+* The resolution of root node is the list \[A, Z, C\]
 
 Every node, regardless of whether the node is blank or populated, has
 a corresponding _hash_ that summarizes the contents of the subtree
@@ -908,18 +908,19 @@ delete the leaf_secret.
 ## Adding and Removing Leaves
 
 In addition to the path-based updates to the tree described above, it is also
-necessary to add and remove leaves of the tree in order to reflect members being
-added to or removed from the group.  Leaves are always added and removed at the
+necessary to add and remove leaves of the tree in order to reflect changes to the
+membership of the group (see {{add}} and {{remove}}).  Leaves are always added and removed at the
 right edge of the tree: Either a new rightmost leaf is added, or the rightmost
 leaf is removed.  Nodes' parent/child node relationships are then updated to
 maintain the tree's left-balanced structure.  These operations are also known as
 _extending_ and _truncating_ the tree.
 
-To add a new leaf: Add leaf as the new rightmost leaf of the tree.  Add a blank
-parent node whose right child is the new leaf.  The parent is attached to the
-tree as the right child of the appropriate node to make the updated tree
-left-balanced (or set as a new root).  The former right child of the parent's
-parent becomes the parent's left child (or the old root becomes the left child).
+To add a new leaf: Add leaf L as the new rightmost leaf of the tree.  Add
+a blank parent node P whose right child is L.  P is attached to the
+tree as the right child of the only appropriate node to make the updated tree
+left-balanced (or set it as a new root).  The former right child of the P's
+parent becomes P's left child (or the old root becomes the P's left child if
+P is the new root).
 
 ~~~~~
                    _ <-- new parent              _
@@ -930,10 +931,10 @@ parent becomes the parent's left child (or the old root becomes the left child).
 A   B        A   B   C <-- new leaf        A   B   C   D <-- new leaf
 ~~~~~
 
-To remove the rightmost leaf: Remove the rightmost leaf node and its parent
-node.  If the parent node was the root of the tree, the parent node's left child
-is now the root of the tree.  Otherwise, set the right child of the parent's parent
-(formerly the parent itself) to be the parent's left child.
+To remove the rightmost leaf: Remove the rightmost leaf node L and its parent
+node P.  If P was the root of the tree, P's left child
+is now the root of the tree.  Otherwise, set the right child of P's parent
+to be the P's left child.
 
 ~~~~~
       Y                                    Y
@@ -2432,7 +2433,7 @@ An Add is applied after being included in a Commit message.  The position of the
 Add in the list of proposals determines the leaf node where the new member will
 be added.  For the first Add in the Commit, the corresponding new member will be
 placed in the leftmost empty leaf in the tree, for the second Add, the next
-empty leaf to the right, etc. If not empty leaf exists, the tree is extended to
+empty leaf to the right, etc. If no empty leaf exists, the tree is extended to
 the right.
 
 * Validate the KeyPackage:
@@ -3237,7 +3238,7 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 
     * If the `path_secret` value is set in the GroupSecrets object: Identify the
       lowest common ancestor of the leaf node `my_leaf` and of the node of
-      the member with KeyPackageID `GroupInfo.signer`. Set the private key for
+      the member with KeyPackageRef `GroupInfo.signer`. Set the private key for
       this node to the private key derived from the `path_secret`.
 
     * For each parent of the common ancestor, up to the root of the tree, derive
@@ -3322,6 +3323,10 @@ def subtree_root(nodes):
     root.right = subtree_root(nodes[(R+1):])
     return root
 ~~~~~
+
+(Note that this is the same ordering of nodes as in the array-based tree representation
+described in {{array-based-trees}}.  The algorithms in that section may be used to 
+simplify decoding this extension into other representations.)
 
 The example tree in {{tree-computation-terminology}} would be represented as an
 array of nodes in the following form, where R represents the "subtree root" for
