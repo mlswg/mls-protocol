@@ -953,6 +953,8 @@ A   B   C   D <-- remove leaf        A   B   C
 A   B   C <-- remove leaf        A   B
 ~~~~~
 
+Note: in the rest of the protocol, the rightmost leaf will be removed only when it is blank.
+
 Concrete algorithms for these operations on array-based and link-based trees are
 provided in {{array-based-trees}} and {{link-based-trees}}.  The concrete
 algorithms are non-normative.  An implementation MAY use any algorithm that
@@ -3323,6 +3325,10 @@ def subtree_root(nodes):
     root.right = subtree_root(nodes[(R+1):])
     return root
 ~~~~~
+
+(Note that this is the same ordering of nodes as in the array-based tree representation
+described in {{array-based-trees}}.  The algorithms in that section may be used to 
+simplify decoding this extension into other representations.)
 
 (Note that this is the same ordering of nodes as in the array-based tree representation
 described in {{array-based-trees}}.  The algorithms in that section may be used to 
