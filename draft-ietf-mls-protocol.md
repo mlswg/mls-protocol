@@ -1225,24 +1225,30 @@ updated. It can be computed as the tree hash of S modified the following way:
 For example, in the following tree:
 
 ~~~~~
-    ABCD[C]
-    __|__
-   /     \
-  AB      CD[C]
- / \     / \
-A   B   C   D
+              W [H]
+        ______|_____
+       /             \
+      U               Y [F, H]
+    __|__           __|__
+   /     \         /     \
+  T       V       X [F]   Z [H]
+ / \     / \     / \     / \
+A   B   C   D   E   F   G   H
 ~~~~~
 
-With P = ABCD and S = CD, `original_sibling_tree_hash` is the tree hash of the
+With P = W and S = Y, `original_sibling_tree_hash` is the tree hash of the
 following tree:
 
 ~~~~~
-  CD
- / \
-_   D
+      Y [F]
+    __|__
+   /     \
+  X [F]   Z
+ / \     / \
+E   F   G   _
 ~~~~~
 
-Because ABCD.unmerged_leaves = [C], C is removed from CD.unmerged_leaves and C is replaced with a blank leaf.
+Because W.unmerged_leaves = [H], H is removed from Y.unmerged_leaves and Z.unmerged_leaves, then H is replaced with a blank leaf.
 
 ### Using Parent Hashes
 
