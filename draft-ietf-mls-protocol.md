@@ -411,8 +411,8 @@ Signature Key:
 : A signing key pair used to authenticate the sender of a message.
 
 Handshake Message:
-: An MLSPlaintext or MLSCiphertext message carrying an MLS message, as opposed
-to application data.
+: An MLSPlaintext or MLSCiphertext message carrying an MLS Proposal or Commit
+object, as opposed to application data.
 
 Application Message:
 : An MLSCiphertext message carrying application data.
@@ -450,13 +450,14 @@ protocol, and continuous group AKE in the sense that the set of participants in
 the protocol can change over time.
 
 The core organizing principles of MLS are _groups_ and _epochs_.  A group
-represents a linear sequence of epochs.  In each epoch, a set of authenticated
-_members_ agree on an _epoch secret_ that is known only to the members of the
-group in that epoch.  The set of members involved in the group can change from
-one epoch to the next, and MLS assures that only the members in the current
-epoch have access to the epoch secret.  From the epoch secret, members derive
-further shared secrets for message encryption, group membership authentication,
-etc.
+represents a logical collection of clents that share a common secret value at
+any given time.  The history of a group is divided into a linear sequence of
+epochs.  In each epoch, a set of authenticated _members_ agree on an _epoch
+secret_ that is known only to the members of the group in that epoch.  The set
+of members involved in the group can change from one epoch to the next, and MLS
+assures that only the members in the current epoch have access to the epoch
+secret.  From the epoch secret, members derive further shared secrets for
+message encryption, group membership authentication, etc.
 
 ~~~~~
                            epoch_secret
@@ -491,11 +492,16 @@ shared cryptographic state from one epoch to another by exchanging MLS messages:
   information about the state of a group at an epoch, to allow a new member to
   add themselves to the group.
 
-MLS also provides a common framing layer for sending Proposal messages, Commit
-messages, and application data.  An _MLSPlaintext_ message provides sender
-authentication for unencrypted Proposal and Commit messages.  An _MLSCiphertext_
-message provides encryption and authentication for both Proposal/Commit message
-and application data.
+KeyPackage, Welcome, and PublicGroupState messages are used to initiate a group or
+introduce new members, so they are exchanged between group members and clients
+not yet in the group.
+
+Proposal and Commit messages are sent from one member of a group to the others.
+MLS provides a common framing layer for sending messages within a group,
+including Proposal and Commit as well as application data.  An _MLSPlaintext_
+message provides sender authentication for unencrypted Proposal and Commit
+messages.  An _MLSCiphertext_ message provides encryption and authentication for
+both Proposal/Commit message and application data.
 
 ## Cryptographic State and Evolution
 
@@ -519,10 +525,11 @@ epoch, not to members who have been removed, so it maintains the confidentiality
 of the epoch secret (in other words, it provides post-compromise security with
 respect to those members).
 
-For each Commit, there is a corresponding Welcome message.  The Welcome message
-provides new members with the information they need to initialize their views of
-the key schedule and ratchet tree, so that these views are equivalent to the
-views held by other members of the group in this epoch.
+For each Commit that adds member(s) to the group, there is a corresponding
+Welcome message.  The Welcome message provides new members with the information
+they need to initialize their views of the key schedule and ratchet tree, so
+that these views are equivalent to the views held by other members of the group
+in this epoch.
 
 In addition to defining how one epoch secret leads to the next, the key schedule
 also defines a collection of secrets that are derived from the epoch secret.
@@ -629,11 +636,11 @@ their state, and a Welcome message that the new client can use to
 initialize its state and join the group.
 
 To enforce the forward secrecy and post-compromise security of messages, each
-member periodically updates their leaf secret.  A member can update this message
-by sending a Commit (possibly with no proposals), or by sending an Update
-message that is committed by another member.  Once the other members of the
-group have processed these messages, the group's secrets will be unknown to an
-attacker that had compromised the sender's prior leaf secret.
+member periodically updates the keys that represent them to the group.  A member
+does this by sending a Commit (possibly with no proposals), or by sending an
+Update message that is committed by another member.  Once the other members of
+the group have processed these messages, the group's secrets will be unknown to
+an attacker that had compromised the sender's prior leaf secret.
 
 Update messages should be sent at regular intervals of time as long as the group
 is active, and members that don't update should eventually be removed from the
