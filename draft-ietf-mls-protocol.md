@@ -1025,6 +1025,27 @@ the same as the signature algorithm specified in the credential field of the
 KeyPackage objects in the leaves of the tree (including the InitKeys
 used to add new members).
 
+To disambiguate different signatures used in MLS, each signed value is prefixed
+by a label as shown below:
+
+~~~~~
+SignWithLabel(SignatureKey, Label, Content) =
+    Signature.Sign(SignatureKey, SignContent)
+
+VerifyWithLabel(VerificationKey, Label, Content) =
+    Signature.Verify(VerificationKey, SignContent)
+
+Where SignContent is specified as:
+
+struct {
+    opaque label<7..255> = "mls10 " + Label;
+    opaque content<0..2^32-1> = Content;
+} SignContent;
+~~~~~
+
+Here, the functions `Signature.Sign` and `Signature.Verify` are defined
+by the signature algorithm.
+
 The ciphersuites are defined in section {{mls-ciphersuites}}.
 
 ## Hash-Based Identifiers
@@ -1145,8 +1166,10 @@ The value for hpke\_init\_key MUST be a public key for the asymmetric
 encryption scheme defined by cipher\_suite. The whole structure
 is signed using the client's signature key. A KeyPackage object
 with an invalid signature field MUST be considered malformed.
-The input to the signature computation comprises all of the fields
-except for the signature field.
+
+The signature is computed by the function `SignWithLabel` with a label
+`KeyPackage` and a content comprising of all of the fields except for the
+signature field.
 
 ~~~~~
 enum {
@@ -2073,9 +2096,10 @@ The following sections describe the encryption and signing processes in detail.
 The `signature` field in an MLSPlaintext object is computed using the signing
 private key corresponding to the public key, which was authenticated by the
 credential at the leaf of the tree indicated by the sender field. The signature
-covers the plaintext metadata and message content, which is all of MLSPlaintext
+is computed using `SignWithLabel` with label `"MLSPlaintextTBS"` and with a content
+that covers the plaintext metadata and message content, which is all of MLSPlaintext
 except for the `signature`, the `confirmation_tag` and `membership_tag` fields.
-If the sender is a member of the group, the signature also covers the
+If the sender is a member of the group, the content also covers the
 GroupContext for the current epoch, so that signatures are specific to a given
 group and epoch.
 
@@ -2384,9 +2408,10 @@ struct {
 ~~~~~
 
 On receiving an MLSPlaintext containing a Proposal, a client MUST verify the
-signature on the enclosing MLSPlaintext.  If the signature verifies
-successfully, then the Proposal should be cached in such a way that it can be
-retrieved by hash (as a ProposalOrRef object) in a later Commit message.
+signature on the enclosing MLSPlaintext with the label `"MLSPlaintextTBS"`.
+If the signature verifies successfully, then the Proposal should be cached in
+such a way that it can be retrieved by hash (as a ProposalOrRef object) in a
+later Commit message.
 
 ### Add
 
@@ -2413,7 +2438,7 @@ the right, etc.
 * Validate the KeyPackage:
 
     * Verify that the signature on the KeyPackage is valid using the public key
-      in the KeyPackage's credential
+      in the KeyPackage's credential and the label `"KeyPackage"`
 
     * Verify that the following fields in the KeyPackage are unique among the
       members of the group (including any other members added in the same
@@ -2653,8 +2678,9 @@ example to enforce a changed policy regarding MLS version or ciphersuite.
 The `new_member` SenderType is used for clients proposing that they themselves
 be added.  For this ID type the sender value MUST be zero and the Proposal type
 MUST be Add. The MLSPlaintext MUST be signed with the private key corresponding
-to the KeyPackage in the Add message.  Recipients MUST verify that the
-MLSPlaintext carrying the Proposal message is validly signed with this key.
+to the KeyPackage in the Add message and the label `"MLSPlaintextTBS"`.
+Recipients MUST verify that the MLSPlaintext carrying the Proposal message is
+validly signed with this key.
 
 The `preconfigured` SenderType is reserved for signers that are pre-provisioned
 to the clients within a group.  If proposals with these sender IDs are to be
@@ -2849,7 +2875,8 @@ message at the same time, by taking the following steps:
   in the `proposals` vector.
 
 * Construct an MLSPlaintext object containing the Commit object. Sign the
-  MLSPlaintext using the old GroupContext as context.
+  MLSPlaintext using the old GroupContext as context and the label
+  `"MLSPlaintextTBS"`.
   * Use the MLSPlaintext to update the confirmed transcript hash and generate
     the new GroupContext.
   * Use the `init_secret` from the previous epoch, the `commit_secret` and the
@@ -2867,7 +2894,8 @@ message at the same time, by taking the following steps:
     hash, and group context extensions from the new state
   * The confirmation_tag from the MLSPlaintext object
   * Other extensions as defined by the application
-  * Sign the GroupInfo using the member's private signing key
+  * Sign the GroupInfo with the label `"GroupInfo"` using the member's private
+    signing key
   * Encrypt the GroupInfo using the key and nonce derived from the `joiner_secret`
     for the new epoch (see {{welcoming-new-members}})
 
@@ -2898,7 +2926,7 @@ A member of the group applies a Commit message by taking the following steps:
 
 * Verify that the signature on the MLSPlaintext message verifies using the
   public key from the credential stored at the leaf in the tree indicated by
-  the `sender` field.
+  the `sender` field, and the label `"MLSPlaintextTBS"`.
 
 * Verify that all PSKs specified in any PreSharedKey proposals in the `proposals` vector
   are available.
@@ -3017,9 +3045,9 @@ The full tree can be included via the `ratchet_tree` extension
 {{ratchet-tree-extension}}.
 
 The signature MUST verify using the public key taken from the credential in the
-leaf node of the member with KeyPackageRef `signer`. The signature covers the
-following structure, comprising all the fields in the PublicGroupState above
-`signature`:
+leaf node of the member with KeyPackageRef `signer` and the label
+`"PublicGroupStateTBS"`.  The signature's content covers the following structure,
+comprising all the fields in the PublicGroupState above `signature`:
 
 ~~~~~
 struct {
@@ -3064,7 +3092,8 @@ External Commits work like regular Commits, with a few differences:
   leaf node.
 * External Commits MUST be signed by the new member.  In particular, the
   signature on the enclosing MLSPlaintext MUST verify using the public key for
-  the credential in the `leaf_key_package` of the `path` field.
+  the credential in the `leaf_key_package` of the `path` field, and the label
+  `"MLSPlaintextTBS"`.
 * When processing a Commit, both existing and new members MUST use the external
   init secret as described in {{external-initialization}}.
 * The sender type for the MLSPlaintext encapsulating the External Commit MUST be
@@ -3173,11 +3202,13 @@ welcome_nonce = KDF.Expand(welcome_secret, "nonce", AEAD.Nn)
 welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 ~~~~~
 
-* Verify the signature on the GroupInfo object. The signature input comprises
-  all of the fields in the GroupInfo object except the signature field. The
-  public key and algorithm are taken from the credential in the leaf node of the
-  member with KeyPackageRef `signer`. If there is no matching leaf node, or if
-  signature verification fails, return an error.
+
+* Verify the signature on the GroupInfo object. The signature uses
+  the label `"GroupInfo"` and its content comprises all of the fields in the
+  GroupInfo object except the signature field. The public key and
+  algorithm are taken from the credential in the leaf node of the
+  member with KeyPackageRef `signer`. If there is no matching leaf
+  node, or if signature verification fails, return an error.
 
 * Verify the integrity of the ratchet tree.
 
@@ -3192,7 +3223,8 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
     have a parent hash, then its respective children's `parent_hash` values have
     to be considered instead.
 
-  * For each non-empty leaf node, verify the signature on the KeyPackage.
+  * For each non-empty leaf node, verify the signature on the KeyPackage with
+    the label `"KeyPackage"`.
 
 * Identify a leaf in the `tree` array (any even-numbered node) whose
   `key_package` field is identical to the KeyPackage.  If no such field
