@@ -2334,6 +2334,10 @@ The members of a group reinitialize it using the following steps:
       MUST be a randomly sampled nonce of length `KDF.Nh`, for the KDF defined
       by the new grou's ciphersuite.
 
+Resumption PSKs with usage `reinit` MUST NOT be used in other contexts.  A
+PreSharedKey proposal with type `resumption` and usage `reinit` MUST be
+considered invalid.
+
 ## Sub-group Branching
 
 A new group can be formed from a subset of an existing group's members, using
@@ -2352,6 +2356,10 @@ the referenced group.
 
 In addition, to avoid key re-use, the `psk_nonce` included in the
 `PreSharedKeyID` object MUST be a randomly sampled nonce of length `KDF.Nh`.
+
+Resumption PSKs with usage `branch` MUST NOT be used in other contexts.  A
+PreSharedKey proposal with type `resumption` and usage `branch` MUST be
+considered invalid.
 
 # Group Evolution
 
