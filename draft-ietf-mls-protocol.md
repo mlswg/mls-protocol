@@ -388,7 +388,11 @@ Client:
   cryptographic keys it holds.
 
 Group:
-: A collection of clients with shared cryptographic state.
+: A linear sequence of epochs in which each epoch depends on its predecessor.
+
+Epoch:
+: A state of a group in which a specific set of authenticated clients hold
+shared cryptographic state.
 
 Member:
 : A client that is included in the shared state of a group, hence
@@ -406,55 +410,144 @@ Initialization Key (InitKey):
 Signature Key:
 : A signing key pair used to authenticate the sender of a message.
 
+Handshake Message:
+: An MLSPlaintext or MLSCiphertext message carrying an MLS Proposal or Commit
+object, as opposed to application data.
+
+Application Message:
+: An MLSCiphertext message carrying application data.
+
 Terminology specific to tree computations is described in
 {{ratchet-trees}}.
 
 We use the TLS presentation language {{!RFC8446}} to
 describe the structure of protocol messages.
 
+# Operating Context
 
-# Basic Assumptions
+MLS is designed to operate in the context described in
+{{?I-D.ietf-mls-architecture}}.  In particular, we assume that the following
+services are provided:
 
-This protocol is designed to execute in the context of a Service Provider (SP)
-as described in {{?I-D.ietf-mls-architecture}}.  In particular, we assume
-the SP provides the following services:
+* A Delivery Service that routes MLS messages among the participants in the
+  protocol.  The following types of delivery are typically required:
 
-* A signature key provider which allows clients to authenticate
-  protocol messages in a group.
+  * Pre-publication of KeyPackage objects for clients
+  * Broadcast delivery of Proposal and Commit messages to members of a group
+  * Unicast delivery of Welcome messages to new members of a group
 
-* A broadcast channel, for each group, which will relay a message to all members
-  of a group.  For the most part, we assume that this channel delivers messages
-  in the same order to all participants.  (See {{sequencing}} for further
-  considerations.)
-
-* A directory to which clients can publish key packages and download
-  key packages for other participants.
-
+* An Authentication Service that enables group members to authenticate the
+  credentials presented by other group members.
 
 # Protocol Overview
 
-The goal of this protocol is to allow a group of clients to exchange
-confidential and authenticated messages. It does so by deriving a sequence
-of secrets and keys known only to members. Those should be secret against an
-active network adversary and should have both forward secrecy and
-post-compromise security with respect to compromise of any members.
+The core functionality of MLS is continuous group authenticated key exchange
+(AKE).  As with other authenticated key exchange protocols (such as TLS), the
+participants in the protocol agree on a common secret value, and each
+participant can verify the identity of the other participants.  MLS provides
+group AKE in the sense that there can be more than two participants in the
+protocol, and continuous group AKE in the sense that the set of participants in
+the protocol can change over time.
 
-We describe the information stored by each client as _state_, which includes
-both public and private data. An initial state is set up by a group creator,
-which is a group containing only itself. The creator then sends _Add_
-proposals for each client in the initial set of members, followed by a _Commit_
-message which incorporates all of the _Adds_ into the group state. Finally, the
-group creator generates a _Welcome_ message corresponding to the Commit and
-sends this directly to all the new members, who can use the information
-it contains to set up their own group state and derive a shared
-secret. Members exchange Commit messages for post-compromise security, to add new
-members, and to remove existing members. These messages produce new shared
-secrets which are causally linked to their predecessors, forming a logical
-Directed Acyclic Graph (DAG) of states.
+The core organizing principles of MLS are _groups_ and _epochs_.  A group
+represents a logical collection of clents that share a common secret value at
+any given time.  The history of a group is divided into a linear sequence of
+epochs.  In each epoch, a set of authenticated _members_ agree on an _epoch
+secret_ that is known only to the members of the group in that epoch.  The set
+of members involved in the group can change from one epoch to the next, and MLS
+assures that only the members in the current epoch have access to the epoch
+secret.  From the epoch secret, members derive further shared secrets for
+message encryption, group membership authentication, etc.
 
-The protocol algorithms we specify here follow. Each algorithm specifies
-both (i) how a client performs the operation and (ii) how other clients
-update their state based on it.
+~~~~~
+                           epoch_secret
+                                |
+|\ Ratchet                      |                            Secret /|
+| \ Tree                        |                             Tree / |
+|  \                            |                                 /  |
+|   \                           V                                /   |
+|    --> commit_secret --> epoch_secret --> encryption_secret -->    |
+|   /                           |                                \   |
+|  /                            |                                 \  |
+| /                             |                                  \ |
+|/                              |                                   \|
+                                V
+                           epoch_secret
+~~~~~
+{: title="Overview of MLS group evolution"}
+
+The creator of an MLS group creates the group's first epoch unilaterally, with
+no protocol interactions.  Thereafter, the members of the group advance their
+shared cryptographic state from one epoch to another by exchanging MLS messages:
+
+* A _KeyPackage_ object describes a client's capabilities and provides keys that
+  can be used to add the client to a group.
+* A _Proposal_ message proposes a change to be made in the next epoch, such as
+  adding or removing a member
+* A _Commit_ message initiates a new epoch by instructing members of the group
+  to implement a collection of proposals
+* A _Welcome_ message provides a new member to the group with the information to
+  initialize their state for the epoch in which they were added
+* A _PublicGroupState_ object provides potential new group members with
+  information about the state of a group at an epoch, to allow a new member to
+  add themselves to the group.
+
+KeyPackage, Welcome, and PublicGroupState messages are used to initiate a group or
+introduce new members, so they are exchanged between group members and clients
+not yet in the group.
+
+Proposal and Commit messages are sent from one member of a group to the others.
+MLS provides a common framing layer for sending messages within a group,
+including Proposal and Commit as well as application data.  An _MLSPlaintext_
+message provides sender authentication for unencrypted Proposal and Commit
+messages.  An _MLSCiphertext_ message provides encryption and authentication for
+both Proposal/Commit message and application data.
+
+## Cryptographic State and Evolution
+
+There are two types of cryptographic state at the core of MLS:
+
+* A _key schedule_ that represents the shared secret state of the group and its
+  evolution from one epoch to the next.
+* A _ratchet tree_ that represents the membership of the group, providing group
+  members a way to authenticate each other and efficiently encrypt messages to
+  subsets of the group.  Each epoch has a distinct ratchet tree.
+
+Each member of the group maintains a view of these two facets of the group's
+state.  MLS messages are used to intialize these views and keep them in sync as
+the group transitions between epochs.
+
+Each new epoch is initiated with a Commit message.  The Commit instructs
+existing members of the group to update their views of ratchet tree by applying
+a set of Proposals, and uses the updated ratchet tree to distribute fresh
+entropy to the group.  This fresh entropy is provided only to members in the new
+epoch, not to members who have been removed, so it maintains the confidentiality
+of the epoch secret (in other words, it provides post-compromise security with
+respect to those members).
+
+For each Commit that adds member(s) to the group, there is a corresponding
+Welcome message.  The Welcome message provides new members with the information
+they need to initialize their views of the key schedule and ratchet tree, so
+that these views are equivalent to the views held by other members of the group
+in this epoch.
+
+In addition to defining how one epoch secret leads to the next, the key schedule
+also defines a collection of secrets that are derived from the epoch secret.
+For example:
+
+* An _encryption secret_ that is used to initialize a _secret tree_, which
+  provides keys for encrypting handshake and application messages and providing
+  forward secrecy for these messages within an epoch.
+
+* A _confirmation key_ that is used to confirm that all members agree on the
+  shared state of the group.
+
+* A _resumption secret_ that members can use to prove their membership in the
+  group, e.g., in the case of branching a subgroup.
+
+Finally, an _init secret_ is derived that is used to initialize the next epoch.
+
+## Example Protocol Execution
 
 There are three major operations in the lifecycle of a group:
 
@@ -467,7 +560,9 @@ type (Add / Update / Remove).  The state of the group is not changed, however,
 until a Commit message is sent to provide the group with fresh entropy.  In this
 section, we show each proposal being committed immediately, but in more advanced
 deployment cases an application might gather several proposals before
-committing them all at once.
+committing them all at once.  In the illustrations below, we show the Proposal
+and Commit messages directly, while in reality they would be sent encapsulated in
+MLSPlaintext or MLSCiphertext objects.
 
 Before the initialization of a group, clients publish InitKeys (as KeyPackage
 objects) to a directory provided by the Service Provider.
@@ -486,6 +581,7 @@ A                B                C            Directory       Channel
 |                |                |--------------->|              |
 |                |                |                |              |
 ~~~~~
+{: title="Clients A, B, and C publish KeyPackages to the directory"}
 
 When a client A wants to establish a group with B and C, it first initializes a
 group state containing only itself and downloads KeyPackages for B and C. For
@@ -505,19 +601,17 @@ A              B              C          Directory            Channel
 |              |              |              |                   |
 |         KeyPackageB, KeyPackageC           |                   |
 |<-------------------------------------------|                   |
-|state.init()  |              |              |                   |
 |              |              |              |                   |
 |              |              |              | Add(A->AB)        |
 |              |              |              | Commit(Add)       |
 |--------------------------------------------------------------->|
 |              |              |              |                   |
 |  Welcome(B)  |              |              |                   |
-|------------->|state.join()  |              |                   |
+|------------->|              |              |                   |
 |              |              |              |                   |
 |              |              |              | Add(A->AB)        |
 |              |              |              | Commit(Add)       |
 |<---------------------------------------------------------------|
-|state.add(B)  |              |              |                   |
 |              |              |              |                   |
 |              |              |              |                   |
 |              |              |              | Add(AB->ABC)      |
@@ -525,28 +619,28 @@ A              B              C          Directory            Channel
 |--------------------------------------------------------------->|
 |              |              |              |                   |
 |              |  Welcome(C)  |              |                   |
-|---------------------------->|state.join()  |                   |
+|---------------------------->|              |                   |
 |              |              |              |                   |
 |              |              |              | Add(AB->ABC)      |
 |              |              |              | Commit(Add)       |
 |<---------------------------------------------------------------|
-|state.add(C)  |<------------------------------------------------|
-|              |state.add(C)  |              |                   |
+|              |<------------------------------------------------|
 |              |              |              |                   |
 ~~~~~
+{: title="Client A creates a group with clients B and C"}
 
 Subsequent additions of group members proceed in the same way.  Any
 member of the group can download a KeyPackage for a new client
-and broadcast an Add message that the current group can use to update
+and broadcast Add and Commit message that the current group can use to update
 their state, and a Welcome message that the new client can use to
 initialize its state and join the group.
 
-To enforce the forward secrecy and post-compromise security of messages,
-each member periodically updates their leaf secret.
-Any member can update this information at any time by generating a fresh
-KeyPackage and sending an Update message followed by a Commit message.
-Once all members have processed both, the group's secrets will be unknown to an
-attacker that had compromised the sender's prior leaf secret.
+To enforce the forward secrecy and post-compromise security of messages, each
+member periodically updates the keys that represent them to the group.  A member
+does this by sending a Commit (possibly with no proposals), or by sending an
+Update message that is committed by another member.  Once the other members of
+the group have processed these messages, the group's secrets will be unknown to
+an attacker that had compromised the sender's prior leaf secret.
 
 Update messages should be sent at regular intervals of time as long as the group
 is active, and members that don't update should eventually be removed from the
@@ -565,16 +659,19 @@ A              B     ...      Z          Directory        Channel
 |              |              |              | Update(B)    |
 |              |              |              | Commit(Upd)  |
 |<----------------------------------------------------------|
-|state.upd(B)  |<-------------------------------------------|
-|              |state.upd(B)  |<----------------------------|
-|              |              |state.upd(B)  |              |
+|              |<-------------------------------------------|
+|              |              |<----------------------------|
 |              |              |              |              |
 ~~~~~
+{: title="Client B proposes to update its key, and client A commits the
+proposal.  As a result, the keys for both B and A updated, so the group has
+post-compromise security with respect to both of them."}
 
 Members are removed from the group in a similar way.
 Any member of the group can send a Remove proposal followed by a
-Commit message, which adds new entropy to the group state
-that's known to all except the removed member.
+Commit message.  The Commit message provides new entropy to all members of the
+group except the removed member.  This new entropy is added to the epoch secret
+for the new epoch, so that it is not known to the removed member.
 Note that this does not necessarily imply that any member
 is actually allowed to evict other members; groups can
 enforce access control policies on top of these
@@ -591,12 +688,10 @@ A              B     ...      Z          Directory       Channel
 |              |              |              | Remove(B)    |
 |              |              |              | Commit(Rem)  |
 |<----------------------------------------------------------|
-|state.rem(B)  |              |<----------------------------|
-|              |              |state.rem(B)  |              |
-|              |              |              |              |
+|              |              |<----------------------------|
 |              |              |              |              |
 ~~~~~
-
+{: title="Client Z removes client B from the group"}
 
 # Ratchet Trees
 
@@ -659,47 +754,38 @@ siblings of all the nodes in its direct path, excluding the root.
 
 For example, in the below tree:
 
-* The direct path of C is (CD, ABCD, ABCDEFG)
-* The copath of C is (D, AB, EFG)
+* The direct path of C is (W, V, X)
+* The copath of C is (D, U, Z)
 
 ~~~~~
-              7 = root
+              X = root
         ______|______
        /             \
-      3              11
+      V               Z
     __|__           __|
    /     \         /   \
-  1       5       9     |
+  U       W       Y     |
  / \     / \     / \    |
 A   B   C   D   E   F   G
 
-                    1 1 1
-0 1 2 3 4 5 6 7 8 9 0 1 2
+0   1   2   3   4   5   6
 ~~~~~
 
-Each node in the tree is assigned an _index_, starting at zero and
-running from left to right.  A node is a leaf node if and only if it
-has an even index.  The node indices for the nodes in the above tree
-are as follows:
-
-* 0 = A
-* 1 = AB
-* 2 = B
-* 3 = ABCD
-* 4 = C
-* 5 = CD
-* 6 = D
-* 7 = ABCDEFG
-* 8 = E
-* 9 = EF
-* 10 = F
-* 11 = EFG
-* 12 = G
-
 A tree with `n` leaves has `2*n - 1` nodes.  For example, the above tree has 7
-leaves (A, B, C, D, E, F, G) and 13 nodes.  The root of a tree with `n` leaves
-is always the node with index `2^k - 1`, where `k` is the largest number such
-that `2^k < n`.
+leaves (A, B, C, D, E, F, G) and 13 nodes.
+
+Each leaf is given an _index_ (or _leaf index_), starting at `0` from the left to
+`n-1` at the right.
+
+There are multiple ways that an implementation might represent a ratchet tree in
+memory.  For example, left-balanced binary trees can be represented as an array
+of nodes, with node relationships computed based on nodes' indices in the array.
+Or a more traditional representation of linked node objects may be used.
+{{array-based-trees}} and {{link-based-trees}} provide some details on how to
+implement the tree operations required for MLS in these representations.
+MLS places no requirements on implementations' internal representations
+of ratchet trees.  An implementation MAY use any tree representation and
+associated algorithms, as long as they produce correct protocol messages.
 
 ## Ratchet Tree Nodes {#resolution-example}
 
@@ -715,7 +801,7 @@ Each node in a ratchet tree contains up to five values:
 
 * A private key (only within the member's direct path, see below)
 * A public key
-* An ordered list of node indices for "unmerged" leaves (see
+* An ordered list of leaf indices for "unmerged" leaves (see
   {{views}})
 * A credential (only for leaf nodes)
 * A hash of certain information about the node's parent, as of the last time the
@@ -745,18 +831,18 @@ brackets:
       _
     __|__
    /     \
-  _       5[C]
+  _       Z[C]
  / \     / \
 A   _   C   D
 
-0 1 2 3 4 5 6
+0   1   2   3
 ~~~~~
 
 In this tree, we can see all of the above rules in play:
 
-* The resolution of node 5 is the list \[CD, C\]
-* The resolution of node 2 is the empty list \[\]
-* The resolution of node 3 is the list \[A, CD, C\]
+* The resolution of node Z is the list \[Z, C\]
+* The resolution of leaf 1 is the empty list \[\]
+* The resolution of root node is the list \[A, Z, C\]
 
 Every node, regardless of whether the node is blank or populated, has
 a corresponding _hash_ that summarizes the contents of the subtree
@@ -868,10 +954,10 @@ For example, suppose there is a group with four members, with C an unmerged leaf
 at node 5:
 
 ~~~~~
-      3
+      Y
     __|__
    /     \
-  1       5[C]
+  X       Z[C]
  / \     / \
 A   B   C   D
 
@@ -898,10 +984,10 @@ After applying the UpdatePath, the tree will have the following structure, where
 described above:
 
 ~~~~~
-    np[1] -> 3
+    np[1] -> Y'
            __|__
           /     \
-np[0] -> 1       5[C]
+np[0] -> X'      Z[C]
         / \     / \
        A   B   C   D
            ^
@@ -913,6 +999,61 @@ np[0] -> 1       5[C]
 
 After performing these operations, the generator of the UpdatePath MUST
 delete the leaf_secret.
+
+## Adding and Removing Leaves
+
+In addition to the path-based updates to the tree described above, it is also
+necessary to add and remove leaves of the tree in order to reflect changes to the
+membership of the group (see {{add}} and {{remove}}).  Leaves are always added and removed at the
+right edge of the tree: Either a new rightmost leaf is added, or the rightmost
+leaf is removed.  Nodes' parent/child node relationships are then updated to
+maintain the tree's left-balanced structure.  These operations are also known as
+_extending_ and _truncating_ the tree.
+
+To add a new leaf: Add leaf L as the new rightmost leaf of the tree.  Add
+a blank parent node P whose right child is L.  P is attached to the
+tree as the right child of the only appropriate node to make the updated tree
+left-balanced (or set it as a new root).  The former right child of the P's
+parent becomes P's left child (or the old root becomes the P's left child if
+P is the new root).
+
+~~~~~
+                   _ <-- new parent              _
+                 __|_                          __|__
+                /    \                        /     \
+  X    ===>    X     |               ===>    X       _ <-- new parent
+ / \          / \    |                      / \     / \
+A   B        A   B   C <-- new leaf        A   B   C   D <-- new leaf
+~~~~~
+
+To remove the rightmost leaf: Remove the rightmost leaf node L and its parent
+node P.  If P was the root of the tree, P's left child
+is now the root of the tree.  Otherwise, set the right child of P's parent
+to be the P's left child.
+
+~~~~~
+      Y                                    Y
+    __|__                                __|_
+   /     \                              /    \
+  X       Z <-- remove parent  ===>    X     | <-- reassign child
+ / \     / \                          / \    |
+A   B   C   D <-- remove leaf        A   B   C
+
+
+      Y <-- remove parent
+    __|_
+   /    \
+  X     |                  ===>    X <-- reassign root
+ / \    |                         / \
+A   B   C <-- remove leaf        A   B
+~~~~~
+
+Note: in the rest of the protocol, the rightmost leaf will be removed only when it is blank.
+
+Concrete algorithms for these operations on array-based and link-based trees are
+provided in {{array-based-trees}} and {{link-based-trees}}.  The concrete
+algorithms are non-normative.  An implementation MAY use any algorithm that
+produces the correct tree in its internal representation.
 
 ## Synchronizing Views of the Tree
 
@@ -1295,10 +1436,10 @@ co-path child.
 Finally, `original_child_resolution` is the array of `HPKEPublicKey` values of the
 nodes in the resolution of S but with the `unmerged_leaves` of P omitted. For
 example, in the ratchet tree depicted in {{resolution-example}} the
-`ParentHashInput` of node 5 with co-path child 4 would contain an empty
-`original_child_resolution` since 4's resolution includes only itself but 4 is also
-an unmerged leaf of 5. Meanwhile, the `ParentHashInput` of node 5 with co-path child
-6 has an array with one element in it: the HPKE public key of 6.
+`ParentHashInput` of node Z with co-path child C would contain an empty
+`original_child_resolution` since C's resolution includes only itself but C is also
+an unmerged leaf of Z. Meanwhile, the `ParentHashInput` of node Z with co-path child
+D has an array with one element in it: the HPKE public key of D.
 
 ### Using Parent Hashes
 
@@ -1363,7 +1504,7 @@ might include a Key Package depending on whether or not it is blank.
 
 ~~~~~
 struct {
-    uint32 node_index;
+    uint32 leaf_index;
     optional<KeyPackage> key_package;
 } LeafNodeHashInput;
 ~~~~~
@@ -1380,7 +1521,6 @@ struct {
 } ParentNode;
 
 struct {
-    uint32 node_index;
     optional<ParentNode> parent_node;
     opaque left_hash<0..255>;
     opaque right_hash<0..255>;
@@ -1769,37 +1909,19 @@ For the generation of encryption keys and nonces, the key schedule begins with
 the `encryption_secret` at the root and derives a tree of secrets with the same
 structure as the group's ratchet tree. Each leaf in the Secret Tree is
 associated with the same group member as the corresponding leaf in the ratchet
-tree. Nodes are also assigned an index according to their position in the array
-representation of the tree (described in {{tree-math}}). If N is a node index in
-the Secret Tree then left(N) and right(N) denote the children of N (if they
-exist).
+tree.
 
-The secret of any other node in the tree is derived from its parent's secret
-using a call to DeriveTreeSecret:
-
-~~~~
-DeriveTreeSecret(Secret, Label, Node, Generation, Length) =
-    ExpandWithLabel(Secret, Label, TreeContext, Length)
-
-Where TreeContext is specified as:
-
-struct {
-    uint32 node = Node;
-    uint32 generation = Generation;
-} TreeContext;
-~~~~
-
-If N is a node index in the Secret Tree then the secrets of the children
-of N are defined to be:
+If N is a parent node in the Secret Tree then the secrets of the children of N
+are defined as follows (where left(N) and right(N) denote the children of N):
 
 ~~~~
 tree_node_[N]_secret
         |
         |
-        +--> DeriveTreeSecret(., "tree", left(N), 0, KDF.Nh)
+        +--> ExpandWithLabel(., "tree", "left", KDF.Nh)
         |    = tree_node_[left(N)]_secret
         |
-        +--> DeriveTreeSecret(., "tree", right(N), 0, KDF.Nh)
+        +--> ExpandWithLabel(., "tree", "right", KDF.Nh)
              = tree_node_[right(N)]_secret
 ~~~~
 
@@ -1811,10 +1933,10 @@ described in {{encryption-keys}}. The root of each ratchet is computed as:
 tree_node_[N]_secret
         |
         |
-        +--> DeriveTreeSecret(., "handshake", N, 0, KDF.Nh)
+        +--> ExpandWithLabel(., "handshake", "", KDF.Nh)
         |    = handshake_ratchet_secret_[N]_[0]
         |
-        +--> DeriveTreeSecret(., "application", N, 0, KDF.Nh)
+        +--> ExpandWithLabel(., "application", "", KDF.Nh)
              = application_ratchet_secret_[N]_[0]
 ~~~~
 
@@ -1843,23 +1965,27 @@ they send during that epoch. Each key/nonce pair MUST NOT be used to encrypt
 more than one message.
 
 Keys, nonces, and the secrets in ratchets are derived using
-DeriveTreeSecret. The context in a given call consists of the index
-of the sender's leaf in the ratchet tree and the current position in
-the ratchet.  In particular, the node index of the sender's leaf in the
-ratchet tree is the same as the node index of the leaf in the Secret Tree
-used to initialize the sender's ratchet.
+DeriveTreeSecret. The context in a given call consists of the current position
+in the ratchet.
+
+~~~~~
+DeriveTreeSecret(Secret, Label, Generation, Length) =
+    ExpandWithLabel(Secret, Label, Generation, Length)
+
+Where Generation is encoded as a uint32.
+~~~~~
 
 ~~~~~
 ratchet_secret_[N]_[j]
       |
-      +--> DeriveTreeSecret(., "nonce", N, j, AEAD.Nn)
+      +--> DeriveTreeSecret(., "nonce", j, AEAD.Nn)
       |    = ratchet_nonce_[N]_[j]
       |
-      +--> DeriveTreeSecret(., "key", N, j, AEAD.Nk)
+      +--> DeriveTreeSecret(., "key", j,  AEAD.Nk)
       |    = ratchet_key_[N]_[j]
       |
       V
-DeriveTreeSecret(., "secret", N, j, KDF.Nh)
+DeriveTreeSecret(., "secret", j, KDF.Nh)
 = ratchet_secret_[N]_[j+1]
 ~~~~~
 
@@ -1886,16 +2012,16 @@ forward secrecy for past messages. Members MAY keep unconsumed values around
 for some reasonable amount of time to handle out-of-order message delivery.
 
 For example, suppose a group member encrypts or (successfully) decrypts an
-application message using the j-th key and nonce in the ratchet of node
-index N in some epoch n. Then, for that member, at least the following
+application message using the j-th key and nonce in the ratchet of leaf node
+L in some epoch n. Then, for that member, at least the following
 values have been consumed and MUST be deleted:
 
 * the `commit_secret`, `joiner_secret`, `epoch_secret`, `encryption_secret` of
   that epoch n as well as the `init_secret` of the previous epoch n-1,
 * all node secrets in the Secret Tree on the path from the root to the leaf with
-  node index N,
-* the first j secrets in the application data ratchet of node index N and
-* `application_ratchet_nonce_[N]_[j]` and `application_ratchet_key_[N]_[j]`.
+  node L,
+* the first j secrets in the application data ratchet of node L and
+* `application_ratchet_nonce_[L]_[j]` and `application_ratchet_key_[L]_[j]`.
 
 Concretely, suppose we have the following Secret Tree and ratchet for
 participant D:
@@ -2425,15 +2551,12 @@ struct {
 } Add;
 ~~~~~
 
-The proposer of the Add does not control where in the group's ratchet tree the
-new member is added.  Instead, the sender of the Commit message chooses a
-location for each added member and states it in the Commit message.
-
 An Add is applied after being included in a Commit message.  The position of the
-Add in the list of proposals determines the node index `index` of the leaf node
-where the new member will be added.  For the first Add in the Commit, `index` is
-the leftmost empty leaf in the tree, for the second Add, the next empty leaf to
-the right, etc.
+Add in the list of proposals determines the leaf node where the new member will
+be added.  For the first Add in the Commit, the corresponding new member will be
+placed in the leftmost empty leaf in the tree, for the second Add, the next
+empty leaf to the right, etc. If no empty leaf exists, the tree is extended to
+the right.
 
 * Validate the KeyPackage:
 
@@ -2454,15 +2577,16 @@ the right, etc.
       extension, then the required extensions and proposals MUST be listed in
       the KeyPackage's `capabilities` extension.
 
-* If necessary, extend the tree to the right until it has at least index + 1
-  leaves
+* Identify the leaf L for the new member: if there are empty leaves in the tree,
+  L is the leftmost empty leaf.  Otherwise, the tree is extended to the right
+  by one leaf node and L is the new leaf.
 
-* For each non-blank intermediate node along the path from the leaf at position
-  `index` to the root, add `index` to the `unmerged_leaves` list for the node.
+* For each non-blank intermediate node along the path from the leaf L
+  to the root, add L's leaf index to the `unmerged_leaves` list for the node.
 
-* Set the leaf node in the tree at position `index` to a new node containing the
-  public key from the KeyPackage in the Add, as well as the credential under
-  which the KeyPackage was signed
+* Set the leaf node L to a new node containing the public key from the
+  KeyPackage in the Add, as well as the credential under which the KeyPackage
+  was signed.
 
 ### Update
 
@@ -2508,11 +2632,11 @@ A member of the group applies a Remove message by taking the following steps:
   lookup MUST be done on the tree before any non-Remove proposals have
   been applied (the "old" tree in the terminology of {{commit}}), since
   proposals such as Update can change the KeyPackage stored at a leaf.
-  Let `removed_index` be the node index of this leaf node.
+  Let L be this leaf node.
 
-* Replace the leaf node at `removed_index` with a blank node
+* Replace the leaf node L with a blank node
 
-* Blank the intermediate nodes along the path from `removed_index` to the root
+* Blank the intermediate nodes along the path from L to the root
 
 * Truncate the tree by removing leaves from the right side of the tree until the
   rightmost leaf node is not blank.
@@ -3228,21 +3352,21 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 
 * Identify a leaf in the `tree` array (any even-numbered node) whose
   `key_package` field is identical to the KeyPackage.  If no such field
-  exists, return an error.  Let `index` represent the index of this node in the
-  tree.
+  exists, return an error.  Let `my_leaf` represent this leaf in the tree.
 
 * Construct a new group state using the information in the GroupInfo object.
     * The GroupContext contains the `group_id`, `epoch`, `tree_hash`,
       `confirmed_transcript_hash`, and `group_context_extensions` fields from
       the GroupInfo object.
 
-    * The new member's position in the tree is `index`, as defined above.
+    * The new member's position in the tree is at the leaf `my_leaf`, as defined
+      above.
 
-    * Update the leaf at index `index` with the private key corresponding to the
+    * Update the leaf `my_leaf` with the private key corresponding to the
       public key in the node.
 
     * If the `path_secret` value is set in the GroupSecrets object: Identify the
-      lowest common ancestor of the node index `index` and of the node index of
+      lowest common ancestor of the leaf node `my_leaf` and of the node of
       the member with KeyPackageRef `GroupInfo.signer`. Set the private key for
       this node to the private key derived from the `path_secret`.
 
@@ -3295,6 +3419,70 @@ struct {
 optional<Node> ratchet_tree<1..2^32-1>;
 ~~~~~
 
+The nodes are listed in the order specified by a left-to-right in-order
+traversal of the rachet tree. Each node is listed between its left subtree and
+its right subtree.  (This is the same ordering as specified for the array-based
+trees outlined in {{array-based-trees}}.)
+
+The leaves of the tree are stored in even-numbered entries in
+the array (the leaf with index L in array position 2*L). The root node of the
+tree is at position 2^k - 1 of the array, where k is the largest number such
+that 2^k is smaller than the length of the array. Intermediate parent nodes can
+be identified by performing the same calculation to the subarrays to the left
+and right of the root, following something like the following algorithm:
+
+~~~~~
+# Assuming a class Node that has left and right members
+def subtree_root(nodes):
+    # If there is only one node in the array return it
+    if len(nodes) == 1:
+        return Node(nodes[0])
+
+    # Otherwise, the length of the array MUST be odd
+    if len(nodes) % 2 == 0:
+        raise Exception("Malformed node array {}", len(nodes))
+
+    # Identify the root of the subtree
+    k = 0
+    while (2**(k+1)) < len(nodes):
+       k += 1
+    R = 2**k - 1
+    root = Node(nodes[R])
+    root.left = subtree_root(nodes[:R])
+    root.right = subtree_root(nodes[(R+1):])
+    return root
+~~~~~
+
+(Note that this is the same ordering of nodes as in the array-based tree representation
+described in {{array-based-trees}}.  The algorithms in that section may be used to 
+simplify decoding this extension into other representations.)
+
+(Note that this is the same ordering of nodes as in the array-based tree representation
+described in {{array-based-trees}}.  The algorithms in that section may be used to 
+simplify decoding this extension into other representations.)
+
+The example tree in {{tree-computation-terminology}} would be represented as an
+array of nodes in the following form, where R represents the "subtree root" for
+a given subarray of the node array:
+
+~~~~~
+              X
+        ______|______
+       /             \
+      V               Z
+    __|__           __|
+   /     \         /   \
+  U       W       Y     |
+ / \     / \     / \    |
+A   B   C   D   E   F   G
+
+                    1 1 1
+0 1 2 3 4 5 6 7 8 9 0 1 2
+<-----------> R <------->
+<---> R <--->   <---> R -
+- R -   - R -   - R -
+~~~~~
+
 The presence of a `ratchet_tree` extension in a GroupInfo message does not
 result in any changes to the GroupContext extensions for the group.  The ratchet
 tree provided is simply stored by the client and used for MLS operations.
@@ -3306,6 +3494,10 @@ channel is provided with security protections equivalent to the protections that
 are afforded to Proposal and Commit messages.  For example, an application that
 encrypts Proposal and Commit messages might distribute ratchet trees encrypted
 using a key exchanged over the MLS channel.
+
+Regardless of how the client obtains the tree, the client MUST verify that the
+root hash of the ratchet tree matches the `tree_hash` of the GroupContext before
+using the tree for MLS operations.
 
 # Extensibility
 
@@ -3687,7 +3879,7 @@ uint16 CipherSuite;
 |:----------|:-----------------------------------------------------------------------|
 | MLS       | The string "MLS" followed by the major and minor version, e.g. "MLS10" |
 | LVL       | The security level                                                     |
-| KEM       | The KEM algorithm used for HPKE in TreeKEM group operations            |
+| KEM       | The KEM algorithm used for HPKE in ratchet tree operations             |
 | AEAD      | The AEAD algorithm used for HPKE and message protection                |
 | HASH      | The hash algorithm used for HPKE and the MLS transcript hash           |
 | SIG       | The Signature algorithm used for message authentication                |
@@ -3957,37 +4149,42 @@ MLS DE, that MLS DE SHOULD defer to the judgment of the other MLS DEs.
 
 --- back
 
-
-# Tree Math {#tree-math}
+# Array-Based Trees
 
 One benefit of using left-balanced trees is that they admit a simple
 flat array representation.  In this representation, leaf nodes are
 even-numbered nodes, with the n-th leaf at 2\*n.  Intermediate nodes
-are held in odd-numbered nodes.  For example, an 11-element tree has
+are held in odd-numbered nodes.  For example, tree with 11 leaves has
 the following structure:
 
 ~~~~~
-                                             X
-                     X
-         X                       X                       X
-   X           X           X           X           X
-X     X     X     X     X     X     X     X     X     X     X
-0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20
+                                                   X
+                           X
+               X                       X                       X
+         X           X           X           X           X
+      X     X     X     X     X     X     X     X     X     X     X
+Node: 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20
+Leaf: 0     1     2     3     4     5     6     7     8     9    10
 ~~~~~
 
 This allows us to compute relationships between tree nodes simply by
-manipulating indices, rather than having to maintain complicated
-structures in memory, even for partial trees. The basic
-rule is that the high-order bits of parent and child nodes have the
-following relation (where `x` is an arbitrary bit string):
+manipulating indices, rather than having to maintain complicated structures in
+memory. The basic rule is that the high-order bits of parent and child nodes
+indices have the following relation (where `x` is an arbitrary bit string):
 
 ~~~~~
 parent=01x => left=00x, right=10x
 ~~~~~
 
-The following python code demonstrates the tree computations
-necessary for MLS.  Test vectors can be derived from the diagram
-above.
+Since node relationships are implicit, the algorithms for adding and removing
+nodes at the right edge of the tree are quite simple:
+
+* Add: Append a blank parent node to the array of nodes, then append the new
+  leaf node
+* Remove: Remove the rightmost two nodes from the array of nodes
+
+The following python code demonstrates the tree computations necessary to use an
+array-based tree for MLS.
 
 ~~~~~
 # The exponent of the largest power of 2 less than x. Equivalent to:
@@ -4123,4 +4320,95 @@ def common_ancestor_direct(x, y, _):
        xn, yn = xn >> 1, yn >> 1
        k += 1
     return (xn << k) + (1 << (k-1)) - 1
+~~~~~
+
+
+# Link-Based Trees
+
+An implementation may choose to store ratchet trees in a "link-based"
+representation, where each node stores references to its parents and/or
+children.   (As opposed to the array-based representation suggested above, where
+these relationships are computed from relationships between nodes' indices in
+the array.)  Such an implementation needs to update these links to maintain the
+left-balanced structure of the tree as the tree is extended to add new members,
+or truncated when memebers are removed.
+
+The following code snippet shows how these algorithms could be implemented in
+Python.
+
+~~~~~
+class Node:
+    def __init__(self, value, parent=None, left=None, right=None):
+        self.value = value    # Value of the node
+        self.parent = parent  # Parent node
+        self.left = left      # Left child node
+        self.right = right    # Right child node
+
+    def leaf(self):
+        return self.left == None and self.right == None
+
+    def span(self):
+        if self.leaf():
+            return 1
+        return self.left.span() + self.right.span()
+
+    def full(self):
+        span = self.span()
+        while span % 2 == 0:
+            span >>= 1
+        return span == 1
+
+    def rightmost_leaf(self):
+        X = self
+        while X.right != None:
+            X = X.right
+        return X
+
+class Tree:
+    def __init__(self):
+        self.root = None  # Root node of the tree, initially empty
+
+    def extend(self, N):
+        if self.root == None:
+            self.root = N
+            return
+
+        # Identify the proper point to insert the new parent node
+        X = self.root.rightmost_leaf()
+        while X.full() and X != self.root:
+            X = X.parent
+
+        # If X is not full, insert the new parent under X
+        P = Node("_", right=N)
+        N.parent = P
+        if not X.full():
+            P.parent = X
+            P.left = X.right
+            X.right.parent = P
+            X.right = P
+            return
+
+        # If X is full, then X is the root, so P replaces the root
+        P.left = self.root
+        self.root.parent = P
+        self.root = P
+        return
+
+    def truncate(self):
+        X = self.root.rightmost_leaf()
+        if X == self.root:
+            self.root = None
+            return
+
+        # If X's parent is the root, then shift the root to the left
+        if X.parent == self.root:
+            self.root = self.root.left
+            self.root.parent = None
+            return
+
+        # Otherwise, reassign the right child of the parent's parent
+        Q = X.parent.parent
+        Q.right = X.parent.left
+        Q.right.parent = Q
+        return
 ~~~~~
