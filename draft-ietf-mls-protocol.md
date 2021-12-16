@@ -2490,7 +2490,7 @@ A member of the group applies a Remove message by taking the following steps:
 * Blank the intermediate nodes along the path from `removed_index` to the root
 
 * Truncate the tree by removing leaves from the right side of the tree as long
-  as the following conditions hold (since non-blank intermediate nodes hold
+  as all of the following conditions hold (since non-blank intermediate nodes hold
   information that is necessary for verifying parent hashes):
 
   * The rightmost leaf is blank
