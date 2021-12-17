@@ -3097,7 +3097,53 @@ MLSPlaintext.confirmation_tag =
     MAC(confirmation_key, GroupContext.confirmed_transcript_hash)
 ~~~~~
 
-### External Commits
+### Adding Members to the Group
+
+New members can join the group in two ways. Either by being added by a group
+member, or by adding themselves through an external Commit. In both cases, the
+new members need information to bootstrap their local group state.
+
+~~~
+struct {
+    ProtocolVersion version = mls10;
+    CipherSuite cipher_suite;
+    opaque group_id<0..255>;
+    uint64 epoch;
+    opaque tree_hash<0..255>;
+    opaque confirmed_transcript_hash<0..255>;
+    Extension group_context_extensions<0..2^32-1>;
+    Extension other_extensions<0..2^32-1>;
+    MAC confirmation_tag;
+    optional<HPKEPublicKey> external_pub;
+    KeyPackageRef signer;
+    opaque signature<0..2^16-1>;
+} GroupInfo;
+~~~
+
+New members MUST verify the `signature` using the public key taken from the
+credential in the leaf node of the member with KeyPackageRef `signer`. The
+signature covers the following structure, comprising all the fields in the
+GroupInfo above `signature`:
+
+~~~
+struct {
+    CipherSuite cipher_suite;
+    opaque group_id<0..255>;
+    uint64 epoch;
+    opaque tree_hash<0..255>;
+    opaque confirmed_transcript_hash<0..255>;
+    Extension group_context_extensions<0..2^32-1>;
+    Extension other_extensions<0..2^32-1>;
+    MAC confirmation_tag;
+    optional<HPKEPublicKey> external_pub;
+    KeyPackageRef signer;
+} GroupInfoTBS;
+~~~
+
+The `external_pub` public key is only required for External Commits and can be
+ommitted if External Commits are not allowed due to an application-level policy.
+
+#### Joining via External Commits
 
 External Commits are a mechanism for new members (external parties that want to
 become members of the group) to add themselves to a group, without requiring
@@ -3114,57 +3160,24 @@ following information for the group's current epoch:
 * epoch ID
 * ciphersuite
 * public tree hash
-* interim transcript hash
+* confirmed transcript hash
+* confirmation tag of the most recent Commit
 * group extensions
 * external public key
 
-This information is aggregated in a `PublicGroupState` object as follows:
-
-~~~
-struct {
-    ProtocolVersion version = mls10;
-    CipherSuite cipher_suite;
-    opaque group_id<0..255>;
-    uint64 epoch;
-    opaque tree_hash<0..255>;
-    opaque interim_transcript_hash<0..255>;
-    Extension group_context_extensions<0..2^32-1>;
-    Extension other_extensions<0..2^32-1>;
-    HPKEPublicKey external_pub;
-    KeyPackageRef signer;
-    opaque signature<0..2^16-1>;
-} PublicGroupState;
-~~~
+Thus to join a group via an External Commit, a new member needs a GroupInfo with
+an `external_pub` present.
 
 Note that the `tree_hash` field is used the same way as in the Welcome message.
 The full tree can be included via the `ratchet_tree` extension
 {{ratchet-tree-extension}}.
 
-The signature MUST verify using the public key taken from the credential in the
-leaf node of the member with KeyPackageRef `signer`. The signature covers the
-following structure, comprising all the fields in the PublicGroupState above
-`signature`:
-
-~~~~~
-struct {
-    ProtocolVersion version = mls10;
-    CipherSuite cipher_suite;
-    opaque group_id<0..255>;
-    uint64 epoch;
-    opaque tree_hash<0..255>;
-    opaque interim_transcript_hash<0..255>;
-    Extension group_context_extensions<0..2^32-1>;
-    Extension other_extensions<0..2^32-1>;
-    HPKEPublicKey external_pub;
-    KeyPackageRef signer;
-} PublicGroupStateTBS;
-~~~~~
-
-This signature authenticates the HPKE public key, so that the joiner knows that
-the public key was provided by a member of the group.  The fields that are not
-signed are included in the key schedule via the GroupContext object.  If the
-joiner is provided an inaccurate data for these fields, then its external Commit
-will have an incorrect `confirmation_tag` and thus be rejected.
+The `signature` on the GroupInfo struct authenticates the HPKE public key, so
+that the joiner knows that the public key was provided by a member of the group.
+The fields that are not signed are included in the key schedule via the
+GroupContext object. If the joiner is provided an inaccurate data for these
+fields, then its external Commit will have an incorrect `confirmation_tag` and
+thus be rejected.
 
 The information in a PublicGroupState is not deemed public in general, but
 applications can choose to make it available to new members in order to allow
@@ -3210,7 +3223,7 @@ group.  With the latter approach, the attacke would need to compromise the PSK
 as well as the signing key, but the application will need to ensure that
 continuing, non-resync'ing members have the required PSK.
 
-### Welcoming New Members
+#### Joining via a Welcome Message
 
 The sender of a Commit message is responsible for sending a Welcome message to
 any new members added via Add proposals.  The Welcome message provides the new
@@ -3229,22 +3242,10 @@ member to compute private keys for nodes in its direct path that are being
 reset by the corresponding Commit.
 
 If the sender of the Welcome message wants the receiving member to include a PSK
-in the derivation of the `epoch_secret`, they can populate the `psks` field indicating which
-PSK to use.
+in the derivation of the `epoch_secret`, they can populate the `psks` field
+indicating which PSK to use.
 
 ~~~~~
-struct {
-  opaque group_id<0..255>;
-  uint64 epoch;
-  opaque tree_hash<0..255>;
-  opaque confirmed_transcript_hash<0..255>;
-  Extension group_context_extensions<0..2^32-1>;
-  Extension other_extensions<0..2^32-1>;
-  MAC confirmation_tag;
-  KeyPackageRef signer;
-  opaque signature<0..2^16-1>;
-} GroupInfo;
-
 struct {
   opaque path_secret<1..255>;
 } PathSecret;
@@ -3261,7 +3262,6 @@ struct {
 } EncryptedGroupSecrets;
 
 struct {
-  ProtocolVersion version = mls10;
   CipherSuite cipher_suite;
   EncryptedGroupSecrets secrets<0..2^32-1>;
   opaque encrypted_group_info<1..2^32-1>;
@@ -3422,11 +3422,11 @@ def subtree_root(nodes):
 ~~~~~
 
 (Note that this is the same ordering of nodes as in the array-based tree representation
-described in {{array-based-trees}}.  The algorithms in that section may be used to 
+described in {{array-based-trees}}.  The algorithms in that section may be used to
 simplify decoding this extension into other representations.)
 
 (Note that this is the same ordering of nodes as in the array-based tree representation
-described in {{array-based-trees}}.  The algorithms in that section may be used to 
+described in {{array-based-trees}}.  The algorithms in that section may be used to
 simplify decoding this extension into other representations.)
 
 The example tree in {{tree-computation-terminology}} would be represented as an
