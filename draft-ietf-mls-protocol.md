@@ -487,14 +487,12 @@ shared cryptographic state from one epoch to another by exchanging MLS messages:
 * A _Commit_ message initiates a new epoch by instructing members of the group
   to implement a collection of proposals
 * A _Welcome_ message provides a new member to the group with the information to
-  initialize their state for the epoch in which they were added
-* A _PublicGroupState_ object provides potential new group members with
-  information about the state of a group at an epoch, to allow a new member to
-  add themselves to the group.
+  initialize their state for the epoch in which they were added or in which they
+  want to add themselves to the group
 
-KeyPackage, Welcome, and PublicGroupState messages are used to initiate a group or
-introduce new members, so they are exchanged between group members and clients
-not yet in the group.
+KeyPackage and Welcome messages are used to initiate a group or introduce new
+members, so they are exchanged between group members and clients not yet in the
+group.
 
 Proposal and Commit messages are sent from one member of a group to the others.
 MLS provides a common framing layer for sending messages within a group,
@@ -1370,7 +1368,7 @@ This extension MUST always be present in a KeyPackage.
 ## KeyPackage Identifiers
 
 Within MLS, a KeyPackage is identified by its hash (see, e.g.,
-{{welcoming-new-members}}).  The `external_key_id` extension allows applications to add
+{{joining-via-welcome-message}}).  The `external_key_id` extension allows applications to add
 an explicit, application-defined identifier to a KeyPackage.
 
 ~~~~~
@@ -1730,8 +1728,8 @@ held by the entire group:
 external_priv, external_pub = KEM.DeriveKeyPair(external_secret)
 ~~~~~
 
-The public key `external_pub` can be published as part of the `PublicGroupState`
-struct in order to allow non-members to join the group using an external commit.
+The public key `external_pub` can be published as part of the GroupInfo struct
+in order to allow non-members to join the group using an external commit.
 
 ## External Initialization
 
@@ -1741,9 +1739,9 @@ the external key pair for the previous epoch.  This is done when an new member
 is joining via an external commit.
 
 In this process, the joiner sends a new `init_secret` value to the group using
-the HPKE export method.  The joiner then uses that `init_secret` with
-information provided in the PublicGroupState and an external Commit to initialize
-their copy of the key schedule for the new epoch.
+the HPKE export method. The joiner then uses that `init_secret` with information
+provided in the GroupInfo and an external Commit to initialize their copy of the
+key schedule for the new epoch.
 
 ~~~~~
 kem_output, context = SetupBaseS(external_pub, "")
@@ -1758,7 +1756,7 @@ context = SetupBaseR(kem_output, external_priv, "")
 init_secret = context.export("MLS 1.0 external init secret", KDF.Nh)
 ~~~~~
 
-In both cases, the `info` input to HPKE is set to the PublicGroupState for the
+In both cases, the `info` input to HPKE is set to the GroupInfo for the
 previous epoch, encoded using the TLS serialization.
 
 ## Pre-Shared Keys
@@ -2384,7 +2382,7 @@ A group is always created with a single member, the "creator".  The other
 members are added when the creator effectively sends itself an Add proposal and
 commits it, then sends the corresponding Welcome message to the new
 participants.  These processes are described in detail in {{add}}, {{commit}},
-and {{welcoming-new-members}}.
+and {{joining-via-welcome-message}}.
 
 The creator of a group MUST take the following steps to initialize the group:
 
@@ -2417,7 +2415,7 @@ The creator of a group MUST take the following steps to initialize the group:
 * Transmit the Welcome message to the other new members
 
 The recipient of a Welcome message processes it as described in
-{{welcoming-new-members}}.
+{{joining-via-welcome-message}}.
 
 In principle, the above process could be streamlined by having the
 creator directly create a tree and choose a random value for first
@@ -2991,9 +2989,11 @@ message at the same time, by taking the following steps:
     hash, and group context extensions from the new state
   * The confirmation_tag from the MLSPlaintext object
   * Other extensions as defined by the application
+  * Optionally derive an external keypair as described in {{key-schedule}}
+    (required for External Commits, see {{joining-via-external-commits}})
   * Sign the GroupInfo using the member's private signing key
   * Encrypt the GroupInfo using the key and nonce derived from the `joiner_secret`
-    for the new epoch (see {{welcoming-new-members}})
+    for the new epoch (see {{joining-via-welcome-message}})
 
 * For each new member in the group:
   * Identify the lowest common ancestor in the tree of the new member's
@@ -3179,9 +3179,9 @@ GroupContext object. If the joiner is provided an inaccurate data for these
 fields, then its external Commit will have an incorrect `confirmation_tag` and
 thus be rejected.
 
-The information in a PublicGroupState is not deemed public in general, but
-applications can choose to make it available to new members in order to allow
-External Commits.
+The information in a GroupInfo is not deemed public in general, but applications
+can choose to make it available to new members in order to allow External
+Commits.
 
 External Commits work like regular Commits, with a few differences:
 
@@ -3223,7 +3223,7 @@ group.  With the latter approach, the attacke would need to compromise the PSK
 as well as the signing key, but the application will need to ensure that
 continuing, non-resync'ing members have the required PSK.
 
-#### Joining via a Welcome Message
+#### Joining via Welcome Message
 
 The sender of a Commit message is responsible for sending a Welcome message to
 any new members added via Add proposals.  The Welcome message provides the new
@@ -3485,12 +3485,12 @@ places:
   same view of the parameters in use
 
 In other words, an application can use GroupContext extensions to ensure that
-all members of the group agree on a set of parameters.  Clients indicate
-their support for parameters in KeyPackage extensions.  New members of a
-group are informed of the group's GroupContext extensions via the
-`group_context_extensions` field in the GroupInfo or PublicGroupState object.
-The `other_extensions` field in a GroupInfo object can be used to provide
-additional parameters to new joiners that are used to join the group.
+all members of the group agree on a set of parameters. Clients indicate their
+support for parameters in KeyPackage extensions. New members of a group are
+informed of the group's GroupContext extensions via the
+`group_context_extensions` field in the GroupInfo object. The `other_extensions`
+field in a GroupInfo object can be used to provide additional parameters to new
+joiners that are used to join the group.
 
 This extension mechanism is designed to allow for secure and forward-compatible
 negotiation of extensions.  For this to work, implementations MUST correctly
