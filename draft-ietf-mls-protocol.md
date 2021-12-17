@@ -2231,15 +2231,6 @@ group and epoch.
 
 ~~~~~
 struct {
-    select (MLSPlaintextTBS.sender.sender_type) {
-        case member:
-            GroupContext context;
-
-        case preconfigured:
-        case new_member:
-            struct{};
-    }
-
     WireFormat wire_format;
     opaque group_id<0..255>;
     uint64 epoch;
@@ -2256,6 +2247,15 @@ struct {
 
         case commit:
           Commit commit;
+    }
+
+    select (MLSPlaintextTBS.sender.sender_type) {
+        case member:
+            GroupContext context;
+
+        case preconfigured:
+        case new_member:
+            struct{};
     }
 } MLSPlaintextTBS;
 ~~~~~
