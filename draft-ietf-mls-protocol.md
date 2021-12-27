@@ -1290,12 +1290,6 @@ The input to the signature computation comprises all of the fields
 except for the signature field.
 
 ~~~~~
-enum {
-    reserved(0),
-    mls10(1),
-    (255)
-} ProtocolVersion;
-
 // See IANA registry for registered values
 uint16 ExtensionType;
 
@@ -1305,7 +1299,6 @@ struct {
 } Extension;
 
 struct {
-    ProtocolVersion version;
     CipherSuite cipher_suite;
     HPKEPublicKey hpke_init_key;
     opaque endpoint_id<0..255>;
@@ -1330,14 +1323,12 @@ at any time and in particular in the case of a newcomer joining the group.
 
 ## Client Capabilities
 
-The `capabilities` extension indicates what protocol versions, ciphersuites,
-protocol extensions, and non-default proposal types are supported by a client.
-Proposal types defined in this document are considered "default" and thus need
-not be listed.
+The `capabilities` extension indicates what ciphersuites, protocol extensions,
+and non-default proposal types are supported by a client. Proposal types defined
+in this document are considered "default" and thus need not be listed.
 
 ~~~~~
 struct {
-    ProtocolVersion versions<0..255>;
     CipherSuite ciphersuites<0..255>;
     ExtensionType extensions<0..255>;
     ProposalType proposals<0..255>;
@@ -2388,11 +2379,11 @@ and {{welcoming-new-members}}.
 
 The creator of a group MUST take the following steps to initialize the group:
 
-* Fetch KeyPackages for the members to be added, and select a version and
-  ciphersuite according to the capabilities of the members.  To protect against
-  downgrade attacks, the creator MUST use the `capabilities` extensions
-  in these KeyPackages to verify that the
-  chosen version and ciphersuite is the best option supported by all members.
+* Fetch KeyPackages for the members to be added, and select a ciphersuite
+  according to the capabilities of the members. To protect against downgrade
+  attacks, the creator MUST use the `capabilities` extensions in these
+  KeyPackages to verify that the chosen ciphersuite is the best option supported
+  by all members.
 
 * Initialize a one-member group with the following initial values:
   * Ratchet tree: A tree with a single node, a leaf containing an HPKE public
@@ -2430,9 +2421,9 @@ intermediate key pairs along the direct path to the root.
 ## Required Capabilities
 
 The configuration of a group imposes certain requirements on clients in the
-group.  At a minimum, all members of the group need to support the ciphersuite
-and protocol version in use.  Additional requirements can be imposed by
-including a `required_capabilities` extension in the GroupContext.
+group. At a minimum, all members of the group need to support the ciphersuite in
+use. Additional requirements can be imposed by including a
+`required_capabilities` extension in the GroupContext.
 
 ~~~~~
 struct {
@@ -2454,7 +2445,7 @@ supported by all current members.
 A new group may be tied to an already existing group for the purpose of
 re-initializing the existing group, or to branch into a sub-group.
 Re-initializing an existing group may be used, for example, to restart the group
-with a different ciphersuite or protocol version. Branching may be used to
+with a different ciphersuite. Branching may be used to
 bootstrap a new group consisting of a subset of current group members, based on
 the current group state.
 
@@ -2546,11 +2537,11 @@ the right.
         * `credential.signature_key`
         * `hpke_init_key`
 
-    * Verify that the KeyPackage is compatible with the group's parameters.  The
-      ciphersuite and protocol version of the KeyPackage must match those in
-      use in the group.  If the GroupContext has a `required_capabilities`
-      extension, then the required extensions and proposals MUST be listed in
-      the KeyPackage's `capabilities` extension.
+    * Verify that the KeyPackage is compatible with the group's parameters. The
+      ciphersuite of the KeyPackage must match those in use in the group. If the
+      GroupContext has a `required_capabilities` extension, then the required
+      extensions and proposals MUST be listed in the KeyPackage's `capabilities`
+      extension.
 
 * Identify the leaf L for the new member: if there are empty leaves in the tree,
   L is the leftmost empty leaf.  Otherwise, the tree is extended to the right
@@ -2577,11 +2568,11 @@ struct {
 
 The values in the following fields of the KeyPackage contained in an `Update`
 proposal MUST be the same as those of the KeyPackage it replaces in the tree.
-`version`, `cipher_suite`, `credential.identity`, `endpoint_id`. However, the
-value of the `credential.signature_key` field of the new KeyPackage MUST be
-different from that of all other KeyPackages in the tree. Furthermore, the value
-of the `hpke_init_key` field of the new KeyPackage MUST be different from that
-of the KeyPackage it replaces.
+`cipher_suite`, `credential.identity`, `endpoint_id`. However, the value of the
+`credential.signature_key` field of the new KeyPackage MUST be different from
+that of all other KeyPackages in the tree. Furthermore, the value of the
+`hpke_init_key` field of the new KeyPackage MUST be different from that of the
+KeyPackage it replaces.
 
 A member of the group applies an Update message by taking the following steps:
 
@@ -2636,14 +2627,12 @@ corresponds to the order of the `PreSharedKey` proposals in the Commit.
 ### ReInit
 
 A ReInit proposal represents a request to re-initialize the group with different
-parameters, for example, to increase the version number or to change the
-ciphersuite. The re-initialization is done by creating a completely new group
-and shutting down the old one.
+parameters, for example, to change the ciphersuite. The re-initialization is
+done by creating a completely new group and shutting down the old one.
 
 ~~~~~
 struct {
     opaque group_id<0..255>;
-    ProtocolVersion version;
     CipherSuite cipher_suite;
     Extension extensions<0..2^32-1>;
 } ReInit;
@@ -2661,8 +2650,7 @@ The Welcome message may specify the inclusion of other pre-shared keys with a
 If a ReInit proposal is included in a Commit, it MUST be the only proposal
 referenced by the Commit. If other non-ReInit proposals have been sent during
 the epoch, the committer SHOULD prefer them over the ReInit proposal, allowing
-the ReInit to be resent and applied in a subsequent epoch. The `version` field
-in the ReInit proposal MUST be no less than the version for the current group.
+the ReInit to be resent and applied in a subsequent epoch.
 
 ### ExternalInit
 
@@ -2772,7 +2760,7 @@ originating outside the group are identified by a `preconfigured` or
 `new_member` SenderType in MLSPlaintext.
 
 ReInit proposals can also be sent to the group by a `preconfigured` sender, for
-example to enforce a changed policy regarding MLS version or ciphersuite.
+example to enforce a changed policy regarding MLS ciphersuite.
 
 The `new_member` SenderType is used for clients proposing that they themselves
 be added.  For this ID type the sender value MUST be zero and the Proposal type
@@ -3082,9 +3070,8 @@ A member of the group applies a Commit message by taking the following steps:
   send messages anymore. Instead, it MUST wait for a Welcome message from the committer
   and check that
 
-  * The `version`, `cipher_suite` and `extensions` fields of the new group
-    corresponds to the ones in the `ReInit` proposal, and that the `version`
-    is greater than or equal to that of the original group.
+  * The `cipher_suite` and `extensions` fields of the new group
+    corresponds to the ones in the `ReInit` proposal.
   * The `psks` field in the Welcome message includes a `PreSharedKeyID` with
     `psktype` = `reinit`, and `psk_epoch` and `psk_group_id` equal to the epoch
     and group ID of the original group after processing the Commit.
@@ -3122,7 +3109,6 @@ This information is aggregated in a `PublicGroupState` object as follows:
 
 ~~~
 struct {
-    ProtocolVersion version = mls10;
     CipherSuite cipher_suite;
     opaque group_id<0..255>;
     uint64 epoch;
