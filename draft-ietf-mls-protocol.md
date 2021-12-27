@@ -2650,7 +2650,9 @@ The Welcome message may specify the inclusion of other pre-shared keys with a
 If a ReInit proposal is included in a Commit, it MUST be the only proposal
 referenced by the Commit. If other non-ReInit proposals have been sent during
 the epoch, the committer SHOULD prefer them over the ReInit proposal, allowing
-the ReInit to be resent and applied in a subsequent epoch.
+the ReInit to be resent and applied in a subsequent epoch. The protocol version
+implied by the ciphersuite of the ReInit proposal MUST be no less than that of
+the current group.
 
 ### ExternalInit
 
@@ -3070,8 +3072,9 @@ A member of the group applies a Commit message by taking the following steps:
   send messages anymore. Instead, it MUST wait for a Welcome message from the committer
   and check that
 
-  * The `cipher_suite` and `extensions` fields of the new group
-    corresponds to the ones in the `ReInit` proposal.
+  * The `cipher_suite` and `extensions` fields of the new group corresponds to
+    the ones in the `ReInit` proposal and that the version implied by the
+    ciphersuite is greather than or equal than that of the current group.
   * The `psks` field in the Welcome message includes a `PreSharedKeyID` with
     `psktype` = `reinit`, and `psk_epoch` and `psk_group_id` equal to the epoch
     and group ID of the original group after processing the Commit.
@@ -3408,11 +3411,11 @@ def subtree_root(nodes):
 ~~~~~
 
 (Note that this is the same ordering of nodes as in the array-based tree representation
-described in {{array-based-trees}}.  The algorithms in that section may be used to 
+described in {{array-based-trees}}.  The algorithms in that section may be used to
 simplify decoding this extension into other representations.)
 
 (Note that this is the same ordering of nodes as in the array-based tree representation
-described in {{array-based-trees}}.  The algorithms in that section may be used to 
+described in {{array-based-trees}}.  The algorithms in that section may be used to
 simplify decoding this extension into other representations.)
 
 The example tree in {{tree-computation-terminology}} would be represented as an
