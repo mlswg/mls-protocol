@@ -3256,7 +3256,7 @@ struct {
 } GroupSecrets;
 
 struct {
-  KeyPackageRef new_member<1..255>;
+  KeyPackageRef new_member;
   HPKECiphertext encrypted_group_secrets;
 } EncryptedGroupSecrets;
 
