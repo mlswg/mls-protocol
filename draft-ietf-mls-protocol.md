@@ -3114,7 +3114,6 @@ struct {
     Extension group_context_extensions<0..2^32-1>;
     Extension other_extensions<0..2^32-1>;
     MAC confirmation_tag;
-    optional<HPKEPublicKey> external_pub;
     KeyPackageRef signer;
     opaque signature<0..2^16-1>;
 } GroupInfo;
@@ -3140,9 +3139,6 @@ struct {
 } GroupInfoTBS;
 ~~~
 
-The `external_pub` public key is only required for External Commits and can be
-ommitted if External Commits are not allowed due to an application-level policy.
-
 #### Joining via External Commits
 
 External Commits are a mechanism for new members (external parties that want to
@@ -3166,7 +3162,13 @@ following information for the group's current epoch:
 * external public key
 
 Thus to join a group via an External Commit, a new member needs a GroupInfo with
-an `external_pub` present.
+an `ExternalPub` Extension present in `other_extensions`.
+
+~~~~~
+struct {
+    HPKEPublicKey external_pub;
+} ExternalPub;
+~~~~~
 
 Note that the `tree_hash` field is used the same way as in the Welcome message.
 The full tree can be included via the `ratchet_tree` extension
@@ -3961,6 +3963,7 @@ Initial contents:
 | 0x0004           | parent_hash              | KP         | Y           | RFC XXXX  |
 | 0x0005           | ratchet_tree             | GI         | Y           | RFC XXXX  |
 | 0x0006           | required_capabilities    | GC         | Y           | RFC XXXX  |
+| 0x0007           | external_pub             | GI         | Y           | RFC XXXX  |
 | 0xff00  - 0xffff | Reserved for Private Use | N/A        | N/A         | RFC XXXX  |
 
 ## MLS Proposal Types
