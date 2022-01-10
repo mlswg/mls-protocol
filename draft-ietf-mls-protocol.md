@@ -3486,7 +3486,7 @@ places:
 
 * In KeyPackages, to describe client capabilities and aspects of their
   participation in the group (once in the ratchet tree)
-* In the Welcome message, to tell new members of a group what parameters are
+* In the GroupInfo, to tell new members of a group what parameters are
   being used by the group, and to provide any additional details required to
   join the group
 * In the GroupContext object, to ensure that all members of the group have the
