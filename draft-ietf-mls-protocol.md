@@ -3422,11 +3422,11 @@ def subtree_root(nodes):
 ~~~~~
 
 (Note that this is the same ordering of nodes as in the array-based tree representation
-described in {{array-based-trees}}.  The algorithms in that section may be used to 
+described in {{array-based-trees}}.  The algorithms in that section may be used to
 simplify decoding this extension into other representations.)
 
 (Note that this is the same ordering of nodes as in the array-based tree representation
-described in {{array-based-trees}}.  The algorithms in that section may be used to 
+described in {{array-based-trees}}.  The algorithms in that section may be used to
 simplify decoding this extension into other representations.)
 
 The example tree in {{tree-computation-terminology}} would be represented as an
@@ -3517,6 +3517,8 @@ handle extensible fields:
 
 * The extensions populated into a GroupContext object are drawn from those in
   the GroupInfo object, according to the definitions of those extensions.
+
+* Any extension field MUST NOT have more than one extension of any given type.
 
 Note that the latter two requirements mean that all MLS extensions are
 mandatory, in the sense that an extension in use by the group MUST be supported
