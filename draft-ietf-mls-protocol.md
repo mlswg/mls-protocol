@@ -3165,8 +3165,11 @@ following information for the group's current epoch:
 * group extensions
 * external public key
 
-Thus to join a group via an External Commit, a new member needs a GroupInfo with
-an `external_pub` present.
+In other words, to join a group via an External Commit, a new member needs a GroupInfo with
+an `external_pub` present.  Thus, a member of the group can enable new clients to join by
+making a GroupInfo object available to them.  Note that because a GroupInfo object is specific 
+to an epoch, it will need to be updated as the group advances.  In particular, each GroupInfo
+object can be used for one external join, since that external join will cause the epoch to change.
 
 Note that the `tree_hash` field is used the same way as in the Welcome message.
 The full tree can be included via the `ratchet_tree` extension
