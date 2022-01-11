@@ -3134,7 +3134,6 @@ struct {
     Extension group_context_extensions<0..2^32-1>;
     Extension other_extensions<0..2^32-1>;
     MAC confirmation_tag;
-    optional<HPKEPublicKey> external_pub;
     KeyPackageRef signer;
 } GroupInfoTBS;
 ~~~
