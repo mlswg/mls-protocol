@@ -3518,7 +3518,7 @@ handle extensible fields:
 * The extensions populated into a GroupContext object are drawn from those in
   the GroupInfo object, according to the definitions of those extensions.
 
-* Any extension field MUST NOT have more than one extension of any given type.
+* Any field containing a list of extensions MUST NOT have more than one extension of any given type.
 
 Note that the latter two requirements mean that all MLS extensions are
 mandatory, in the sense that an extension in use by the group MUST be supported
