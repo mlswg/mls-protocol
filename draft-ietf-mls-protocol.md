@@ -1773,7 +1773,7 @@ stronger security against classical or quantum adversaries.
 Note that, as a PSK may have a different lifetime than an update, it does not
 necessarily provide the same Forward Secrecy (FS) or Post-Compromise Security
 (PCS) guarantees as a Commit message.  Unlike the key pairs populated in the
-tree by an Update or Commit, which always freshly generated, PSKs may be
+tree by an Update or Commit, which are always freshly generated, PSKs may be
 pre-distributed and stored. This creates the risk that a PSK may be compromised
 in the process of distribution and storage. The security that the group gets
 from injecting a PSK thus depends on both the entropy of the PSK and the risk of
