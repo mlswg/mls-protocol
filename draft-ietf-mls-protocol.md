@@ -3847,7 +3847,6 @@ uint16 CipherSuite;
 
 | Component | Contents                                                               |
 |:----------|:-----------------------------------------------------------------------|
-| MLS       | The string "MLS" followed by the major and minor version, e.g. "MLS10" |
 | LVL       | The security level                                                     |
 | KEM       | The KEM algorithm used for HPKE in ratchet tree operations             |
 | AEAD      | The AEAD algorithm used for HPKE and message protection                |
@@ -3870,17 +3869,17 @@ The columns in the registry are as follows:
 
 Initial contents:
 
-| Value           | Name                                                  | Recommended | Reference |
-|:----------------|:------------------------------------------------------|:------------|:----------|
-| 0x0000          | RESERVED                                              | N/A         | RFC XXXX  |
-| 0x0001          | MLS10_128_DHKEMX25519_AES128GCM_SHA256_Ed25519        | Y           | RFC XXXX  |
-| 0x0002          | MLS10_128_DHKEMP256_AES128GCM_SHA256_P256             | Y           | RFC XXXX  |
-| 0x0003          | MLS10_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519 | Y           | RFC XXXX  |
-| 0x0004          | MLS10_256_DHKEMX448_AES256GCM_SHA512_Ed448            | Y           | RFC XXXX  |
-| 0x0005          | MLS10_256_DHKEMP521_AES256GCM_SHA512_P521             | Y           | RFC XXXX  |
-| 0x0006          | MLS10_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     | Y           | RFC XXXX  |
-| 0x0007          | MLS10_256_DHKEMP384_AES256GCM_SHA384_P384.            | Y           | RFC XXXX  |
-| 0xff00 - 0xffff | Reserved for Private Use                              | N/A         | RFC XXXX  |
+| Value           | Name                                                | Recommended | Reference |
+|:----------------|:----------------------------------------------------|:------------|:----------|
+| 0x0000          | RESERVED                                            | N/A         | RFC XXXX  |
+| 0x0001          | MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519        | Y           | RFC XXXX  |
+| 0x0002          | MLS_128_DHKEMP256_AES128GCM_SHA256_P256             | Y           | RFC XXXX  |
+| 0x0003          | MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519 | Y           | RFC XXXX  |
+| 0x0004          | MLS_256_DHKEMX448_AES256GCM_SHA512_Ed448            | Y           | RFC XXXX  |
+| 0x0005          | MLS_256_DHKEMP521_AES256GCM_SHA512_P521             | Y           | RFC XXXX  |
+| 0x0006          | MLS_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     | Y           | RFC XXXX  |
+| 0x0007          | MLS_256_DHKEMP384_AES256GCM_SHA384_P384.            | Y           | RFC XXXX  |
+| 0xff00 - 0xffff | Reserved for Private Use                            | N/A         | RFC XXXX  |
 
 All of these ciphersuites use HMAC {{!RFC2104}} as their MAC function, with
 different hashes per ciphersuite.  The mapping of ciphersuites to HPKE
@@ -3915,7 +3914,7 @@ compliant curves. The security level of symmetric encryption algorithms and hash
 functions is paired with the security level of the curves.
 
 The mandatory-to-implement ciphersuite for MLS 1.0 is
-`MLS10_128_DHKEMX25519_AES128GCM_SHA256_Ed25519` which uses
+`MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519` which uses
 Curve25519 for key exchange, AES-128-GCM for HPKE, HKDF over SHA2-256, and
 Ed25519 for signatures.
 
