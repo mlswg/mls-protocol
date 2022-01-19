@@ -3655,17 +3655,10 @@ to an adversary by the ciphertext length. An attacker expecting Alice to
 answer Bob with a day of the week might find out the plaintext by
 correlation between the question and the length.
 
-Similarly to TLS 1.3, if padding is used, the MLS messages MUST be
-padded with zero-valued bytes before AEAD encryption. Upon AEAD decryption,
-the length field of the plaintext is used to compute the number of bytes
-to be removed from the plaintext to get the correct data.
-As the padding mechanism is used to improve protection against traffic
-analysis, removal of the padding SHOULD be implemented in a "constant-time"
-manner at the MLS layer and above layers to prevent timing side-channels that
-would provide attackers with information on the size of the plaintext.
-The padding length length_of_padding can be chosen at the time of the message
-encryption by the sender. Recipients can calculate the padding size from knowing
-the total size of the ApplicationPlaintext and the length of the content.
+The content and length of the `padding` field in `MLSCiphertextContent` can be
+chosen at the time of message encryption by the sender. It is recommended that
+padding data is comprised of zero-valued bytes and follows an established
+deterministic padding scheme.
 
 ## Restrictions {#restrictions}
 
