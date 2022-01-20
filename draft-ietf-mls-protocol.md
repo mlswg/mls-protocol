@@ -2833,7 +2833,7 @@ a Commit message before sending application data. This ensures, for example,
 that any members whose removal was proposed during the epoch are actually
 removed before any application data is transmitted.
 
-The sender of a Commit MUST include all valid proposals that it has received
+The sender of a Commit SHOULD include all valid proposals that it has received
 during the current epoch. Invalid proposals include, for example, proposals with
 an invalid signature or proposals that are semantically invalid, such as an Add
 when the sender does not have the application-level permission to add new users.
