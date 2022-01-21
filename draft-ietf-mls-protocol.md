@@ -1177,7 +1177,7 @@ VerifyWithLabel(VerificationKey, Label, Content) =
 Where SignContent is specified as:
 
 struct {
-    opaque label<7..255> = "mls10 " + Label;
+    opaque label<9..255> = "MLS 1.0 " + Label;
     opaque content<0..2^32-1> = Content;
 } SignContent;
 ~~~~~
