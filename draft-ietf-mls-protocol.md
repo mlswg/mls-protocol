@@ -1414,6 +1414,7 @@ updated. It can be computed as the tree hash of S modified the following way:
 
 * reset the leaves in P.unmerged_leaves to blanks
 * remove P.unmerged_leaves from all unmerged_leaves lists
+* truncate the tree as described in {{remove}}
 
 For example, in the following tree:
 
@@ -1424,7 +1425,7 @@ For example, in the following tree:
       U               Y [F, H]
     __|__           __|__
    /     \         /     \
-  T       V       X [F]   Z [H]
+  T       V       X [F]   _
  / \     / \     / \     / \
 A   B   C   D   E   F   G   H
 ~~~~~
@@ -1436,12 +1437,14 @@ following tree:
       Y [F]
     __|__
    /     \
-  X [F]   Z
- / \     / \
-E   F   G   _
+  X [F]  |
+ / \     |
+E   F    G
 ~~~~~
 
-Because W.unmerged_leaves = [H], H is removed from Y.unmerged_leaves and Z.unmerged_leaves, then H is replaced with a blank leaf.
+Because `W.unmerged_leaves = [H]`, H is removed from `Y.unmerged_leaves`,
+then H is replaced with a blank leaf, then the tree is truncated removing the
+last two nodes.
 
 ### Using Parent Hashes
 
