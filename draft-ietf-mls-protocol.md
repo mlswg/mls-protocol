@@ -3348,7 +3348,6 @@ welcome_nonce = KDF.Expand(welcome_secret, "nonce", AEAD.Nn)
 welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 ~~~~~
 
-
 * Verify the signature on the GroupInfo object. The signature input comprises
   all of the fields in the GroupInfo object except the signature field. The
   public key and algorithm are taken from the credential in the leaf node of the
