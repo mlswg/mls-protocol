@@ -487,14 +487,12 @@ shared cryptographic state from one epoch to another by exchanging MLS messages:
 * A _Commit_ message initiates a new epoch by instructing members of the group
   to implement a collection of proposals
 * A _Welcome_ message provides a new member to the group with the information to
-  initialize their state for the epoch in which they were added
-* A _PublicGroupState_ object provides potential new group members with
-  information about the state of a group at an epoch, to allow a new member to
-  add themselves to the group.
+  initialize their state for the epoch in which they were added or in which they
+  want to add themselves to the group
 
-KeyPackage, Welcome, and PublicGroupState messages are used to initiate a group or
-introduce new members, so they are exchanged between group members and clients
-not yet in the group.
+KeyPackage and Welcome messages are used to initiate a group or introduce new
+members, so they are exchanged between group members and clients not yet in the
+group.
 
 Proposal and Commit messages are sent from one member of a group to the others.
 MLS provides a common framing layer for sending messages within a group,
@@ -1393,7 +1391,7 @@ This extension MUST always be present in a KeyPackage.
 ## KeyPackage Identifiers
 
 Within MLS, a KeyPackage is identified by its hash (see, e.g.,
-{{welcoming-new-members}}).  The `external_key_id` extension allows applications to add
+{{joining-via-welcome-message}}).  The `external_key_id` extension allows applications to add
 an explicit, application-defined identifier to a KeyPackage.
 
 ~~~~~
@@ -1753,8 +1751,8 @@ held by the entire group:
 external_priv, external_pub = KEM.DeriveKeyPair(external_secret)
 ~~~~~
 
-The public key `external_pub` can be published as part of the `PublicGroupState`
-struct in order to allow non-members to join the group using an external commit.
+The public key `external_pub` can be published as part of the GroupInfo struct
+in order to allow non-members to join the group using an external commit.
 
 ## External Initialization
 
@@ -1764,9 +1762,9 @@ the external key pair for the previous epoch.  This is done when an new member
 is joining via an external commit.
 
 In this process, the joiner sends a new `init_secret` value to the group using
-the HPKE export method.  The joiner then uses that `init_secret` with
-information provided in the PublicGroupState and an external Commit to initialize
-their copy of the key schedule for the new epoch.
+the HPKE export method. The joiner then uses that `init_secret` with information
+provided in the GroupInfo and an external Commit to initialize their copy of the
+key schedule for the new epoch.
 
 ~~~~~
 kem_output, context = SetupBaseS(external_pub, "")
@@ -1781,7 +1779,7 @@ context = SetupBaseR(kem_output, external_priv, "")
 init_secret = context.export("MLS 1.0 external init secret", KDF.Nh)
 ~~~~~
 
-In both cases, the `info` input to HPKE is set to the PublicGroupState for the
+In both cases, the `info` input to HPKE is set to the GroupInfo for the
 previous epoch, encoded using the TLS serialization.
 
 ## Pre-Shared Keys
@@ -1798,7 +1796,7 @@ stronger security against classical or quantum adversaries.
 Note that, as a PSK may have a different lifetime than an update, it does not
 necessarily provide the same Forward Secrecy (FS) or Post-Compromise Security
 (PCS) guarantees as a Commit message.  Unlike the key pairs populated in the
-tree by an Update or Commit, which always freshly generated, PSKs may be
+tree by an Update or Commit, which are always freshly generated, PSKs may be
 pre-distributed and stored. This creates the risk that a PSK may be compromised
 in the process of distribution and storage. The security that the group gets
 from injecting a PSK thus depends on both the entropy of the PSK and the risk of
@@ -2408,7 +2406,7 @@ A group is always created with a single member, the "creator".  The other
 members are added when the creator effectively sends itself an Add proposal and
 commits it, then sends the corresponding Welcome message to the new
 participants.  These processes are described in detail in {{add}}, {{commit}},
-and {{welcoming-new-members}}.
+and {{joining-via-welcome-message}}.
 
 The creator of a group MUST take the following steps to initialize the group:
 
@@ -2441,7 +2439,7 @@ The creator of a group MUST take the following steps to initialize the group:
 * Transmit the Welcome message to the other new members
 
 The recipient of a Welcome message processes it as described in
-{{welcoming-new-members}}.
+{{joining-via-welcome-message}}.
 
 In principle, the above process could be streamlined by having the
 creator directly create a tree and choose a random value for first
@@ -2638,8 +2636,12 @@ A member of the group applies a Remove message by taking the following steps:
 
 * Blank the intermediate nodes along the path from L to the root
 
-* Truncate the tree by removing leaves from the right side of the tree until the
-  rightmost leaf node is not blank.
+* Truncate the tree by removing leaves from the right side of the tree as long
+  as all of the following conditions hold (since non-blank intermediate nodes hold
+  information that is necessary for verifying parent hashes):
+
+  * The rightmost leaf is blank
+  * The parent of the rightmost leaf is either blank or the root of the tree
 
 ### PreSharedKey
 
@@ -3018,10 +3020,12 @@ message at the same time, by taking the following steps:
     hash, and group context extensions from the new state
   * The confirmation_tag from the MLSPlaintext object
   * Other extensions as defined by the application
+  * Optionally derive an external keypair as described in {{key-schedule}}
+    (required for External Commits, see {{joining-via-external-commits}})
   * Sign the GroupInfo with the label `"GroupInfo"` using the member's private
     signing key
   * Encrypt the GroupInfo using the key and nonce derived from the `joiner_secret`
-    for the new epoch (see {{welcoming-new-members}})
+    for the new epoch (see {{joining-via-welcome-message}})
 
 * For each new member in the group:
   * Identify the lowest common ancestor in the tree of the new member's
@@ -3125,7 +3129,48 @@ MLSPlaintext.confirmation_tag =
     MAC(confirmation_key, GroupContext.confirmed_transcript_hash)
 ~~~~~
 
-### External Commits
+### Adding Members to the Group
+
+New members can join the group in two ways. Either by being added by a group
+member, or by adding themselves through an external Commit. In both cases, the
+new members need information to bootstrap their local group state.
+
+~~~
+struct {
+    ProtocolVersion version = mls10;
+    CipherSuite cipher_suite;
+    opaque group_id<0..255>;
+    uint64 epoch;
+    opaque tree_hash<0..255>;
+    opaque confirmed_transcript_hash<0..255>;
+    Extension group_context_extensions<0..2^32-1>;
+    Extension other_extensions<0..2^32-1>;
+    MAC confirmation_tag;
+    KeyPackageRef signer;
+    opaque signature<0..2^16-1>;
+} GroupInfo;
+~~~
+
+New members MUST verify the `signature` using the public key taken from the
+credential in the leaf node of the member with KeyPackageRef `signer`. The
+signature covers the following structure, comprising all the fields in the
+GroupInfo above `signature`:
+
+~~~
+struct {
+    CipherSuite cipher_suite;
+    opaque group_id<0..255>;
+    uint64 epoch;
+    opaque tree_hash<0..255>;
+    opaque confirmed_transcript_hash<0..255>;
+    Extension group_context_extensions<0..2^32-1>;
+    Extension other_extensions<0..2^32-1>;
+    MAC confirmation_tag;
+    KeyPackageRef signer;
+} GroupInfoTBS;
+~~~
+
+#### Joining via External Commits
 
 External Commits are a mechanism for new members (external parties that want to
 become members of the group) to add themselves to a group, without requiring
@@ -3142,61 +3187,40 @@ following information for the group's current epoch:
 * epoch ID
 * ciphersuite
 * public tree hash
-* interim transcript hash
+* confirmed transcript hash
+* confirmation tag of the most recent Commit
 * group extensions
 * external public key
 
-This information is aggregated in a `PublicGroupState` object as follows:
+In other words, to join a group via an External Commit, a new member needs a
+GroupInfo with an `ExternalPub` extension present in the `other_extensions`.
 
-~~~
+~~~~~
 struct {
-    ProtocolVersion version = mls10;
-    CipherSuite cipher_suite;
-    opaque group_id<0..255>;
-    uint64 epoch;
-    opaque tree_hash<0..255>;
-    opaque interim_transcript_hash<0..255>;
-    Extension group_context_extensions<0..2^32-1>;
-    Extension other_extensions<0..2^32-1>;
     HPKEPublicKey external_pub;
-    KeyPackageRef signer;
-    opaque signature<0..2^16-1>;
-} PublicGroupState;
-~~~
+} ExternalPub;
+~~~~~
+
+Thus, a member of the group can enable new clients to join by making a GroupInfo
+object available to them. Note that because a GroupInfo object is specific to an
+epoch, it will need to be updated as the group advances. In particular, each
+GroupInfo object can be used for one external join, since that external join
+will cause the epoch to change.
 
 Note that the `tree_hash` field is used the same way as in the Welcome message.
 The full tree can be included via the `ratchet_tree` extension
 {{ratchet-tree-extension}}.
 
-The signature MUST verify using the public key taken from the credential in the
-leaf node of the member with KeyPackageRef `signer` and the label
-`"PublicGroupStateTBS"`.  The signature's content covers the following structure,
-comprising all the fields in the PublicGroupState above `signature`:
+The `signature` on the GroupInfo struct authenticates the HPKE public key, so
+that the joiner knows that the public key was provided by a member of the group.
+The fields that are not signed are included in the key schedule via the
+GroupContext object. If the joiner is provided an inaccurate data for these
+fields, then its external Commit will have an incorrect `confirmation_tag` and
+thus be rejected.
 
-~~~~~
-struct {
-    ProtocolVersion version = mls10;
-    CipherSuite cipher_suite;
-    opaque group_id<0..255>;
-    uint64 epoch;
-    opaque tree_hash<0..255>;
-    opaque interim_transcript_hash<0..255>;
-    Extension group_context_extensions<0..2^32-1>;
-    Extension other_extensions<0..2^32-1>;
-    HPKEPublicKey external_pub;
-    KeyPackageRef signer;
-} PublicGroupStateTBS;
-~~~~~
-
-This signature authenticates the HPKE public key, so that the joiner knows that
-the public key was provided by a member of the group.  The fields that are not
-signed are included in the key schedule via the GroupContext object.  If the
-joiner is provided an inaccurate data for these fields, then its external Commit
-will have an incorrect `confirmation_tag` and thus be rejected.
-
-The information in a PublicGroupState is not deemed public in general, but
-applications can choose to make it available to new members in order to allow
-External Commits.
+The information in a GroupInfo is not deemed public in general, but applications
+can choose to make it available to new members in order to allow External
+Commits.
 
 External Commits work like regular Commits, with a few differences:
 
@@ -3239,7 +3263,7 @@ group.  With the latter approach, the attacke would need to compromise the PSK
 as well as the signing key, but the application will need to ensure that
 continuing, non-resync'ing members have the required PSK.
 
-### Welcoming New Members
+#### Joining via Welcome Message
 
 The sender of a Commit message is responsible for sending a Welcome message to
 any new members added via Add proposals.  The Welcome message provides the new
@@ -3258,22 +3282,10 @@ member to compute private keys for nodes in its direct path that are being
 reset by the corresponding Commit.
 
 If the sender of the Welcome message wants the receiving member to include a PSK
-in the derivation of the `epoch_secret`, they can populate the `psks` field indicating which
-PSK to use.
+in the derivation of the `epoch_secret`, they can populate the `psks` field
+indicating which PSK to use.
 
 ~~~~~
-struct {
-  opaque group_id<0..255>;
-  uint64 epoch;
-  opaque tree_hash<0..255>;
-  opaque confirmed_transcript_hash<0..255>;
-  Extension group_context_extensions<0..2^32-1>;
-  Extension other_extensions<0..2^32-1>;
-  MAC confirmation_tag;
-  KeyPackageRef signer;
-  opaque signature<0..2^16-1>;
-} GroupInfo;
-
 struct {
   opaque path_secret<1..255>;
 } PathSecret;
@@ -3285,12 +3297,11 @@ struct {
 } GroupSecrets;
 
 struct {
-  KeyPackageRef new_member<1..255>;
+  KeyPackageRef new_member;
   HPKECiphertext encrypted_group_secrets;
 } EncryptedGroupSecrets;
 
 struct {
-  ProtocolVersion version = mls10;
   CipherSuite cipher_suite;
   EncryptedGroupSecrets secrets<0..2^32-1>;
   opaque encrypted_group_info<1..2^32-1>;
@@ -3454,11 +3465,11 @@ def subtree_root(nodes):
 ~~~~~
 
 (Note that this is the same ordering of nodes as in the array-based tree representation
-described in {{array-based-trees}}.  The algorithms in that section may be used to 
+described in {{array-based-trees}}.  The algorithms in that section may be used to
 simplify decoding this extension into other representations.)
 
 (Note that this is the same ordering of nodes as in the array-based tree representation
-described in {{array-based-trees}}.  The algorithms in that section may be used to 
+described in {{array-based-trees}}.  The algorithms in that section may be used to
 simplify decoding this extension into other representations.)
 
 The example tree in {{tree-computation-terminology}} would be represented as an
@@ -3510,19 +3521,19 @@ places:
 
 * In KeyPackages, to describe client capabilities and aspects of their
   participation in the group (once in the ratchet tree)
-* In the Welcome message, to tell new members of a group what parameters are
+* In the GroupInfo, to tell new members of a group what parameters are
   being used by the group, and to provide any additional details required to
   join the group
 * In the GroupContext object, to ensure that all members of the group have the
   same view of the parameters in use
 
 In other words, an application can use GroupContext extensions to ensure that
-all members of the group agree on a set of parameters.  Clients indicate
-their support for parameters in KeyPackage extensions.  New members of a
-group are informed of the group's GroupContext extensions via the
-`group_context_extensions` field in the GroupInfo or PublicGroupState object.
-The `other_extensions` field in a GroupInfo object can be used to provide
-additional parameters to new joiners that are used to join the group.
+all members of the group agree on a set of parameters. Clients indicate their
+support for parameters in KeyPackage extensions. New members of a group are
+informed of the group's GroupContext extensions via the
+`group_context_extensions` field in the GroupInfo object. The `other_extensions`
+field in a GroupInfo object can be used to provide additional parameters to new
+joiners that are used to join the group.
 
 This extension mechanism is designed to allow for secure and forward-compatible
 negotiation of extensions.  For this to work, implementations MUST correctly
@@ -3549,6 +3560,8 @@ handle extensible fields:
 
 * The extensions populated into a GroupContext object are drawn from those in
   the GroupInfo object, according to the definitions of those extensions.
+
+* Any field containing a list of extensions MUST NOT have more than one extension of any given type.
 
 Note that the latter two requirements mean that all MLS extensions are
 mandatory, in the sense that an extension in use by the group MUST be supported
@@ -3687,17 +3700,10 @@ to an adversary by the ciphertext length. An attacker expecting Alice to
 answer Bob with a day of the week might find out the plaintext by
 correlation between the question and the length.
 
-Similarly to TLS 1.3, if padding is used, the MLS messages MUST be
-padded with zero-valued bytes before AEAD encryption. Upon AEAD decryption,
-the length field of the plaintext is used to compute the number of bytes
-to be removed from the plaintext to get the correct data.
-As the padding mechanism is used to improve protection against traffic
-analysis, removal of the padding SHOULD be implemented in a "constant-time"
-manner at the MLS layer and above layers to prevent timing side-channels that
-would provide attackers with information on the size of the plaintext.
-The padding length length_of_padding can be chosen at the time of the message
-encryption by the sender. Recipients can calculate the padding size from knowing
-the total size of the ApplicationPlaintext and the length of the content.
+The content and length of the `padding` field in `MLSCiphertextContent` can be
+chosen at the time of message encryption by the sender. It is recommended that
+padding data is comprised of zero-valued bytes and follows an established
+deterministic padding scheme.
 
 ## Restrictions {#restrictions}
 
@@ -3993,6 +3999,7 @@ Initial contents:
 | 0x0004           | parent_hash              | KP         | Y           | RFC XXXX  |
 | 0x0005           | ratchet_tree             | GI         | Y           | RFC XXXX  |
 | 0x0006           | required_capabilities    | GC         | Y           | RFC XXXX  |
+| 0x0007           | external_pub             | GI         | Y           | RFC XXXX  |
 | 0xff00  - 0xffff | Reserved for Private Use | N/A        | N/A         | RFC XXXX  |
 
 ## MLS Proposal Types
