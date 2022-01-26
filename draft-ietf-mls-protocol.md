@@ -1286,7 +1286,11 @@ as the concatenation of `r` and `s` as specified in {{?RFC8032}}.
 Each new credential that has not already been validated by the application MUST
 be validated against the Authentication Service.  Applications SHOULD require
 that a client present the same set of identifiers throughout its presence in
-the group, even if its Credential is changed in a Commit or Update.
+the group, even if its Credential is changed in a Commit or Update.  If an
+application allows clients to change identifiers over time, then each time the
+client presents a new credential, the application MUST verify that the set
+of identifiers in the credential is acceptable to the application for this
+client.
 
 ### Uniquely Identifying Clients
 
