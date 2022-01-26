@@ -3512,6 +3512,46 @@ using the tree for MLS operations.
 
 # Extensibility
 
+The base MLS protocol can be extended in a few ways.  New ciphersuites can be
+added to enable the use of new cryptographic algorithms.  New types of proposals
+can be used to perform new actions within an epoch.  Extension fields can be
+used to add additional information to the protocol.  In this section, we discuss
+some constraints on these extensibility mechanisms that are necessary to ensure
+broad interoperability.
+
+## Ciphersuites
+
+As discussed in {{ciphersuites}}, MLS allows the participants in a group to
+negotiate the cryptographic algorithms used within the group.  This
+extensibility is important for maintaining the security of the protocol over
+time {{?RFC7696}}.  It also creates a risk of interoperability failure due to
+clients not supporting a common ciphersuite.
+
+The ciphersuite registry defined in {{mls-ciphersuites}} attempts to strike a
+balance on this point.  On the one hand, the base policy for the registry is
+Specification Required, a fairly low bar designed to avoid the need for
+standards work in cases where different ciphers are needed for niche
+applications.  There is a higher bar (Standards Action) for ciphers to set the
+Recommended field in the registry.  This higher bar is there in part to ensure
+that the interoperability implications of new ciphersuites are considered.
+
+MLS ciphersuites are defined independent of MLS versions, so that in principle
+the same ciphersuite can be used across versions.  Standards work defining new
+versions of MLS should consider whether it is desirable for the new version to
+be compatible with existing ciphersuites, or whether the new version should rule
+out some ciphersuites. For example, a new version could follow the example of
+HTTP/2, which restricted the set of allowed TLS ciphers (see Section 9.2.2 of
+{{?RFC7540}}.
+
+## Proposals
+
+Commit messages do not have an extension field because the set of protocols is
+extensible.  As discussed in {{commit}}, Proposals with a non-default proposal
+type MUST NOT be included in a commit unless the proposal type is supported by
+all the members of the group that will process the Commit.
+
+## Extensions
+
 This protocol includes a mechanism for negotiating extension parameters similar
 to the one in TLS {{RFC8446}}.  In TLS, extension negotiation is one-to-one: The
 client offers extensions in its ClientHello message, and the server expresses
@@ -3883,7 +3923,6 @@ uint16 CipherSuite;
 
 | Component | Contents                                                               |
 |:----------|:-----------------------------------------------------------------------|
-| MLS       | The string "MLS" followed by the major and minor version, e.g. "MLS10" |
 | LVL       | The security level                                                     |
 | KEM       | The KEM algorithm used for HPKE in ratchet tree operations             |
 | AEAD      | The AEAD algorithm used for HPKE and message protection                |
@@ -3899,24 +3938,24 @@ The columns in the registry are as follows:
 * Recommended: Whether support for this ciphersuite is recommended by the IETF MLS
   WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
   value of "N" unless explicitly requested, and adding a value with a
-  "Recommended" value of "Y" requires Standards Action [RFC8126].  IESG Approval
+  "Recommended" value of "Y" requires Standards Action {{RFC8126}}.  IESG Approval
   is REQUIRED for a Y->N transition.
 
 * Reference: The document where this ciphersuite is defined
 
 Initial contents:
 
-| Value           | Name                                                  | Recommended | Reference |
-|:----------------|:------------------------------------------------------|:------------|:----------|
-| 0x0000          | RESERVED                                              | N/A         | RFC XXXX  |
-| 0x0001          | MLS10_128_DHKEMX25519_AES128GCM_SHA256_Ed25519        | Y           | RFC XXXX  |
-| 0x0002          | MLS10_128_DHKEMP256_AES128GCM_SHA256_P256             | Y           | RFC XXXX  |
-| 0x0003          | MLS10_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519 | Y           | RFC XXXX  |
-| 0x0004          | MLS10_256_DHKEMX448_AES256GCM_SHA512_Ed448            | Y           | RFC XXXX  |
-| 0x0005          | MLS10_256_DHKEMP521_AES256GCM_SHA512_P521             | Y           | RFC XXXX  |
-| 0x0006          | MLS10_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     | Y           | RFC XXXX  |
-| 0x0007          | MLS10_256_DHKEMP384_AES256GCM_SHA384_P384.            | Y           | RFC XXXX  |
-| 0xff00 - 0xffff | Reserved for Private Use                              | N/A         | RFC XXXX  |
+| Value           | Name                                                | Recommended | Reference |
+|:----------------|:----------------------------------------------------|:------------|:----------|
+| 0x0000          | RESERVED                                            | N/A         | RFC XXXX  |
+| 0x0001          | MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519        | Y           | RFC XXXX  |
+| 0x0002          | MLS_128_DHKEMP256_AES128GCM_SHA256_P256             | Y           | RFC XXXX  |
+| 0x0003          | MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519 | Y           | RFC XXXX  |
+| 0x0004          | MLS_256_DHKEMX448_AES256GCM_SHA512_Ed448            | Y           | RFC XXXX  |
+| 0x0005          | MLS_256_DHKEMP521_AES256GCM_SHA512_P521             | Y           | RFC XXXX  |
+| 0x0006          | MLS_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     | Y           | RFC XXXX  |
+| 0x0007          | MLS_256_DHKEMP384_AES256GCM_SHA384_P384.            | Y           | RFC XXXX  |
+| 0xff00 - 0xffff | Reserved for Private Use                            | N/A         | RFC XXXX  |
 
 All of these ciphersuites use HMAC {{!RFC2104}} as their MAC function, with
 different hashes per ciphersuite.  The mapping of ciphersuites to HPKE
@@ -3951,7 +3990,7 @@ compliant curves. The security level of symmetric encryption algorithms and hash
 functions is paired with the security level of the curves.
 
 The mandatory-to-implement ciphersuite for MLS 1.0 is
-`MLS10_128_DHKEMX25519_AES128GCM_SHA256_Ed25519` which uses
+`MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519` which uses
 Curve25519 for key exchange, AES-128-GCM for HPKE, HKDF over SHA2-256, and
 Ed25519 for signatures.
 
