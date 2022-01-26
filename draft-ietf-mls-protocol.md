@@ -691,6 +691,90 @@ A              B     ...      Z          Directory       Channel
 ~~~~~
 {: title="Client Z removes client B from the group"}
 
+## Relationships Between Epochs
+
+A group comprises a single linear sequence of epochs and groups are generally
+independent of one-another. However, it can sometimes be useful to link epochs
+cryptographically, either within a group or across groups. MLS derives a
+resumption pre-shared key (PSK) from each epoch to allow entropy extracted from
+one epoch to be injected into a future epoch. This link guarantees that members
+entering the new epoch agree on a key if and only if were members of the group
+during the epoch from which the resumption key was extracted.
+
+MLS supports two ways to tie a new group to an existing group. Re-initialization
+closes one group and creates a new group comprising the same members with
+different parameters. Branching starts a new group with a subset of the original
+group's participants (with no effect on the original group).  In both cases,
+the new group is linked to the old group via a resumption PSK.
+
+~~~~~
+epoch_A_[n-1]
+     |
+     |
+     |<-- ReInit
+     |
+     V
+epoch_A_[n]           epoch_B_[0]
+     .                     |
+     .  PSK(usage=reinit)  |
+     .....................>|
+                           |
+                           V
+                      epoch_B_[1]
+~~~~~
+{: title="Reinitializing a group" }
+
+
+~~~~~
+epoch_A_[n-1]
+     |
+     |
+     |<-- ReInit
+     |
+     V
+epoch_A_[n]           epoch_B_[0]
+     |                     |
+     |  PSK(usage=branch)  |
+     |....................>|
+     |                     |
+     V                     V
+epoch_A_[n+1]         epoch_B_[1]
+~~~~~
+{: title="Branching a group" }
+
+Applications may also choose to use resumption PSKs to link epochs in other
+ways.  For example, the following figure shows a case where a resumption PSK
+from epoch `n` is injected into epoch `n+k`.  This demonstrates that the members
+of the group at epoch `n+k` were also members at epoch `n`, irrespective of any
+changes to these members' keys due to Updates or Commits.
+
+~~~~~
+epoch_A_[n-1]
+     |
+     |
+     |<-- ReInit
+     |
+     V
+epoch_A_[n]
+     |
+     |  PSK(usage=application)
+     |.....................
+     |                    .
+     |                    .
+    ...                  ...
+     |                    .
+     |                    .
+     V                    .
+epoch_A_[n+k-1]           .
+     |                    .
+     |                    .
+     |<....................
+     |
+     V
+epoch_A_[n+k]
+~~~~~
+{: title="Reinjecting entropy from an earlier epoch" }
+
 # Ratchet Trees
 
 The protocol uses "ratchet trees" for deriving shared secrets among a group of
