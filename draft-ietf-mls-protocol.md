@@ -1194,7 +1194,11 @@ to Proposals they cover.  These identifiers are computed as follows:
 ~~~~~
 opaque HashReference[16];
 
-MakeHashRef(value) = KDF.expand(KDF.extract("", value), "MLS 1.0 ref", 16)
+MakeKeyPackageRef(value) = KDF.expand(
+  KDF.extract("", value), "MLS 1.0 KeyPackage Reference", 16)
+
+MakeProposalRef(value) = KDF.expand(
+  KDF.extract("", value), "MLS 1.0 Proposal Reference", 16)
 
 HashReference KeyPackageRef;
 HashReference ProposalRef;
