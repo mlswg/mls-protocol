@@ -693,11 +693,13 @@ A              B     ...      Z          Directory       Channel
 
 ## Relationships Between Epochs
 
-A group comprises a single linear sequence of epochs. However, it can sometimes
-be useful to express relationships between epochs, either within a group or
-across groups.  MLS derives a resumption pre-shared key (PSK) from each epoch to
-allow entropy extracted from one epoch to be injected into a future epoch,
-effectively creating a causal link between the two epochs.
+A group comprises a single linear sequence of epochs and groups are generally
+independent of one-another. However, it can sometimes be useful to link epochs
+cryptographically, either within a group or across groups. MLS derives a
+resumption pre-shared key (PSK) from each epoch to allow entropy extracted from
+one epoch to be injected into a future epoch. This link guarantees that members
+entering the new epoch agree on a key if and only if were members of the group
+during the epoch from which the resumption key was extracted.
 
 MLS supports two ways to tie a new group to an existing group. Re-initialization
 closes one group and creates a new group comprising the same members with
