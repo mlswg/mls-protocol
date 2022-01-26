@@ -1284,7 +1284,9 @@ In particular, ECDSA signatures are DER-encoded and EdDSA signatures are defined
 as the concatenation of `r` and `s` as specified in {{?RFC8032}}.
 
 Each new credential that has not already been validated by the application MUST
-be validated against the Authentication Service.
+be validated against the Authentication Service.  Applications SHOULD require
+that a client present the same set of identifiers throughout its presence in
+the group, even if its Credential is changed in a Commit or Update.
 
 ### Uniquely Identifying Clients
 
