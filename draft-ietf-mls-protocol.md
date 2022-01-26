@@ -1810,33 +1810,31 @@ compromise.  These factors are outside of the scope of this document, but should
 be considered by application designers relying on PSKs.
 
 Each PSK in MLS has a type that designates how it was provisioned.
-External PSKs are provided by the application, while recovery and re-init PSKs
+External PSKs are provided by the application, while resumption PSKs
 are derived from the MLS key schedule and used in cases where it is
-necessary to authenticate a member's participation in a prior group state.
-In particular, in addition to external PSK types, a PSK derived from within MLS
-may be used in the following cases:
-
-  - Re-Initialization: If during the lifetime of a group, the group members
-    decide to switch to a more secure ciphersuite or newer protocol version,
-    a PSK can be used to carry entropy from the old group forward into a new
-    group with the desired parameters.
-
-  - Branching: A PSK may be used to bootstrap a subset of current group
-    members into a new group. This applies if a subset of current group
-    members wish to branch based on the current group state.
+necessary to authenticate a member's participation in a prior epoch.
 
 The injection of one or more PSKs into the key schedule is signaled in two ways:
-1) as a `PreSharedKey` proposal, and 2) in the `GroupSecrets` object of a
-Welcome message sent to new members added in that epoch.
+Existing members are informed via PreSharedKey proposals covered by a Commit,
+and new members added in the Commit are informed via GroupSecrets object in the
+Welcome message corresponding to the Commit.  To ensure that existing and new
+members compute the same PSK input to the key schedule, the Commit and
+GroupSecrets objects MUST indicate the same set of PSKs, in the same order.
 
 ~~~~~
 enum {
   reserved(0),
   external(1),
-  reinit(2),
-  branch(3)
+  resumption(2),
   (255)
 } PSKType;
+
+enum {
+  reserved(0),
+  application(1),
+  reinit(2),
+  branch(3),
+} ResumptionPSKUsage;
 
 struct {
   PSKType psktype;
@@ -1844,11 +1842,8 @@ struct {
     case external:
       opaque psk_id<0..255>;
 
-    case reinit:
-      opaque psk_group_id<0..255>;
-      uint64 psk_epoch;
-
-    case branch:
+    case resumption:
+      ResumptionPSKUsage usage;
       opaque psk_group_id<0..255>;
       uint64 psk_epoch;
   }
@@ -2082,20 +2077,14 @@ to refresh those values after a Commit is processed.
 
 ## Resumption Secret
 
-The main MLS key schedule provides a `resumption_secret` which can provide extra
-security in some cross-group operations.
+The main MLS key schedule provides a `resumption_secret` that is used as a PSK
+to inject entropy from one epoch into another.  This functionality is used in the
+reinitialization and branching processes described in {{reinitialization}} and
+{{sub-group-branching}}, but may be used by applications for other purposes.
 
-The application SHOULD specify an upper limit on the number of past
+Some uses of resumption PSKs might call for the use of PSKs from historical
+epochs. The application SHOULD specify an upper limit on the number of past
 epochs for which the `resumption_secret` may be stored.
-
-There are two ways in which a `resumption_secret` can be used: to re-initialize
-the group with different parameters, or to create a
-sub-group of an existing group as detailed in {{pre-shared-keys}}.
-
-Resumption keys are distinguished from exporter keys in that they have specific
-use inside the MLS protocol, whereas the use of exporter secrets may be
-decided by an external application. They are thus derived separately to avoid
-key material reuse.
 
 ## State Authentication Keys
 
@@ -2450,15 +2439,17 @@ The creator of a group MUST take the following steps to initialize the group:
 * Transmit the Welcome message to the other new members
 
 The recipient of a Welcome message processes it as described in
-{{joining-via-welcome-message}}.
+{{joining-via-welcome-message}}.  If application context informs the recipient that
+the Welcome should reflect the creation of a new group (for example, due to a
+branch or reinitialization), then the recipient MUST verify that the epoch value
+in the GroupInfo is equal to 1.
 
 In principle, the above process could be streamlined by having the
 creator directly create a tree and choose a random value for first
 epoch's epoch secret.  We follow the steps above because it removes
 unnecessary choices, by which, for example, bad randomness could be
 introduced.  The only choices the creator makes here are its own
-KeyPackage, the leaf secret from which the Commit is built, and the
-intermediate key pairs along the direct path to the root.
+KeyPackage and the leaf secret from which the Commit is built.
 
 ## Required Capabilities
 
@@ -2482,25 +2473,59 @@ extensions can be updated, a GroupContextExtensions proposal is invalid if it
 contains a `required_capabilities` extension that requires capabililities not
 supported by all current members.
 
-## Linking a New Group to an Existing Group
+## Reinitialization
 
-A new group may be tied to an already existing group for the purpose of
-re-initializing the existing group, or to branch into a sub-group.
-Re-initializing an existing group may be used, for example, to restart the group
-with a different ciphersuite or protocol version. Branching may be used to
-bootstrap a new group consisting of a subset of current group members, based on
-the current group state.
+A group may be reinitialized by creating a new group with the same membership
+and different parameters, and linking it to the old group via a resumption PSK.
+The members of a group reinitialize it using the following steps:
 
-In both cases, the `psk_nonce` included in the `PreSharedKeyID` object must be a
-randomly sampled nonce of length `KDF.Nh` to avoid key re-use.
+1. A member of the old group sends a ReInit proposal (see {{reinit}})
+2. A member of the old group sends a Commit covering the ReInit proposal
+3. A member of the old group sends a Welcome message for the new group that
+   matches the ReInit
+    * The `group_id`, `version`, and `cipher_suite` fields in the Welcome
+      message MUST be the same as the corresponding fields in the ReInit
+      proposal.
+    * The `epoch` in the Welcome message MUST be 1
+    * The Welcome MUST specify a PreSharedKey of type `resumption` with usage
+      `reinit`.  The `group_id` must match the old group, and the `epoch` must
+      indicate the epoch after the Commit covering the ReInit.
+    * The `psk_nonce` included in the `PreSharedKeyID` of the resumption PSK
+      MUST be a randomly sampled nonce of length `KDF.Nh`, for the KDF defined
+      by the new grou's ciphersuite.
 
-### Sub-group Branching
+Note that these three steps may be done by the same group member or different
+members.  For example, if a group member sends a commit with an inline ReInit
+proposal (steps 1 and 2), but then goes offline, another group member may send
+the corresponding Welcome.  This flexibility avoids situations where a group
+gets stuck between steps 2 and 3. 
 
-If a client wants to create a subgroup of an existing group, they MAY choose to
-include a `PreSharedKeyID` in the `GroupSecrets` object of the Welcome message choosing
-the `psktype` `branch`, the `group_id` of the group from which a subgroup is to
-be branched, as well as an epoch within the number of epochs for which a
-`resumption_secret` is kept.
+Resumption PSKs with usage `reinit` MUST NOT be used in other contexts.  A
+PreSharedKey proposal with type `resumption` and usage `reinit` MUST be
+considered invalid.
+
+## Sub-group Branching
+
+A new group can be formed from a subset of an existing group's members, using
+the same parameters as the old group.  The creator of the group indicates this
+situation by including a PreSharedKey of type `resumption` with usage `branch`
+in the Welcome message that creates the branched subgroup.
+
+A client receiving a Welcome including a PreSharedKey of type `resumption` with
+usage `branch` MUST verify that the new group reflects a subgroup branched from
+the referenced group.
+
+* The `version` and `ciphersuite` values in the Welcome MUST be the same as
+  those used by the old group.
+* Each KeyPackage in a leaf node of the new group's tree MUST be a leaf in the
+  old group's tree at the epoch indicated in the PreSharedKey.
+
+In addition, to avoid key re-use, the `psk_nonce` included in the
+`PreSharedKeyID` object MUST be a randomly sampled nonce of length `KDF.Nh`.
+
+Resumption PSKs with usage `branch` MUST NOT be used in other contexts.  A
+PreSharedKey proposal with type `resumption` and usage `branch` MUST be
+considered invalid.
 
 # Group Evolution
 
@@ -2672,9 +2697,9 @@ corresponds to the order of the `PreSharedKey` proposals in the Commit.
 
 ### ReInit
 
-A ReInit proposal represents a request to re-initialize the group with different
+A ReInit proposal represents a request to reinitialize the group with different
 parameters, for example, to increase the version number or to change the
-ciphersuite. The re-initialization is done by creating a completely new group
+ciphersuite. The reinitialization is done by creating a completely new group
 and shutting down the old one.
 
 ~~~~~
@@ -2687,13 +2712,8 @@ struct {
 ~~~~~
 
 A member of the group applies a ReInit proposal by waiting for the committer to
-send the Welcome message and by checking that the `group_id` and the parameters
-of the new group corresponds to the ones specified in the proposal. The Welcome
-message MUST specify exactly one pre-shared key with `psktype = reinit`, and with
-`psk_group_id` and `psk_epoch` equal to the `group_id` and `epoch` of the
-existing group after the Commit containing the `reinit` Proposal was processed.
-The Welcome message may specify the inclusion of other pre-shared keys with a
-`psktype` different from `reinit`.
+send the Welcome message that matches the ReInit, according to the criteria in
+{{reinitialization}}.
 
 If a ReInit proposal is included in a Commit, it MUST be the only proposal
 referenced by the Commit. If other non-ReInit proposals have been sent during
@@ -3050,9 +3070,12 @@ message at the same time, by taking the following steps:
 * If a ReInit proposal was part of the Commit, the committer MUST create a new
   group with the parameters specified in the ReInit proposal,
   and with the same members as the original group.
-  The Welcome message MUST include a `PreSharedKeyID` with `psktype`
-  `reinit` and with `psk_group_id` and `psk_epoch` corresponding to the current
-  group and the epoch after the commit was processed.
+  The Welcome message MUST include a `PreSharedKeyID` with the following
+  parameters:
+  * `psktype`: `resumption`
+  * `usage`: `reinit`
+  * `group_id`: The group ID for the current group
+  * `epoch`: The epoch that the group will be in after this Commit
 
 A member of the group applies a Commit message by taking the following steps:
 
@@ -3119,14 +3142,7 @@ A member of the group applies a Commit message by taking the following steps:
 
 * If the Commit included a ReInit proposal, the client MUST NOT use the group to
   send messages anymore. Instead, it MUST wait for a Welcome message from the committer
-  and check that
-
-  * The `version`, `cipher_suite` and `extensions` fields of the new group
-    corresponds to the ones in the `ReInit` proposal, and that the `version`
-    is greater than or equal to that of the original group.
-  * The `psks` field in the Welcome message includes a `PreSharedKeyID` with
-    `psktype` = `reinit`, and `psk_epoch` and `psk_group_id` equal to the epoch
-    and group ID of the original group after processing the Commit.
+  meeting the requirements of {{reinitialization}}.
 
 The confirmation tag value confirms that the members of the group have arrived
 at the same state of the group:
