@@ -1283,9 +1283,34 @@ The signatures used in this document are encoded as specified in {{!RFC8446}}.
 In particular, ECDSA signatures are DER-encoded and EdDSA signatures are defined
 as the concatenation of `r` and `s` as specified in {{?RFC8032}}.
 
-Note that each new credential that has not already been validated
-by the application MUST be validated against the Authentication
-Service.
+Each new credential that has not already been validated by the application MUST
+be validated against the Authentication Service.
+
+### Uniquely Identifying Clients
+
+MLS implementations will presumably provide applications with a way to request
+protocol operations with regard to other clients (e.g., removing clients).  Such
+functions will need to refer to the other clients using some identifier.  MLS
+clients have a few types of identifiers, with different operational properties.
+
+The Credentials presented by the clients in a group authenticate
+application-level identifiers for the clients.  These identifiers may not
+uniquely identify clients.  For example, if a user has multiple devices that are
+all present in an MLS group, then those devices' clients will all present the
+user's application-layer identifiers.
+
+Internally to the the protocol, group members are uniquely identified by their
+leaves, expressed as KeyPackageRef objects.  These identifiers are unstable:
+They change whenever the member sends a Commit, or whenever an Update
+proposal from the member is committed.
+
+MLS provides two unique client identifiers that are stable across epochs:
+
+* The index of a client among the leaves of the tree
+* The `epoch_id` field in the key package
+
+The application may also provide application-specific unique identifiers in the
+`extensions` field of KeyPackage object.
 
 # Key Packages
 
@@ -2507,7 +2532,7 @@ Note that these three steps may be done by the same group member or different
 members.  For example, if a group member sends a commit with an inline ReInit
 proposal (steps 1 and 2), but then goes offline, another group member may send
 the corresponding Welcome.  This flexibility avoids situations where a group
-gets stuck between steps 2 and 3. 
+gets stuck between steps 2 and 3.
 
 Resumption PSKs with usage `reinit` MUST NOT be used in other contexts.  A
 PreSharedKey proposal with type `resumption` and usage `reinit` MUST be
