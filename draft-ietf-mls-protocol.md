@@ -1568,13 +1568,17 @@ Different changes to the group will have different effects on the group state.
 These effects are described in their respective subsections of {{proposals}}.
 The following general rules apply:
 
-* The `group_id` and `extensions` fields are constant.
+* The `group_id` field is constant.
 * The `epoch` field increments by one for each Commit message that
   is processed.
 * The `tree_hash` is updated to represent the current tree and
   credentials.
-* The `confirmed_transcript_hash` is updated with the data for an
-  MLSPlaintext message encoding a Commit message in two parts:
+* The `confirmed_transcript_hash` field is updated with the data for an
+  MLSPlaintext message encoding a Commit message as described below.
+* The `extensions` field changes when a GroupContextExtensions proposal is
+  committed.
+
+The `confirmed_transcript_hash` is updated with an MLSPlaintext in two steps:
 
 ~~~~~
 struct {
