@@ -717,13 +717,13 @@ _leaf_ if it has no children, and a _parent_ otherwise; note that all
 parents in our trees have precisely
 two children, a _left_ child and a _right_ child. A node is the _root_
 of a tree if it has no parents, and _intermediate_ if it has both
-children and parents. The _descendants_ of a node are that node, its
+children and parents. The _descendants_ of a node are that node's
 children, and the descendants of its children, and we say a tree
-_contains_ a node if that node is a descendant of the root of the
-tree. Nodes are _siblings_ if they share the same parent.
+_contains_ a node if that node is a descendant of the root of, or the root 
+of, the tree. Nodes are _siblings_ if they share the same parent.
 
-A _subtree_ of a tree is the tree given by the descendants of any
-node, the _head_ of the subtree. The _size_ of a tree or subtree is the
+A _subtree_ of a tree is the tree given by any node (the _head_ of the 
+subtree) and its descendants. The _size_ of a tree or subtree is the
 number of leaf nodes it contains.  For a given parent node, its _left
 subtree_ is the subtree with its left child as head (respectively
 _right subtree_).
@@ -862,8 +862,7 @@ In particular, MLS maintains the members' views of the tree in such
 a way as to maintain the _tree invariant_:
 
     The private key for a node in the tree is known to a member of
-    the group only if that member's leaf is a descendant of
-    the node.
+    the group only if the node's subtree contains that member's leaf.
 
 In other words, if a node is not blank, then it holds a public key.
 The corresponding private key is known only to members occupying
