@@ -1196,7 +1196,7 @@ to Proposals they cover.  These identifiers are computed as follows:
 ~~~~~
 opaque HashReference[16];
 
-MakeHashRef(value) = KDF.expand(KDF.extract("", value), "mls10 ref", 16)
+MakeHashRef(value) = KDF.expand(KDF.extract("", value), "MLS 1.0 ref", 16)
 
 HashReference KeyPackageRef;
 HashReference ProposalRef;
@@ -1681,7 +1681,7 @@ Where KDFLabel is specified as:
 
 struct {
     uint16 length = Length;
-    opaque label<7..255> = "mls10 " + Label;
+    opaque label<7..255> = "MLS 1.0 " + Label;
     opaque context<0..2^32-1> = Context;
 } KDFLabel;
 
@@ -1778,7 +1778,7 @@ key schedule for the new epoch.
 
 ~~~~~
 kem_output, context = SetupBaseS(external_pub, "")
-init_secret = context.export("mls10 external init secret", KDF.Nh)
+init_secret = context.export("MLS 1.0 external init secret", KDF.Nh)
 ~~~~~
 
 Members of the group receive the `kem_output` in an ExternalInit proposal and
@@ -1786,7 +1786,7 @@ preform the corresponding calculation to retrieve the `init_secret` value.
 
 ~~~~~
 context = SetupBaseR(kem_output, external_priv, "")
-init_secret = context.export("mls10 external init secret", KDF.Nh)
+init_secret = context.export("MLS 1.0 external init secret", KDF.Nh)
 ~~~~~
 
 In both cases, the `info` input to HPKE is set to the GroupInfo for the
