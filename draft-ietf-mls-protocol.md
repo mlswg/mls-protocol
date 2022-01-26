@@ -388,7 +388,9 @@ Client:
   cryptographic keys it holds.
 
 Group:
-: A linear sequence of epochs in which each epoch depends on its predecessor.
+: A group represents a logical collection of clents that share a common
+  secret value at any given time.  Its state is represented as a linear 
+  sequence of epochs in which each epoch depends on its predecessor.
 
 Epoch:
 : A state of a group in which a specific set of authenticated clients hold
