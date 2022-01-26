@@ -455,7 +455,7 @@ any given time.  The history of a group is divided into a linear sequence of
 epochs.  In each epoch, a set of authenticated _members_ agree on an _epoch
 secret_ that is known only to the members of the group in that epoch.  The set
 of members involved in the group can change from one epoch to the next, and MLS
-assures that only the members in the current epoch have access to the epoch
+ensures that only the members in the current epoch have access to the epoch
 secret.  From the epoch secret, members derive further shared secrets for
 message encryption, group membership authentication, etc.
 
@@ -495,11 +495,11 @@ members, so they are exchanged between group members and clients not yet in the
 group.
 
 Proposal and Commit messages are sent from one member of a group to the others.
-MLS provides a common framing layer for sending messages within a group,
-including Proposal and Commit as well as application data.  An _MLSPlaintext_
+MLS provides a common framing layer for sending messages within a group:
+An _MLSPlaintext_
 message provides sender authentication for unencrypted Proposal and Commit
 messages.  An _MLSCiphertext_ message provides encryption and authentication for
-both Proposal/Commit message and application data.
+both Proposal/Commit messages as well as any application data.
 
 ## Cryptographic State and Evolution
 
@@ -590,8 +590,8 @@ A has received its Commit message back from the server does it update its state
 to reflect the new member's addition.
 
 Upon receiving the Welcome message, the new member will be able to read and send
-new messages to the group. Messages received before the client has joined the
-group are ignored.
+new messages to the group. However, messages sent before they were added to the
+group will not be accessible.
 
 ~~~~~
                                                                Group
@@ -629,7 +629,7 @@ A              B              C          Directory            Channel
 
 Subsequent additions of group members proceed in the same way.  Any
 member of the group can download a KeyPackage for a new client
-and broadcast Add and Commit message that the current group can use to update
+and broadcast Add and Commit messages that the current group will use to update
 their state, and a Welcome message that the new client can use to
 initialize its state and join the group.
 
@@ -698,8 +698,7 @@ clients.  A ratchet tree is an arrangement of secrets and key pairs among the
 members of a group in a way that allows for secrets to be efficiently updated to
 reflect changes in the group.
 
-The unique power of a ratchet tree is that it allows a group to efficiently
-remove a member, because it allows a group member to efficiently encrypt new
+Ratchet trees allow a group to efficiently remove any member by encrypting new
 entropy to a subset of the group.  A ratchet tree assigns shared keys to
 subgroups of the overall group, so that, for example, encrypting to all but one
 member of the group requires only log(N) encryptions, instead of the N-1
@@ -707,8 +706,8 @@ encryptions that would be needed to encrypt to each participant individually
 (where N is the number of members in the group).
 
 This remove operation allows MLS to efficiently achieve
-post-compromise security.  In an Update proposal or a full Commit message, an old, possibly
-compromised representation of a member is effeciently removed from the group and
+post-compromise security.  In an Update proposal or a full Commit message, an old (possibly
+compromised) representation of a member is efficiently removed from the group and
 replaced with a freshly generated instance.
 
 ## Tree Computation Terminology
@@ -928,8 +927,8 @@ The generator of the UpdatePath starts by sampling a fresh random value called
 "leaf_secret", and uses the leaf_secret to generate their leaf HPKE key pair
 (see {{key-packages}}) and to seed a sequence of "path secrets", one for each
 ancestor of its leaf. In this setting,
-path_secret\[0\] refers to the node directly above the leaf,
-path_secret\[1\] for its parent, and so on. At each step, the path
+path_secret\[0\] refers to the leaf's parent,
+path_secret\[1\] to the parent's parent, and so on. At each step, the path
 secret is used to derive a new secret value for the corresponding
 node, from which the node's key pair is derived.
 
@@ -1011,8 +1010,8 @@ _extending_ and _truncating_ the tree.
 To add a new leaf: Add leaf L as the new rightmost leaf of the tree.  Add
 a blank parent node P whose right child is L.  P is attached to the
 tree as the right child of the only appropriate node to make the updated tree
-left-balanced (or set it as a new root).  The former right child of the P's
-parent becomes P's left child (or the old root becomes the P's left child if
+left-balanced (or set it as a new root).  The former right child of P's
+parent becomes P's left child (or the old root becomes P's left child if
 P is the new root).
 
 ~~~~~
@@ -1027,7 +1026,7 @@ A   B        A   B   C <-- new leaf        A   B   C   D <-- new leaf
 To remove the rightmost leaf: Remove the rightmost leaf node L and its parent
 node P.  If P was the root of the tree, P's left child
 is now the root of the tree.  Otherwise, set the right child of P's parent
-to be the P's left child.
+to be P's left child.
 
 ~~~~~
       Y                                    Y
@@ -1046,7 +1045,7 @@ A   B   C   D <-- remove leaf        A   B   C
 A   B   C <-- remove leaf        A   B
 ~~~~~
 
-Note: in the rest of the protocol, the rightmost leaf will be removed only when it is blank.
+Note that in the rest of the protocol, the rightmost leaf will only be removed when it is blank.
 
 Concrete algorithms for these operations on array-based and link-based trees are
 provided in {{array-based-trees}} and {{link-based-trees}}.  The concrete
@@ -1102,9 +1101,8 @@ The recipient of an UpdatePath processes it with the following steps:
        struct), going from root to leaf, so that each hash incorporates all the
        nodes above it. The root node always has a zero-length hash for this
        value.
-   * For nodes where an updated path secret was computed in step 1,
-     compute the corresponding node key pair and replace the values
-     stored at the node with the computed values.
+   * For nodes where a path secret was recovered in step 1,
+     compute and store the node's updated private key.
 
 For example, in order to communicate the example update described in
 the previous section, the sender would transmit the following
@@ -1112,12 +1110,12 @@ values:
 
 | Public Key    | Ciphertext(s)                                           |
 |:--------------|:--------------------------------------------------------|
-| node_pub\[1\] | E(pk(5), path_secret\[1\]), E(pk(C), path_secret\[1\])  |
+| node_pub\[1\] | E(pk(Z), path_secret\[1\]), E(pk(C), path_secret\[1\])  |
 | node_pub\[0\] | E(pk(A), path_secret\[0\])                              |
 
-In this table, the value pk(ns\[X\]) represents the public key
-derived from the node secret X, whereas pk(X) represents the public leaf key
-for user X.  The value E(K, S) represents
+In this table, the value node_pub\[i\] represents the public key
+derived from node_secret\[i\], pk(X) represents the current public key
+of node X, and E(K, S) represents
 the public-key encryption of the path secret S to the
 public key K (using HPKE).
 
@@ -1258,8 +1256,8 @@ binding. The format of the key in the `public_key` field is defined by the
 relevant ciphersuite: the group ciphersuite for a credential in a ratchet tree,
 the KeyPackage ciphersuite for a credential in a KeyPackage object.
 
-For X509Credential, each entry in the chain represents a single DER-encoded
-X509 certificate. The chain is ordered such that the first entry (chain[0])
+For an X.509 credential, each entry in the chain represents a single DER-encoded
+X.509 certificate. The chain is ordered such that the first entry (chain[0])
 is the end-entity certificate and each subsequent certificate in the chain
 MUST be the issuer of the previous certificate. The algorithm for the
 `public_key` in the end-entity certificate MUST match the relevant
@@ -1280,29 +1278,24 @@ Service.
 
 # Key Packages
 
-In order to facilitate asynchronous addition of clients to a
-group, it is possible to pre-publish key packages that
-provide some public information about a user. KeyPackage
-structures provide information about a client that any existing
-member can use to add this client to the group asynchronously.
+In order to facilitate the asynchronous addition of clients to a
+group, key packages are pre-published that
+provide some public information about a user. A KeyPackage object specifies:
 
-A KeyPackage object specifies a ciphersuite that the client supports, as well as
-providing a public key that others can use for key agreement.
-
-The `identity` arising from the credential, together with the `endpoint_id` in
-the KeyPackage serve to uniquely identify a client in a group.
+1. A protocol version and ciphersuite that the client supports,
+2. a public key that others can use for key agreement,
+3. a credential containing the client's `identity`,
+4. along with an `endpoint_id` that, combined with the client's identity, serve
+   to uniquely identify a client in a group.
 
 When used as InitKeys, KeyPackages are intended to be used only once and SHOULD NOT
 be reused except in case of last resort. (See {{initkey-reuse}}).
 Clients MAY generate and publish multiple InitKeys to
 support multiple ciphersuites.
 
-KeyPackages contain a public key chosen by the client, which the
-client MUST ensure uniquely identifies a given KeyPackage object
-among the set of KeyPackages created by this client.
-
 The value for hpke\_init\_key MUST be a public key for the asymmetric
-encryption scheme defined by cipher\_suite. The whole structure
+encryption scheme defined by cipher\_suite, and it MUST be unique among
+the set of KeyPackages created by this client. The whole structure
 is signed using the client's signature key. A KeyPackage object
 with an invalid signature field MUST be considered malformed.
 
@@ -1349,15 +1342,15 @@ struct {
 KeyPackage objects MUST contain at least two extensions, one of type
 `capabilities`, and one of
 type `lifetime`.  The `capabilities` extension
-allow MLS session establishment to be safe from downgrade attacks on the
+allows MLS session establishment to be safe from downgrade attacks on the
 parameters described (as discussed in {{group-creation}}), while still only advertising
 one version / ciphersuite per KeyPackage.
 
 As the `KeyPackage` is a structure which is stored in the Ratchet
-Tree and updated depending on the evolution of this tree, each
-modification of its content MUST be reflected by a change of its
-signature. This allow other members to control the validity of the KeyPackage
-at any time and in particular in the case of a newcomer joining the group.
+Tree and updated depending on the evolution of the tree, each
+modification of its content MUST be reflected by a change in its
+signature. This allows other members to verify the validity of the KeyPackage
+at any time, particularly in the case of a newcomer joining the group.
 
 ## Client Capabilities
 
@@ -1424,7 +1417,7 @@ Child S)" is obtained by hashing P's `ParentHashInput` struct using the resoluti
 of S to populate the `original_child_resolution` field. This way, P's Parent Hash
 fixes the new HPKE public keys of all nodes on the path from P to the root.
 Furthermore, for each such key PK the hash also binds the set of HPKE public keys
-to which PK's secret key was encrypted in the commit packet that anounced the
+to which PK's secret key was encrypted in the Commit that contained the
 `UpdatePath` object.
 
 ~~~~~
@@ -1518,7 +1511,7 @@ struct {
 ~~~~~
 
 Now the tree hash of any non-leaf node is recursively defined to be the hash of
-its `ParentNodeTreeHashInput`. This includes an optional `ParentNode`
+its `ParentNodeHashInput`. This includes an optional `ParentNode`
 object depending on whether the node is blank or not.
 
 ~~~~~
@@ -1532,7 +1525,7 @@ struct {
     optional<ParentNode> parent_node;
     opaque left_hash<0..255>;
     opaque right_hash<0..255>;
-} ParentNodeTreeHashInput;
+} ParentNodeHashInput;
 ~~~~~
 
 The `left_hash` and `right_hash` fields hold the tree hashes of the node's
@@ -1563,6 +1556,8 @@ The fields in this state have the following semantics:
   group, as described in {{tree-hashes}}.
 * The `confirmed_transcript_hash` field contains a running hash over
   the messages that led to this state.
+* The `extensions` field contains the details of any protocol extensions that
+  apply to the group.
 
 When a new member is added to the group, an existing member of the
 group provides the new member with a Welcome message.  The Welcome
@@ -1573,11 +1568,11 @@ Different changes to the group will have different effects on the group state.
 These effects are described in their respective subsections of {{proposals}}.
 The following general rules apply:
 
-* The `group_id` field is constant
+* The `group_id` and `extensions` fields are constant.
 * The `epoch` field increments by one for each Commit message that
-  is processed
+  is processed.
 * The `tree_hash` is updated to represent the current tree and
-  credentials
+  credentials.
 * The `confirmed_transcript_hash` is updated with the data for an
   MLSPlaintext message encoding a Commit message in two parts:
 
@@ -1610,12 +1605,10 @@ interim_transcript_hash_[n+1] =
 
 Thus the `confirmed_transcript_hash` field in a GroupContext object represents a
 transcript over the whole history of MLSPlaintext Commit messages, up to the
-confirmation tag field in the current MLSPlaintext message.  The confirmation
+confirmation_tag field of the most recent Commit.  The confirmation
 tag is then included in the transcript for the next epoch.  The interim
-transcript hash is computed by new members using the confirmation tag in the
-GroupInfo struct, and enables existing members to incorporate a Commit message
-into the transcript without having to store the whole MLSPlaintextCommitAuthData
-structure.
+transcript hash is computed by new members using the confirmation_tag of the
+GroupInfo struct, while existing members can compute it directly.
 
 As shown above, when a new group is created, the `interim_transcript_hash` field
 is set to the zero-length octet string.
@@ -1665,8 +1658,7 @@ for the group, and the functions `SetupBaseS` and
 `Seal` are defined according to {{!I-D.irtf-cfrg-hpke}}.
 
 Decryption is performed in the corresponding way, using the private
-key of the resolution node and the ephemeral public key
-transmitted in the message.
+key of the resolution node.
 
 # Key Schedule
 
