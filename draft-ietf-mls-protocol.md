@@ -1798,7 +1798,7 @@ proceeds as shown in the following diagram:
     commit_secret -> KDF.Extract
                          |
                          V
-                   ExpandWithLabel(., "joiner", GroupContext_[n], KDF.Nh)
+                 ExpandWithLabel(., "joiner", GroupContext_[n], KDF.Nh)
                          |
                          V
                     joiner_secret
@@ -1810,7 +1810,7 @@ psk_secret (or 0) -> KDF.Extract
                          |    = welcome_secret
                          |
                          V
-                   ExpandWithLabel(., "epoch", GroupContext_[n], KDF.Nh)
+                 ExpandWithLabel(., "epoch", GroupContext_[n], KDF.Nh)
                          |
                          V
                     epoch_secret
@@ -1958,7 +1958,8 @@ struct {
 } PSKLabel;
 
 psk_extracted_[i] = KDF.Extract(0, psk_[i])
-psk_input_[i] = ExpandWithLabel(psk_extracted_[i], "derived psk", PSKLabel, KDF.Nh)
+psk_input_[i] = ExpandWithLabel(psk_extracted_[i], "derived psk", 
+                  PSKLabel, KDF.Nh)
 
 psk_secret_[0] = 0
 psk_secret_[i] = KDF.Extract(psk_input[i-1], psk_secret_[i-1])
@@ -1968,23 +1969,24 @@ psk_secret     = psk_secret[n]
 Here `0` represents the all-zero vector of length `KDF.Nh`. The `index` field in
 `PSKLabel` corresponds to the index of the PSK in the `psk` array, while the
 `count` field contains the total number of PSKs.  In other words, the PSKs are
-chained together with KDF.Extract invocations, as follows:
+chained together with KDF.Extract invocations (labelled "Extract" for brevity 
+in the diagram), as follows:
 
 ~~~~~
-                0                                   0       = psk_secret_[0]
-                |                                   |
-                V                                   V
-psk_[0] --> KDF.Extract --> ExpandWithLabel --> KDF.Extract = psk_secret_[1]
-                                                    |
-                0                                   |
-                |                                   |
-                V                                   V
-psk_[1] --> KDF.Extract --> ExpandWithLabel --> KDF.Extract = psk_secret_[1]
-                                                    |
-                0                                  ...
-                |                                   |
-                V                                   V
-psk_[n] --> KDF.Extract --> ExpandWithLabel --> KDF.Extract = psk_secret_[n]
+               0                               0    = psk_secret_[0]
+               |                               |
+               V                               V
+psk_[0] --> Extract --> ExpandWithLabel --> Extract = psk_secret_[1]
+                                               |
+               0                               |
+               |                               |
+               V                               V
+psk_[1] --> Extract --> ExpandWithLabel --> Extract = psk_secret_[1]
+                                               |
+               0                              ...
+               |                               |
+               V                               V
+psk_[n] --> Extract --> ExpandWithLabel --> Extract = psk_secret_[n]
 ~~~~~
 
 In particular, if there are no PreSharedKey proposals in a given Commit, then
@@ -2469,8 +2471,10 @@ without padding. In pseudocode, the key and nonce are derived as:
 ~~~~~
 ciphertext_sample = ciphertext[0..KDF.Nh-1]
 
-sender_data_key = ExpandWithLabel(sender_data_secret, "key", ciphertext_sample, AEAD.Nk)
-sender_data_nonce = ExpandWithLabel(sender_data_secret, "nonce", ciphertext_sample, AEAD.Nn)
+sender_data_key = ExpandWithLabel(sender_data_secret, "key", 
+                      ciphertext_sample, AEAD.Nk)
+sender_data_nonce = ExpandWithLabel(sender_data_secret, "nonce", 
+                      ciphertext_sample, AEAD.Nn)
 ~~~~~
 
 The Additional Authenticated Data (AAD) for the SenderData ciphertext is all the
