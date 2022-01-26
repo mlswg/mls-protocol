@@ -1164,6 +1164,27 @@ the same as the signature algorithm specified in the credential field of the
 KeyPackage objects in the leaves of the tree (including the InitKeys
 used to add new members).
 
+To disambiguate different signatures used in MLS, each signed value is prefixed
+by a label as shown below:
+
+~~~~~
+SignWithLabel(SignatureKey, Label, Content) =
+    Signature.Sign(SignatureKey, SignContent)
+
+VerifyWithLabel(VerificationKey, Label, Content) =
+    Signature.Verify(VerificationKey, SignContent)
+
+Where SignContent is specified as:
+
+struct {
+    opaque label<9..255> = "MLS 1.0 " + Label;
+    opaque content<0..2^32-1> = Content;
+} SignContent;
+~~~~~
+
+Here, the functions `Signature.Sign` and `Signature.Verify` are defined
+by the signature algorithm.
+
 The ciphersuites are defined in section {{mls-ciphersuites}}.
 
 ## Hash-Based Identifiers
@@ -1284,8 +1305,10 @@ The value for hpke\_init\_key MUST be a public key for the asymmetric
 encryption scheme defined by cipher\_suite. The whole structure
 is signed using the client's signature key. A KeyPackage object
 with an invalid signature field MUST be considered malformed.
-The input to the signature computation comprises all of the fields
-except for the signature field.
+
+The signature is computed by the function `SignWithLabel` with a label
+`KeyPackage` and a content comprising of all of the fields except for the
+signature field.
 
 ~~~~~
 enum {
@@ -1309,8 +1332,18 @@ struct {
     opaque endpoint_id<0..255>;
     Credential credential;
     Extension extensions<8..2^32-1>;
+    // SignWithLabel(., "KeyPackageTBS", KeyPackageTBS)
     opaque signature<0..2^16-1>;
 } KeyPackage;
+
+struct {
+    ProtocolVersion version;
+    CipherSuite cipher_suite;
+    HPKEPublicKey hpke_init_key;
+    opaque endpoint_id<0..255>;
+    Credential credential;
+    Extension extensions<8..2^32-1>;
+} KeyPackageTBS;
 ~~~~~
 
 KeyPackage objects MUST contain at least two extensions, one of type
@@ -2149,8 +2182,11 @@ struct {
           Commit commit;
     }
 
+    // SignWithLabel(., "MLSPlaintextTBS", MLSPlaintextTBS)
     opaque signature<0..2^16-1>;
+    // MAC(confirmation_key, GroupContext.confirmed_transcript_hash)
     optional<MAC> confirmation_tag;
+    // MAC(membership_key, MLSPlaintextTBM);
     optional<MAC> membership_tag;
 } MLSPlaintext;
 
@@ -2197,23 +2233,15 @@ The following sections describe the encryption and signing processes in detail.
 The `signature` field in an MLSPlaintext object is computed using the signing
 private key corresponding to the public key, which was authenticated by the
 credential at the leaf of the tree indicated by the sender field. The signature
-covers the plaintext metadata and message content, which is all of MLSPlaintext
+is computed using `SignWithLabel` with label `"MLSPlaintextTBS"` and with a content
+that covers the plaintext metadata and message content, which is all of MLSPlaintext
 except for the `signature`, the `confirmation_tag` and `membership_tag` fields.
-If the sender is a member of the group, the signature also covers the
+If the sender is a member of the group, the content also covers the
 GroupContext for the current epoch, so that signatures are specific to a given
 group and epoch.
 
 ~~~~~
 struct {
-    select (MLSPlaintextTBS.sender.sender_type) {
-        case member:
-            GroupContext context;
-
-        case preconfigured:
-        case new_member:
-            struct{};
-    }
-
     WireFormat wire_format;
     opaque group_id<0..255>;
     uint64 epoch;
@@ -2230,6 +2258,15 @@ struct {
 
         case commit:
           Commit commit;
+    }
+
+    select (MLSPlaintextTBS.sender.sender_type) {
+        case member:
+        case new_member:
+            GroupContext context;
+
+        case preconfigured:
+            struct{};
     }
 } MLSPlaintextTBS;
 ~~~~~
@@ -2274,7 +2311,9 @@ struct {
           Commit commit;
     }
 
+    // SignWithLabel(., "MLSPlaintextTBS", MLSPlaintextTBS)
     opaque signature<0..2^16-1>;
+    // MAC(confirmation_key, GroupContext.confirmed_transcript_hash)
     optional<MAC> confirmation_tag;
     opaque padding<0..2^16-1>;
 } MLSCiphertextContent;
@@ -3119,6 +3158,7 @@ struct {
     Extension other_extensions<0..2^32-1>;
     MAC confirmation_tag;
     KeyPackageRef signer;
+    // SignWithLabel(., "GroupInfoTBS", GroupInfoTBS)
     opaque signature<0..2^16-1>;
 } GroupInfo;
 ~~~
