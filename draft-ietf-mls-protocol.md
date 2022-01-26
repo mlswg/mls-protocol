@@ -401,10 +401,7 @@ Member:
 Key Package:
 : A signed object describing a client's identity and capabilities, and including
   a hybrid public-key encryption (HPKE {{!I-D.irtf-cfrg-hpke}}) public key that
-  can be used to encrypt to that client.
-
-Initialization Key (InitKey):
-: A key package that is prepublished by a client, which other clients can use to
+  can be used to encrypt to that client, and which other clients can use to
   introduce the client to a new group.
 
 Signature Key:
@@ -562,8 +559,8 @@ committing them all at once.  In the illustrations below, we show the Proposal
 and Commit messages directly, while in reality they would be sent encapsulated in
 MLSPlaintext or MLSCiphertext objects.
 
-Before the initialization of a group, clients publish InitKeys (as KeyPackage
-objects) to a directory provided by the Service Provider.
+Before the initialization of a group, clients publish KeyPackages to a directory 
+provided by the Service Provider.
 
 ~~~~~
                                                                Group
@@ -1159,8 +1156,8 @@ opaque HPKEPublicKey<1..2^16-1>;
 The signature algorithm specified in the ciphersuite is the mandatory algorithm
 to be used for signatures in MLSPlaintext and the tree signatures.  It MUST be
 the same as the signature algorithm specified in the credential field of the
-KeyPackage objects in the leaves of the tree (including the InitKeys
-used to add new members).
+KeyPackage objects in the leaves of the tree (including those used to add new 
+members).
 
 To disambiguate different signatures used in MLS, each signed value is prefixed
 by a label as shown below:
@@ -1292,9 +1289,9 @@ provide some public information about a user. A KeyPackage object specifies:
 4. along with an `endpoint_id` that, combined with the client's identity, serve
    to uniquely identify a client in a group.
 
-When used as InitKeys, KeyPackages are intended to be used only once and SHOULD NOT
-be reused except in case of last resort. (See {{initkey-reuse}}).
-Clients MAY generate and publish multiple InitKeys to
+KeyPackages are intended to be used only once and SHOULD NOT
+be reused except in case of last resort. (See {{keypackage-reuse}}).
+Clients MAY generate and publish multiple KeyPackages to
 support multiple ciphersuites.
 
 The value for hpke\_init\_key MUST be a public key for the asymmetric
@@ -1772,9 +1769,9 @@ the external key pair for the previous epoch.  This is done when an new member
 is joining via an external commit.
 
 In this process, the joiner sends a new `init_secret` value to the group using
-the HPKE export method. The joiner then uses that `init_secret` with information
-provided in the GroupInfo and an external Commit to initialize their copy of the
-key schedule for the new epoch.
+the HPKE export method.  The joiner then uses that `init_secret` with
+information provided in the PublicGroupState and an external Commit to initialize
+their copy of the key schedule for the new epoch.
 
 ~~~~~
 kem_output, context = SetupBaseS(external_pub, "")
@@ -1789,7 +1786,7 @@ context = SetupBaseR(kem_output, external_priv, "")
 init_secret = context.export("MLS 1.0 external init secret", KDF.Nh)
 ~~~~~
 
-In both cases, the `info` input to HPKE is set to the GroupInfo for the
+In both cases, the `info` input to HPKE is set to the PublicGroupState for the
 previous epoch, encoded using the TLS serialization.
 
 ## Pre-Shared Keys
@@ -3860,19 +3857,20 @@ re-derived. Forward secrecy *within* an epoch is provided by deleting message
 encryption keys once they've been used to encrypt or decrypt a message.
 
 Post-compromise security is also provided for new groups by members regularly
-generating new InitKeys and uploading them to the Delivery Service, such that
+generating new KeyPackages and uploading them to the Delivery Service, such that
 compromised key material won't be used when the member is added to a new group.
 
-## InitKey Reuse
+## KeyPackage Reuse
 
-InitKeys are intended to be used only once.  That is, once an InitKey has been
-used to introduce the corresponding client to a group, it SHOULD be deleted from
-the InitKey publication system.  Reuse of InitKeys can lead to replay attacks.
+KeyPackages are intended to be used only once.  That is, once a KeyPackage 
+has been used to introduce the corresponding client to a group, it SHOULD be 
+deleted from the KeyPackage publication system.  Reuse of KeyPackages can lead 
+to replay attacks.
 
-An application MAY allow for reuse of a "last resort" InitKey in order to
-prevent denial of service attacks.  Since an InitKey is needed to add a client
-to a new group, an attacker could prevent a client being added to new groups by
-exhausting all available InitKeys.
+An application MAY allow for reuse of a "last resort" KeyPackage in order to
+prevent denial of service attacks.  Since a KeyPackage is needed to add a 
+client to a new group, an attacker could prevent a client being added to new 
+groups by exhausting all available KeyPackages.
 
 ## Group Fragmentation by Malicious Insiders
 
