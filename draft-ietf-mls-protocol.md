@@ -719,8 +719,8 @@ two children, a _left_ child and a _right_ child. A node is the _root_
 of a tree if it has no parents, and _intermediate_ if it has both
 children and parents. The _descendants_ of a node are that node's
 children, and the descendants of its children, and we say a tree
-_contains_ a node if that node is a descendant of the root of, or the root 
-of, the tree. Nodes are _siblings_ if they share the same parent.
+_contains_ a node if that node is a descendant of the root of the tree,
+or if the node itself is the root of the tree. Nodes are _siblings_ if they share the same parent.
 
 A _subtree_ of a tree is the tree given by any node (the _head_ of the 
 subtree) and its descendants. The _size_ of a tree or subtree is the
