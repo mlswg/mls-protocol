@@ -810,7 +810,7 @@ present are laid out in {{views}}.
 A node in the tree may also be _blank_, indicating that no value is present at
 that node.  The _resolution_ of a node is an ordered list of non-blank nodes
 that collectively cover all non-blank descendants of the node.  The resolution
-of a non-blank node with no unmerged leaves is just the node itself. The resolution
+of a non-blank node with no unmerged leaves is just the node itself. More generally, the resolution
 of a node is effectively a depth-first, left-first enumeration of the nearest
 non-blank nodes below the node:
 
