@@ -3963,7 +3963,9 @@ to replay attacks.
 An application MAY allow for reuse of a "last resort" KeyPackage in order to
 prevent denial of service attacks.  Since a KeyPackage is needed to add a 
 client to a new group, an attacker could prevent a client being added to new 
-groups by exhausting all available KeyPackages.
+groups by exhausting all available KeyPackages. To prevent such a denial of 
+service attack, the KeyPackage publication system SHOULD rate limit KeyPackage
+requests, especially if not authenticated.
 
 ## Group Fragmentation by Malicious Insiders
 
