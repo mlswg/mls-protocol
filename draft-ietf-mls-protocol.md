@@ -2858,8 +2858,9 @@ key with a Credential in any leaf of the group, or indeed if the KeyPackage
 shares the same `hpke_init_key` with another KeyPackage in the group.
 
 The Commit MUST NOT combine proposals sent within different epochs. In the event
-that a valid proposal is omitted from the next Commit, the sender of the
-proposal SHOULD retransmit it in the new epoch.
+that a valid proposal is omitted from the next Commit, and that proposal is
+still valid in the current epoch, the sender of the proposal MAY retransmit
+it.
 
 A member of the group MAY send a Commit that references no proposals at all,
 which would thus have an empty `proposals` vector.  Such
