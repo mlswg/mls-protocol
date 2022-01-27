@@ -1392,6 +1392,39 @@ modification of its content MUST be reflected by a change in its
 signature. This allows other members to verify the validity of the KeyPackage
 at any time, particularly in the case of a newcomer joining the group.
 
+## KeyPackage Validation
+
+The validity of a KeyPackage needs to be verified at a few stages:
+
+* When a KeyPackage is downloaded by a group member, before it is used
+  to add the client to the group
+* When a KeyPackage is received by a group member in an Add, Update, or Commit
+  message
+* When a client joining a group receives KeyPackages for the other members of
+  the group in the group's ratchet tree
+
+The client verifies the validity of a KeyPackage using the following steps:
+
+* Verify that the credential in the KeyPackage is valid according to the
+  authentication service and the client's local policy.
+
+* Verify that the signature on the KeyPackage is valid using the public key
+  in the KeyPackage's credential
+
+* Verify that the KeyPackage is compatible with the group's parameters.  The
+  ciphersuite and protocol version of the KeyPackage must match those in
+  use in the group.  If the GroupContext has a `required_capabilities`
+  extension, then the required extensions and proposals MUST be listed in
+  the KeyPackage's `capabilities` extension.
+
+* Verify that the following fields in the KeyPackage are unique among the
+  members of the group (including any other members added in the same
+  Commit):
+
+    * `credential.signature_key`
+    * `hpke_init_key`
+    * `endpoint_id`
+
 ## Client Capabilities
 
 The `capabilities` extension indicates what protocol versions, ciphersuites,
@@ -2615,8 +2648,8 @@ retrieved by hash (as a ProposalOrRef object) in a later Commit message.
 ### Add
 
 An Add proposal requests that a client with a specified KeyPackage be added
-to the group.  The proposer of the Add MUST validate the KeyPackage in the same
-way as receipients are required to do below.
+to the group.  The proposer of the Add MUST verify the validity of the
+KeyPackage, as specified in {{keypackage-validation}}.
 
 ~~~~~
 struct {
@@ -2631,23 +2664,7 @@ placed in the leftmost empty leaf in the tree, for the second Add, the next
 empty leaf to the right, etc. If no empty leaf exists, the tree is extended to
 the right.
 
-* Validate the KeyPackage:
-
-    * Verify that the signature on the KeyPackage is valid using the public key
-      in the KeyPackage's credential
-
-    * Verify that the following fields in the KeyPackage are unique among the
-      members of the group (including any other members added in the same
-      Commit):
-
-        * `credential.signature_key`
-        * `hpke_init_key`
-
-    * Verify that the KeyPackage is compatible with the group's parameters.  The
-      ciphersuite and protocol version of the KeyPackage must match those in
-      use in the group.  If the GroupContext has a `required_capabilities`
-      extension, then the required extensions and proposals MUST be listed in
-      the KeyPackage's `capabilities` extension.
+* Validate the KeyPackage as specified in {{keypackage-validation}}
 
 * Identify the leaf L for the new member: if there are empty leaves in the tree,
   L is the leftmost empty leaf.  Otherwise, the tree is extended to the right
@@ -2674,32 +2691,19 @@ struct {
 
 A member of the group applies an Update message by taking the following steps:
 
-* Validate the KeyPackage:
+* Validate the KeyPackage as specified in {{keypackage-validation}}
 
-    * Verify that the signature on the KeyPackage is valid using the public key
-      in the KeyPackage's credential
+* Verify that the following fields in the new KeyPackage are the same as the
+  one being replaced:
 
-    * Verify that the KeyPackage's credential is valid according to the
-      Authentication Service
+    * `version`
+    * `cipher_suite`
 
-    * Verify that the following fields in the KeyPackage are unique among the
-      members of the group (including any other members added in the same
-      Commit):
+* Verify that the `hpke_init_key` value is different from the corresponding
+  field in the KeyPackage being replaced.
 
-        * `credential.signature_key`
-        * `hpke_init_key`
-
-    * Verify that the following fields in the new KeyPackage are the same as the
-      one being replaced:
-
-        * `version`
-        * `cipher_suite`
-
-    * Verify that the `hpke_init_key` value is different from the corresponding
-      field in the KeyPackage being replaced.
-
-    * Verify that the set of identities attested by the credential is acceptable
-      to the application for the participant being updated.
+* Verify that the set of identities attested by the credential is acceptable
+  to the application for the participant being updated.
 
 * Replace the sender's leaf KeyPackage with the one contained in
   the Update proposal
