@@ -218,7 +218,7 @@ draft-10
 
 - Clarify X509Credential structure (\*)
 
-- Remove uneeded interim transcript hash from GroupInfo (\*)
+- Remove unneeded interim transcript hash from GroupInfo (\*)
 
 - IANA considerations
 
@@ -450,7 +450,7 @@ protocol, and continuous group AKE in the sense that the set of participants in
 the protocol can change over time.
 
 The core organizing principles of MLS are _groups_ and _epochs_.  A group
-represents a logical collection of clents that share a common secret value at
+represents a logical collection of clients that share a common secret value at
 any given time.  The history of a group is divided into a linear sequence of
 epochs.  In each epoch, a set of authenticated _members_ agree on an _epoch
 secret_ that is known only to the members of the group in that epoch.  The set
@@ -512,7 +512,7 @@ There are two types of cryptographic state at the core of MLS:
   subsets of the group.  Each epoch has a distinct ratchet tree.
 
 Each member of the group maintains a view of these two facets of the group's
-state.  MLS messages are used to intialize these views and keep them in sync as
+state.  MLS messages are used to initialize these views and keep them in sync as
 the group transitions between epochs.
 
 Each new epoch is initiated with a Commit message.  The Commit instructs
@@ -2474,7 +2474,7 @@ all members of the group.  For new members, it is enforced by existing members d
 application of Add commits.  Existing members should of course be in compliance
 already.  In order to ensure this continues to be the case even as the group's
 extensions can be updated, a GroupContextExtensions proposal is invalid if it
-contains a `required_capabilities` extension that requires capabililities not
+contains a `required_capabilities` extension that requires capabilities not
 supported by all current members.
 
 ## Reinitialization
@@ -2580,7 +2580,7 @@ retrieved by hash (as a ProposalOrRef object) in a later Commit message.
 
 An Add proposal requests that a client with a specified KeyPackage be added
 to the group.  The proposer of the Add MUST validate the KeyPackage in the same
-way as receipients are required to do below.
+way as recipients are required to do below.
 
 ~~~~~
 struct {
@@ -2728,7 +2728,7 @@ in the ReInit proposal MUST be no less than the version for the current group.
 ### ExternalInit
 
 An ExternalInit proposal is used by new members that want to join a group by
-using an external commit. This propsal can only be used in that context.
+using an external commit. This proposal can only be used in that context.
 
 ~~~~
 struct {
@@ -2792,7 +2792,7 @@ An application using AppAck proposals to guard against loss/suppression of
 application messages also needs to ensure that AppAck messages and the Commits
 that reference them are not dropped.  One way to do this is to always encrypt
 Proposal and Commit messages, to make it more difficult for the Delivery Service
-to recognize which messages conatain AppAcks.  The application can also have
+to recognize which messages contain AppAcks.  The application can also have
 clients enforce an AppAck schedule, reporting loss if an AppAck is not received
 at the expected time.
 
@@ -2915,7 +2915,7 @@ containing KeyPackages with the same tuple `(credential.identity, endpoint_id)`
 the committer again chooses one to include and considers the rest invalid. Add
 proposals that contain KeyPackages with an `(credential.identity, endpoint_id)`
 tuple that matches that of an existing KeyPackage in the group MUST be
-considered invalid. The comitter MUST consider invalid any Add or Update
+considered invalid. The committer MUST consider invalid any Add or Update
 proposal if the Credential in the contained KeyPackage shares the same signature
 key with a Credential in any leaf of the group, or indeed if the KeyPackage
 shares the same `hpke_init_key` with another KeyPackage in the group.
@@ -3011,7 +3011,7 @@ message at the same time, by taking the following steps:
 
 * If populating the `path` field: Create an UpdatePath using the provisional
   ratchet tree and GroupContext. Any new member (from an add proposal) MUST be
-  exluded from the resolution during the computation of the UpdatePath.  The
+  excluded from the resolution during the computation of the UpdatePath.  The
   `leaf_key_package` for this UpdatePath must have a `parent_hash` extension.
   Note that the KeyPackage in the `UpdatePath` effectively updates an existing
   KeyPackage in the group and thus MUST adhere to the same restrictions as
