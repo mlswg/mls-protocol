@@ -509,8 +509,11 @@ There are two types of cryptographic state at the core of MLS:
 * A _ratchet tree_ that represents the membership of the group, providing group
   members a way to authenticate each other and efficiently encrypt messages to
   subsets of the group.  Each epoch has a distinct ratchet tree.
+* A _secret tree_ derived from the key schedule that represents shared secrets
+  used by the members of the group to provide confidentiality and forward
+  secrecy for MLS messages.  Each epoch has a distinct secret tree.
 
-Each member of the group maintains a view of these two facets of the group's
+Each member of the group maintains a view of these facets of the group's
 state.  MLS messages are used to initialize these views and keep them in sync as
 the group transitions between epochs.
 
@@ -532,9 +535,8 @@ In addition to defining how one epoch secret leads to the next, the key schedule
 also defines a collection of secrets that are derived from the epoch secret.
 For example:
 
-* An _encryption secret_ that is used to initialize a _secret tree_, which
-  provides keys for encrypting handshake and application messages and providing
-  forward secrecy for these messages within an epoch.
+* An _encryption secret_ that is used to initialize the secret tree for the
+  epoch.
 
 * A _confirmation key_ that is used to confirm that all members agree on the
   shared state of the group.
