@@ -2679,6 +2679,9 @@ A member of the group applies an Update message by taking the following steps:
     * Verify that the signature on the KeyPackage is valid using the public key
       in the KeyPackage's credential
 
+    * Verify that the KeyPackage's credential is valid according to the
+      Authentication Service
+
     * Verify that the following fields in the KeyPackage are unique among the
       members of the group (including any other members added in the same
       Commit):
@@ -3162,6 +3165,9 @@ A member of the group applies a Commit message by taking the following steps:
 * If the `path` value is populated: Process the `path` value using the
   provisional ratchet tree and GroupContext, to generate the new ratchet tree
   and the `commit_secret`:
+
+  * Verify that the KeyPackage is acceptable according to the rules for Update
+    (see {{update}})
 
   * Apply the UpdatePath to the tree, as described in
     {{synchronizing-views-of-the-tree}}, and store `leaf_key_package` at the
