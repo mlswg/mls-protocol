@@ -2833,7 +2833,7 @@ a Commit message before sending application data. This ensures, for example,
 that any members whose removal was proposed during the epoch are actually
 removed before any application data is transmitted.
 
-The sender of a Commit SHOULD include all valid proposals that it has received
+The sender of a Commit MUST include all valid proposals that it has received
 during the current epoch. Invalid proposals include, for example, proposals with
 an invalid signature or proposals that are semantically invalid, such as an Add
 when the sender does not have the application-level permission to add new users.
@@ -2857,10 +2857,12 @@ proposal if the Credential in the contained KeyPackage shares the same signature
 key with a Credential in any leaf of the group, or indeed if the KeyPackage
 shares the same `hpke_init_key` with another KeyPackage in the group.
 
-The Commit MUST NOT combine proposals sent within different epochs. In the event
-that a valid proposal is omitted from the next Commit, and that proposal is
-still valid in the current epoch, the sender of the proposal MAY retransmit
-it.
+The Commit MUST NOT combine proposals sent within different epochs. Due to the
+asynchronous nature of proposals, receivers of a Commit SHOULD NOT enforce that
+all valid proposals sent within the current epoch are referenced by the next
+Commit. In the event that a valid proposal is omitted from the next Commit, and
+that proposal is still valid in the current epoch, the sender of the proposal
+MAY retransmit it.
 
 A member of the group MAY send a Commit that references no proposals at all,
 which would thus have an empty `proposals` vector.  Such
