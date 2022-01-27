@@ -218,7 +218,7 @@ draft-10
 
 - Clarify X509Credential structure (\*)
 
-- Remove uneeded interim transcript hash from GroupInfo (\*)
+- Remove unneeded interim transcript hash from GroupInfo (\*)
 
 - IANA considerations
 
@@ -388,7 +388,9 @@ Client:
   cryptographic keys it holds.
 
 Group:
-: A linear sequence of epochs in which each epoch depends on its predecessor.
+: A group represents a logical collection of clents that share a common
+  secret value at any given time.  Its state is represented as a linear 
+  sequence of epochs in which each epoch depends on its predecessor.
 
 Epoch:
 : A state of a group in which a specific set of authenticated clients hold
@@ -401,10 +403,7 @@ Member:
 Key Package:
 : A signed object describing a client's identity and capabilities, and including
   a hybrid public-key encryption (HPKE {{!I-D.irtf-cfrg-hpke}}) public key that
-  can be used to encrypt to that client.
-
-Initialization Key (InitKey):
-: A key package that is prepublished by a client, which other clients can use to
+  can be used to encrypt to that client, and which other clients can use to
   introduce the client to a new group.
 
 Signature Key:
@@ -450,7 +449,7 @@ protocol, and continuous group AKE in the sense that the set of participants in
 the protocol can change over time.
 
 The core organizing principles of MLS are _groups_ and _epochs_.  A group
-represents a logical collection of clents that share a common secret value at
+represents a logical collection of clients that share a common secret value at
 any given time.  The history of a group is divided into a linear sequence of
 epochs.  In each epoch, a set of authenticated _members_ agree on an _epoch
 secret_ that is known only to the members of the group in that epoch.  The set
@@ -512,7 +511,7 @@ There are two types of cryptographic state at the core of MLS:
   subsets of the group.  Each epoch has a distinct ratchet tree.
 
 Each member of the group maintains a view of these two facets of the group's
-state.  MLS messages are used to intialize these views and keep them in sync as
+state.  MLS messages are used to initialize these views and keep them in sync as
 the group transitions between epochs.
 
 Each new epoch is initiated with a Commit message.  The Commit instructs
@@ -562,8 +561,8 @@ committing them all at once.  In the illustrations below, we show the Proposal
 and Commit messages directly, while in reality they would be sent encapsulated in
 MLSPlaintext or MLSCiphertext objects.
 
-Before the initialization of a group, clients publish InitKeys (as KeyPackage
-objects) to a directory provided by the Service Provider.
+Before the initialization of a group, clients publish KeyPackages to a directory 
+provided by the Service Provider.
 
 ~~~~~
                                                                Group
@@ -691,6 +690,90 @@ A              B     ...      Z          Directory       Channel
 ~~~~~
 {: title="Client Z removes client B from the group"}
 
+## Relationships Between Epochs
+
+A group comprises a single linear sequence of epochs and groups are generally
+independent of one-another. However, it can sometimes be useful to link epochs
+cryptographically, either within a group or across groups. MLS derives a
+resumption pre-shared key (PSK) from each epoch to allow entropy extracted from
+one epoch to be injected into a future epoch. This link guarantees that members
+entering the new epoch agree on a key if and only if were members of the group
+during the epoch from which the resumption key was extracted.
+
+MLS supports two ways to tie a new group to an existing group. Re-initialization
+closes one group and creates a new group comprising the same members with
+different parameters. Branching starts a new group with a subset of the original
+group's participants (with no effect on the original group).  In both cases,
+the new group is linked to the old group via a resumption PSK.
+
+~~~~~
+epoch_A_[n-1]
+     |
+     |
+     |<-- ReInit
+     |
+     V
+epoch_A_[n]           epoch_B_[0]
+     .                     |
+     .  PSK(usage=reinit)  |
+     .....................>|
+                           |
+                           V
+                      epoch_B_[1]
+~~~~~
+{: title="Reinitializing a group" }
+
+
+~~~~~
+epoch_A_[n-1]
+     |
+     |
+     |<-- ReInit
+     |
+     V
+epoch_A_[n]           epoch_B_[0]
+     |                     |
+     |  PSK(usage=branch)  |
+     |....................>|
+     |                     |
+     V                     V
+epoch_A_[n+1]         epoch_B_[1]
+~~~~~
+{: title="Branching a group" }
+
+Applications may also choose to use resumption PSKs to link epochs in other
+ways.  For example, the following figure shows a case where a resumption PSK
+from epoch `n` is injected into epoch `n+k`.  This demonstrates that the members
+of the group at epoch `n+k` were also members at epoch `n`, irrespective of any
+changes to these members' keys due to Updates or Commits.
+
+~~~~~
+epoch_A_[n-1]
+     |
+     |
+     |<-- ReInit
+     |
+     V
+epoch_A_[n]
+     |
+     |  PSK(usage=application)
+     |.....................
+     |                    .
+     |                    .
+    ...                  ...
+     |                    .
+     |                    .
+     V                    .
+epoch_A_[n+k-1]           .
+     |                    .
+     |                    .
+     |<....................
+     |
+     V
+epoch_A_[n+k]
+~~~~~
+{: title="Reinjecting entropy from an earlier epoch" }
+
 # Ratchet Trees
 
 The protocol uses "ratchet trees" for deriving shared secrets among a group of
@@ -717,13 +800,13 @@ _leaf_ if it has no children, and a _parent_ otherwise; note that all
 parents in our trees have precisely
 two children, a _left_ child and a _right_ child. A node is the _root_
 of a tree if it has no parents, and _intermediate_ if it has both
-children and parents. The _descendants_ of a node are that node, its
+children and parents. The _descendants_ of a node are that node's
 children, and the descendants of its children, and we say a tree
-_contains_ a node if that node is a descendant of the root of the
-tree. Nodes are _siblings_ if they share the same parent.
+_contains_ a node if that node is a descendant of the root of the tree,
+or if the node itself is the root of the tree. Nodes are _siblings_ if they share the same parent.
 
-A _subtree_ of a tree is the tree given by the descendants of any
-node, the _head_ of the subtree. The _size_ of a tree or subtree is the
+A _subtree_ of a tree is the tree given by any node (the _head_ of the 
+subtree) and its descendants. The _size_ of a tree or subtree is the
 number of leaf nodes it contains.  For a given parent node, its _left
 subtree_ is the subtree with its left child as head (respectively
 _right subtree_).
@@ -810,6 +893,7 @@ present are laid out in {{views}}.
 A node in the tree may also be _blank_, indicating that no value is present at
 that node.  The _resolution_ of a node is an ordered list of non-blank nodes
 that collectively cover all non-blank descendants of the node.  The resolution
+of a non-blank node with no unmerged leaves is just the node itself. More generally, the resolution
 of a node is effectively a depth-first, left-first enumeration of the nearest
 non-blank nodes below the node:
 
@@ -862,8 +946,7 @@ In particular, MLS maintains the members' views of the tree in such
 a way as to maintain the _tree invariant_:
 
     The private key for a node in the tree is known to a member of
-    the group only if that member's leaf is a descendant of
-    the node.
+    the group only if the node's subtree contains that member's leaf.
 
 In other words, if a node is not blank, then it holds a public key.
 The corresponding private key is known only to members occupying
@@ -1159,8 +1242,8 @@ opaque HPKEPublicKey<1..2^16-1>;
 The signature algorithm specified in the ciphersuite is the mandatory algorithm
 to be used for signatures in MLSPlaintext and the tree signatures.  It MUST be
 the same as the signature algorithm specified in the credential field of the
-KeyPackage objects in the leaves of the tree (including the InitKeys
-used to add new members).
+KeyPackage objects in the leaves of the tree (including those used to add new 
+members).
 
 To disambiguate different signatures used in MLS, each signed value is prefixed
 by a label as shown below:
@@ -1292,9 +1375,9 @@ provide some public information about a user. A KeyPackage object specifies:
 4. along with an `endpoint_id` that, combined with the client's identity, serve
    to uniquely identify a client in a group.
 
-When used as InitKeys, KeyPackages are intended to be used only once and SHOULD NOT
-be reused except in case of last resort. (See {{initkey-reuse}}).
-Clients MAY generate and publish multiple InitKeys to
+KeyPackages are intended to be used only once and SHOULD NOT
+be reused except in case of last resort. (See {{keypackage-reuse}}).
+Clients MAY generate and publish multiple KeyPackages to
 support multiple ciphersuites.
 
 The value for hpke\_init\_key MUST be a public key for the asymmetric
@@ -1714,7 +1797,7 @@ proceeds as shown in the following diagram:
     commit_secret -> KDF.Extract
                          |
                          V
-                   ExpandWithLabel(., "joiner", GroupContext_[n], KDF.Nh)
+                 ExpandWithLabel(., "joiner", GroupContext_[n], KDF.Nh)
                          |
                          V
                     joiner_secret
@@ -1726,7 +1809,7 @@ psk_secret (or 0) -> KDF.Extract
                          |    = welcome_secret
                          |
                          V
-                   ExpandWithLabel(., "epoch", GroupContext_[n], KDF.Nh)
+                 ExpandWithLabel(., "epoch", GroupContext_[n], KDF.Nh)
                          |
                          V
                     epoch_secret
@@ -1772,9 +1855,9 @@ the external key pair for the previous epoch.  This is done when an new member
 is joining via an external commit.
 
 In this process, the joiner sends a new `init_secret` value to the group using
-the HPKE export method. The joiner then uses that `init_secret` with information
-provided in the GroupInfo and an external Commit to initialize their copy of the
-key schedule for the new epoch.
+the HPKE export method.  The joiner then uses that `init_secret` with
+information provided in the PublicGroupState and an external Commit to initialize
+their copy of the key schedule for the new epoch.
 
 ~~~~~
 kem_output, context = SetupBaseS(external_pub, "")
@@ -1789,7 +1872,7 @@ context = SetupBaseR(kem_output, external_priv, "")
 init_secret = context.export("MLS 1.0 external init secret", KDF.Nh)
 ~~~~~
 
-In both cases, the `info` input to HPKE is set to the GroupInfo for the
+In both cases, the `info` input to HPKE is set to the PublicGroupState for the
 previous epoch, encoded using the TLS serialization.
 
 ## Pre-Shared Keys
@@ -1874,7 +1957,8 @@ struct {
 } PSKLabel;
 
 psk_extracted_[i] = KDF.Extract(0, psk_[i])
-psk_input_[i] = ExpandWithLabel(psk_extracted_[i], "derived psk", PSKLabel, KDF.Nh)
+psk_input_[i] = ExpandWithLabel(psk_extracted_[i], "derived psk", 
+                  PSKLabel, KDF.Nh)
 
 psk_secret_[0] = 0
 psk_secret_[i] = KDF.Extract(psk_input[i-1], psk_secret_[i-1])
@@ -1884,23 +1968,24 @@ psk_secret     = psk_secret[n]
 Here `0` represents the all-zero vector of length `KDF.Nh`. The `index` field in
 `PSKLabel` corresponds to the index of the PSK in the `psk` array, while the
 `count` field contains the total number of PSKs.  In other words, the PSKs are
-chained together with KDF.Extract invocations, as follows:
+chained together with KDF.Extract invocations (labelled "Extract" for brevity 
+in the diagram), as follows:
 
 ~~~~~
-                0                                   0       = psk_secret_[0]
-                |                                   |
-                V                                   V
-psk_[0] --> KDF.Extract --> ExpandWithLabel --> KDF.Extract = psk_secret_[1]
-                                                    |
-                0                                   |
-                |                                   |
-                V                                   V
-psk_[1] --> KDF.Extract --> ExpandWithLabel --> KDF.Extract = psk_secret_[1]
-                                                    |
-                0                                  ...
-                |                                   |
-                V                                   V
-psk_[n] --> KDF.Extract --> ExpandWithLabel --> KDF.Extract = psk_secret_[n]
+               0                               0    = psk_secret_[0]
+               |                               |
+               V                               V
+psk_[0] --> Extract --> ExpandWithLabel --> Extract = psk_secret_[1]
+                                               |
+               0                               |
+               |                               |
+               V                               V
+psk_[1] --> Extract --> ExpandWithLabel --> Extract = psk_secret_[1]
+                                               |
+               0                              ...
+               |                               |
+               V                               V
+psk_[n] --> Extract --> ExpandWithLabel --> Extract = psk_secret_[n]
 ~~~~~
 
 In particular, if there are no PreSharedKey proposals in a given Commit, then
@@ -2385,8 +2470,10 @@ without padding. In pseudocode, the key and nonce are derived as:
 ~~~~~
 ciphertext_sample = ciphertext[0..KDF.Nh-1]
 
-sender_data_key = ExpandWithLabel(sender_data_secret, "key", ciphertext_sample, AEAD.Nk)
-sender_data_nonce = ExpandWithLabel(sender_data_secret, "nonce", ciphertext_sample, AEAD.Nn)
+sender_data_key = ExpandWithLabel(sender_data_secret, "key", 
+                      ciphertext_sample, AEAD.Nk)
+sender_data_nonce = ExpandWithLabel(sender_data_secret, "nonce", 
+                      ciphertext_sample, AEAD.Nn)
 ~~~~~
 
 The Additional Authenticated Data (AAD) for the SenderData ciphertext is all the
@@ -2474,7 +2561,7 @@ all members of the group.  For new members, it is enforced by existing members d
 application of Add commits.  Existing members should of course be in compliance
 already.  In order to ensure this continues to be the case even as the group's
 extensions can be updated, a GroupContextExtensions proposal is invalid if it
-contains a `required_capabilities` extension that requires capabililities not
+contains a `required_capabilities` extension that requires capabilities not
 supported by all current members.
 
 ## Reinitialization
@@ -2580,7 +2667,7 @@ retrieved by hash (as a ProposalOrRef object) in a later Commit message.
 
 An Add proposal requests that a client with a specified KeyPackage be added
 to the group.  The proposer of the Add MUST validate the KeyPackage in the same
-way as receipients are required to do below.
+way as recipients are required to do below.
 
 ~~~~~
 struct {
@@ -2728,7 +2815,7 @@ in the ReInit proposal MUST be no less than the version for the current group.
 ### ExternalInit
 
 An ExternalInit proposal is used by new members that want to join a group by
-using an external commit. This propsal can only be used in that context.
+using an external commit. This proposal can only be used in that context.
 
 ~~~~
 struct {
@@ -2792,7 +2879,7 @@ An application using AppAck proposals to guard against loss/suppression of
 application messages also needs to ensure that AppAck messages and the Commits
 that reference them are not dropped.  One way to do this is to always encrypt
 Proposal and Commit messages, to make it more difficult for the Delivery Service
-to recognize which messages conatain AppAcks.  The application can also have
+to recognize which messages contain AppAcks.  The application can also have
 clients enforce an AppAck schedule, reporting loss if an AppAck is not received
 at the expected time.
 
@@ -2915,14 +3002,17 @@ containing KeyPackages with the same tuple `(credential.identity, endpoint_id)`
 the committer again chooses one to include and considers the rest invalid. Add
 proposals that contain KeyPackages with an `(credential.identity, endpoint_id)`
 tuple that matches that of an existing KeyPackage in the group MUST be
-considered invalid. The comitter MUST consider invalid any Add or Update
+considered invalid. The committer MUST consider invalid any Add or Update
 proposal if the Credential in the contained KeyPackage shares the same signature
 key with a Credential in any leaf of the group, or indeed if the KeyPackage
 shares the same `hpke_init_key` with another KeyPackage in the group.
 
-The Commit MUST NOT combine proposals sent within different epochs. In the event
-that a valid proposal is omitted from the next Commit, the sender of the
-proposal SHOULD retransmit it in the new epoch.
+The Commit MUST NOT combine proposals sent within different epochs. Due to the
+asynchronous nature of proposals, receivers of a Commit SHOULD NOT enforce that
+all valid proposals sent within the current epoch are referenced by the next
+Commit. In the event that a valid proposal is omitted from the next Commit, and
+that proposal is still valid in the current epoch, the sender of the proposal
+MAY retransmit it.
 
 A member of the group MAY send a Commit that references no proposals at all,
 which would thus have an empty `proposals` vector.  Such
@@ -3011,7 +3101,7 @@ message at the same time, by taking the following steps:
 
 * If populating the `path` field: Create an UpdatePath using the provisional
   ratchet tree and GroupContext. Any new member (from an add proposal) MUST be
-  exluded from the resolution during the computation of the UpdatePath.  The
+  excluded from the resolution during the computation of the UpdatePath.  The
   `leaf_key_package` for this UpdatePath must have a `parent_hash` extension.
   Note that the KeyPackage in the `UpdatePath` effectively updates an existing
   KeyPackage in the group and thus MUST adhere to the same restrictions as
@@ -3860,19 +3950,20 @@ re-derived. Forward secrecy *within* an epoch is provided by deleting message
 encryption keys once they've been used to encrypt or decrypt a message.
 
 Post-compromise security is also provided for new groups by members regularly
-generating new InitKeys and uploading them to the Delivery Service, such that
+generating new KeyPackages and uploading them to the Delivery Service, such that
 compromised key material won't be used when the member is added to a new group.
 
-## InitKey Reuse
+## KeyPackage Reuse
 
-InitKeys are intended to be used only once.  That is, once an InitKey has been
-used to introduce the corresponding client to a group, it SHOULD be deleted from
-the InitKey publication system.  Reuse of InitKeys can lead to replay attacks.
+KeyPackages are intended to be used only once.  That is, once a KeyPackage 
+has been used to introduce the corresponding client to a group, it SHOULD be 
+deleted from the KeyPackage publication system.  Reuse of KeyPackages can lead 
+to replay attacks.
 
-An application MAY allow for reuse of a "last resort" InitKey in order to
-prevent denial of service attacks.  Since an InitKey is needed to add a client
-to a new group, an attacker could prevent a client being added to new groups by
-groups by exhausting all available KeyPackages.  To prevent such a denial of 
+An application MAY allow for reuse of a "last resort" KeyPackage in order to
+prevent denial of service attacks.  Since a KeyPackage is needed to add a 
+client to a new group, an attacker could prevent a client being added to new 
+groups by exhausting all available KeyPackages. To prevent such a denial of 
 service attack, the KeyPackage publication system SHOULD rate limit KeyPackage
 requests, especially if not authenticated.
 
