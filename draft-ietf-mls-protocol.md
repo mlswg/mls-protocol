@@ -458,23 +458,6 @@ ensures that only the members in the current epoch have access to the epoch
 secret.  From the epoch secret, members derive further shared secrets for
 message encryption, group membership authentication, etc.
 
-~~~~~
-                           epoch_secret
-                                |
-|\ Ratchet                      |                            Secret /|
-| \ Tree                        |                             Tree / |
-|  \                            |                                 /  |
-|   \                           V                                /   |
-|    --> commit_secret --> epoch_secret --> encryption_secret -->    |
-|   /                           |                                \   |
-|  /                            |                                 \  |
-| /                             |                                  \ |
-|/                              |                                   \|
-                                V
-                           epoch_secret
-~~~~~
-{: title="Overview of MLS group evolution"}
-
 The creator of an MLS group creates the group's first epoch unilaterally, with
 no protocol interactions.  Thereafter, the members of the group advance their
 shared cryptographic state from one epoch to another by exchanging MLS messages:
@@ -502,13 +485,33 @@ both Proposal/Commit messages as well as any application data.
 
 ## Cryptographic State and Evolution
 
-There are two types of cryptographic state at the core of MLS:
+The cryptographic state at the core of MLS is divided into three areas of responsibility:
 
-* A _key schedule_ that represents the shared secret state of the group and its
-  evolution from one epoch to the next.
+~~~~~
+                           epoch_secret
+                         _      |      _
+|\ Ratchet              /      ...      \                    Secret /|
+| \ Tree                :       |       :                     Tree / |
+|  \                    :       |       :                         /  |
+|   \                   :       V       :                        /   |
+|    --> commit_secret --> epoch_secret --> encryption_secret -->    |
+|   /                   :       |       :                        \   |
+|  /                    :      ...      > Key Schedule            \  |
+| /                     :       |       :                          \ |
+|/                      \_      |      _/                           \|
+                                V      
+                           epoch_secret
+~~~~~
+{: title="Overview of MLS group evolution"}
+
 * A _ratchet tree_ that represents the membership of the group, providing group
   members a way to authenticate each other and efficiently encrypt messages to
-  subsets of the group.  Each epoch has a distinct ratchet tree.
+  subsets of the group.  Each epoch has a distinct ratchet tree. It seeds the 
+  _key schedule_.
+* A _key schedule_ that describes the chain of key derivations used to progress from 
+  epoch to epoch (mainly using the _init_secret_ and _epoch_secret_); and to derive 
+  a variety of other secrets (see {{epoch-derived-secrets}}) used during the current
+  epoch. One of these (the _encryption_secret_) is the root of _secret_tree_.
 * A _secret tree_ derived from the key schedule that represents shared secrets
   used by the members of the group to provide confidentiality and forward
   secrecy for MLS messages.  Each epoch has a distinct secret tree.
@@ -1838,6 +1841,7 @@ A number of secrets are derived from the epoch secret for different purposes:
 | `confirmation_key`      | "confirm"       |
 | `membership_key`        | "membership"    |
 | `resumption_secret`     | "resumption"    |
+{: title="Epoch-derived secrets" #epoch-derived-secrets}
 
 The "external secret" is used to derive an HPKE key pair whose private key is
 held by the entire group:
