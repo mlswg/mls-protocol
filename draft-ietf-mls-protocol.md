@@ -417,7 +417,7 @@ Application Message:
 : An MLSCiphertext message carrying application data.
 
 Terminology specific to tree computations is described in
-{{ratchet-trees}}.
+{{ratchet-tree-terminology}}.
 
 We use the TLS presentation language {{!RFC8446}} to
 describe the structure of protocol messages.
@@ -499,17 +499,17 @@ The cryptographic state at the core of MLS is divided into three areas of respon
 |  /                    :      ...      > Key Schedule            \  |
 | /                     :       |       :                          \ |
 |/                      \_      |      _/                           \|
-                                V      
+                                V
                            epoch_secret
 ~~~~~
 {: title="Overview of MLS group evolution"}
 
 * A _ratchet tree_ that represents the membership of the group, providing group
   members a way to authenticate each other and efficiently encrypt messages to
-  subsets of the group.  Each epoch has a distinct ratchet tree. It seeds the 
+  subsets of the group.  Each epoch has a distinct ratchet tree. It seeds the
   _key schedule_.
-* A _key schedule_ that describes the chain of key derivations used to progress from 
-  epoch to epoch (mainly using the _init_secret_ and _epoch_secret_); and to derive 
+* A _key schedule_ that describes the chain of key derivations used to progress from
+  epoch to epoch (mainly using the _init_secret_ and _epoch_secret_); and to derive
   a variety of other secrets (see {{epoch-derived-secrets}}) used during the current
   epoch. One of these (the _encryption_secret_) is the root of _secret_tree_.
 * A _secret tree_ derived from the key schedule that represents shared secrets
@@ -779,7 +779,7 @@ epoch_A_[n+k]
 ~~~~~
 {: title="Reinjecting entropy from an earlier epoch" }
 
-# Ratchet Trees
+## Ratchet Tree Concepts
 
 The protocol uses "ratchet trees" for deriving shared secrets among a group of
 clients.  A ratchet tree is an arrangement of secrets and key pairs among the
@@ -798,7 +798,7 @@ post-compromise security.  In an Update proposal or a full Commit message, an ol
 compromised) representation of a member is efficiently removed from the group and
 replaced with a freshly generated instance.
 
-## Tree Computation Terminology
+### Ratchet Tree Terminology
 
 Trees consist of _nodes_. A node is a
 _leaf_ if it has no children, and a _parent_ otherwise; note that all
@@ -872,7 +872,7 @@ MLS places no requirements on implementations' internal representations
 of ratchet trees.  An implementation MAY use any tree representation and
 associated algorithms, as long as they produce correct protocol messages.
 
-## Ratchet Tree Nodes {#resolution-example}
+### Ratchet Tree Nodes {#resolution-example}
 
 A particular instance of a ratchet tree is defined by the same parameters that
 define an instance of HPKE, namely:
@@ -935,7 +935,7 @@ a corresponding _hash_ that summarizes the contents of the subtree
 below that node.  The rules for computing these hashes are described
 in {{tree-hashes}}.
 
-## Views of a Ratchet Tree {#views}
+### Views of a Ratchet Tree {#views}
 
 We generally assume that each participant maintains a complete and
 up-to-date view of the public state of the group's ratchet tree,
@@ -994,6 +994,15 @@ A   ?   ?   ?     ?   B   ?   ?     ?   ?   C   ?     ?   ?   ?   D
 
 Note how the tree invariant applies: Each member knows only their own leaf, and
 the private key AB is known only to A and B.
+
+# Ratchet Tree Operations
+
+The ratchet tree for an epoch describes the membership of a group in that epoch,
+providing public-key encryption keys that can be used to encrypt to subsets of
+the group as well as information to authenticate the members.  In order to
+reflect changes to the membership of the group from one epoch to the next,
+corresponding changes are made to the ratchet tree.  In this section, we
+describe the content of the tree and the required operations.
 
 ## Ratchet Tree Evolution
 
@@ -3670,7 +3679,7 @@ simplify decoding this extension into other representations.)
 described in {{array-based-trees}}.  The algorithms in that section may be used to
 simplify decoding this extension into other representations.)
 
-The example tree in {{tree-computation-terminology}} would be represented as an
+The example tree in {{ratchet-tree-terminology}} would be represented as an
 array of nodes in the following form, where R represents the "subtree root" for
 a given subarray of the node array:
 
