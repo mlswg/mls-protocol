@@ -417,7 +417,7 @@ Application Message:
 : An MLSCiphertext message carrying application data.
 
 Terminology specific to tree computations is described in
-{{ratchet-trees}}.
+{{ratchet-tree-terminology}}.
 
 We use the TLS presentation language {{!RFC8446}} to
 describe the structure of protocol messages.
@@ -499,17 +499,17 @@ The cryptographic state at the core of MLS is divided into three areas of respon
 |  /                    :      ...      > Key Schedule            \  |
 | /                     :       |       :                          \ |
 |/                      \_      |      _/                           \|
-                                V      
+                                V
                            epoch_secret
 ~~~~~
 {: title="Overview of MLS group evolution"}
 
 * A _ratchet tree_ that represents the membership of the group, providing group
   members a way to authenticate each other and efficiently encrypt messages to
-  subsets of the group.  Each epoch has a distinct ratchet tree. It seeds the 
+  subsets of the group.  Each epoch has a distinct ratchet tree. It seeds the
   _key schedule_.
-* A _key schedule_ that describes the chain of key derivations used to progress from 
-  epoch to epoch (mainly using the _init_secret_ and _epoch_secret_); and to derive 
+* A _key schedule_ that describes the chain of key derivations used to progress from
+  epoch to epoch (mainly using the _init_secret_ and _epoch_secret_); and to derive
   a variety of other secrets (see {{epoch-derived-secrets}}) used during the current
   epoch. One of these (the _encryption_secret_) is the root of _secret_tree_.
 * A _secret tree_ derived from the key schedule that represents shared secrets
@@ -779,7 +779,7 @@ epoch_A_[n+k]
 ~~~~~
 {: title="Reinjecting entropy from an earlier epoch" }
 
-# Ratchet Trees
+# Ratchet Tree Concepts
 
 The protocol uses "ratchet trees" for deriving shared secrets among a group of
 clients.  A ratchet tree is an arrangement of secrets and key pairs among the
@@ -798,7 +798,7 @@ post-compromise security.  In an Update proposal or a full Commit message, an ol
 compromised) representation of a member is efficiently removed from the group and
 replaced with a freshly generated instance.
 
-## Tree Computation Terminology
+## Ratchet Tree Terminology
 
 Trees consist of _nodes_. A node is a
 _leaf_ if it has no children, and a _parent_ otherwise; note that all
@@ -872,6 +872,66 @@ MLS places no requirements on implementations' internal representations
 of ratchet trees.  An implementation MAY use any tree representation and
 associated algorithms, as long as they produce correct protocol messages.
 
+## Views of a Ratchet Tree {#views}
+
+We generally assume that each participant maintains a complete and
+up-to-date view of the public state of the group's ratchet tree,
+including the public keys for all nodes and the credentials
+associated with the leaf nodes.
+
+No participant in an MLS group knows the private key associated with
+every node in the tree. Instead, each member is assigned to a leaf of the tree,
+which determines the subset of private keys it knows. The
+credential stored at that leaf is one provided by the member.
+
+In particular, MLS maintains the members' views of the tree in such
+a way as to maintain the _tree invariant_:
+
+    The private key for a node in the tree is known to a member of
+    the group only if the node's subtree contains that member's leaf.
+
+In other words, if a node is not blank, then it holds a public key.
+The corresponding private key is known only to members occupying
+leaves below that node.
+
+The reverse implication is not true: A member may not know the private keys of
+all the intermediate nodes they're below.  Such a member has an _unmerged_ leaf.
+Encrypting to an intermediate node requires encrypting to the node's public key,
+as well as the public keys of all the unmerged leaves below it.  A leaf is
+unmerged when it is first added, because the process of adding the leaf does not
+give it access to all of the nodes above it in the tree.  Leaves are "merged" as
+they receive the private keys for nodes, as described in
+{{ratchet-tree-evolution}}.
+
+For example, consider a four-member group (A, B, C, D) where the node above the
+right two members is blank.  (This is what it would look like if A created a
+group with B, C, and D.)  Then the public state of the tree and the views of the
+private keys of the tree held by each participant would be as follows, where `_`
+represents a blank node, `?` represents an unknown private key, and `pk(X)`
+represents the public key corresponding to the private key `X`:
+
+~~~~~
+         Public Tree
+============================
+            pk(ABCD)
+          /          \
+    pk(AB)            _
+     / \             / \
+pk(A)   pk(B)   pk(C)   pk(D)
+
+
+ Private @ A       Private @ B       Private @ C       Private @ D
+=============     =============     =============     =============
+     ABCD              ABCD              ABCD              ABCD
+    /   \             /   \             /   \             /   \
+  AB      _         AB      _         ?       _         ?       _
+ / \     / \       / \     / \       / \     / \       / \     / \
+A   ?   ?   ?     ?   B   ?   ?     ?   ?   C   ?     ?   ?   ?   D
+~~~~~
+
+Note how the tree invariant applies: Each member knows only their own leaf, and
+the private key AB is known only to A and B.
+
 ## Ratchet Tree Nodes {#resolution-example}
 
 A particular instance of a ratchet tree is defined by the same parameters that
@@ -935,65 +995,14 @@ a corresponding _hash_ that summarizes the contents of the subtree
 below that node.  The rules for computing these hashes are described
 in {{tree-hashes}}.
 
-## Views of a Ratchet Tree {#views}
+# Ratchet Tree Operations
 
-We generally assume that each participant maintains a complete and
-up-to-date view of the public state of the group's ratchet tree,
-including the public keys for all nodes and the credentials
-associated with the leaf nodes.
-
-No participant in an MLS group knows the private key associated with
-every node in the tree. Instead, each member is assigned to a leaf of the tree,
-which determines the subset of private keys it knows. The
-credential stored at that leaf is one provided by the member.
-
-In particular, MLS maintains the members' views of the tree in such
-a way as to maintain the _tree invariant_:
-
-    The private key for a node in the tree is known to a member of
-    the group only if the node's subtree contains that member's leaf.
-
-In other words, if a node is not blank, then it holds a public key.
-The corresponding private key is known only to members occupying
-leaves below that node.
-
-The reverse implication is not true: A member may not know the private keys of
-all the intermediate nodes they're below.  Such a member has an _unmerged_ leaf.
-Encrypting to an intermediate node requires encrypting to the node's public key,
-as well as the public keys of all the unmerged leaves below it.  A leaf is
-unmerged when it is first added, because the process of adding the leaf does not
-give it access to all of the nodes above it in the tree.  Leaves are "merged" as
-they receive the private keys for nodes, as described in
-{{ratchet-tree-evolution}}.
-
-For example, consider a four-member group (A, B, C, D) where the node above the
-right two members is blank.  (This is what it would look like if A created a
-group with B, C, and D.)  Then the public state of the tree and the views of the
-private keys of the tree held by each participant would be as follows, where `_`
-represents a blank node, `?` represents an unknown private key, and `pk(X)`
-represents the public key corresponding to the private key `X`:
-
-~~~~~
-         Public Tree
-============================
-            pk(ABCD)
-          /          \
-    pk(AB)            _
-     / \             / \
-pk(A)   pk(B)   pk(C)   pk(D)
-
-
- Private @ A       Private @ B       Private @ C       Private @ D
-=============     =============     =============     =============
-     ABCD              ABCD              ABCD              ABCD
-    /   \             /   \             /   \             /   \
-  AB      _         AB      _         ?       _         ?       _
- / \     / \       / \     / \       / \     / \       / \     / \
-A   ?   ?   ?     ?   B   ?   ?     ?   ?   C   ?     ?   ?   ?   D
-~~~~~
-
-Note how the tree invariant applies: Each member knows only their own leaf, and
-the private key AB is known only to A and B.
+The ratchet tree for an epoch describes the membership of a group in that epoch,
+providing public-key encryption keys that can be used to encrypt to subsets of
+the group as well as information to authenticate the members.  In order to
+reflect changes to the membership of the group from one epoch to the next,
+corresponding changes are made to the ratchet tree.  In this section, we
+describe the content of the tree and the required operations.
 
 ## Ratchet Tree Evolution
 
@@ -3670,7 +3679,7 @@ simplify decoding this extension into other representations.)
 described in {{array-based-trees}}.  The algorithms in that section may be used to
 simplify decoding this extension into other representations.)
 
-The example tree in {{tree-computation-terminology}} would be represented as an
+The example tree in {{ratchet-tree-terminology}} would be represented as an
 array of nodes in the following form, where R represents the "subtree root" for
 a given subarray of the node array:
 
