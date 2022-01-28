@@ -1495,7 +1495,9 @@ The validity of a KeyPackage needs to be verified at a few stages:
 The client verifies the validity of a KeyPackage using the following steps:
 
 * Verify that the credential in the KeyPackage is valid according to the
-  authentication service and the client's local policy.
+  authentication service and the client's local policy.  These actions MUST be
+  the same regardless of at what point in the protocol the KeyPackage is being
+  verified.
 
 * Verify that the signature on the KeyPackage is valid using the public key
   in the KeyPackage's credential
