@@ -872,6 +872,66 @@ MLS places no requirements on implementations' internal representations
 of ratchet trees.  An implementation MAY use any tree representation and
 associated algorithms, as long as they produce correct protocol messages.
 
+### Views of a Ratchet Tree {#views}
+
+We generally assume that each participant maintains a complete and
+up-to-date view of the public state of the group's ratchet tree,
+including the public keys for all nodes and the credentials
+associated with the leaf nodes.
+
+No participant in an MLS group knows the private key associated with
+every node in the tree. Instead, each member is assigned to a leaf of the tree,
+which determines the subset of private keys it knows. The
+credential stored at that leaf is one provided by the member.
+
+In particular, MLS maintains the members' views of the tree in such
+a way as to maintain the _tree invariant_:
+
+    The private key for a node in the tree is known to a member of
+    the group only if the node's subtree contains that member's leaf.
+
+In other words, if a node is not blank, then it holds a public key.
+The corresponding private key is known only to members occupying
+leaves below that node.
+
+The reverse implication is not true: A member may not know the private keys of
+all the intermediate nodes they're below.  Such a member has an _unmerged_ leaf.
+Encrypting to an intermediate node requires encrypting to the node's public key,
+as well as the public keys of all the unmerged leaves below it.  A leaf is
+unmerged when it is first added, because the process of adding the leaf does not
+give it access to all of the nodes above it in the tree.  Leaves are "merged" as
+they receive the private keys for nodes, as described in
+{{ratchet-tree-evolution}}.
+
+For example, consider a four-member group (A, B, C, D) where the node above the
+right two members is blank.  (This is what it would look like if A created a
+group with B, C, and D.)  Then the public state of the tree and the views of the
+private keys of the tree held by each participant would be as follows, where `_`
+represents a blank node, `?` represents an unknown private key, and `pk(X)`
+represents the public key corresponding to the private key `X`:
+
+~~~~~
+         Public Tree
+============================
+            pk(ABCD)
+          /          \
+    pk(AB)            _
+     / \             / \
+pk(A)   pk(B)   pk(C)   pk(D)
+
+
+ Private @ A       Private @ B       Private @ C       Private @ D
+=============     =============     =============     =============
+     ABCD              ABCD              ABCD              ABCD
+    /   \             /   \             /   \             /   \
+  AB      _         AB      _         ?       _         ?       _
+ / \     / \       / \     / \       / \     / \       / \     / \
+A   ?   ?   ?     ?   B   ?   ?     ?   ?   C   ?     ?   ?   ?   D
+~~~~~
+
+Note how the tree invariant applies: Each member knows only their own leaf, and
+the private key AB is known only to A and B.
+
 ### Ratchet Tree Nodes {#resolution-example}
 
 A particular instance of a ratchet tree is defined by the same parameters that
@@ -934,66 +994,6 @@ Every node, regardless of whether the node is blank or populated, has
 a corresponding _hash_ that summarizes the contents of the subtree
 below that node.  The rules for computing these hashes are described
 in {{tree-hashes}}.
-
-### Views of a Ratchet Tree {#views}
-
-We generally assume that each participant maintains a complete and
-up-to-date view of the public state of the group's ratchet tree,
-including the public keys for all nodes and the credentials
-associated with the leaf nodes.
-
-No participant in an MLS group knows the private key associated with
-every node in the tree. Instead, each member is assigned to a leaf of the tree,
-which determines the subset of private keys it knows. The
-credential stored at that leaf is one provided by the member.
-
-In particular, MLS maintains the members' views of the tree in such
-a way as to maintain the _tree invariant_:
-
-    The private key for a node in the tree is known to a member of
-    the group only if the node's subtree contains that member's leaf.
-
-In other words, if a node is not blank, then it holds a public key.
-The corresponding private key is known only to members occupying
-leaves below that node.
-
-The reverse implication is not true: A member may not know the private keys of
-all the intermediate nodes they're below.  Such a member has an _unmerged_ leaf.
-Encrypting to an intermediate node requires encrypting to the node's public key,
-as well as the public keys of all the unmerged leaves below it.  A leaf is
-unmerged when it is first added, because the process of adding the leaf does not
-give it access to all of the nodes above it in the tree.  Leaves are "merged" as
-they receive the private keys for nodes, as described in
-{{ratchet-tree-evolution}}.
-
-For example, consider a four-member group (A, B, C, D) where the node above the
-right two members is blank.  (This is what it would look like if A created a
-group with B, C, and D.)  Then the public state of the tree and the views of the
-private keys of the tree held by each participant would be as follows, where `_`
-represents a blank node, `?` represents an unknown private key, and `pk(X)`
-represents the public key corresponding to the private key `X`:
-
-~~~~~
-         Public Tree
-============================
-            pk(ABCD)
-          /          \
-    pk(AB)            _
-     / \             / \
-pk(A)   pk(B)   pk(C)   pk(D)
-
-
- Private @ A       Private @ B       Private @ C       Private @ D
-=============     =============     =============     =============
-     ABCD              ABCD              ABCD              ABCD
-    /   \             /   \             /   \             /   \
-  AB      _         AB      _         ?       _         ?       _
- / \     / \       / \     / \       / \     / \       / \     / \
-A   ?   ?   ?     ?   B   ?   ?     ?   ?   C   ?     ?   ?   ?   D
-~~~~~
-
-Note how the tree invariant applies: Each member knows only their own leaf, and
-the private key AB is known only to A and B.
 
 # Ratchet Tree Operations
 
