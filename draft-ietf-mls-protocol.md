@@ -1518,15 +1518,24 @@ to other members in the group via an UpdatePath message (see {{update-paths}}) .
 All other group members then apply the key material in the UpdatePath to their
 own local tree state to derive the group's now-updated shared secret.
 
-To begin, the generator of the UpdatePath updates its leaf
-KeyPackage and its direct path to the root with new secret values.  The
-HPKE leaf public key within the KeyPackage MUST be derived from a freshly
-generated HPKE secret key to provide post-compromise security.
+To begin with, the generator of the UpdatePath updates its leaf's KeyPackage and
+its leaf's _filtered direct path_ with new key pairs. The filtered direct path 
+of a leaf is obtained from the leaf's direct path by removing all nodes whose
+child on the leaf's copath has an empty resolution. Such a removed node does not
+need a key pair, since after blanking it, its resolution consists of a single
+node on the filtered direct path. Using the key pair of the node in the
+resolution is equivalent to using the key pair of the removed node.
 
-The generator of the UpdatePath starts by sampling a fresh random value called
-"leaf_secret", and uses the leaf_secret to generate their leaf HPKE key pair
-(see {{key-packages}}) and to seed a sequence of "path secrets", one for each
-ancestor of its leaf. In this setting,
+The generator of the UpdatePath starts by updating the KeyPackage of its leaf.
+The HPKE leaf public key within the KeyPackage MUST be
+derived from a freshly generated HPKE secret key to provide post-compromise
+security.
+
+Further, the generator of the UpdatePath blanks all nodes on its direct path
+that are not on its filtered direct path. Then, it samples a fresh random value
+called "leaf_secret", and uses the leaf_secret to generate their leaf HPKE key
+pair (see {{key-packages}}) and to seed a sequence of "path secrets", one for
+each node on its filtered direct path. In this setting,
 path_secret\[0\] refers to the leaf's parent,
 path_secret\[1\] to the parent's parent, and so on. At each step, the path
 secret is used to derive a new secret value for the corresponding
@@ -1661,13 +1670,13 @@ apply it to keep their local views of the tree in
 sync with the sender's.  More specifically, when a member commits a change to
 the tree (e.g., to add or remove a member), it transmits an UpdatePath
 containing a set of public keys and encrypted path secrets
-for intermediate nodes in the direct path of its leaf. The
+for intermediate nodes in the filtered direct path of its leaf. The
 other members of the group use these values to update
 their view of the tree, aligning their copy of the tree to the
 sender's.
 
 An UpdatePath contains
-the following information for each node in the direct path of the
+the following information for each node in the filtered direct path of the
 sender's leaf, including the root:
 
 * The public key for the node
@@ -1683,7 +1692,7 @@ of the non-updated child.
 The recipient of an UpdatePath processes it with the following steps:
 
 1. Compute the updated path secrets.
-   * Identify a node in the direct path for which the local member
+   * Identify a node in the filtered direct path for which the local member
      is in the subtree of the non-updated child.
    * Identify a node in the resolution of the copath node for
      which this node has a private key.
@@ -1694,13 +1703,14 @@ The recipient of an UpdatePath processes it with the following steps:
    * The recipient SHOULD verify that the received public keys agree
      with the public keys derived from the new path_secret values.
 2. Merge the updated path secrets into the tree.
-   * For all updated nodes,
-     * Replace the public key for each node with the received public key.
+   * Blank all nodes on the direct path of the sender's leaf.
+   * For all nodes on the filtered direct path of the sender's leaf,
+     * Set the public key to the received public key.
      * Set the list of unmerged leaves to the empty list.
-     * Store the updated hash of the node's parent (represented as a ParentNode
-       struct), going from root to leaf, so that each hash incorporates all the
-       nodes above it. The root node always has a zero-length hash for this
-       value.
+     * Store the updated hash of the next node on the filtered direct path
+       (represented as a ParentNode struct), going from root to leaf, so that
+       each hash incorporates all the non-blank nodes above it. The root node
+       always has a zero-length hash for this value.
    * For nodes where a path secret was recovered in step 1,
      compute and store the node's updated private key.
 
@@ -1779,22 +1789,18 @@ left and right children, respectively.
 
 ## Parent Hash {#parent-hash}
 
-The `parent_hash` extension carries information to authenticate the structure of
-the tree, as described below.
+The `parent_hash` extension carries information to authenticate the HPKE keys
+in the ratchet tree, as described below.
 
 ~~~~~
 opaque parent_hash<0..255>;
 ~~~~~
 
-Consider a ratchet tree with a parent node P and children V and S. The parent hash
-of P changes whenever an `UpdatePath` object is applied to the ratchet tree along
-a path traversing node V (and hence also P). The new "Parent Hash of P (with Co-Path
-Child S)" is obtained by hashing P's `ParentHashInput` struct using the resolution
-of S to populate the `original_child_resolution` field. This way, P's Parent Hash
-fixes the new HPKE public keys of all nodes on the path from P to the root.
-Furthermore, for each such key PK the hash also binds the set of HPKE public keys
-to which PK's secret key was encrypted in the Commit that contained the
-`UpdatePath` object.
+Consider a ratchet tree with a non-blank parent node P and children V and S.
+The parent hash of P changes whenever an `UpdatePath` object is applied to
+the ratchet tree along a path from a leaf U traversing node V (and hence also
+P). The new "Parent Hash of P (with Co-Path Child S)" is obtained by hashing P's
+`ParentHashInput` struct.
 
 ~~~~~
 struct {
@@ -1804,29 +1810,33 @@ struct {
 } ParentHashInput;
 ~~~~~
 
-The Parent Hash of P with Co-Path Child S is the hash of a `ParentHashInput` object
-populated as follows. The field `public_key` contains the HPKE public key of P. If P
-is the root, then `parent_hash` is set to a zero-length octet string.
-Otherwise `parent_hash` is the Parent Hash of P's parent with P's sibling as the
-co-path child.
+The field `public_key` contains the HPKE public key of P. If P is the root,
+then the `parent_hash` field is set to a zero-length octet string. Otherwise,
+`parent_hash` is the Parent Hash of the next node after P on the filtered
+direct path of U (see {{resolution-example}}). This way, P's Parent Hash fixes
+all new HPKE public keys of nodes on the path from P to the root.
 
-Finally, `original_child_resolution` is the array of `HPKEPublicKey` values of the
+Finally, `original_child_resolution` is the array of HPKE public keys of the
 nodes in the resolution of S but with the `unmerged_leaves` of P omitted. For
 example, in the ratchet tree depicted in {{resolution-example}} the
 `ParentHashInput` of node Z with co-path child C would contain an empty
 `original_child_resolution` since C's resolution includes only itself but C is also
 an unmerged leaf of Z. Meanwhile, the `ParentHashInput` of node Z with co-path child
 D has an array with one element in it: the HPKE public key of D.
+This way, P's Parent Hash fixes the set of HPKE public keys to which the new HPKE
+of nodes on the path from P to the root were encrypted by the generator of the
+`UpdatePath` object.
 
 ### Using Parent Hashes
 
 The Parent Hash of P appears in three types of structs. If V is itself a parent node
-then P's Parent Hash is stored in the `parent_hash` fields of both V's
-`ParentHashInput` struct and V's `ParentNode` struct. (The `ParentNode` struct is
-used to encapsulate all public information about V that must be conveyed to a new
-member joining the group as well as to define the Tree Hash of node V.)
+then P's Parent Hash is stored in the `parent_hash` fields of the structs 
+`ParentHashInput` and `ParentNode` of the node before P on the filtered direct
+path of U. (The `ParentNode` struct is used to encapsulate all public
+information about that node that must be conveyed to a new
+member joining the group as well as to define its Tree Hash.)
 
-If, on the other hand, V is a leaf and its KeyPackage contains the `parent_hash`
+If, on the other hand, V is the leaf U and its KeyPackage contains the `parent_hash`
 extension then the Parent Hash of P (with V's sibling as co-path child) is stored in
 that field. In particular, the extension MUST be present in the `leaf_key_package`
 field of an `UpdatePath` object. (This way, the signature of such a KeyPackage also
@@ -1842,25 +1852,17 @@ To this end, when processing a Commit message clients MUST recompute the
 expected value of `parent_hash` for the committer's new leaf and verify that it
 matches the `parent_hash` value in the supplied `leaf_key_package`. Moreover, when
 joining a group, new members MUST authenticate each non-blank parent node P. A parent
-node P is authenticated by performing the following check:
-
-* Let L and R be the left and right children of P, respectively
-* If L.parent_hash is equal to the Parent Hash of P with Co-Path Child R, the check passes
-* If R is blank, replace R with its left child until R is either non-blank or a leaf node
-* If R is a blank leaf node, the check fails
-* If R.parent_hash is equal to the Parent Hash of P with Co-Path Child L, the check passes
-* Otherwise, the check fails
-
-The left-child recursion under the right child of P is necessary because the expansion of
-the tree to the right due to Add proposals can cause blank nodes to be interposed
-between a parent node and its right child.
+node P is authenticated by checking that there exists a child V of P and a node U in the
+resolution of V such that V.`parent_hash` is equal to the Parent Hash of P with V's
+sibling as the co-path child.
 
 ## Update Paths
 
 As described in {{commit}}, each MLS Commit message may optionally
 transmit a KeyPackage leaf and node values along its direct path.
 The path contains a public key and encrypted secret value for all
-intermediate nodes in the path above the leaf.  The path is ordered
+intermediate nodes in the filtered direct path from the leaf to the
+root. The path is ordered
 from the closest node to the leaf to the root; each node MUST be the
 parent of its predecessor.
 
@@ -2850,12 +2852,8 @@ A member of the group applies a Remove message by taking the following steps:
 
 * Blank the intermediate nodes along the path from L to the root
 
-* Truncate the tree by removing leaves from the right side of the tree as long
-  as all of the following conditions hold (since non-blank intermediate nodes hold
-  information that is necessary for verifying parent hashes):
-
-  * The rightmost leaf is blank
-  * The parent of the rightmost leaf is either blank or the root of the tree
+* Truncate the tree by removing leaves from the right side of the tree until the
+  rightmost leaf node is not blank.
 
 ### PreSharedKey
 
