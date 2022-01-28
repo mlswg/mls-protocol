@@ -3130,6 +3130,8 @@ uses:
    regard to any removed members and PCS for the committer and any updated
    members.
 
+### Creating a Commit
+
 When creating or processing a Commit, three different ratchet trees and
 their associated GroupContexts are used:
 
@@ -3244,6 +3246,8 @@ message at the same time, by taking the following steps:
   * `usage`: `reinit`
   * `group_id`: The group ID for the current group
   * `epoch`: The epoch that the group will be in after this Commit
+
+### Processing a Commit
 
 A member of the group applies a Commit message by taking the following steps:
 
