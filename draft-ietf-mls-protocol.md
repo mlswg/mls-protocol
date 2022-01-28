@@ -779,7 +779,7 @@ epoch_A_[n+k]
 ~~~~~
 {: title="Reinjecting entropy from an earlier epoch" }
 
-## Ratchet Tree Concepts
+# Ratchet Tree Concepts
 
 The protocol uses "ratchet trees" for deriving shared secrets among a group of
 clients.  A ratchet tree is an arrangement of secrets and key pairs among the
@@ -798,7 +798,7 @@ post-compromise security.  In an Update proposal or a full Commit message, an ol
 compromised) representation of a member is efficiently removed from the group and
 replaced with a freshly generated instance.
 
-### Ratchet Tree Terminology
+## Ratchet Tree Terminology
 
 Trees consist of _nodes_. A node is a
 _leaf_ if it has no children, and a _parent_ otherwise; note that all
@@ -872,7 +872,7 @@ MLS places no requirements on implementations' internal representations
 of ratchet trees.  An implementation MAY use any tree representation and
 associated algorithms, as long as they produce correct protocol messages.
 
-### Views of a Ratchet Tree {#views}
+## Views of a Ratchet Tree {#views}
 
 We generally assume that each participant maintains a complete and
 up-to-date view of the public state of the group's ratchet tree,
@@ -932,7 +932,7 @@ A   ?   ?   ?     ?   B   ?   ?     ?   ?   C   ?     ?   ?   ?   D
 Note how the tree invariant applies: Each member knows only their own leaf, and
 the private key AB is known only to A and B.
 
-### Ratchet Tree Nodes {#resolution-example}
+## Ratchet Tree Nodes {#resolution-example}
 
 A particular instance of a ratchet tree is defined by the same parameters that
 define an instance of HPKE, namely:
