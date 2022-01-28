@@ -389,7 +389,7 @@ Client:
 
 Group:
 : A group represents a logical collection of clents that share a common
-  secret value at any given time.  Its state is represented as a linear 
+  secret value at any given time.  Its state is represented as a linear
   sequence of epochs in which each epoch depends on its predecessor.
 
 Epoch:
@@ -509,8 +509,11 @@ There are two types of cryptographic state at the core of MLS:
 * A _ratchet tree_ that represents the membership of the group, providing group
   members a way to authenticate each other and efficiently encrypt messages to
   subsets of the group.  Each epoch has a distinct ratchet tree.
+* A _secret tree_ derived from the key schedule that represents shared secrets
+  used by the members of the group to provide confidentiality and forward
+  secrecy for MLS messages.  Each epoch has a distinct secret tree.
 
-Each member of the group maintains a view of these two facets of the group's
+Each member of the group maintains a view of these facets of the group's
 state.  MLS messages are used to initialize these views and keep them in sync as
 the group transitions between epochs.
 
@@ -532,9 +535,8 @@ In addition to defining how one epoch secret leads to the next, the key schedule
 also defines a collection of secrets that are derived from the epoch secret.
 For example:
 
-* An _encryption secret_ that is used to initialize a _secret tree_, which
-  provides keys for encrypting handshake and application messages and providing
-  forward secrecy for these messages within an epoch.
+* An _encryption secret_ that is used to initialize the secret tree for the
+  epoch.
 
 * A _confirmation key_ that is used to confirm that all members agree on the
   shared state of the group.
@@ -561,7 +563,7 @@ committing them all at once.  In the illustrations below, we show the Proposal
 and Commit messages directly, while in reality they would be sent encapsulated in
 MLSPlaintext or MLSCiphertext objects.
 
-Before the initialization of a group, clients publish KeyPackages to a directory 
+Before the initialization of a group, clients publish KeyPackages to a directory
 provided by the Service Provider.
 
 ~~~~~
@@ -805,7 +807,7 @@ children, and the descendants of its children, and we say a tree
 _contains_ a node if that node is a descendant of the root of the tree,
 or if the node itself is the root of the tree. Nodes are _siblings_ if they share the same parent.
 
-A _subtree_ of a tree is the tree given by any node (the _head_ of the 
+A _subtree_ of a tree is the tree given by any node (the _head_ of the
 subtree) and its descendants. The _size_ of a tree or subtree is the
 number of leaf nodes it contains.  For a given parent node, its _left
 subtree_ is the subtree with its left child as head (respectively
@@ -1242,7 +1244,7 @@ opaque HPKEPublicKey<1..2^16-1>;
 The signature algorithm specified in the ciphersuite is the mandatory algorithm
 to be used for signatures in MLSPlaintext and the tree signatures.  It MUST be
 the same as the signature algorithm specified in the credential field of the
-KeyPackage objects in the leaves of the tree (including those used to add new 
+KeyPackage objects in the leaves of the tree (including those used to add new
 members).
 
 To disambiguate different signatures used in MLS, each signed value is prefixed
@@ -2030,7 +2032,7 @@ struct {
 } PSKLabel;
 
 psk_extracted_[i] = KDF.Extract(0, psk_[i])
-psk_input_[i] = ExpandWithLabel(psk_extracted_[i], "derived psk", 
+psk_input_[i] = ExpandWithLabel(psk_extracted_[i], "derived psk",
                   PSKLabel, KDF.Nh)
 
 psk_secret_[0] = 0
@@ -2041,7 +2043,7 @@ psk_secret     = psk_secret[n]
 Here `0` represents the all-zero vector of length `KDF.Nh`. The `index` field in
 `PSKLabel` corresponds to the index of the PSK in the `psk` array, while the
 `count` field contains the total number of PSKs.  In other words, the PSKs are
-chained together with KDF.Extract invocations (labelled "Extract" for brevity 
+chained together with KDF.Extract invocations (labelled "Extract" for brevity
 in the diagram), as follows:
 
 ~~~~~
@@ -2543,9 +2545,9 @@ without padding. In pseudocode, the key and nonce are derived as:
 ~~~~~
 ciphertext_sample = ciphertext[0..KDF.Nh-1]
 
-sender_data_key = ExpandWithLabel(sender_data_secret, "key", 
+sender_data_key = ExpandWithLabel(sender_data_secret, "key",
                       ciphertext_sample, AEAD.Nk)
-sender_data_nonce = ExpandWithLabel(sender_data_secret, "nonce", 
+sender_data_nonce = ExpandWithLabel(sender_data_secret, "nonce",
                       ciphertext_sample, AEAD.Nn)
 ~~~~~
 
@@ -2630,12 +2632,16 @@ struct {
 ~~~~~
 
 This extension lists the extensions and proposal types that must be supported by
-all members of the group.  For new members, it is enforced by existing members during the
-application of Add commits.  Existing members should of course be in compliance
-already.  In order to ensure this continues to be the case even as the group's
-extensions can be updated, a GroupContextExtensions proposal is invalid if it
-contains a `required_capabilities` extension that requires capabilities not
-supported by all current members.
+all members of the group. The "default" proposal and extension types defined in this
+document are assumed to be implemented by all clients, and need not be listed in
+RequiredCapabilities in order to be safely used.
+
+For new members, support for required capabilities is enforced by existing
+members during the application of Add commits.  Existing members should of
+course be in compliance already.  In order to ensure this continues to be the
+case even as the group's extensions can be updated, a GroupContextExtensions
+proposal is invalid if it contains a `required_capabilities` extension that
+requires non-default capabilities not supported by all current members.
 
 ## Reinitialization
 
@@ -4021,15 +4027,15 @@ compromised key material won't be used when the member is added to a new group.
 
 ## KeyPackage Reuse
 
-KeyPackages are intended to be used only once.  That is, once a KeyPackage 
-has been used to introduce the corresponding client to a group, it SHOULD be 
-deleted from the KeyPackage publication system.  Reuse of KeyPackages can lead 
+KeyPackages are intended to be used only once.  That is, once a KeyPackage
+has been used to introduce the corresponding client to a group, it SHOULD be
+deleted from the KeyPackage publication system.  Reuse of KeyPackages can lead
 to replay attacks.
 
 An application MAY allow for reuse of a "last resort" KeyPackage in order to
-prevent denial of service attacks.  Since a KeyPackage is needed to add a 
-client to a new group, an attacker could prevent a client being added to new 
-groups by exhausting all available KeyPackages. To prevent such a denial of 
+prevent denial of service attacks.  Since a KeyPackage is needed to add a
+client to a new group, an attacker could prevent a client being added to new
+groups by exhausting all available KeyPackages. To prevent such a denial of
 service attack, the KeyPackage publication system SHOULD rate limit KeyPackage
 requests, especially if not authenticated.
 
