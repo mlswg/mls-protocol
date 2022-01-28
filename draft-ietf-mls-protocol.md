@@ -3419,6 +3419,8 @@ Commits.
 
 External Commits work like regular Commits, with a few differences:
 
+* The Commit MUST NOT include any proposals by reference, since an external
+  joiner cannot determine the validity of proposals sent within the group
 * The proposals included by value in an External Commit MUST meet the following
   conditions:
   * There MUST be a single ExternalInit proposal
