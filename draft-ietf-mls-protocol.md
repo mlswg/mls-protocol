@@ -995,6 +995,509 @@ a corresponding _hash_ that summarizes the contents of the subtree
 below that node.  The rules for computing these hashes are described
 in {{tree-hashes}}.
 
+# Cryptographic Objects
+
+## Ciphersuites
+
+Each MLS session uses a single ciphersuite that specifies the
+following primitives to be used in group key computations:
+
+* HPKE parameters:
+  * A Key Encapsulation Mechanism (KEM)
+  * A Key Derivation Function (KDF)
+  * An AEAD encryption algorithm
+* A hash algorithm
+* A MAC algorithm
+* A signature algorithm
+
+MLS uses HPKE for public-key encryption {{I-D.irtf-cfrg-hpke}}.  The
+`DeriveKeyPair` function associated to the KEM for the ciphersuite maps octet
+strings to HPKE key pairs.  As in HPKE, MLS assumes that an AEAD algorithm
+produces a single ciphertext output from AEAD encryption (aligning with
+{{?RFC5116}}), as opposed to a separate ciphertext and tag.
+
+Ciphersuites are represented with the CipherSuite type. HPKE public keys
+are opaque values in a format defined by the underlying
+protocol (see the Cryptographic Dependencies section of the HPKE specification for more
+information).
+
+~~~~~
+opaque HPKEPublicKey<1..2^16-1>;
+~~~~~
+
+The signature algorithm specified in the ciphersuite is the mandatory algorithm
+to be used for signatures in MLSPlaintext and the tree signatures.  It MUST be
+the same as the signature algorithm specified in the credential field of the
+KeyPackage objects in the leaves of the tree (including those used to add new
+members).
+
+To disambiguate different signatures used in MLS, each signed value is prefixed
+by a label as shown below:
+
+~~~~~
+SignWithLabel(SignatureKey, Label, Content) =
+    Signature.Sign(SignatureKey, SignContent)
+
+VerifyWithLabel(VerificationKey, Label, Content) =
+    Signature.Verify(VerificationKey, SignContent)
+
+Where SignContent is specified as:
+
+struct {
+    opaque label<9..255> = "MLS 1.0 " + Label;
+    opaque content<0..2^32-1> = Content;
+} SignContent;
+~~~~~
+
+Here, the functions `Signature.Sign` and `Signature.Verify` are defined
+by the signature algorithm.
+
+The ciphersuites are defined in section {{mls-ciphersuites}}.
+
+## Hash-Based Identifiers
+
+Some MLS messages refer to other MLS objects by hash.  For example, Welcome
+messages refer to KeyPackages for the members being welcomed, and Commits refer
+to Proposals they cover.  These identifiers are computed as follows:
+
+~~~~~
+opaque HashReference[16];
+
+MakeKeyPackageRef(value) = KDF.expand(
+  KDF.extract("", value), "MLS 1.0 KeyPackage Reference", 16)
+
+MakeProposalRef(value) = KDF.expand(
+  KDF.extract("", value), "MLS 1.0 Proposal Reference", 16)
+
+HashReference KeyPackageRef;
+HashReference ProposalRef;
+~~~~~
+
+For a KeyPackageRef, the `value` input is the encoded KeyPackage, and the
+ciphersuite specified in the KeyPackage determines the KDF used.  For a
+ProposalRef, the `value` input is the MLSPlaintext carrying the proposal, and
+the KDF is determined by the group's ciphersuite.
+
+## Credentials
+
+A member of a group authenticates the identities of other participants by means
+of credentials issued by some authentication system, like a PKI. Each type of
+credential MUST express the following data in the context of the group it is
+used with:
+
+* The public key of a signature key pair matching the SignatureScheme specified
+  by the CipherSuite of the group
+* One or more identifiers of the holder of the private key
+
+Note that a Credential can provide multiple identifiers for the client.  If an
+application wishes to decided whether a credential represents the correct
+identifier for a participant in a given context, it is up to the application to
+decide what the correct value is and compare it to the credential.  For example,
+a certificate in an X509Credential may attest to several domain names or email
+addresses in its subjectAltName extension.  An application may decide to
+present all of these to a user, or if it knows a "desired" domain name or email
+address, it can check that the desired identifier is among those attested.
+Using the terminology from {{?RFC6125}}, a Credential provides "presented
+identifiers", and it is up to the application to supply a "reference identifier"
+for the authenticated client, if any.
+
+Credentials MAY also include information that allows a relying party
+to verify the identity / signing key binding.
+
+Additionally, Credentials SHOULD specify the signature scheme corresponding to
+each contained public key.
+
+~~~~~
+// See RFC 8446 and the IANA TLS SignatureScheme registry
+uint16 SignatureScheme;
+
+// See IANA registry for registered values
+uint16 CredentialType;
+
+struct {
+    opaque identity<0..2^16-1>;
+    SignatureScheme signature_scheme;
+    opaque signature_key<0..2^16-1>;
+} BasicCredential;
+
+struct {
+    opaque cert_data<0..2^16-1>;
+} Certificate;
+
+struct {
+    CredentialType credential_type;
+    select (Credential.credential_type) {
+        case basic:
+            BasicCredential;
+
+        case x509:
+            Certificate chain<1..2^32-1>;
+    };
+} Credential;
+~~~~~
+
+A BasicCredential is a raw, unauthenticated assertion of an identity/key
+binding. The format of the key in the `public_key` field is defined by the
+relevant ciphersuite: the group ciphersuite for a credential in a ratchet tree,
+the KeyPackage ciphersuite for a credential in a KeyPackage object.
+For ciphersuites using Ed25519 or Ed448 signature schemes, the public key is in
+the format specified {{?RFC8032}}.  For ciphersuites using ECDSA with the NIST
+curves P-256 or P-521, the public key is the output of the uncompressed
+Elliptic-Curve-Point-to-Octet-String conversion according to {{SECG}}.
+
+For an X.509 credential, each entry in the chain represents a single DER-encoded
+X.509 certificate. The chain is ordered such that the first entry (chain[0])
+is the end-entity certificate and each subsequent certificate in the chain
+MUST be the issuer of the previous certificate. The algorithm for the
+`public_key` in the end-entity certificate MUST match the relevant
+ciphersuite.
+
+The signatures used in this document are encoded as specified in {{!RFC8446}}.
+In particular, ECDSA signatures are DER-encoded and EdDSA signatures are defined
+as the concatenation of `r` and `s` as specified in {{?RFC8032}}.
+
+Each new credential that has not already been validated by the application MUST
+be validated against the Authentication Service.  Applications SHOULD require
+that a client present the same set of identifiers throughout its presence in
+the group, even if its Credential is changed in a Commit or Update.  If an
+application allows clients to change identifiers over time, then each time the
+client presents a new credential, the application MUST verify that the set
+of identifiers in the credential is acceptable to the application for this
+client.
+
+### Uniquely Identifying Clients
+
+MLS implementations will presumably provide applications with a way to request
+protocol operations with regard to other clients (e.g., removing clients).  Such
+functions will need to refer to the other clients using some identifier.  MLS
+clients have a few types of identifiers, with different operational properties.
+
+The Credentials presented by the clients in a group authenticate
+application-level identifiers for the clients.  These identifiers may not
+uniquely identify clients.  For example, if a user has multiple devices that are
+all present in an MLS group, then those devices' clients will all present the
+user's application-layer identifiers.
+
+Internally to the the protocol, group members are uniquely identified by their
+leaves, expressed as KeyPackageRef objects.  These identifiers are unstable:
+They change whenever the member sends a Commit, or whenever an Update
+proposal from the member is committed.
+
+MLS provides two unique client identifiers that are stable across epochs:
+
+* The index of a client among the leaves of the tree
+* The `epoch_id` field in the key package
+
+The application may also provide application-specific unique identifiers in the
+`extensions` field of KeyPackage object.
+
+# Message Framing
+
+Handshake and application messages use a common framing structure.
+This framing provides encryption to ensure confidentiality within the
+group, as well as signing to authenticate the sender within the group.
+
+The two main structures involved are MLSPlaintext and MLSCiphertext.
+MLSCiphertext represents a signed and encrypted message, with
+protections for both the content of the message and related
+metadata.  MLSPlaintext represents a message that is only signed,
+and not encrypted.  Applications MUST use MLSCiphertext to encrypt
+application messages and SHOULD use MLSCiphertext to encode
+handshake messages, but MAY transmit handshake messages encoded
+as MLSPlaintext objects in cases where it is necessary for the
+Delivery Service to examine such messages.
+
+~~~~~
+enum {
+    reserved(0),
+    application(1),
+    proposal(2),
+    commit(3),
+    (255)
+} ContentType;
+
+enum {
+    reserved(0),
+    member(1),
+    preconfigured(2),
+    new_member(3),
+    (255)
+} SenderType;
+
+struct {
+    SenderType sender_type;
+    switch (sender_type) {
+        case member:        KeyPackageRef member;
+        case preconfigured: opaque external_key_id<0..255>;
+        case new_member:    struct{};
+    }
+} Sender;
+
+struct {
+    opaque mac_value<0..255>;
+} MAC;
+
+enum {
+  reserved(0),
+  mls_plaintext(1),
+  mls_ciphertext(2),
+  (255)
+} WireFormat;
+
+struct {
+    WireFormat wire_format;
+    opaque group_id<0..255>;
+    uint64 epoch;
+    Sender sender;
+    opaque authenticated_data<0..2^32-1>;
+
+    ContentType content_type;
+    select (MLSPlaintext.content_type) {
+        case application:
+          opaque application_data<0..2^32-1>;
+
+        case proposal:
+          Proposal proposal;
+
+        case commit:
+          Commit commit;
+    }
+
+    // SignWithLabel(., "MLSPlaintextTBS", MLSPlaintextTBS)
+    opaque signature<0..2^16-1>;
+    // MAC(confirmation_key, GroupContext.confirmed_transcript_hash)
+    optional<MAC> confirmation_tag;
+    // MAC(membership_key, MLSPlaintextTBM);
+    optional<MAC> membership_tag;
+} MLSPlaintext;
+
+struct {
+    WireFormat wire_format = mls_ciphertext;
+    opaque group_id<0..255>;
+    uint64 epoch;
+    ContentType content_type;
+    opaque authenticated_data<0..2^32-1>;
+    opaque encrypted_sender_data<0..255>;
+    opaque ciphertext<0..2^32-1>;
+} MLSCiphertext;
+~~~~~
+
+The field `confirmation_tag` MUST be present if `content_type` equals commit.
+Otherwise, it MUST NOT be present.
+
+External sender types are sent as MLSPlaintext, see {{external-proposals}}
+for their use.
+
+The remainder of this section describes how to compute the signature of an
+MLSPlaintext object and how to convert it to an MLSCiphertext object for
+`member` sender types.  The steps are:
+
+* Set `group_id`, `epoch`, `content_type` and `authenticated_data` fields from the
+  MLSPlaintext object directly
+
+* Identify the key and key generation depending on the content type
+
+* Encrypt an MLSCiphertextContent for the ciphertext field using the key
+  identified and MLSPlaintext object
+
+* Encrypt the sender data using a key and nonce derived from the
+  `sender_data_secret` for the epoch and a sample of the encrypted
+  MLSCiphertextContent.
+
+Decryption is done by decrypting the sender data, then the message, and then
+verifying the content signature.
+
+The following sections describe the encryption and signing processes in detail.
+
+## Content Authentication
+
+The `signature` field in an MLSPlaintext object is computed using the signing
+private key corresponding to the public key, which was authenticated by the
+credential at the leaf of the tree indicated by the sender field. The signature
+is computed using `SignWithLabel` with label `"MLSPlaintextTBS"` and with a content
+that covers the plaintext metadata and message content, which is all of MLSPlaintext
+except for the `signature`, the `confirmation_tag` and `membership_tag` fields.
+If the sender is a member of the group, the content also covers the
+GroupContext for the current epoch, so that signatures are specific to a given
+group and epoch.
+
+~~~~~
+struct {
+    WireFormat wire_format;
+    opaque group_id<0..255>;
+    uint64 epoch;
+    Sender sender;
+    opaque authenticated_data<0..2^32-1>;
+
+    ContentType content_type;
+    select (MLSPlaintextTBS.content_type) {
+        case application:
+          opaque application_data<0..2^32-1>;
+
+        case proposal:
+          Proposal proposal;
+
+        case commit:
+          Commit commit;
+    }
+
+    select (MLSPlaintextTBS.sender.sender_type) {
+        case member:
+        case new_member:
+            GroupContext context;
+
+        case preconfigured:
+            struct{};
+    }
+} MLSPlaintextTBS;
+~~~~~
+
+The `membership_tag` field in the MLSPlaintext object authenticates the sender's
+membership in the group. For an MLSPlaintext with a sender type other than
+`member`, this field MUST be omitted. For messages sent by members, it MUST be
+present and set to the following value:
+
+~~~~~
+struct {
+  MLSPlaintextTBS tbs;
+  opaque signature<0..2^16-1>;
+  optional<MAC> confirmation_tag;
+} MLSPlaintextTBM;
+
+membership_tag = MAC(membership_key, MLSPlaintextTBM);
+~~~~~
+
+Note that the `membership_tag` only needs to be computed for MLSPlaintext
+messages that will be sent over the wire (`wire_format == mls_plaintext`).  It
+isn't needed for messages that will be encrypted and transmitted as
+MLSCiphertext messages (`wire_format == mls_ciphertext`).
+
+## Content Encryption
+
+The `ciphertext` field of the MLSCiphertext object is produced by supplying the
+inputs described below to the AEAD function specified by the ciphersuite in use.
+The plaintext input contains the content and signature of the MLSPlaintext, plus
+optional padding. These values are encoded in the following form:
+
+~~~~~
+struct {
+    select (MLSCiphertext.content_type) {
+        case application:
+          opaque application_data<0..2^32-1>;
+
+        case proposal:
+          Proposal proposal;
+
+        case commit:
+          Commit commit;
+    }
+
+    // SignWithLabel(., "MLSPlaintextTBS", MLSPlaintextTBS)
+    opaque signature<0..2^16-1>;
+    // MAC(confirmation_key, GroupContext.confirmed_transcript_hash)
+    optional<MAC> confirmation_tag;
+    opaque padding<0..2^16-1>;
+} MLSCiphertextContent;
+~~~~~
+
+In the MLS key schedule, the sender creates two distinct key ratchets for
+handshake and application messages for each member of the group. When encrypting
+a message, the sender looks at the ratchets it derived for its own member and
+chooses an unused generation from either the handshake or application ratchet
+depending on the content type of the message. This generation of the ratchet is
+used to derive a provisional nonce and key.
+
+Before use in the encryption operation, the nonce is XORed with a fresh random
+value to guard against reuse.  Because the key schedule generates nonces
+deterministically, a client must keep persistent state as to where in the key
+schedule it is; if this persistent state is lost or corrupted, a client might
+reuse a generation that has already been used, causing reuse of a key/nonce pair.
+
+To avoid this situation, the sender of a message MUST generate a fresh random
+4-byte "reuse guard" value and XOR it with the first four bytes of the nonce
+from the key schedule before using the nonce for encryption.  The sender MUST
+include the reuse guard in the `reuse_guard` field of the sender data object, so
+that the recipient of the message can use it to compute the nonce to be used for
+decryption.
+
+~~~~~
++-+-+-+-+---------...---+
+|   Key Schedule Nonce  |
++-+-+-+-+---------...---+
+           XOR
++-+-+-+-+---------...---+
+| Guard |       0       |
++-+-+-+-+---------...---+
+           ===
++-+-+-+-+---------...---+
+| Encrypt/Decrypt Nonce |
++-+-+-+-+---------...---+
+~~~~~
+
+The Additional Authenticated Data (AAD) input to the encryption
+contains an object of the following form, with the values used to
+identify the key and nonce:
+
+~~~~~
+struct {
+    opaque group_id<0..255>;
+    uint64 epoch;
+    ContentType content_type;
+    opaque authenticated_data<0..2^32-1>;
+} MLSCiphertextContentAAD;
+~~~~~
+
+## Sender Data Encryption
+
+The "sender data" used to look up the key for the content encryption is
+encrypted with the ciphersuite's AEAD with a key and nonce derived from both the
+`sender_data_secret` and a sample of the encrypted content. Before being
+encrypted, the sender data is encoded as an object of the following form:
+
+~~~~~
+struct {
+    KeyPackageRef sender;
+    uint32 generation;
+    opaque reuse_guard[4];
+} MLSSenderData;
+~~~~~
+
+MLSSenderData.sender is assumed to be a `member` sender type.  When constructing
+an MLSSenderData from a Sender object, the sender MUST verify Sender.sender_type
+is `member` and use Sender.sender for MLSSenderData.sender.
+
+The `reuse_guard` field contains a fresh random value used to avoid nonce reuse
+in the case of state loss or corruption, as described in {{content-encryption}}.
+
+The key and nonce provided to the AEAD are computed as the KDF of the first
+`KDF.Nh` bytes of the ciphertext generated in the previous section. If the
+length of the ciphertext is less than `KDF.Nh`, the whole ciphertext is used
+without padding. In pseudocode, the key and nonce are derived as:
+
+~~~~~
+ciphertext_sample = ciphertext[0..KDF.Nh-1]
+
+sender_data_key = ExpandWithLabel(sender_data_secret, "key",
+                      ciphertext_sample, AEAD.Nk)
+sender_data_nonce = ExpandWithLabel(sender_data_secret, "nonce",
+                      ciphertext_sample, AEAD.Nn)
+~~~~~
+
+The Additional Authenticated Data (AAD) for the SenderData ciphertext is all the
+fields of MLSCiphertext excluding `encrypted_sender_data`:
+
+~~~~~
+struct {
+    opaque group_id<0..255>;
+    uint64 epoch;
+    ContentType content_type;
+} MLSSenderDataAAD;
+~~~~~
+
+When parsing a SenderData struct as part of message decryption, the recipient
+MUST verify that the KeyPackageRef indicated in the `sender` field identifies a
+member of the group.
+
 # Ratchet Tree Operations
 
 The ratchet tree for an epoch describes the membership of a group in that epoch,
@@ -1222,202 +1725,6 @@ specifically:
 * The path secrets used to derive each updated node key pair.
 * Each outdated node key pair that was replaced by the update.
 
-
-# Cryptographic Objects
-
-## Ciphersuites
-
-Each MLS session uses a single ciphersuite that specifies the
-following primitives to be used in group key computations:
-
-* HPKE parameters:
-  * A Key Encapsulation Mechanism (KEM)
-  * A Key Derivation Function (KDF)
-  * An AEAD encryption algorithm
-* A hash algorithm
-* A MAC algorithm
-* A signature algorithm
-
-MLS uses HPKE for public-key encryption {{I-D.irtf-cfrg-hpke}}.  The
-`DeriveKeyPair` function associated to the KEM for the ciphersuite maps octet
-strings to HPKE key pairs.  As in HPKE, MLS assumes that an AEAD algorithm
-produces a single ciphertext output from AEAD encryption (aligning with
-{{?RFC5116}}), as opposed to a separate ciphertext and tag.
-
-Ciphersuites are represented with the CipherSuite type. HPKE public keys
-are opaque values in a format defined by the underlying
-protocol (see the Cryptographic Dependencies section of the HPKE specification for more
-information).
-
-~~~~~
-opaque HPKEPublicKey<1..2^16-1>;
-~~~~~
-
-The signature algorithm specified in the ciphersuite is the mandatory algorithm
-to be used for signatures in MLSPlaintext and the tree signatures.  It MUST be
-the same as the signature algorithm specified in the credential field of the
-KeyPackage objects in the leaves of the tree (including those used to add new
-members).
-
-To disambiguate different signatures used in MLS, each signed value is prefixed
-by a label as shown below:
-
-~~~~~
-SignWithLabel(SignatureKey, Label, Content) =
-    Signature.Sign(SignatureKey, SignContent)
-
-VerifyWithLabel(VerificationKey, Label, Content) =
-    Signature.Verify(VerificationKey, SignContent)
-
-Where SignContent is specified as:
-
-struct {
-    opaque label<9..255> = "MLS 1.0 " + Label;
-    opaque content<0..2^32-1> = Content;
-} SignContent;
-~~~~~
-
-Here, the functions `Signature.Sign` and `Signature.Verify` are defined
-by the signature algorithm.
-
-The ciphersuites are defined in section {{mls-ciphersuites}}.
-
-## Hash-Based Identifiers
-
-Some MLS messages refer to other MLS objects by hash.  For example, Welcome
-messages refer to KeyPackages for the members being welcomed, and Commits refer
-to Proposals they cover.  These identifiers are computed as follows:
-
-~~~~~
-opaque HashReference[16];
-
-MakeKeyPackageRef(value) = KDF.expand(
-  KDF.extract("", value), "MLS 1.0 KeyPackage Reference", 16)
-
-MakeProposalRef(value) = KDF.expand(
-  KDF.extract("", value), "MLS 1.0 Proposal Reference", 16)
-
-HashReference KeyPackageRef;
-HashReference ProposalRef;
-~~~~~
-
-For a KeyPackageRef, the `value` input is the encoded KeyPackage, and the
-ciphersuite specified in the KeyPackage determines the KDF used.  For a
-ProposalRef, the `value` input is the MLSPlaintext carrying the proposal, and
-the KDF is determined by the group's ciphersuite.
-
-## Credentials
-
-A member of a group authenticates the identities of other participants by means
-of credentials issued by some authentication system, like a PKI. Each type of
-credential MUST express the following data in the context of the group it is
-used with:
-
-* The public key of a signature key pair matching the SignatureScheme specified
-  by the CipherSuite of the group
-* One or more identifiers of the holder of the private key
-
-Note that a Credential can provide multiple identifiers for the client.  If an
-application wishes to decided whether a credential represents the correct
-identifier for a participant in a given context, it is up to the application to
-decide what the correct value is and compare it to the credential.  For example,
-a certificate in an X509Credential may attest to several domain names or email
-addresses in its subjectAltName extension.  An application may decide to
-present all of these to a user, or if it knows a "desired" domain name or email
-address, it can check that the desired identifier is among those attested.
-Using the terminology from {{?RFC6125}}, a Credential provides "presented
-identifiers", and it is up to the application to supply a "reference identifier"
-for the authenticated client, if any.
-
-Credentials MAY also include information that allows a relying party
-to verify the identity / signing key binding.
-
-Additionally, Credentials SHOULD specify the signature scheme corresponding to
-each contained public key.
-
-~~~~~
-// See RFC 8446 and the IANA TLS SignatureScheme registry
-uint16 SignatureScheme;
-
-// See IANA registry for registered values
-uint16 CredentialType;
-
-struct {
-    opaque identity<0..2^16-1>;
-    SignatureScheme signature_scheme;
-    opaque signature_key<0..2^16-1>;
-} BasicCredential;
-
-struct {
-    opaque cert_data<0..2^16-1>;
-} Certificate;
-
-struct {
-    CredentialType credential_type;
-    select (Credential.credential_type) {
-        case basic:
-            BasicCredential;
-
-        case x509:
-            Certificate chain<1..2^32-1>;
-    };
-} Credential;
-~~~~~
-
-A BasicCredential is a raw, unauthenticated assertion of an identity/key
-binding. The format of the key in the `public_key` field is defined by the
-relevant ciphersuite: the group ciphersuite for a credential in a ratchet tree,
-the KeyPackage ciphersuite for a credential in a KeyPackage object.
-For ciphersuites using Ed25519 or Ed448 signature schemes, the public key is in
-the format specified {{?RFC8032}}.  For ciphersuites using ECDSA with the NIST
-curves P-256 or P-521, the public key is the output of the uncompressed
-Elliptic-Curve-Point-to-Octet-String conversion according to {{SECG}}.
-
-For an X.509 credential, each entry in the chain represents a single DER-encoded
-X.509 certificate. The chain is ordered such that the first entry (chain[0])
-is the end-entity certificate and each subsequent certificate in the chain
-MUST be the issuer of the previous certificate. The algorithm for the
-`public_key` in the end-entity certificate MUST match the relevant
-ciphersuite.
-
-The signatures used in this document are encoded as specified in {{!RFC8446}}.
-In particular, ECDSA signatures are DER-encoded and EdDSA signatures are defined
-as the concatenation of `r` and `s` as specified in {{?RFC8032}}.
-
-Each new credential that has not already been validated by the application MUST
-be validated against the Authentication Service.  Applications SHOULD require
-that a client present the same set of identifiers throughout its presence in
-the group, even if its Credential is changed in a Commit or Update.  If an
-application allows clients to change identifiers over time, then each time the
-client presents a new credential, the application MUST verify that the set
-of identifiers in the credential is acceptable to the application for this
-client.
-
-### Uniquely Identifying Clients
-
-MLS implementations will presumably provide applications with a way to request
-protocol operations with regard to other clients (e.g., removing clients).  Such
-functions will need to refer to the other clients using some identifier.  MLS
-clients have a few types of identifiers, with different operational properties.
-
-The Credentials presented by the clients in a group authenticate
-application-level identifiers for the clients.  These identifiers may not
-uniquely identify clients.  For example, if a user has multiple devices that are
-all present in an MLS group, then those devices' clients will all present the
-user's application-layer identifiers.
-
-Internally to the the protocol, group members are uniquely identified by their
-leaves, expressed as KeyPackageRef objects.  These identifiers are unstable:
-They change whenever the member sends a Commit, or whenever an Update
-proposal from the member is committed.
-
-MLS provides two unique client identifiers that are stable across epochs:
-
-* The index of a client among the leaves of the tree
-* The `epoch_id` field in the key package
-
-The application may also provide application-specific unique identifiers in the
-`extensions` field of KeyPackage object.
 
 # Key Packages
 
@@ -2273,313 +2580,6 @@ If one of the parties is being actively impersonated by an attacker, their
 Thus, members of a group MAY use their `authentication_secrets` within
 an out-of-band authentication protocol to ensure that they
 share the same view of the group.
-
-# Message Framing
-
-Handshake and application messages use a common framing structure.
-This framing provides encryption to ensure confidentiality within the
-group, as well as signing to authenticate the sender within the group.
-
-The two main structures involved are MLSPlaintext and MLSCiphertext.
-MLSCiphertext represents a signed and encrypted message, with
-protections for both the content of the message and related
-metadata.  MLSPlaintext represents a message that is only signed,
-and not encrypted.  Applications MUST use MLSCiphertext to encrypt
-application messages and SHOULD use MLSCiphertext to encode
-handshake messages, but MAY transmit handshake messages encoded
-as MLSPlaintext objects in cases where it is necessary for the
-Delivery Service to examine such messages.
-
-~~~~~
-enum {
-    reserved(0),
-    application(1),
-    proposal(2),
-    commit(3),
-    (255)
-} ContentType;
-
-enum {
-    reserved(0),
-    member(1),
-    preconfigured(2),
-    new_member(3),
-    (255)
-} SenderType;
-
-struct {
-    SenderType sender_type;
-    switch (sender_type) {
-        case member:        KeyPackageRef member;
-        case preconfigured: opaque external_key_id<0..255>;
-        case new_member:    struct{};
-    }
-} Sender;
-
-struct {
-    opaque mac_value<0..255>;
-} MAC;
-
-enum {
-  reserved(0),
-  mls_plaintext(1),
-  mls_ciphertext(2),
-  (255)
-} WireFormat;
-
-struct {
-    WireFormat wire_format;
-    opaque group_id<0..255>;
-    uint64 epoch;
-    Sender sender;
-    opaque authenticated_data<0..2^32-1>;
-
-    ContentType content_type;
-    select (MLSPlaintext.content_type) {
-        case application:
-          opaque application_data<0..2^32-1>;
-
-        case proposal:
-          Proposal proposal;
-
-        case commit:
-          Commit commit;
-    }
-
-    // SignWithLabel(., "MLSPlaintextTBS", MLSPlaintextTBS)
-    opaque signature<0..2^16-1>;
-    // MAC(confirmation_key, GroupContext.confirmed_transcript_hash)
-    optional<MAC> confirmation_tag;
-    // MAC(membership_key, MLSPlaintextTBM);
-    optional<MAC> membership_tag;
-} MLSPlaintext;
-
-struct {
-    WireFormat wire_format = mls_ciphertext;
-    opaque group_id<0..255>;
-    uint64 epoch;
-    ContentType content_type;
-    opaque authenticated_data<0..2^32-1>;
-    opaque encrypted_sender_data<0..255>;
-    opaque ciphertext<0..2^32-1>;
-} MLSCiphertext;
-~~~~~
-
-The field `confirmation_tag` MUST be present if `content_type` equals commit.
-Otherwise, it MUST NOT be present.
-
-External sender types are sent as MLSPlaintext, see {{external-proposals}}
-for their use.
-
-The remainder of this section describes how to compute the signature of an
-MLSPlaintext object and how to convert it to an MLSCiphertext object for
-`member` sender types.  The steps are:
-
-* Set `group_id`, `epoch`, `content_type` and `authenticated_data` fields from the
-  MLSPlaintext object directly
-
-* Identify the key and key generation depending on the content type
-
-* Encrypt an MLSCiphertextContent for the ciphertext field using the key
-  identified and MLSPlaintext object
-
-* Encrypt the sender data using a key and nonce derived from the
-  `sender_data_secret` for the epoch and a sample of the encrypted
-  MLSCiphertextContent.
-
-Decryption is done by decrypting the sender data, then the message, and then
-verifying the content signature.
-
-The following sections describe the encryption and signing processes in detail.
-
-## Content Authentication
-
-The `signature` field in an MLSPlaintext object is computed using the signing
-private key corresponding to the public key, which was authenticated by the
-credential at the leaf of the tree indicated by the sender field. The signature
-is computed using `SignWithLabel` with label `"MLSPlaintextTBS"` and with a content
-that covers the plaintext metadata and message content, which is all of MLSPlaintext
-except for the `signature`, the `confirmation_tag` and `membership_tag` fields.
-If the sender is a member of the group, the content also covers the
-GroupContext for the current epoch, so that signatures are specific to a given
-group and epoch.
-
-~~~~~
-struct {
-    WireFormat wire_format;
-    opaque group_id<0..255>;
-    uint64 epoch;
-    Sender sender;
-    opaque authenticated_data<0..2^32-1>;
-
-    ContentType content_type;
-    select (MLSPlaintextTBS.content_type) {
-        case application:
-          opaque application_data<0..2^32-1>;
-
-        case proposal:
-          Proposal proposal;
-
-        case commit:
-          Commit commit;
-    }
-
-    select (MLSPlaintextTBS.sender.sender_type) {
-        case member:
-        case new_member:
-            GroupContext context;
-
-        case preconfigured:
-            struct{};
-    }
-} MLSPlaintextTBS;
-~~~~~
-
-The `membership_tag` field in the MLSPlaintext object authenticates the sender's
-membership in the group. For an MLSPlaintext with a sender type other than
-`member`, this field MUST be omitted. For messages sent by members, it MUST be
-present and set to the following value:
-
-~~~~~
-struct {
-  MLSPlaintextTBS tbs;
-  opaque signature<0..2^16-1>;
-  optional<MAC> confirmation_tag;
-} MLSPlaintextTBM;
-
-membership_tag = MAC(membership_key, MLSPlaintextTBM);
-~~~~~
-
-Note that the `membership_tag` only needs to be computed for MLSPlaintext
-messages that will be sent over the wire (`wire_format == mls_plaintext`).  It
-isn't needed for messages that will be encrypted and transmitted as
-MLSCiphertext messages (`wire_format == mls_ciphertext`).
-
-## Content Encryption
-
-The `ciphertext` field of the MLSCiphertext object is produced by supplying the
-inputs described below to the AEAD function specified by the ciphersuite in use.
-The plaintext input contains the content and signature of the MLSPlaintext, plus
-optional padding. These values are encoded in the following form:
-
-~~~~~
-struct {
-    select (MLSCiphertext.content_type) {
-        case application:
-          opaque application_data<0..2^32-1>;
-
-        case proposal:
-          Proposal proposal;
-
-        case commit:
-          Commit commit;
-    }
-
-    // SignWithLabel(., "MLSPlaintextTBS", MLSPlaintextTBS)
-    opaque signature<0..2^16-1>;
-    // MAC(confirmation_key, GroupContext.confirmed_transcript_hash)
-    optional<MAC> confirmation_tag;
-    opaque padding<0..2^16-1>;
-} MLSCiphertextContent;
-~~~~~
-
-In the MLS key schedule, the sender creates two distinct key ratchets for
-handshake and application messages for each member of the group. When encrypting
-a message, the sender looks at the ratchets it derived for its own member and
-chooses an unused generation from either the handshake or application ratchet
-depending on the content type of the message. This generation of the ratchet is
-used to derive a provisional nonce and key.
-
-Before use in the encryption operation, the nonce is XORed with a fresh random
-value to guard against reuse.  Because the key schedule generates nonces
-deterministically, a client must keep persistent state as to where in the key
-schedule it is; if this persistent state is lost or corrupted, a client might
-reuse a generation that has already been used, causing reuse of a key/nonce pair.
-
-To avoid this situation, the sender of a message MUST generate a fresh random
-4-byte "reuse guard" value and XOR it with the first four bytes of the nonce
-from the key schedule before using the nonce for encryption.  The sender MUST
-include the reuse guard in the `reuse_guard` field of the sender data object, so
-that the recipient of the message can use it to compute the nonce to be used for
-decryption.
-
-~~~~~
-+-+-+-+-+---------...---+
-|   Key Schedule Nonce  |
-+-+-+-+-+---------...---+
-           XOR
-+-+-+-+-+---------...---+
-| Guard |       0       |
-+-+-+-+-+---------...---+
-           ===
-+-+-+-+-+---------...---+
-| Encrypt/Decrypt Nonce |
-+-+-+-+-+---------...---+
-~~~~~
-
-The Additional Authenticated Data (AAD) input to the encryption
-contains an object of the following form, with the values used to
-identify the key and nonce:
-
-~~~~~
-struct {
-    opaque group_id<0..255>;
-    uint64 epoch;
-    ContentType content_type;
-    opaque authenticated_data<0..2^32-1>;
-} MLSCiphertextContentAAD;
-~~~~~
-
-## Sender Data Encryption
-
-The "sender data" used to look up the key for the content encryption is
-encrypted with the ciphersuite's AEAD with a key and nonce derived from both the
-`sender_data_secret` and a sample of the encrypted content. Before being
-encrypted, the sender data is encoded as an object of the following form:
-
-~~~~~
-struct {
-    KeyPackageRef sender;
-    uint32 generation;
-    opaque reuse_guard[4];
-} MLSSenderData;
-~~~~~
-
-MLSSenderData.sender is assumed to be a `member` sender type.  When constructing
-an MLSSenderData from a Sender object, the sender MUST verify Sender.sender_type
-is `member` and use Sender.sender for MLSSenderData.sender.
-
-The `reuse_guard` field contains a fresh random value used to avoid nonce reuse
-in the case of state loss or corruption, as described in {{content-encryption}}.
-
-The key and nonce provided to the AEAD are computed as the KDF of the first
-`KDF.Nh` bytes of the ciphertext generated in the previous section. If the
-length of the ciphertext is less than `KDF.Nh`, the whole ciphertext is used
-without padding. In pseudocode, the key and nonce are derived as:
-
-~~~~~
-ciphertext_sample = ciphertext[0..KDF.Nh-1]
-
-sender_data_key = ExpandWithLabel(sender_data_secret, "key",
-                      ciphertext_sample, AEAD.Nk)
-sender_data_nonce = ExpandWithLabel(sender_data_secret, "nonce",
-                      ciphertext_sample, AEAD.Nn)
-~~~~~
-
-The Additional Authenticated Data (AAD) for the SenderData ciphertext is all the
-fields of MLSCiphertext excluding `encrypted_sender_data`:
-
-~~~~~
-struct {
-    opaque group_id<0..255>;
-    uint64 epoch;
-    ContentType content_type;
-} MLSSenderDataAAD;
-~~~~~
-
-When parsing a SenderData struct as part of message decryption, the recipient
-MUST verify that the KeyPackageRef indicated in the `sender` field identifies a
-member of the group.
 
 # Group Creation
 
