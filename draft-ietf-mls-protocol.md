@@ -1902,250 +1902,6 @@ for the group, and the functions `SetupBaseS` and
 Decryption is performed in the corresponding way, using the private
 key of the resolution node.
 
-# Key Packages
-
-In order to facilitate the asynchronous addition of clients to a
-group, key packages are pre-published that
-provide some public information about a user. A KeyPackage object specifies:
-
-1. A protocol version and ciphersuite that the client supports,
-2. a public key that others can use for key agreement,
-3. a credential authenticating the client's application-layer identity, and
-4. an `endpoint_id` that uniquely identifies a client in a group.
-
-KeyPackages are intended to be used only once and SHOULD NOT
-be reused except in case of last resort. (See {{keypackage-reuse}}).
-Clients MAY generate and publish multiple KeyPackages to
-support multiple ciphersuites.
-
-The value for hpke\_init\_key MUST be a public key for the asymmetric
-encryption scheme defined by cipher\_suite, and it MUST be unique among
-the set of KeyPackages created by this client. The whole structure
-is signed using the client's signature key. A KeyPackage object
-with an invalid signature field MUST be considered malformed.
-
-The signature is computed by the function `SignWithLabel` with a label
-`KeyPackage` and a content comprising of all of the fields except for the
-signature field.
-
-~~~~~
-enum {
-    reserved(0),
-    mls10(1),
-    (255)
-} ProtocolVersion;
-
-// See IANA registry for registered values
-uint16 ExtensionType;
-
-struct {
-    ExtensionType extension_type;
-    opaque extension_data<0..2^32-1>;
-} Extension;
-
-struct {
-    ProtocolVersion version;
-    CipherSuite cipher_suite;
-    HPKEPublicKey hpke_init_key;
-    Credential credential;
-    Extension extensions<8..2^32-1>;
-    // SignWithLabel(., "KeyPackageTBS", KeyPackageTBS)
-    opaque signature<0..2^16-1>;
-} KeyPackage;
-
-struct {
-    ProtocolVersion version;
-    CipherSuite cipher_suite;
-    HPKEPublicKey hpke_init_key;
-    opaque endpoint_id<0..255>;
-    Credential credential;
-    Extension extensions<8..2^32-1>;
-} KeyPackageTBS;
-~~~~~
-
-KeyPackage objects MUST contain at least two extensions, one of type
-`capabilities`, and one of
-type `lifetime`.  The `capabilities` extension
-allows MLS session establishment to be safe from downgrade attacks on the
-parameters described (as discussed in {{group-creation}}), while still only advertising
-one version / ciphersuite per KeyPackage.
-
-As the `KeyPackage` is a structure which is stored in the Ratchet
-Tree and updated depending on the evolution of the tree, each
-modification of its content MUST be reflected by a change in its
-signature. This allows other members to verify the validity of the KeyPackage
-at any time, particularly in the case of a newcomer joining the group.
-
-## KeyPackage Validation
-
-The validity of a KeyPackage needs to be verified at a few stages:
-
-* When a KeyPackage is downloaded by a group member, before it is used
-  to add the client to the group
-* When a KeyPackage is received by a group member in an Add, Update, or Commit
-  message
-* When a client joining a group receives KeyPackages for the other members of
-  the group in the group's ratchet tree
-
-The client verifies the validity of a KeyPackage using the following steps:
-
-* Verify that the credential in the KeyPackage is valid according to the
-  authentication service and the client's local policy.  These actions MUST be
-  the same regardless of at what point in the protocol the KeyPackage is being
-  verified.
-
-* Verify that the signature on the KeyPackage is valid using the public key
-  in the KeyPackage's credential
-
-* Verify that the KeyPackage is compatible with the group's parameters.  The
-  ciphersuite and protocol version of the KeyPackage must match those in
-  use in the group.  If the GroupContext has a `required_capabilities`
-  extension, then the required extensions and proposals MUST be listed in
-  the KeyPackage's `capabilities` extension.
-
-* Verify that the following fields in the KeyPackage are unique among the
-  members of the group (including any other members added in the same
-  Commit):
-
-    * `credential.signature_key`
-    * `hpke_init_key`
-    * `endpoint_id`
-
-## Client Capabilities
-
-The `capabilities` extension indicates what protocol versions, ciphersuites,
-protocol extensions, and non-default proposal types are supported by a client.
-Proposal types defined in this document are considered "default" and thus need
-not be listed.
-
-~~~~~
-struct {
-    ProtocolVersion versions<0..255>;
-    CipherSuite ciphersuites<0..255>;
-    ExtensionType extensions<0..255>;
-    ProposalType proposals<0..255>;
-} Capabilities;
-~~~~~
-
-This extension MUST be always present in a KeyPackage.  Extensions that appear
-in the `extensions` field of a KeyPackage MUST be included in the `extensions`
-field of the `capabilities` extension.
-
-## Lifetime
-
-The `lifetime` extension represents the times between which clients will
-consider a KeyPackage valid.  This time is represented as an absolute time,
-measured in seconds since the Unix epoch (1970-01-01T00:00:00Z). A client MUST
-NOT use the data in a KeyPackage for any processing before the `not_before`
-date, or after the `not_after` date.
-
-~~~~~
-uint64 not_before;
-uint64 not_after;
-~~~~~
-
-Applications MUST define a maximum total lifetime that is acceptable for a
-KeyPackage, and reject any KeyPackage where the total lifetime is longer than
-this duration.
-
-This extension MUST always be present in a KeyPackage.
-
-## KeyPackage Identifiers
-
-Within MLS, a KeyPackage is identified by its hash (see, e.g.,
-{{joining-via-welcome-message}}).  The `external_key_id` extension allows applications to add
-an explicit, application-defined identifier to a KeyPackage.
-
-~~~~~
-opaque external_key_id<0..2^16-1>;
-~~~~~
-
-## Group State
-
-Each member of the group maintains a GroupContext object that
-summarizes the state of the group:
-
-~~~~~
-struct {
-    opaque group_id<0..255>;
-    uint64 epoch;
-    opaque tree_hash<0..255>;
-    opaque confirmed_transcript_hash<0..255>;
-    Extension extensions<0..2^32-1>;
-} GroupContext;
-~~~~~
-
-The fields in this state have the following semantics:
-
-* The `group_id` field is an application-defined identifier for the
-  group.
-* The `epoch` field represents the current version of the group key.
-* The `tree_hash` field contains a commitment to the contents of the
-  group's ratchet tree and the credentials for the members of the
-  group, as described in {{tree-hashes}}.
-* The `confirmed_transcript_hash` field contains a running hash over
-  the messages that led to this state.
-* The `extensions` field contains the details of any protocol extensions that
-  apply to the group.
-
-When a new member is added to the group, an existing member of the
-group provides the new member with a Welcome message.  The Welcome
-message provides the information the new member needs to initialize
-its GroupContext.
-
-Different changes to the group will have different effects on the group state.
-These effects are described in their respective subsections of {{proposals}}.
-The following general rules apply:
-
-* The `group_id` field is constant.
-* The `epoch` field increments by one for each Commit message that
-  is processed.
-* The `tree_hash` is updated to represent the current tree and
-  credentials.
-* The `confirmed_transcript_hash` field is updated with the data for an
-  MLSPlaintext message encoding a Commit message as described below.
-* The `extensions` field changes when a GroupContextExtensions proposal is
-  committed.
-
-The `confirmed_transcript_hash` is updated with an MLSPlaintext in two steps:
-
-~~~~~
-struct {
-    WireFormat wire_format;
-    opaque group_id<0..255>;
-    uint64 epoch;
-    Sender sender;
-    opaque authenticated_data<0..2^32-1>;
-    ContentType content_type = commit;
-    Commit commit;
-    opaque signature<0..2^16-1>;
-} MLSPlaintextCommitContent;
-
-struct {
-    optional<MAC> confirmation_tag;
-} MLSPlaintextCommitAuthData;
-
-interim_transcript_hash_[0] = ""; // zero-length octet string
-
-confirmed_transcript_hash_[n] =
-    Hash(interim_transcript_hash_[n] ||
-        MLSPlaintextCommitContent_[n]);
-
-interim_transcript_hash_[n+1] =
-    Hash(confirmed_transcript_hash_[n] ||
-        MLSPlaintextCommitAuthData_[n]);
-~~~~~
-
-Thus the `confirmed_transcript_hash` field in a GroupContext object represents a
-transcript over the whole history of MLSPlaintext Commit messages, up to the
-confirmation_tag field of the most recent Commit.  The confirmation
-tag is then included in the transcript for the next epoch.  The interim
-transcript hash is computed by new members using the confirmation_tag of the
-GroupInfo struct, while existing members can compute it directly.
-
-As shown above, when a new group is created, the `interim_transcript_hash` field
-is set to the zero-length octet string.
-
 # Key Schedule
 
 Group keys are derived using the `Extract` and `Expand` functions from the KDF
@@ -2579,6 +2335,250 @@ If one of the parties is being actively impersonated by an attacker, their
 Thus, members of a group MAY use their `authentication_secrets` within
 an out-of-band authentication protocol to ensure that they
 share the same view of the group.
+
+# Key Packages
+
+In order to facilitate the asynchronous addition of clients to a
+group, key packages are pre-published that
+provide some public information about a user. A KeyPackage object specifies:
+
+1. A protocol version and ciphersuite that the client supports,
+2. a public key that others can use for key agreement,
+3. a credential authenticating the client's application-layer identity, and
+4. an `endpoint_id` that uniquely identifies a client in a group.
+
+KeyPackages are intended to be used only once and SHOULD NOT
+be reused except in case of last resort. (See {{keypackage-reuse}}).
+Clients MAY generate and publish multiple KeyPackages to
+support multiple ciphersuites.
+
+The value for hpke\_init\_key MUST be a public key for the asymmetric
+encryption scheme defined by cipher\_suite, and it MUST be unique among
+the set of KeyPackages created by this client. The whole structure
+is signed using the client's signature key. A KeyPackage object
+with an invalid signature field MUST be considered malformed.
+
+The signature is computed by the function `SignWithLabel` with a label
+`KeyPackage` and a content comprising of all of the fields except for the
+signature field.
+
+~~~~~
+enum {
+    reserved(0),
+    mls10(1),
+    (255)
+} ProtocolVersion;
+
+// See IANA registry for registered values
+uint16 ExtensionType;
+
+struct {
+    ExtensionType extension_type;
+    opaque extension_data<0..2^32-1>;
+} Extension;
+
+struct {
+    ProtocolVersion version;
+    CipherSuite cipher_suite;
+    HPKEPublicKey hpke_init_key;
+    Credential credential;
+    Extension extensions<8..2^32-1>;
+    // SignWithLabel(., "KeyPackageTBS", KeyPackageTBS)
+    opaque signature<0..2^16-1>;
+} KeyPackage;
+
+struct {
+    ProtocolVersion version;
+    CipherSuite cipher_suite;
+    HPKEPublicKey hpke_init_key;
+    opaque endpoint_id<0..255>;
+    Credential credential;
+    Extension extensions<8..2^32-1>;
+} KeyPackageTBS;
+~~~~~
+
+KeyPackage objects MUST contain at least two extensions, one of type
+`capabilities`, and one of
+type `lifetime`.  The `capabilities` extension
+allows MLS session establishment to be safe from downgrade attacks on the
+parameters described (as discussed in {{group-creation}}), while still only advertising
+one version / ciphersuite per KeyPackage.
+
+As the `KeyPackage` is a structure which is stored in the Ratchet
+Tree and updated depending on the evolution of the tree, each
+modification of its content MUST be reflected by a change in its
+signature. This allows other members to verify the validity of the KeyPackage
+at any time, particularly in the case of a newcomer joining the group.
+
+## KeyPackage Validation
+
+The validity of a KeyPackage needs to be verified at a few stages:
+
+* When a KeyPackage is downloaded by a group member, before it is used
+  to add the client to the group
+* When a KeyPackage is received by a group member in an Add, Update, or Commit
+  message
+* When a client joining a group receives KeyPackages for the other members of
+  the group in the group's ratchet tree
+
+The client verifies the validity of a KeyPackage using the following steps:
+
+* Verify that the credential in the KeyPackage is valid according to the
+  authentication service and the client's local policy.  These actions MUST be
+  the same regardless of at what point in the protocol the KeyPackage is being
+  verified.
+
+* Verify that the signature on the KeyPackage is valid using the public key
+  in the KeyPackage's credential
+
+* Verify that the KeyPackage is compatible with the group's parameters.  The
+  ciphersuite and protocol version of the KeyPackage must match those in
+  use in the group.  If the GroupContext has a `required_capabilities`
+  extension, then the required extensions and proposals MUST be listed in
+  the KeyPackage's `capabilities` extension.
+
+* Verify that the following fields in the KeyPackage are unique among the
+  members of the group (including any other members added in the same
+  Commit):
+
+    * `credential.signature_key`
+    * `hpke_init_key`
+    * `endpoint_id`
+
+## Client Capabilities
+
+The `capabilities` extension indicates what protocol versions, ciphersuites,
+protocol extensions, and non-default proposal types are supported by a client.
+Proposal types defined in this document are considered "default" and thus need
+not be listed.
+
+~~~~~
+struct {
+    ProtocolVersion versions<0..255>;
+    CipherSuite ciphersuites<0..255>;
+    ExtensionType extensions<0..255>;
+    ProposalType proposals<0..255>;
+} Capabilities;
+~~~~~
+
+This extension MUST be always present in a KeyPackage.  Extensions that appear
+in the `extensions` field of a KeyPackage MUST be included in the `extensions`
+field of the `capabilities` extension.
+
+## Lifetime
+
+The `lifetime` extension represents the times between which clients will
+consider a KeyPackage valid.  This time is represented as an absolute time,
+measured in seconds since the Unix epoch (1970-01-01T00:00:00Z). A client MUST
+NOT use the data in a KeyPackage for any processing before the `not_before`
+date, or after the `not_after` date.
+
+~~~~~
+uint64 not_before;
+uint64 not_after;
+~~~~~
+
+Applications MUST define a maximum total lifetime that is acceptable for a
+KeyPackage, and reject any KeyPackage where the total lifetime is longer than
+this duration.
+
+This extension MUST always be present in a KeyPackage.
+
+## KeyPackage Identifiers
+
+Within MLS, a KeyPackage is identified by its hash (see, e.g.,
+{{joining-via-welcome-message}}).  The `external_key_id` extension allows applications to add
+an explicit, application-defined identifier to a KeyPackage.
+
+~~~~~
+opaque external_key_id<0..2^16-1>;
+~~~~~
+
+## Group State
+
+Each member of the group maintains a GroupContext object that
+summarizes the state of the group:
+
+~~~~~
+struct {
+    opaque group_id<0..255>;
+    uint64 epoch;
+    opaque tree_hash<0..255>;
+    opaque confirmed_transcript_hash<0..255>;
+    Extension extensions<0..2^32-1>;
+} GroupContext;
+~~~~~
+
+The fields in this state have the following semantics:
+
+* The `group_id` field is an application-defined identifier for the
+  group.
+* The `epoch` field represents the current version of the group key.
+* The `tree_hash` field contains a commitment to the contents of the
+  group's ratchet tree and the credentials for the members of the
+  group, as described in {{tree-hashes}}.
+* The `confirmed_transcript_hash` field contains a running hash over
+  the messages that led to this state.
+* The `extensions` field contains the details of any protocol extensions that
+  apply to the group.
+
+When a new member is added to the group, an existing member of the
+group provides the new member with a Welcome message.  The Welcome
+message provides the information the new member needs to initialize
+its GroupContext.
+
+Different changes to the group will have different effects on the group state.
+These effects are described in their respective subsections of {{proposals}}.
+The following general rules apply:
+
+* The `group_id` field is constant.
+* The `epoch` field increments by one for each Commit message that
+  is processed.
+* The `tree_hash` is updated to represent the current tree and
+  credentials.
+* The `confirmed_transcript_hash` field is updated with the data for an
+  MLSPlaintext message encoding a Commit message as described below.
+* The `extensions` field changes when a GroupContextExtensions proposal is
+  committed.
+
+The `confirmed_transcript_hash` is updated with an MLSPlaintext in two steps:
+
+~~~~~
+struct {
+    WireFormat wire_format;
+    opaque group_id<0..255>;
+    uint64 epoch;
+    Sender sender;
+    opaque authenticated_data<0..2^32-1>;
+    ContentType content_type = commit;
+    Commit commit;
+    opaque signature<0..2^16-1>;
+} MLSPlaintextCommitContent;
+
+struct {
+    optional<MAC> confirmation_tag;
+} MLSPlaintextCommitAuthData;
+
+interim_transcript_hash_[0] = ""; // zero-length octet string
+
+confirmed_transcript_hash_[n] =
+    Hash(interim_transcript_hash_[n] ||
+        MLSPlaintextCommitContent_[n]);
+
+interim_transcript_hash_[n+1] =
+    Hash(confirmed_transcript_hash_[n] ||
+        MLSPlaintextCommitAuthData_[n]);
+~~~~~
+
+Thus the `confirmed_transcript_hash` field in a GroupContext object represents a
+transcript over the whole history of MLSPlaintext Commit messages, up to the
+confirmation_tag field of the most recent Commit.  The confirmation
+tag is then included in the transcript for the next epoch.  The interim
+transcript hash is computed by new members using the confirmation_tag of the
+GroupInfo struct, while existing members can compute it directly.
+
+As shown above, when a new group is created, the `interim_transcript_hash` field
+is set to the zero-length octet string.
 
 # Group Creation
 
