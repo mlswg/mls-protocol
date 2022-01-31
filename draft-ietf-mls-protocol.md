@@ -2143,7 +2143,51 @@ psk_[n] --> Extract --> ExpandWithLabel --> Extract = psk_secret_[n]
 In particular, if there are no PreSharedKey proposals in a given Commit, then
 the resulting `psk_secret` is `psk_secret_[0]`, the all-zero vector.
 
-## Secret Tree {#secret-tree}
+## Exporters
+
+The main MLS key schedule provides an `exporter_secret` which can
+be used by an application as the basis to derive new secrets called
+`exported_value` outside the MLS layer.
+
+~~~~~
+MLS-Exporter(Label, Context, key_length) =
+       ExpandWithLabel(DeriveSecret(exporter_secret, Label),
+                         "exporter", Hash(Context), key_length)
+~~~~~
+
+Each application SHOULD provide a unique label to `MLS-Exporter` that
+identifies its use case. This is to prevent two
+exported outputs from being generated with the same values and used
+for different functionalities.
+
+The exported values are bound to the group epoch from which the
+`exporter_secret` is derived, hence reflects a particular state of
+the group.
+
+It is RECOMMENDED for the application generating exported values
+to refresh those values after a Commit is processed.
+
+## Resumption Secret
+
+The main MLS key schedule provides a `resumption_secret` that is used as a PSK
+to inject entropy from one epoch into another.  This functionality is used in the
+reinitialization and branching processes described in {{reinitialization}} and
+{{sub-group-branching}}, but may be used by applications for other purposes.
+
+Some uses of resumption PSKs might call for the use of PSKs from historical
+epochs. The application SHOULD specify an upper limit on the number of past
+epochs for which the `resumption_secret` may be stored.
+
+## State Authentication Keys
+
+The main MLS key schedule provides a per-epoch `authentication_secret`.
+If one of the parties is being actively impersonated by an attacker, their
+`authentication_secret` will differ from that of the other group members.
+Thus, members of a group MAY use their `authentication_secrets` within
+an out-of-band authentication protocol to ensure that they
+share the same view of the group.
+
+# Secret Tree {#secret-tree}
 
 For the generation of encryption keys and nonces, the key schedule begins with
 the `encryption_secret` at the root and derives a tree of secrets with the same
@@ -2291,50 +2335,6 @@ used to derive G (the `encryption_secret`), namely `init_secret` of epoch n-1
 and `commit_secret`, `joiner_secret`, `epoch_secret` of epoch n. The client MAY
 retain (not consume) the values K0 and N0 to allow for out-of-order delivery,
 and SHOULD retain AR2 for processing future messages.
-
-## Exporters
-
-The main MLS key schedule provides an `exporter_secret` which can
-be used by an application as the basis to derive new secrets called
-`exported_value` outside the MLS layer.
-
-~~~~~
-MLS-Exporter(Label, Context, key_length) =
-       ExpandWithLabel(DeriveSecret(exporter_secret, Label),
-                         "exporter", Hash(Context), key_length)
-~~~~~
-
-Each application SHOULD provide a unique label to `MLS-Exporter` that
-identifies its use case. This is to prevent two
-exported outputs from being generated with the same values and used
-for different functionalities.
-
-The exported values are bound to the group epoch from which the
-`exporter_secret` is derived, hence reflects a particular state of
-the group.
-
-It is RECOMMENDED for the application generating exported values
-to refresh those values after a Commit is processed.
-
-## Resumption Secret
-
-The main MLS key schedule provides a `resumption_secret` that is used as a PSK
-to inject entropy from one epoch into another.  This functionality is used in the
-reinitialization and branching processes described in {{reinitialization}} and
-{{sub-group-branching}}, but may be used by applications for other purposes.
-
-Some uses of resumption PSKs might call for the use of PSKs from historical
-epochs. The application SHOULD specify an upper limit on the number of past
-epochs for which the `resumption_secret` may be stored.
-
-## State Authentication Keys
-
-The main MLS key schedule provides a per-epoch `authentication_secret`.
-If one of the parties is being actively impersonated by an attacker, their
-`authentication_secret` will differ from that of the other group members.
-Thus, members of a group MAY use their `authentication_secrets` within
-an out-of-band authentication protocol to ensure that they
-share the same view of the group.
 
 # Key Packages
 
