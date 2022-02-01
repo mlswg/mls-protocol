@@ -1999,6 +1999,92 @@ external_priv, external_pub = KEM.DeriveKeyPair(external_secret)
 The public key `external_pub` can be published as part of the GroupInfo struct
 in order to allow non-members to join the group using an external commit.
 
+## Group Context
+
+Each member of the group maintains a GroupContext object that
+summarizes the state of the group:
+
+~~~~~
+struct {
+    opaque group_id<0..255>;
+    uint64 epoch;
+    opaque tree_hash<0..255>;
+    opaque confirmed_transcript_hash<0..255>;
+    Extension extensions<0..2^32-1>;
+} GroupContext;
+~~~~~
+
+The fields in this state have the following semantics:
+
+* The `group_id` field is an application-defined identifier for the
+  group.
+* The `epoch` field represents the current version of the group key.
+* The `tree_hash` field contains a commitment to the contents of the
+  group's ratchet tree and the credentials for the members of the
+  group, as described in {{tree-hashes}}.
+* The `confirmed_transcript_hash` field contains a running hash over
+  the messages that led to this state.
+* The `extensions` field contains the details of any protocol extensions that
+  apply to the group.
+
+When a new member is added to the group, an existing member of the
+group provides the new member with a Welcome message.  The Welcome
+message provides the information the new member needs to initialize
+its GroupContext.
+
+Different changes to the group will have different effects on the group state.
+These effects are described in their respective subsections of {{proposals}}.
+The following general rules apply:
+
+* The `group_id` field is constant.
+* The `epoch` field increments by one for each Commit message that
+  is processed.
+* The `tree_hash` is updated to represent the current tree and
+  credentials.
+* The `confirmed_transcript_hash` field is updated with the data for an
+  MLSPlaintext message encoding a Commit message as described below.
+* The `extensions` field changes when a GroupContextExtensions proposal is
+  committed.
+
+The `confirmed_transcript_hash` is updated with an MLSPlaintext in two steps:
+
+~~~~~
+struct {
+    WireFormat wire_format;
+    opaque group_id<0..255>;
+    uint64 epoch;
+    Sender sender;
+    opaque authenticated_data<0..2^32-1>;
+    ContentType content_type = commit;
+    Commit commit;
+    opaque signature<0..2^16-1>;
+} MLSPlaintextCommitContent;
+
+struct {
+    optional<MAC> confirmation_tag;
+} MLSPlaintextCommitAuthData;
+
+interim_transcript_hash_[0] = ""; // zero-length octet string
+
+confirmed_transcript_hash_[n] =
+    Hash(interim_transcript_hash_[n] ||
+        MLSPlaintextCommitContent_[n]);
+
+interim_transcript_hash_[n+1] =
+    Hash(confirmed_transcript_hash_[n] ||
+        MLSPlaintextCommitAuthData_[n]);
+~~~~~
+
+Thus the `confirmed_transcript_hash` field in a GroupContext object represents a
+transcript over the whole history of MLSPlaintext Commit messages, up to the
+confirmation_tag field of the most recent Commit.  The confirmation
+tag is then included in the transcript for the next epoch.  The interim
+transcript hash is computed by new members using the confirmation_tag of the
+GroupInfo struct, while existing members can compute it directly.
+
+As shown above, when a new group is created, the `interim_transcript_hash` field
+is set to the zero-length octet string.
+
 ## External Initialization
 
 In addition to initializing a new epoch via KDF invocations as described above,
@@ -2493,92 +2579,6 @@ an explicit, application-defined identifier to a KeyPackage.
 ~~~~~
 opaque external_key_id<0..2^16-1>;
 ~~~~~
-
-## Group State
-
-Each member of the group maintains a GroupContext object that
-summarizes the state of the group:
-
-~~~~~
-struct {
-    opaque group_id<0..255>;
-    uint64 epoch;
-    opaque tree_hash<0..255>;
-    opaque confirmed_transcript_hash<0..255>;
-    Extension extensions<0..2^32-1>;
-} GroupContext;
-~~~~~
-
-The fields in this state have the following semantics:
-
-* The `group_id` field is an application-defined identifier for the
-  group.
-* The `epoch` field represents the current version of the group key.
-* The `tree_hash` field contains a commitment to the contents of the
-  group's ratchet tree and the credentials for the members of the
-  group, as described in {{tree-hashes}}.
-* The `confirmed_transcript_hash` field contains a running hash over
-  the messages that led to this state.
-* The `extensions` field contains the details of any protocol extensions that
-  apply to the group.
-
-When a new member is added to the group, an existing member of the
-group provides the new member with a Welcome message.  The Welcome
-message provides the information the new member needs to initialize
-its GroupContext.
-
-Different changes to the group will have different effects on the group state.
-These effects are described in their respective subsections of {{proposals}}.
-The following general rules apply:
-
-* The `group_id` field is constant.
-* The `epoch` field increments by one for each Commit message that
-  is processed.
-* The `tree_hash` is updated to represent the current tree and
-  credentials.
-* The `confirmed_transcript_hash` field is updated with the data for an
-  MLSPlaintext message encoding a Commit message as described below.
-* The `extensions` field changes when a GroupContextExtensions proposal is
-  committed.
-
-The `confirmed_transcript_hash` is updated with an MLSPlaintext in two steps:
-
-~~~~~
-struct {
-    WireFormat wire_format;
-    opaque group_id<0..255>;
-    uint64 epoch;
-    Sender sender;
-    opaque authenticated_data<0..2^32-1>;
-    ContentType content_type = commit;
-    Commit commit;
-    opaque signature<0..2^16-1>;
-} MLSPlaintextCommitContent;
-
-struct {
-    optional<MAC> confirmation_tag;
-} MLSPlaintextCommitAuthData;
-
-interim_transcript_hash_[0] = ""; // zero-length octet string
-
-confirmed_transcript_hash_[n] =
-    Hash(interim_transcript_hash_[n] ||
-        MLSPlaintextCommitContent_[n]);
-
-interim_transcript_hash_[n+1] =
-    Hash(confirmed_transcript_hash_[n] ||
-        MLSPlaintextCommitAuthData_[n]);
-~~~~~
-
-Thus the `confirmed_transcript_hash` field in a GroupContext object represents a
-transcript over the whole history of MLSPlaintext Commit messages, up to the
-confirmation_tag field of the most recent Commit.  The confirmation
-tag is then included in the transcript for the next epoch.  The interim
-transcript hash is computed by new members using the confirmation_tag of the
-GroupInfo struct, while existing members can compute it directly.
-
-As shown above, when a new group is created, the `interim_transcript_hash` field
-is set to the zero-length octet string.
 
 # Group Creation
 
