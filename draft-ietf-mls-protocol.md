@@ -1725,6 +1725,182 @@ specifically:
 * The path secrets used to derive each updated node key pair.
 * Each outdated node key pair that was replaced by the update.
 
+## Tree Hashes
+
+To allow group members to verify that they agree on the public cryptographic state
+of the group, this section defines a scheme for generating a hash value (called
+the "tree hash") that represents the contents of the group's ratchet tree and the
+members' KeyPackages. The tree hash of a tree is the tree hash of its root node,
+which we define recursively, starting with the leaves.
+
+As some nodes may be blank while others contain data we use the following struct
+to include data if present.
+
+~~~~~
+struct {
+    uint8 present;
+    select (present) {
+        case 0: struct{};
+        case 1: T value;
+    }
+} optional<T>;
+~~~~~
+
+The tree hash of a leaf node is the hash of leaf's `LeafNodeHashInput` object which
+might include a Key Package depending on whether or not it is blank.
+
+~~~~~
+struct {
+    uint32 leaf_index;
+    optional<KeyPackage> key_package;
+} LeafNodeHashInput;
+~~~~~
+
+Now the tree hash of any non-leaf node is recursively defined to be the hash of
+its `ParentNodeHashInput`. This includes an optional `ParentNode`
+object depending on whether the node is blank or not.
+
+~~~~~
+struct {
+    HPKEPublicKey public_key;
+    opaque parent_hash<0..255>;
+    uint32 unmerged_leaves<0..2^32-1>;
+} ParentNode;
+
+struct {
+    optional<ParentNode> parent_node;
+    opaque left_hash<0..255>;
+    opaque right_hash<0..255>;
+} ParentNodeHashInput;
+~~~~~
+
+The `left_hash` and `right_hash` fields hold the tree hashes of the node's
+left and right children, respectively.
+
+## Parent Hash {#parent-hash}
+
+The `parent_hash` extension carries information to authenticate the structure of
+the tree, as described below.
+
+~~~~~
+opaque parent_hash<0..255>;
+~~~~~
+
+Consider a ratchet tree with a parent node P and children V and S. The parent hash
+of P changes whenever an `UpdatePath` object is applied to the ratchet tree along
+a path traversing node V (and hence also P). The new "Parent Hash of P (with Co-Path
+Child S)" is obtained by hashing P's `ParentHashInput` struct using the resolution
+of S to populate the `original_child_resolution` field. This way, P's Parent Hash
+fixes the new HPKE public keys of all nodes on the path from P to the root.
+Furthermore, for each such key PK the hash also binds the set of HPKE public keys
+to which PK's secret key was encrypted in the Commit that contained the
+`UpdatePath` object.
+
+~~~~~
+struct {
+    HPKEPublicKey public_key;
+    opaque parent_hash<0..255>;
+    HPKEPublicKey original_child_resolution<0..2^32-1>;
+} ParentHashInput;
+~~~~~
+
+The Parent Hash of P with Co-Path Child S is the hash of a `ParentHashInput` object
+populated as follows. The field `public_key` contains the HPKE public key of P. If P
+is the root, then `parent_hash` is set to a zero-length octet string.
+Otherwise `parent_hash` is the Parent Hash of P's parent with P's sibling as the
+co-path child.
+
+Finally, `original_child_resolution` is the array of `HPKEPublicKey` values of the
+nodes in the resolution of S but with the `unmerged_leaves` of P omitted. For
+example, in the ratchet tree depicted in {{resolution-example}} the
+`ParentHashInput` of node Z with co-path child C would contain an empty
+`original_child_resolution` since C's resolution includes only itself but C is also
+an unmerged leaf of Z. Meanwhile, the `ParentHashInput` of node Z with co-path child
+D has an array with one element in it: the HPKE public key of D.
+
+### Using Parent Hashes
+
+The Parent Hash of P appears in three types of structs. If V is itself a parent node
+then P's Parent Hash is stored in the `parent_hash` fields of both V's
+`ParentHashInput` struct and V's `ParentNode` struct. (The `ParentNode` struct is
+used to encapsulate all public information about V that must be conveyed to a new
+member joining the group as well as to define the Tree Hash of node V.)
+
+If, on the other hand, V is a leaf and its KeyPackage contains the `parent_hash`
+extension then the Parent Hash of P (with V's sibling as co-path child) is stored in
+that field. In particular, the extension MUST be present in the `leaf_key_package`
+field of an `UpdatePath` object. (This way, the signature of such a KeyPackage also
+serves to attest to which keys the group member introduced into the ratchet tree and
+to whom the corresponding secret keys were sent. This helps prevent malicious insiders
+from constructing artificial ratchet trees with a node V whose HPKE secret key is
+known to the insider yet where the insider isn't assigned a leaf in the subtree rooted
+at V. Indeed, such a ratchet tree would violate the tree invariant.)
+
+### Verifying Parent Hashes
+
+To this end, when processing a Commit message clients MUST recompute the
+expected value of `parent_hash` for the committer's new leaf and verify that it
+matches the `parent_hash` value in the supplied `leaf_key_package`. Moreover, when
+joining a group, new members MUST authenticate each non-blank parent node P. A parent
+node P is authenticated by performing the following check:
+
+* Let L and R be the left and right children of P, respectively
+* If L.parent_hash is equal to the Parent Hash of P with Co-Path Child R, the check passes
+* If R is blank, replace R with its left child until R is either non-blank or a leaf node
+* If R is a blank leaf node, the check fails
+* If R.parent_hash is equal to the Parent Hash of P with Co-Path Child L, the check passes
+* Otherwise, the check fails
+
+The left-child recursion under the right child of P is necessary because the expansion of
+the tree to the right due to Add proposals can cause blank nodes to be interposed
+between a parent node and its right child.
+
+## Update Paths
+
+As described in {{commit}}, each MLS Commit message may optionally
+transmit a KeyPackage leaf and node values along its direct path.
+The path contains a public key and encrypted secret value for all
+intermediate nodes in the path above the leaf.  The path is ordered
+from the closest node to the leaf to the root; each node MUST be the
+parent of its predecessor.
+
+~~~~~
+struct {
+    opaque kem_output<0..2^16-1>;
+    opaque ciphertext<0..2^16-1>;
+} HPKECiphertext;
+
+struct {
+    HPKEPublicKey public_key;
+    HPKECiphertext encrypted_path_secret<0..2^32-1>;
+} UpdatePathNode;
+
+struct {
+    KeyPackage leaf_key_package;
+    UpdatePathNode nodes<0..2^32-1>;
+} UpdatePath;
+~~~~~
+
+For each `UpdatePathNode`, the resolution of the corresponding copath node MUST
+be filtered by removing all new leaf nodes added as part of this MLS Commit
+message. The number of ciphertexts in the `encrypted_path_secret` vector MUST be
+equal to the length of the filtered resolution, with each ciphertext being the
+encryption to the respective resolution node.
+
+The HPKECiphertext values are computed as
+
+~~~~~
+kem_output, context = SetupBaseS(node_public_key, group_context)
+ciphertext = context.Seal("", path_secret)
+~~~~~
+
+where `node_public_key` is the public key of the node that the path
+secret is being encrypted for, group_context is the current GroupContext object
+for the group, and the functions `SetupBaseS` and
+`Seal` are defined according to {{!I-D.irtf-cfrg-hpke}}.
+
+Decryption is performed in the corresponding way, using the private
+key of the resolution node.
 
 # Key Packages
 
@@ -1884,136 +2060,6 @@ an explicit, application-defined identifier to a KeyPackage.
 opaque external_key_id<0..2^16-1>;
 ~~~~~
 
-## Parent Hash {#parent-hash}
-
-The `parent_hash` extension carries information to authenticate the structure of
-the tree, as described below.
-
-~~~~~
-opaque parent_hash<0..255>;
-~~~~~
-
-Consider a ratchet tree with a parent node P and children V and S. The parent hash
-of P changes whenever an `UpdatePath` object is applied to the ratchet tree along
-a path traversing node V (and hence also P). The new "Parent Hash of P (with Co-Path
-Child S)" is obtained by hashing P's `ParentHashInput` struct using the resolution
-of S to populate the `original_child_resolution` field. This way, P's Parent Hash
-fixes the new HPKE public keys of all nodes on the path from P to the root.
-Furthermore, for each such key PK the hash also binds the set of HPKE public keys
-to which PK's secret key was encrypted in the Commit that contained the
-`UpdatePath` object.
-
-~~~~~
-struct {
-    HPKEPublicKey public_key;
-    opaque parent_hash<0..255>;
-    HPKEPublicKey original_child_resolution<0..2^32-1>;
-} ParentHashInput;
-~~~~~
-
-The Parent Hash of P with Co-Path Child S is the hash of a `ParentHashInput` object
-populated as follows. The field `public_key` contains the HPKE public key of P. If P
-is the root, then `parent_hash` is set to a zero-length octet string.
-Otherwise `parent_hash` is the Parent Hash of P's parent with P's sibling as the
-co-path child.
-
-Finally, `original_child_resolution` is the array of `HPKEPublicKey` values of the
-nodes in the resolution of S but with the `unmerged_leaves` of P omitted. For
-example, in the ratchet tree depicted in {{resolution-example}} the
-`ParentHashInput` of node Z with co-path child C would contain an empty
-`original_child_resolution` since C's resolution includes only itself but C is also
-an unmerged leaf of Z. Meanwhile, the `ParentHashInput` of node Z with co-path child
-D has an array with one element in it: the HPKE public key of D.
-
-### Using Parent Hashes
-
-The Parent Hash of P appears in three types of structs. If V is itself a parent node
-then P's Parent Hash is stored in the `parent_hash` fields of both V's
-`ParentHashInput` struct and V's `ParentNode` struct. (The `ParentNode` struct is
-used to encapsulate all public information about V that must be conveyed to a new
-member joining the group as well as to define the Tree Hash of node V.)
-
-If, on the other hand, V is a leaf and its KeyPackage contains the `parent_hash`
-extension then the Parent Hash of P (with V's sibling as co-path child) is stored in
-that field. In particular, the extension MUST be present in the `leaf_key_package`
-field of an `UpdatePath` object. (This way, the signature of such a KeyPackage also
-serves to attest to which keys the group member introduced into the ratchet tree and
-to whom the corresponding secret keys were sent. This helps prevent malicious insiders
-from constructing artificial ratchet trees with a node V whose HPKE secret key is
-known to the insider yet where the insider isn't assigned a leaf in the subtree rooted
-at V. Indeed, such a ratchet tree would violate the tree invariant.)
-
-### Verifying Parent Hashes
-
-To this end, when processing a Commit message clients MUST recompute the
-expected value of `parent_hash` for the committer's new leaf and verify that it
-matches the `parent_hash` value in the supplied `leaf_key_package`. Moreover, when
-joining a group, new members MUST authenticate each non-blank parent node P. A parent
-node P is authenticated by performing the following check:
-
-* Let L and R be the left and right children of P, respectively
-* If L.parent_hash is equal to the Parent Hash of P with Co-Path Child R, the check passes
-* If R is blank, replace R with its left child until R is either non-blank or a leaf node
-* If R is a blank leaf node, the check fails
-* If R.parent_hash is equal to the Parent Hash of P with Co-Path Child L, the check passes
-* Otherwise, the check fails
-
-The left-child recursion under the right child of P is necessary because the expansion of
-the tree to the right due to Add proposals can cause blank nodes to be interposed
-between a parent node and its right child.
-
-## Tree Hashes
-
-To allow group members to verify that they agree on the public cryptographic state
-of the group, this section defines a scheme for generating a hash value (called
-the "tree hash") that represents the contents of the group's ratchet tree and the
-members' KeyPackages. The tree hash of a tree is the tree hash of its root node,
-which we define recursively, starting with the leaves.
-
-As some nodes may be blank while others contain data we use the following struct
-to include data if present.
-
-~~~~~
-struct {
-    uint8 present;
-    select (present) {
-        case 0: struct{};
-        case 1: T value;
-    }
-} optional<T>;
-~~~~~
-
-The tree hash of a leaf node is the hash of leaf's `LeafNodeHashInput` object which
-might include a Key Package depending on whether or not it is blank.
-
-~~~~~
-struct {
-    uint32 leaf_index;
-    optional<KeyPackage> key_package;
-} LeafNodeHashInput;
-~~~~~
-
-Now the tree hash of any non-leaf node is recursively defined to be the hash of
-its `ParentNodeHashInput`. This includes an optional `ParentNode`
-object depending on whether the node is blank or not.
-
-~~~~~
-struct {
-    HPKEPublicKey public_key;
-    opaque parent_hash<0..255>;
-    uint32 unmerged_leaves<0..2^32-1>;
-} ParentNode;
-
-struct {
-    optional<ParentNode> parent_node;
-    opaque left_hash<0..255>;
-    opaque right_hash<0..255>;
-} ParentNodeHashInput;
-~~~~~
-
-The `left_hash` and `right_hash` fields hold the tree hashes of the node's
-left and right children, respectively.
-
 ## Group State
 
 Each member of the group maintains a GroupContext object that
@@ -2099,53 +2145,6 @@ GroupInfo struct, while existing members can compute it directly.
 
 As shown above, when a new group is created, the `interim_transcript_hash` field
 is set to the zero-length octet string.
-
-## Update Paths
-
-As described in {{commit}}, each MLS Commit message may optionally
-transmit a KeyPackage leaf and node values along its direct path.
-The path contains a public key and encrypted secret value for all
-intermediate nodes in the path above the leaf.  The path is ordered
-from the closest node to the leaf to the root; each node MUST be the
-parent of its predecessor.
-
-~~~~~
-struct {
-    opaque kem_output<0..2^16-1>;
-    opaque ciphertext<0..2^16-1>;
-} HPKECiphertext;
-
-struct {
-    HPKEPublicKey public_key;
-    HPKECiphertext encrypted_path_secret<0..2^32-1>;
-} UpdatePathNode;
-
-struct {
-    KeyPackage leaf_key_package;
-    UpdatePathNode nodes<0..2^32-1>;
-} UpdatePath;
-~~~~~
-
-For each `UpdatePathNode`, the resolution of the corresponding copath node MUST
-be filtered by removing all new leaf nodes added as part of this MLS Commit
-message. The number of ciphertexts in the `encrypted_path_secret` vector MUST be
-equal to the length of the filtered resolution, with each ciphertext being the
-encryption to the respective resolution node.
-
-The HPKECiphertext values are computed as
-
-~~~~~
-kem_output, context = SetupBaseS(node_public_key, group_context)
-ciphertext = context.Seal("", path_secret)
-~~~~~
-
-where `node_public_key` is the public key of the node that the path
-secret is being encrypted for, group_context is the current GroupContext object
-for the group, and the functions `SetupBaseS` and
-`Seal` are defined according to {{!I-D.irtf-cfrg-hpke}}.
-
-Decryption is performed in the corresponding way, using the private
-key of the resolution node.
 
 # Key Schedule
 
