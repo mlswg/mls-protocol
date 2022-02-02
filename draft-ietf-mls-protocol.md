@@ -1889,12 +1889,6 @@ object depending on whether the node is blank or not.
 
 ~~~~~
 struct {
-    HPKEPublicKey public_key;
-    opaque parent_hash<0..255>;
-    uint32 unmerged_leaves<0..2^32-1>;
-} ParentNode;
-
-struct {
     optional<ParentNode> parent_node;
     opaque left_hash<0..255>;
     opaque right_hash<0..255>;
