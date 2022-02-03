@@ -2046,7 +2046,16 @@ The following general rules apply:
 * The `extensions` field changes when a GroupContextExtensions proposal is
   committed.
 
-The `confirmed_transcript_hash` is updated with an MLSPlaintext in two steps:
+## Transcript Hashes
+
+The transcript hashes computed in MLS represent a running hash over all Proposal
+and Commit messages that have ever been sent in a group.  Commit messages are
+included directly. Proposal messages are indirectly included via the Commit that
+applied them. Both types of message are included by hashing the MLSPlaintext
+in which they were sent.
+
+The `confirmed_transcript_hash` is updated with an MLSPlaintext containing a
+Commit in two steps:
 
 ~~~~~
 struct {
