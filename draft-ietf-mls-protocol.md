@@ -1537,6 +1537,14 @@ A leaf node in the tree describes all the details of an individual client's
 appearance in the group, signed by that client:
 
 ~~~~~
+enum {
+    reserved(0),
+    add(1),
+    update(2),
+    commit(3),
+    (255)
+} LeafNodeSource;
+
 struct {
     ProtocolVersion versions<0..255>;
     CipherSuite ciphersuites<0..255>;
@@ -1545,15 +1553,27 @@ struct {
 } Capabilities;
 
 struct {
-    opaque group_id<0..255>;
-    opaque parent_hash<0..255>;
-} MembershipInfo;
+    uint64 not_before;
+    uint64 not_after;
+} Lifetime;
 
 struct {
     HPKEPublicKey public_key;
     Credential credential;
     Capabilities capabilities;
-    optional<MembershipInfo> membership;
+
+    LeafNodeSource leaf_node_source;
+    select (leaf_node_source) {
+        case add:
+            Lifetime lifetime;
+
+        case update:
+            struct {}
+
+        case commit:
+            opaque parent_hash<0..255>;
+    }
+
     Extension extensions<8..2^32-1>;
     // SignWithLabel(., "LeafNodeTBS", LeafNodeTBS)
     opaque signature<0..2^16-1>;
@@ -1563,8 +1583,31 @@ struct {
     HPKEPublicKey public_key;
     Credential credential;
     Capabilities capabilities;
-    optional<MembershipInfo> membership;
+
+    LeafNodeSource leaf_node_source;
+    select (leaf_node_source) {
+        case add:
+            Lifetime lifetime;
+
+        case update:
+            struct{};
+
+        case commit:
+            opaque parent_hash<0..255>;
+    }
+
     Extension extensions<8..2^32-1>;
+
+    select (leaf_node_source) {
+        case add:
+            struct{};
+
+        case update:
+            opaque group_id<0..255>;
+
+        case commit:
+            opaque group_id<0..255>;
+    }
 } LeafNodeTBS;
 ~~~~~
 
@@ -1578,17 +1621,29 @@ Proposal types defined in this document are considered "default" and thus need
 not be listed.  Extensions that appear in the `extensions` field of a LeafNode
 MUST be included in the `extensions` field of the `capabilities` field.
 
-The `membership` field connects the member's info to the group.  Its contents
-vary depending on the context in which the LeafNode appears in the protocol:
+The `leaf_node_source` field indicates how this LeafNode came to be added to the
+tree.
 
-* A LeafNode pre-published in a KeyPackage MUST have this field set to the null
-  optional value.
-* A LeafNode sent in an Update proposal MUST have this field set.  The
-  `group_id` MUST match the value set for the overall group, and the
-  `parent_hash` field MUST be empty.
-* A LeafNode sent in an UpdatePath MUST have this field set. The `group_id` MUST
-  be correct, and the `parent_hash` field MUST contain the parent hash of the
-  first node in the UpdatePath.
+In the case where the leaf was added to the tree based on a pre-published
+KeyPackage, the `lifetime` field represents the times between which clients will
+consider a LeafNode valid.  These times are represented as absolute times,
+measured in seconds since the Unix epoch (1970-01-01T00:00:00Z).  An expired
+LeafNode MUST NOT be sent in an Add proposal.  If an Add proposal contains an
+expired LeafNode, it MUST be rejected as invalid.  When a client first downloads
+the tree for a group on joining, the client SHOULD NOT reject the tree because
+there are expired leaf nodes in the tree, since these nodes may have been valid
+when they were added.  Applications MUST define a maximum total lifetime that is
+acceptable for a LeafNode, and reject any LeafNode where the total lifetime
+is longer than this duration.
+
+In the case where the leaf node was inserted into the tree via a Commit message,
+the `parent_hash` field contains the parent hash for this leaf node (see
+{{parent-hash}}).
+
+The LeafNodeTBS structure covers the fields above the signature in the LeafNode.
+In addition, when the leaf node was created in the context of a group (the
+update and commit cases), the group ID of the group is added as context to the
+signature.
 
 Since the LeafNode is a structure which is stored in the group's ratchet tree
 and updated depending on the evolution of the tree, each modification of its
@@ -2587,11 +2642,6 @@ enum {
     (255)
 } ProtocolVersion;
 
-struct {
-    uint64 not_before;
-    uint64 not_after;
-} Lifetime;
-
 // See IANA registry for registered values
 uint16 ExtensionType;
 
@@ -2604,7 +2654,6 @@ struct {
     ProtocolVersion version;
     CipherSuite cipher_suite;
     HPKEPublicKey init_key;
-    Lifetime lifetime;
     LeafNode leaf_node;
     Extension extensions<8..2^32-1>;
     // SignWithLabel(., "KeyPackageTBS", KeyPackageTBS)
@@ -2615,19 +2664,10 @@ struct {
     ProtocolVersion version;
     CipherSuite cipher_suite;
     HPKEPublicKey init_key;
-    Lifetime lifetime;
     LeafNode leaf_node;
     Extension extensions<8..2^32-1>;
 } KeyPackageTBS;
 ~~~~~
-
-The `lifetime` field represents the times between which clients will consider a
-KeyPackage valid.  These times are represented as absolute times, measured in
-seconds since the Unix epoch (1970-01-01T00:00:00Z). A client MUST NOT use the
-data in a KeyPackage for any processing before the `not_before` date, or after
-the `not_after` date. Applications MUST define a maximum total lifetime that is
-acceptable for a KeyPackage, and reject any KeyPackage where the total lifetime
-is longer than this duration.
 
 Note that the `capabilties` field in the `leaf_node` allows MLS session
 establishment to be safe from downgrade attacks on the parameters described (as
