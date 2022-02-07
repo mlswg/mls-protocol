@@ -862,6 +862,10 @@ leaves (A, B, C, D, E, F, G) and 13 nodes.
 Each leaf is given an _index_ (or _leaf index_), starting at `0` from the left to
 `n-1` at the right.
 
+Finally, a node in the tree may also be _blank_, indicating that no value
+is present at that node (i.e. no keying material). This is often the case
+when a leaf was recently removed from the tree.  
+
 There are multiple ways that an implementation might represent a ratchet tree in
 memory.  For example, left-balanced binary trees can be represented as an array
 of nodes, with node relationships computed based on nodes' indices in the array.
@@ -955,8 +959,7 @@ Each node in a ratchet tree contains up to five values:
 The conditions under which each of these values must or must not be
 present are laid out in {{views}}.
 
-A node in the tree may also be _blank_, indicating that no value is present at
-that node.  The _resolution_ of a node is an ordered list of non-blank nodes
+The _resolution_ of a node is an ordered list of non-blank nodes
 that collectively cover all non-blank descendants of the node.  The resolution
 of a non-blank node with no unmerged leaves is just the node itself. More generally, the resolution
 of a node is effectively a depth-first, left-first enumeration of the nearest
