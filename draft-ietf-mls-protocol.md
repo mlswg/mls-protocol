@@ -488,7 +488,7 @@ both Proposal/Commit messages as well as any application data.
 The cryptographic state at the core of MLS is divided into three areas of responsibility:
 
 ~~~~~
-                           epoch_secret
+                            init_secret
                          _      |      _
 |\ Ratchet              /      ...      \                    Secret /|
 | \ Tree                :       |       :                     Tree / |
@@ -500,7 +500,7 @@ The cryptographic state at the core of MLS is divided into three areas of respon
 | /                     :       |       :                          \ |
 |/                      \_      |      _/                           \|
                                 V
-                           epoch_secret
+                            init_secret
 ~~~~~
 {: title="Overview of MLS group evolution"}
 
