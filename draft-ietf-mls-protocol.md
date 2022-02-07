@@ -3979,7 +3979,7 @@ and nonce for a certain amount of time to retain the ability to decrypt
 delayed or out of order messages, possibly still in transit while a
 decryption is being done.
 
-# Security Considerations
+# Security Considerations {#security}
 
 The security goals of MLS are described in {{?I-D.ietf-mls-architecture}}.
 We describe here how the protocol achieves its goals at a high level,
@@ -4354,6 +4354,26 @@ specification, in order to enable broadly informed review of
 registration decisions. In cases where a registration decision could
 be perceived as creating a conflict of interest for a particular
 MLS DE, that MLS DE SHOULD defer to the judgment of the other MLS DEs.
+
+## The "message/mls" MIME Type
+
+This document registers the "message/mls" MIME media type in order to allow other
+protocols (ex: HTTP {{!RFC7540}}) to convey MLS messages. 
+
+~~~~~
+  Media type name: message
+  Media subtype name: mls
+  Required parameters: none
+  Optional parameters: none
+
+  Encoding scheme: MLS messages are represented using the TLS 
+     presentation language {{!RFC8446}}. Therefore MLS messages need to be
+     treated as binary data.
+
+  Security considerations: MLS is an encrypted messaging layer designed to
+     be transmitted over arbitrary lower layer protocols. The security 
+     considerations in {{security}} apply.
+~~~~~
 
 # Contributors
 
