@@ -4364,7 +4364,10 @@ protocols (ex: HTTP {{!RFC7540}}) to convey MLS messages.
   Media type name: message
   Media subtype name: mls
   Required parameters: none
-  Optional parameters: none
+  Optional parameters: version
+     version: The MLS protocol version expressed as a string 
+     <major>.<minor>.  If omitted the version is "1.0", which
+     corresponds to MLS ProtocolVersion mls10.
 
   Encoding scheme: MLS messages are represented using the TLS
      presentation language [RFC8446]. Therefore MLS messages need to be
