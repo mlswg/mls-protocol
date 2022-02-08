@@ -1243,6 +1243,9 @@ enum {
   reserved(0),
   mls_plaintext(1),
   mls_ciphertext(2),
+  mls_welcome(3),
+  mls_public_group_state(4),
+  mls_key_package(5),
   (255)
 } WireFormat;
 
@@ -1272,6 +1275,12 @@ struct {
             MLSPlaintext plaintext;
         case mls_ciphertext:
             MLSCiphertext ciphertext;
+        case mls_welcome:
+            Welcome welcome;
+        case mls_public_group_state:
+            PublicGroupState public_group_state;
+        case mls_key_package:
+            KeyPackage key_package;
     }
 } MLSMessage;
 ~~~~~
