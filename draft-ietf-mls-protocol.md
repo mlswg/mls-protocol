@@ -4242,7 +4242,7 @@ Template:
 Initial contents:
 
 | Value            | Name                     | Message(s) | Recommended | Reference |
-|:=================|:=========================|:===========|:============|:==========|
+|:-----------------|:-------------------------|:-----------|:------------|:----------|
 | 0x0000           | RESERVED                 | N/A        | N/A         | RFC XXXX  |
 | 0x0001           | capabilities             | KP         | Y           | RFC XXXX  |
 | 0x0002           | lifetime                 | KP         | Y           | RFC XXXX  |
@@ -4276,7 +4276,7 @@ Template:
 Initial contents:
 
 | Value            | Name                     | Recommended | Reference |
-|:=================|:=========================|:============|:==========|
+|:-----------------|:-------------------------|:------------|:----------|
 | 0x0000           | RESERVED                 | N/A         | RFC XXXX  |
 | 0x0001           | add                      | Y           | RFC XXXX  |
 | 0x0002           | update                   | Y           | RFC XXXX  |
@@ -4311,7 +4311,7 @@ Template:
 Initial contents:
 
 | Value            | Name                     | Recommended | Reference |
-|:=================|:=========================|:============|:==========|
+|:-----------------|:-------------------------|:------------|:----------|
 | 0x0000           | RESERVED                 | N/A         | RFC XXXX  |
 | 0x0001           | basic                    | Y           | RFC XXXX  |
 | 0x0002           | x509                     | Y           | RFC XXXX  |
