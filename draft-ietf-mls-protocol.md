@@ -2208,8 +2208,8 @@ psk_input_[i] = ExpandWithLabel(psk_extracted_[i], "derived psk",
                   PSKLabel, KDF.Nh)
 
 psk_secret_[0] = 0
-psk_secret_[i] = KDF.Extract(psk_input[i-1], psk_secret_[i-1])
-psk_secret     = psk_secret[n]
+psk_secret_[i] = KDF.Extract(psk_input_[i-1], psk_secret_[i-1])
+psk_secret     = psk_secret_[n]
 ~~~~~
 
 Here `0` represents the all-zero vector of length `KDF.Nh`. The `index` field in
@@ -2219,20 +2219,20 @@ chained together with KDF.Extract invocations (labelled "Extract" for brevity
 in the diagram), as follows:
 
 ~~~~~
-               0                               0    = psk_secret_[0]
-               |                               |
-               V                               V
-psk_[0] --> Extract --> ExpandWithLabel --> Extract = psk_secret_[1]
-                                               |
-               0                               |
-               |                               |
-               V                               V
-psk_[1] --> Extract --> ExpandWithLabel --> Extract = psk_secret_[1]
-                                               |
-               0                              ...
-               |                               |
-               V                               V
-psk_[n] --> Extract --> ExpandWithLabel --> Extract = psk_secret_[n]
+                 0                               0    = psk_secret_[0]
+                 |                               |
+                 V                               V
+psk_[0]   --> Extract --> ExpandWithLabel --> Extract = psk_secret_[1]
+                                                 |
+                 0                               |
+                 |                               |
+                 V                               V
+psk_[1]   --> Extract --> ExpandWithLabel --> Extract = psk_secret_[2]
+                                                 |
+                 0                              ...
+                 |                               |
+                 V                               V
+psk_[n-1] --> Extract --> ExpandWithLabel --> Extract = psk_secret_[n]
 ~~~~~
 
 In particular, if there are no PreSharedKey proposals in a given Commit, then
