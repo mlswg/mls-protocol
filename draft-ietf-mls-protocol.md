@@ -1026,7 +1026,7 @@ opaque HPKEPublicKey<1..2^16-1>;
 ~~~~~
 
 The signature algorithm specified in the ciphersuite is the mandatory algorithm
-to be used for signatures in MLSPlaintext and the tree signatures.  It MUST be
+to be used for signatures in MLSMessageAuth and the tree signatures.  It MUST be
 the same as the signature algorithm specified in the credential field of the
 KeyPackage objects in the leaves of the tree (including those used to add new
 members).
@@ -2058,38 +2058,33 @@ included directly. Proposal messages are indirectly included via the Commit that
 applied them. Both types of message are included by hashing the MLSPlaintext
 in which they were sent.
 
-The `confirmed_transcript_hash` is updated with an MLSPlaintext containing a
-Commit in two steps:
+The `confirmed_transcript_hash` is updated with an MLSMessageContent and
+MLSMessageAuth containing a Commit in two steps:
 
 ~~~~~
 struct {
     WireFormat wire_format;
-    opaque group_id<0..255>;
-    uint64 epoch;
-    Sender sender;
-    opaque authenticated_data<0..2^32-1>;
-    ContentType content_type = commit;
-    Commit commit;
+    MLSMessageContent content; //with content.content_type == commit
     opaque signature<0..2^16-1>;
-} MLSPlaintextCommitContent;
+} MLSMessageCommitContent;
 
 struct {
     optional<MAC> confirmation_tag;
-} MLSPlaintextCommitAuthData;
+} MLSMessageCommitAuthData;
 
 interim_transcript_hash_[0] = ""; // zero-length octet string
 
 confirmed_transcript_hash_[n] =
     Hash(interim_transcript_hash_[n] ||
-        MLSPlaintextCommitContent_[n]);
+        MLSMessageCommitContent_[n]);
 
 interim_transcript_hash_[n+1] =
     Hash(confirmed_transcript_hash_[n] ||
-        MLSPlaintextCommitAuthData_[n]);
+        MLSMessageCommitAuthData_[n]);
 ~~~~~
 
 Thus the `confirmed_transcript_hash` field in a GroupContext object represents a
-transcript over the whole history of MLSPlaintext Commit messages, up to the
+transcript over the whole history of MLSMessage Commit messages, up to the
 confirmation_tag field of the most recent Commit.  The confirmation
 tag is then included in the transcript for the next epoch.  The interim
 transcript hash is computed by new members using the confirmation_tag of the
@@ -2739,8 +2734,8 @@ a state transition occurs, the epoch number is incremented by one.
 
 ## Proposals
 
-Proposals are included in an MLSPlaintext by way of a Proposal structure that
-indicates their type:
+Proposals are included in an MLSMessageContent by way of a Proposal structure
+that indicates their type:
 
 ~~~~~
 // See IANA registry for registered values
@@ -2761,8 +2756,8 @@ struct {
 } Proposal;
 ~~~~~
 
-On receiving an MLSPlaintext containing a Proposal, a client MUST verify the
-signature on the enclosing MLSPlaintext.  If the signature verifies
+On receiving an MLSMessageContent containing a Proposal, a client MUST verify the
+signature inside MLSMessageAuth.  If the signature verifies
 successfully, then the Proposal should be cached in such a way that it can be
 retrieved by hash (as a ProposalOrRef object) in a later Commit message.
 
@@ -3216,9 +3211,9 @@ message at the same time, by taking the following steps:
   of PSKs in the derivation corresponds to the order of PreSharedKey proposals
   in the `proposals` vector.
 
-* Construct an MLSPlaintext object containing the Commit object. Sign the
-  MLSPlaintext using the old GroupContext as context.
-  * Use the MLSPlaintext to update the confirmed transcript hash and generate
+* Construct an MLSMessageContent object containing the Commit object. Sign the
+  MLSMessageContent using the old GroupContext as context.
+  * Use the MLSMessageContent to update the confirmed transcript hash and generate
     the new GroupContext.
   * Use the `init_secret` from the previous epoch, the `commit_secret` and the
     `psk_secret` as defined in the previous steps, and the new GroupContext to
@@ -3228,12 +3223,12 @@ message at the same time, by taking the following steps:
     `confirmation_tag` value, and the `membership_key` for the old epoch to
     compute the `membership_tag` value in the MLSPlaintext.
   * Calculate the interim transcript hash using the new confirmed transcript
-    hash and the `confirmation_tag` from the MLSPlaintext.
+    hash and the `confirmation_tag` from the MLSMessageAuth.
 
 * Construct a GroupInfo reflecting the new state:
   * Group ID, epoch, tree, confirmed transcript hash, interim transcript
     hash, and group context extensions from the new state
-  * The confirmation_tag from the MLSPlaintext object
+  * The confirmation_tag from the MLSMessageAuth object
   * Other extensions as defined by the application
   * Optionally derive an external keypair as described in {{key-schedule}}
     (required for External Commits, see {{joining-via-external-commits}})
@@ -3268,10 +3263,10 @@ message at the same time, by taking the following steps:
 
 A member of the group applies a Commit message by taking the following steps:
 
-* Verify that the `epoch` field of the enclosing MLSPlaintext message is equal
+* Verify that the `epoch` field of the enclosing MLSMessageContent is equal
   to the `epoch` field of the current GroupContext object
 
-* Verify that the signature on the MLSPlaintext message verifies using the
+* Verify that the signature on the MLSMessageContent message verifies using the
   public key from the credential stored at the leaf in the tree indicated by
   the `sender` field.
 
@@ -3327,7 +3322,7 @@ A member of the group applies a Commit message by taking the following steps:
 
 * Use the `confirmation_key` for the new epoch to compute the confirmation tag
   for this message, as described below, and verify that it is the same as the
-  `confirmation_tag` field in the MLSPlaintext object.
+  `confirmation_tag` field in the MLSMessageAuth object.
 
 * If the above checks are successful, consider the new GroupContext object
   as the current state of the group.
@@ -3818,8 +3813,8 @@ once it has been created; such a behavior could be implemented as an extension.
 # Sequencing of State Changes {#sequencing}
 
 Each Commit message is premised on a given starting state,
-indicated by the `epoch` field of the enclosing MLSPlaintext
-message. If the changes implied by a Commit messages are made
+indicated by the `epoch` field of the enclosing MLSMessageContent.
+If the changes implied by a Commit messages are made
 starting from a different state, the results will be incorrect.
 
 This need for sequencing is not a problem as long as each time a
