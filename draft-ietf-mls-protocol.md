@@ -2517,9 +2517,15 @@ The validity of a KeyPackage needs to be verified at a few stages:
 The client verifies the validity of a KeyPackage using the following steps:
 
 * Verify that the credential in the KeyPackage is valid according to the
-  authentication service and the client's local policy.  These actions MUST be
+  authentication service and the client's local policy. These actions MUST be
   the same regardless of at what point in the protocol the KeyPackage is being
-  verified.
+  verified with the following exception: If the KeyPackage is an update to
+  another KeyPackage, the authentication service MUST additionally validate that
+  the set of identities attested by the credential in the new KeyPackage is
+  acceptable relative to the identities attested by the old credential.
+
+* Verify that the set of identities attested by the credential is acceptable
+  to the application for the participant being updated.
 
 * Verify that the signature on the KeyPackage is valid using the public key
   in the KeyPackage's credential
@@ -2818,9 +2824,6 @@ A member of the group applies an Update message by taking the following steps:
 
 * Verify that the `hpke_init_key` value is different from the corresponding
   field in the KeyPackage being replaced.
-
-* Verify that the set of identities attested by the credential is acceptable
-  to the application for the participant being updated.
 
 * Replace the sender's leaf KeyPackage with the one contained in
   the Update proposal
