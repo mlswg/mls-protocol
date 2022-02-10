@@ -941,10 +941,26 @@ the private key AB is known only to A and B.
 A particular instance of a ratchet tree is defined by the same parameters that
 define an instance of HPKE, namely:
 
+<<<<<<< HEAD
 * A Key Encapsulation Mechanism (KEM), including a `DeriveKeyPair` function that
   creates a key pair for the KEM from a symmetric secret
 * A Key Derivation Function (KDF), including `Extract` and `Expand` functions
 * An AEAD encryption scheme
+=======
+To begin, the generator of the UpdatePath updates its leaf
+KeyPackage and its direct path to the root with new secret values.  The
+HPKE leaf public key within the KeyPackage MUST be derived from a freshly
+generated HPKE secret key to provide post-compromise security.
+
+The generator of the UpdatePath starts by sampling a fresh random value called
+"leaf_secret", and uses the leaf_secret to generate their leaf HPKE key pair
+(see {{key-packages}}) and to seed a sequence of "path secrets", one for each
+ancestor of its leaf. In this setting,
+path_secret\[0\] refers to the leaf's parent,
+path_secret\[1\] to the parent's parent, and so on. At each step, the path
+secret is used to derive a new secret value for the corresponding
+node, from which the node's key pair is derived.
+>>>>>>> 8aec514 (Revert "Restored aggressive truncation and introduced filtered direct paths to fix the parent hash.")
 
 Each node in a ratchet tree contains up to five values:
 
@@ -1044,6 +1060,134 @@ SignWithLabel(SignatureKey, Label, Content) =
 VerifyWithLabel(VerificationKey, Label, Content) =
     Signature.Verify(VerificationKey, SignContent)
 
+<<<<<<< HEAD
+=======
+Concrete algorithms for these operations on array-based and link-based trees are
+provided in {{array-based-trees}} and {{link-based-trees}}.  The concrete
+algorithms are non-normative.  An implementation MAY use any algorithm that
+produces the correct tree in its internal representation.
+
+## Synchronizing Views of the Tree
+
+After generating fresh key material and applying it to ratchet forward their
+local tree state as described in the prior section, the generator must broadcast
+this update to other members of the group in a Commit message, who
+apply it to keep their local views of the tree in
+sync with the sender's.  More specifically, when a member commits a change to
+the tree (e.g., to add or remove a member), it transmits an UpdatePath
+containing a set of public keys and encrypted path secrets
+for intermediate nodes in the direct path of its leaf. The
+other members of the group use these values to update
+their view of the tree, aligning their copy of the tree to the
+sender's.
+
+An UpdatePath contains
+the following information for each node in the direct path of the
+sender's leaf, including the root:
+
+* The public key for the node
+* Zero or more encrypted copies of the path secret corresponding to
+  the node
+
+The path secret value for a given node is encrypted for the subtree
+corresponding to the parent's non-updated child, that is, the child
+on the copath of the sender's leaf node.
+There is one encryption of the path secret to each public key in the resolution
+of the non-updated child.
+
+The recipient of an UpdatePath processes it with the following steps:
+
+1. Compute the updated path secrets.
+   * Identify a node in the direct path for which the local member
+     is in the subtree of the non-updated child.
+   * Identify a node in the resolution of the copath node for
+     which this node has a private key.
+   * Decrypt the path secret for the parent of the copath node using
+     the private key from the resolution node.
+   * Derive path secrets for ancestors of that node using the
+     algorithm described above.
+   * The recipient SHOULD verify that the received public keys agree
+     with the public keys derived from the new path_secret values.
+2. Merge the updated path secrets into the tree.
+   * For all updated nodes,
+     * Replace the public key for each node with the received public key.
+     * Set the list of unmerged leaves to the empty list.
+     * Store the updated hash of the node's parent (represented as a ParentNode
+       struct), going from root to leaf, so that each hash incorporates all the
+       nodes above it. The root node always has a zero-length hash for this
+       value.
+   * For nodes where a path secret was recovered in step 1,
+     compute and store the node's updated private key.
+
+For example, in order to communicate the example update described in
+the previous section, the sender would transmit the following
+values:
+
+| Public Key    | Ciphertext(s)                                           |
+|:--------------|:--------------------------------------------------------|
+| node_pub\[1\] | E(pk(Z), path_secret\[1\]), E(pk(C), path_secret\[1\])  |
+| node_pub\[0\] | E(pk(A), path_secret\[0\])                              |
+
+In this table, the value node_pub\[i\] represents the public key
+derived from node_secret\[i\], pk(X) represents the current public key
+of node X, and E(K, S) represents
+the public-key encryption of the path secret S to the
+public key K (using HPKE).
+
+After processing the update, each recipient MUST delete outdated key material,
+specifically:
+
+* The path secrets used to derive each updated node key pair.
+* Each outdated node key pair that was replaced by the update.
+
+
+# Cryptographic Objects
+
+## Ciphersuites
+
+Each MLS session uses a single ciphersuite that specifies the
+following primitives to be used in group key computations:
+
+* HPKE parameters:
+  * A Key Encapsulation Mechanism (KEM)
+  * A Key Derivation Function (KDF)
+  * An AEAD encryption algorithm
+* A hash algorithm
+* A MAC algorithm
+* A signature algorithm
+
+MLS uses HPKE for public-key encryption {{I-D.irtf-cfrg-hpke}}.  The
+`DeriveKeyPair` function associated to the KEM for the ciphersuite maps octet
+strings to HPKE key pairs.  As in HPKE, MLS assumes that an AEAD algorithm
+produces a single ciphertext output from AEAD encryption (aligning with
+{{?RFC5116}}), as opposed to a separate ciphertext and tag.
+
+Ciphersuites are represented with the CipherSuite type. HPKE public keys
+are opaque values in a format defined by the underlying
+protocol (see the Cryptographic Dependencies section of the HPKE specification for more
+information).
+
+~~~~~
+opaque HPKEPublicKey<1..2^16-1>;
+~~~~~
+
+The signature algorithm specified in the ciphersuite is the mandatory algorithm
+to be used for signatures in MLSPlaintext and the tree signatures.  It MUST be
+the same as the signature algorithm specified in the credential field of the
+KeyPackage objects in the leaves of the tree (including the InitKeys
+used to add new members).
+
+To disambiguate different signatures used in MLS, each signed value is prefixed
+by a label as shown below:
+
+~~~~~
+SignWithLabel(SignatureKey, Label, Content) =
+    Signature.Sign(SignatureKey, SignContent)
+
+VerifyWithLabel(VerificationKey, Label, Content) =
+    Signature.Verify(VerificationKey, SignContent)
+
+>>>>>>> 8aec514 (Revert "Restored aggressive truncation and introduced filtered direct paths to fix the parent hash.")
 Where SignContent is specified as:
 
 struct {
@@ -1782,18 +1926,22 @@ left and right children, respectively.
 
 ## Parent Hash {#parent-hash}
 
-The `parent_hash` extension carries information to authenticate the HPKE keys
-in the ratchet tree, as described below.
+The `parent_hash` extension carries information to authenticate the structure of
+the tree, as described below.
 
 ~~~~~
 opaque parent_hash<0..255>;
 ~~~~~
 
-Consider a ratchet tree with a non-blank parent node P and children V and S.
-The parent hash of P changes whenever an `UpdatePath` object is applied to
-the ratchet tree along a path from a leaf U traversing node V (and hence also
-P). The new "Parent Hash of P (with Co-Path Child S)" is obtained by hashing P's
-`ParentHashInput` struct.
+Consider a ratchet tree with a parent node P and children V and S. The parent hash
+of P changes whenever an `UpdatePath` object is applied to the ratchet tree along
+a path traversing node V (and hence also P). The new "Parent Hash of P (with Co-Path
+Child S)" is obtained by hashing P's `ParentHashInput` struct using the resolution
+of S to populate the `original_child_resolution` field. This way, P's Parent Hash
+fixes the new HPKE public keys of all nodes on the path from P to the root.
+Furthermore, for each such key PK the hash also binds the set of HPKE public keys
+to which PK's secret key was encrypted in the Commit that contained the
+`UpdatePath` object.
 
 ~~~~~
 struct {
@@ -1803,33 +1951,29 @@ struct {
 } ParentHashInput;
 ~~~~~
 
-The field `public_key` contains the HPKE public key of P. If P is the root,
-then the `parent_hash` field is set to a zero-length octet string. Otherwise,
-`parent_hash` is the Parent Hash of the next node after P on the filtered
-direct path of U (see {{resolution-example}}). This way, P's Parent Hash fixes
-all new HPKE public keys of nodes on the path from P to the root.
+The Parent Hash of P with Co-Path Child S is the hash of a `ParentHashInput` object
+populated as follows. The field `public_key` contains the HPKE public key of P. If P
+is the root, then `parent_hash` is set to a zero-length octet string.
+Otherwise `parent_hash` is the Parent Hash of P's parent with P's sibling as the
+co-path child.
 
-Finally, `original_child_resolution` is the array of HPKE public keys of the
+Finally, `original_child_resolution` is the array of `HPKEPublicKey` values of the
 nodes in the resolution of S but with the `unmerged_leaves` of P omitted. For
 example, in the ratchet tree depicted in {{resolution-example}} the
 `ParentHashInput` of node Z with co-path child C would contain an empty
 `original_child_resolution` since C's resolution includes only itself but C is also
 an unmerged leaf of Z. Meanwhile, the `ParentHashInput` of node Z with co-path child
 D has an array with one element in it: the HPKE public key of D.
-This way, P's Parent Hash fixes the set of HPKE public keys to which the new HPKE
-of nodes on the path from P to the root were encrypted by the generator of the
-`UpdatePath` object.
 
 ### Using Parent Hashes
 
 The Parent Hash of P appears in three types of structs. If V is itself a parent node
-then P's Parent Hash is stored in the `parent_hash` fields of the structs 
-`ParentHashInput` and `ParentNode` of the node before P on the filtered direct
-path of U. (The `ParentNode` struct is used to encapsulate all public
-information about that node that must be conveyed to a new
-member joining the group as well as to define its Tree Hash.)
+then P's Parent Hash is stored in the `parent_hash` fields of both V's
+`ParentHashInput` struct and V's `ParentNode` struct. (The `ParentNode` struct is
+used to encapsulate all public information about V that must be conveyed to a new
+member joining the group as well as to define the Tree Hash of node V.)
 
-If, on the other hand, V is the leaf U and its KeyPackage contains the `parent_hash`
+If, on the other hand, V is a leaf and its KeyPackage contains the `parent_hash`
 extension then the Parent Hash of P (with V's sibling as co-path child) is stored in
 that field. In particular, the extension MUST be present in the `leaf_key_package`
 field of an `UpdatePath` object. (This way, the signature of such a KeyPackage also
@@ -1845,17 +1989,25 @@ To this end, when processing a Commit message clients MUST recompute the
 expected value of `parent_hash` for the committer's new leaf and verify that it
 matches the `parent_hash` value in the supplied `leaf_key_package`. Moreover, when
 joining a group, new members MUST authenticate each non-blank parent node P. A parent
-node P is authenticated by checking that there exists a child V of P and a node U in the
-resolution of V such that V.`parent_hash` is equal to the Parent Hash of P with V's
-sibling as the co-path child.
+node P is authenticated by performing the following check:
+
+* Let L and R be the left and right children of P, respectively
+* If L.parent_hash is equal to the Parent Hash of P with Co-Path Child R, the check passes
+* If R is blank, replace R with its left child until R is either non-blank or a leaf node
+* If R is a blank leaf node, the check fails
+* If R.parent_hash is equal to the Parent Hash of P with Co-Path Child L, the check passes
+* Otherwise, the check fails
+
+The left-child recursion under the right child of P is necessary because the expansion of
+the tree to the right due to Add proposals can cause blank nodes to be interposed
+between a parent node and its right child.
 
 ## Update Paths
 
 As described in {{commit}}, each MLS Commit message may optionally
 transmit a KeyPackage leaf and node values along its direct path.
 The path contains a public key and encrypted secret value for all
-intermediate nodes in the filtered direct path from the leaf to the
-root. The path is ordered
+intermediate nodes in the path above the leaf.  The path is ordered
 from the closest node to the leaf to the root; each node MUST be the
 parent of its predecessor.
 
@@ -2845,8 +2997,12 @@ A member of the group applies a Remove message by taking the following steps:
 
 * Blank the intermediate nodes along the path from L to the root
 
-* Truncate the tree by removing leaves from the right side of the tree until the
-  rightmost leaf node is not blank.
+* Truncate the tree by removing leaves from the right side of the tree as long
+  as all of the following conditions hold (since non-blank intermediate nodes hold
+  information that is necessary for verifying parent hashes):
+
+  * The rightmost leaf is blank
+  * The parent of the rightmost leaf is either blank or the root of the tree
 
 ### PreSharedKey
 
