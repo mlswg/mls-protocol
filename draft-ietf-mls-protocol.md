@@ -1512,43 +1512,36 @@ describe the content of the tree and the required operations.
 
 ## Ratchet Tree Evolution
 
-A member of an MLS group advances the key schedule to provide forward secrecy
-and post-compromise security by providing the group with fresh key material to
-be added into the group's shared secret.
-To do so, one member of the group generates fresh key
-material, applies it to their local tree state, and then sends this key material
-to other members in the group via an UpdatePath message (see {{update-paths}}) .
-All other group members then apply the key material in the UpdatePath to their
-own local tree state to derive the group's now-updated shared secret.
+Updating paths heals the ratchet tree, which in turn allows to heal the group key
+In order to provide forward secrecy and post-compromise security, whenever a
+member initiates an epoch change (i.e., commits; see {{commit}}), they refresh
+all HPKE secret keys in the ratchet tree that they know, that is, the secret
+keys of all nodes on their direct path.
 
-To begin, the generator of the UpdatePath updates its leaf
-KeyPackage and its direct path to the root with new secret values.  The
-HPKE leaf public key within the KeyPackage MUST be derived from a freshly
-generated HPKE secret key to provide post-compromise security.
+The member generates the fresh key pairs using the following procedure. The
+procedure is designed in a way that allows to efficiently communicate the fresh
+secret keys to other group members, as described in {{update-paths}}. 
 
-The generator of the UpdatePath starts by sampling a fresh random value called
-"leaf_secret", and uses the leaf_secret to generate their leaf HPKE key pair
-(see {{key-packages}}) and to seed a sequence of "path secrets", one for each
-ancestor of its leaf. In this setting,
-path_secret\[0\] refers to the leaf's parent,
-path_secret\[1\] to the parent's parent, and so on. At each step, the path
-secret is used to derive a new secret value for the corresponding
-node, from which the node's key pair is derived.
+* Generate a fresh HPKE key pair for the leaf.
+* Sample a fresh random value `leaf_secret`.
+* Compute the following sequence of path secrets, one for each node on the
+leaf's filtered direct path ordered from the node closest to the leaf to the
+root.
 
 ~~~~~
-leaf_node_secret = DeriveSecret(leaf_secret, "node")
 path_secret[0] = DeriveSecret(leaf_secret, "path")
-
 path_secret[n] = DeriveSecret(path_secret[n-1], "path")
-node_secret[n] = DeriveSecret(path_secret[n], "node")
+~~~~~
 
-leaf_priv, leaf_pub = KEM.DeriveKeyPair(leaf_node_secret)
+* For each `n`, compute the new HPKE key pair of the `n`-th node on the leaf's
+filtered direct path as follows:
+
+~~~~~
 node_priv[n], node_pub[n] = KEM.DeriveKeyPair(node_secret[n])
 ~~~~~
 
-The node secret is derived as a temporary intermediate secret so that each
-secret is only used with one algorithm: The path secret is used as an input to
-DeriveSecret and the node secret is used as an input to DeriveKeyPair.
+After performing these operations, the generator of the UpdatePath MUST
+delete the `leaf_secret`.
 
 For example, suppose there is a group with four members, with C an unmerged leaf
 at node 5:
@@ -1596,9 +1589,6 @@ np[0] -> X'      Z[C]
 
        0 1 2 3 4 5 6
 ~~~~~
-
-After performing these operations, the generator of the UpdatePath MUST
-delete the leaf_secret.
 
 ## Adding and Removing Leaves
 
