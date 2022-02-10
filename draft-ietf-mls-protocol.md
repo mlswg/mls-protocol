@@ -1518,24 +1518,19 @@ to other members in the group via an UpdatePath message (see {{update-paths}}) .
 All other group members then apply the key material in the UpdatePath to their
 own local tree state to derive the group's now-updated shared secret.
 
-To begin with, the generator of the UpdatePath updates its leaf's KeyPackage and
-its leaf's _filtered direct path_ with new key pairs. The filtered direct path 
-of a leaf is obtained from the leaf's direct path by removing all nodes whose
-child on the leaf's copath has an empty resolution. Such a removed node does not
-need a key pair, since after blanking it, its resolution consists of a single
-node on the filtered direct path. Using the key pair of the node in the
-resolution is equivalent to using the key pair of the removed node.
+To begin with, the generator of the UpdatePath updates its leaf and its leaf's
+_filtered direct path_ with new key pairs. The filtered direct path  of a node
+is obtained from the node's direct path by removing all nodes whose child on
+the nodes's copath has an empty resolution (any unmerged leaves of the copath
+child count towards its resolution). Such a removed node does not need a key
+pair, since after blanking it, its resolution consists of a single node on the
+filtered direct path. Using the key pair of the node in the resolution is
+equivalent to using the key pair of the removed node.
 
-The generator of the UpdatePath starts by updating the KeyPackage of its leaf.
-The HPKE leaf public key within the KeyPackage MUST be
-derived from a freshly generated HPKE secret key to provide post-compromise
-security.
-
-Further, the generator of the UpdatePath blanks all nodes on its direct path
-that are not on its filtered direct path. Then, it samples a fresh random value
-called "leaf_secret", and uses the leaf_secret to generate their leaf HPKE key
-pair (see {{key-packages}}) and to seed a sequence of "path secrets", one for
-each node on its filtered direct path. In this setting,
+First, the generator of the UpdatePath blanks all nodes on its direct path.
+Then, it samples a fresh random value called `leaf_secret`, and uses it to
+generate their leaf HPKE key pair (see {{key-packages}}) and to seed a sequence
+of path secrets, one for each node on its filtered direct path. In this setting,
 path_secret\[0\] refers to the leaf's parent,
 path_secret\[1\] to the parent's parent, and so on. At each step, the path
 secret is used to derive a new secret value for the corresponding
@@ -1814,7 +1809,10 @@ The field `public_key` contains the HPKE public key of P. If P is the root,
 then the `parent_hash` field is set to a zero-length octet string. Otherwise,
 `parent_hash` is the Parent Hash of the next node after P on the filtered
 direct path of U (see {{resolution-example}}). This way, P's Parent Hash fixes
-all new HPKE public keys of nodes on the path from P to the root.
+the new HPKE public keys of all nodes on the path from P to the root. Note that
+the path from P to the root may contain some blank nodes that are not fixed by
+P's Parent Hash. However, for each node that has an HPKE key, this key is
+fixed by P's Parent Hash.
 
 Finally, `original_child_resolution` is the array of HPKE public keys of the
 nodes in the resolution of S but with the `unmerged_leaves` of P omitted. For
@@ -1823,9 +1821,14 @@ example, in the ratchet tree depicted in {{resolution-example}} the
 `original_child_resolution` since C's resolution includes only itself but C is also
 an unmerged leaf of Z. Meanwhile, the `ParentHashInput` of node Z with co-path child
 D has an array with one element in it: the HPKE public key of D.
-This way, P's Parent Hash fixes the set of HPKE public keys to which the new HPKE
-of nodes on the path from P to the root were encrypted by the generator of the
-`UpdatePath` object.
+
+Observe that `original_child_resolution` is equal to the resolution of S at the
+time the `UpdatePath` was generated, since at that point P's set of unmerged
+leaves was emptied. (Note also that `original_child_resolution` contains all
+unmerged leaves of S.) Therefore, P's Parent Hash fixes the set of HPKE public
+keys to which the generator of the `UpdatePath` encrypted the new HPKE secret
+keys of the nodes on the path from P to the root.
+
 
 ### Using Parent Hashes
 
