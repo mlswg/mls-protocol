@@ -4367,7 +4367,10 @@ protocols (ex: HTTP {{!RFC7540}}) to convey MLS messages.
   Optional parameters: version
      version: The MLS protocol version expressed as a string 
      <major>.<minor>.  If omitted the version is "1.0", which
-     corresponds to MLS ProtocolVersion mls10.
+     corresponds to MLS ProtocolVersion mls10. If for some reason
+     the version number in the MIME type parameter differs from the
+     ProtocolVersion embedded in the protocol, the protocol takes
+     precedence.
 
   Encoding scheme: MLS messages are represented using the TLS
      presentation language [RFC8446]. Therefore MLS messages need to be
