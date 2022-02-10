@@ -2682,7 +2682,7 @@ The members of a group reinitialize it using the following steps:
       indicate the epoch after the Commit covering the ReInit.
     * The `psk_nonce` included in the `PreSharedKeyID` of the resumption PSK
       MUST be a randomly sampled nonce of length `KDF.Nh`, for the KDF defined
-      by the new grou's ciphersuite.
+      by the new group's ciphersuite.
 
 Note that these three steps may be done by the same group member or different
 members.  For example, if a group member sends a commit with an inline ReInit
