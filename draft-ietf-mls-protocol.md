@@ -4157,17 +4157,17 @@ The columns in the registry are as follows:
 
 Initial contents:
 
-| Value           | Name                                                | Recommended | Reference |
-|:----------------|:----------------------------------------------------|:------------|:----------|
-| 0x0000          | RESERVED                                            | N/A         | RFC XXXX  |
-| 0x0001          | MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519        | Y           | RFC XXXX  |
-| 0x0002          | MLS_128_DHKEMP256_AES128GCM_SHA256_P256             | Y           | RFC XXXX  |
-| 0x0003          | MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519 | Y           | RFC XXXX  |
-| 0x0004          | MLS_256_DHKEMX448_AES256GCM_SHA512_Ed448            | Y           | RFC XXXX  |
-| 0x0005          | MLS_256_DHKEMP521_AES256GCM_SHA512_P521             | Y           | RFC XXXX  |
-| 0x0006          | MLS_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     | Y           | RFC XXXX  |
-| 0x0007          | MLS_256_DHKEMP384_AES256GCM_SHA384_P384.            | Y           | RFC XXXX  |
-| 0xff00 - 0xffff | Reserved for Private Use                            | N/A         | RFC XXXX  |
+| Value           | Name                                                | R | Ref      |
+|:----------------|:----------------------------------------------------|:--|:---------|
+| 0x0000          | RESERVED                                            | - | RFC XXXX |
+| 0x0001          | MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519        | Y | RFC XXXX |
+| 0x0002          | MLS_128_DHKEMP256_AES128GCM_SHA256_P256             | Y | RFC XXXX |
+| 0x0003          | MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519 | Y | RFC XXXX |
+| 0x0004          | MLS_256_DHKEMX448_AES256GCM_SHA512_Ed448            | Y | RFC XXXX |
+| 0x0005          | MLS_256_DHKEMP521_AES256GCM_SHA512_P521             | Y | RFC XXXX |
+| 0x0006          | MLS_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     | Y | RFC XXXX |
+| 0x0007          | MLS_256_DHKEMP384_AES256GCM_SHA384_P384.            | Y | RFC XXXX |
+| 0xff00 - 0xffff | Reserved for Private Use                            | - | RFC XXXX |
 
 All of these ciphersuites use HMAC {{!RFC2104}} as their MAC function, with
 different hashes per ciphersuite.  The mapping of ciphersuites to HPKE
@@ -4242,7 +4242,7 @@ Template:
 Initial contents:
 
 | Value            | Name                     | Message(s) | Recommended | Reference |
-|:=================|:=========================|:===========|:============|:==========|
+|:-----------------|:-------------------------|:-----------|:------------|:----------|
 | 0x0000           | RESERVED                 | N/A        | N/A         | RFC XXXX  |
 | 0x0001           | capabilities             | KP         | Y           | RFC XXXX  |
 | 0x0002           | lifetime                 | KP         | Y           | RFC XXXX  |
@@ -4276,7 +4276,7 @@ Template:
 Initial contents:
 
 | Value            | Name                     | Recommended | Reference |
-|:=================|:=========================|:============|:==========|
+|:-----------------|:-------------------------|:------------|:----------|
 | 0x0000           | RESERVED                 | N/A         | RFC XXXX  |
 | 0x0001           | add                      | Y           | RFC XXXX  |
 | 0x0002           | update                   | Y           | RFC XXXX  |
@@ -4311,7 +4311,7 @@ Template:
 Initial contents:
 
 | Value            | Name                     | Recommended | Reference |
-|:=================|:=========================|:============|:==========|
+|:-----------------|:-------------------------|:------------|:----------|
 | 0x0000           | RESERVED                 | N/A         | RFC XXXX  |
 | 0x0001           | basic                    | Y           | RFC XXXX  |
 | 0x0002           | x509                     | Y           | RFC XXXX  |
