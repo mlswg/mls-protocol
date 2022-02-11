@@ -2524,9 +2524,6 @@ The client verifies the validity of a KeyPackage using the following steps:
   the set of identities attested by the credential in the new KeyPackage is
   acceptable relative to the identities attested by the old credential.
 
-* Verify that the set of identities attested by the credential is acceptable
-  to the application for the participant being updated.
-
 * Verify that the signature on the KeyPackage is valid using the public key
   in the KeyPackage's credential
 
