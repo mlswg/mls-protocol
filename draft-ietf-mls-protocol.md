@@ -1524,26 +1524,22 @@ efficiently communicate the fresh secret keys to other group members, as
 described in {{update-paths}}. 
 
 * Generate a fresh HPKE key pair for the leaf.
-* Generate a fresh random value `leaf_secret`.
-* Compute the following sequence of path secrets, one for each node on the
-leaf's direct path. In this context, `path_secret[0]` is computed for the
-leaf's parent, `path_secret[1]` is computed for the leaf's grandparent, etc.
+* Generate a sequence of path secrets, one for each node on the leaf's direct
+path as follows. Sample a fresh random value `path_secret[0]` and compute
 
-~~~~~
-path_secret[0] = DeriveSecret(leaf_secret, "path")
-path_secret[n] = DeriveSecret(path_secret[n-1], "path")
-~~~~~
+  ~~~~~
+  path_secret[n] = DeriveSecret(path_secret[n-1], "path")
+  ~~~~~
+In this context, `path_secret[0]` is generated for the leaf's parent,
+`path_secret[1]` is generated for the leaf's grandparent, etc.
 
 * Compute the sequence of HPKE key pairs `(node_priv,node_pub)`, one for each
 node on the leaf's direct path, as follows.
 
-~~~~~
-node_secret[n] = DeriveSecret(path_secret[n], "node")
-node_priv[n], node_pub[n] = KEM.DeriveKeyPair(node_secret[n])
-~~~~~
-
-After performing these operations, the member initiating the epoch change MUST
-delete the `leaf_secret`.
+  ~~~~~
+  node_secret[n] = DeriveSecret(path_secret[n], "node")
+  node_priv[n], node_pub[n] = KEM.DeriveKeyPair(node_secret[n])
+  ~~~~~
 
 For example, suppose there is a group with four members, with C an unmerged leaf
 at node 5:
