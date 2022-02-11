@@ -1078,8 +1078,8 @@ HashReference ProposalRef;
 
 For a KeyPackageRef, the `value` input is the encoded KeyPackage, and the
 ciphersuite specified in the KeyPackage determines the KDF used.  For a
-ProposalRef, the `value` input is the MLSPlaintext carrying the proposal, and
-the KDF is determined by the group's ciphersuite.
+ProposalRef, the `value` input is the MLSMessageContentAuth carrying the
+proposal, and the KDF is determined by the group's ciphersuite.
 
 ## Credentials
 
@@ -1203,9 +1203,9 @@ group, as well as signing to authenticate the sender within the group.
 The main structure is MLSMessageContent, which contains the content of
 the message.  This structure is authenticated using MLSMessageAuth
 (see {{content-authentication}}).
-A pair (MLSMessageContent, MLSMessageAuth) can then be encoded/decoded
-from/to MLSPlaintext or MLSCiphertext, which are then included in the
-MLSMessage structure.
+The two structures are combined in MLSMessageContentAuth, which can then be
+encoded/decoded from/to MLSPlaintext or MLSCiphertext, which are then included
+in the MLSMessage structure.
 
 MLSCiphertext represents a signed and encrypted message, with
 protections for both the content of the message and related
@@ -1259,7 +1259,7 @@ struct {
     opaque authenticated_data<0..2^32-1>;
 
     ContentType content_type;
-    select (MLSPlaintext.content_type) {
+    select (MLSMessageContent.content_type) {
         case application:
           opaque application_data<0..2^32-1>;
 
@@ -1291,6 +1291,17 @@ struct {
 External sender types are sent as MLSPlaintext, see {{external-proposals}}
 for their use.
 
+The following structure is used to fully describe the data transmitted in
+plaintexts or ciphertexts.
+
+~~~~~
+struct MLSMessageContentAuth {
+    WireFormat wire_format;
+    MLSMessageContent content;
+    MLSMessageAuth auth;
+}
+~~~~~
+
 ## Content Authentication
 
 MLSMessageContent is authenticated using the MLSMessageAuth structure.
@@ -1303,8 +1314,14 @@ struct {
 struct {
     // SignWithLabel(., "MLSMessageContentTBS", MLSMessageContentTBS)
     opaque signature<0..2^16-1>;
-    // MAC(confirmation_key, GroupContext.confirmed_transcript_hash)
-    optional<MAC> confirmation_tag;
+    select (MLSMessageContent.content_type) {
+        case commit:
+            // MAC(confirmation_key, GroupContext.confirmed_transcript_hash)
+            MAC confirmation_tag;
+        case application:
+        case proposal:
+            struct{};
+    }
 } MLSMessageAuth;
 ~~~~~
 
@@ -1335,9 +1352,6 @@ struct {
 The confirmation tag value confirms that the members of the group have arrived
 at the same state of the group.
 
-The field `confirmation_tag` MUST be present if content_type equals commit.
-Otherwise, it MUST NOT be present.
-
 A MLSMessageAuth is said to be valid when both the `signature` and
 `confirmation_tag` fields are valid.
 
@@ -1349,14 +1363,19 @@ Plaintexts are encoded using the MLSPlaintext structure.
 struct {
     MLSMessageContent content;
     MLSMessageAuth auth;
-    optional<MAC> membership_tag;
+    select(MLSPlaintext.content.sender.sender_type) {
+        case member:
+            MAC membership_tag;
+        case preconfigured:
+        case new_member:
+            struct{};
+    }
 } MLSPlaintext;
 ~~~~~
 
 The `membership_tag` field in the MLSPlaintext object authenticates the sender's
-membership in the group. For an MLSPlaintext with a sender type other than
-`member`, this field MUST be omitted. For messages sent by members, it MUST be
-present and set to the following value:
+membership in the group. For messages sent by members, it MUST be set to the
+following value:
 
 ~~~~~
 struct {
@@ -1368,7 +1387,7 @@ membership_tag = MAC(membership_key, MLSMessageContentTBM);
 ~~~~~
 
 
-When decoding a MLSPlaintext into a pair (MLSMessageContent, MLSMessageAuth),
+When decoding a MLSPlaintext into a MLSMessageContentAuth,
 the application MUST check `membership_tag`, and MUST check that the
 MLSMessageAuth is valid.
 
@@ -2081,7 +2100,7 @@ struct {
 } MLSMessageCommitContent;
 
 struct {
-    optional<MAC> confirmation_tag;
+    MAC confirmation_tag;
 } MLSMessageCommitAuthData;
 
 interim_transcript_hash_[0] = ""; // zero-length octet string
