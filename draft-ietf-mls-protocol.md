@@ -864,7 +864,7 @@ Each leaf is given an _index_ (or _leaf index_), starting at `0` from the left t
 
 Finally, a node in the tree may also be _blank_, indicating that no value
 is present at that node (i.e. no keying material). This is often the case
-when a leaf was recently removed from the tree.  
+when a leaf was recently removed from the tree.
 
 There are multiple ways that an implementation might represent a ratchet tree in
 memory.  For example, left-balanced binary trees can be represented as an array
@@ -1662,14 +1662,9 @@ tree.
 In the case where the leaf was added to the tree based on a pre-published
 KeyPackage, the `lifetime` field represents the times between which clients will
 consider a LeafNode valid.  These times are represented as absolute times,
-measured in seconds since the Unix epoch (1970-01-01T00:00:00Z).  An expired
-LeafNode MUST NOT be sent in an Add proposal.  If an Add proposal contains an
-expired LeafNode, it MUST be rejected as invalid.  When a client first downloads
-the tree for a group on joining, the client SHOULD NOT reject the tree because
-there are expired leaf nodes in the tree, since these nodes may have been valid
-when they were added.  Applications MUST define a maximum total lifetime that is
-acceptable for a LeafNode, and reject any LeafNode where the total lifetime
-is longer than this duration.
+measured in seconds since the Unix epoch (1970-01-01T00:00:00Z).  Applications
+MUST define a maximum total lifetime that is acceptable for a LeafNode, and
+reject any LeafNode where the total lifetime is longer than this duration.
 
 In the case where the leaf node was inserted into the tree via a Commit message,
 the `parent_hash` field contains the parent hash for this leaf node (see
@@ -1715,6 +1710,16 @@ The client verifies the validity of a LeafNode using the following steps:
   use in the group.  If the GroupContext has a `required_capabilities`
   extension, then the required extensions and proposals MUST be listed in
   the KeyPackage's `capabilities` extension.
+
+* Verify the `lifetime` field:
+  * When validating a downloaded KeyPackage, the current time MUST be within the
+    `lifetime` range.  A KeyPackage that is expired or not yet valid MUST NOT be
+    sent in an Add proposal.
+  * When receiving an Add or validating a tree, checking the `lifetime` is
+    RECOMMENDED, if it is feasible in a given application context.  Because of
+    the asynchronous nature of MLS, the `lifetime` may have been valid when the
+    leaf node was proposed for addition, even if it is expired at these later
+    points in the protocol.
 
 * Verify that the `membership` field has the appropriate contents for the
   context in which the KeyPackage is being validated (as defined in
@@ -4551,7 +4556,7 @@ protocols (ex: HTTP {{!RFC7540}}) to convey MLS messages.
   Media subtype name: mls
   Required parameters: none
   Optional parameters: version
-     version: The MLS protocol version expressed as a string 
+     version: The MLS protocol version expressed as a string
      <major>.<minor>.  If omitted the version is "1.0", which
      corresponds to MLS ProtocolVersion mls10. If for some reason
      the version number in the MIME type parameter differs from the
