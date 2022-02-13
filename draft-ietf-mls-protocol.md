@@ -4379,6 +4379,32 @@ registration decisions. In cases where a registration decision could
 be perceived as creating a conflict of interest for a particular
 MLS DE, that MLS DE SHOULD defer to the judgment of the other MLS DEs.
 
+## The "message/mls" MIME Type
+
+This document registers the "message/mls" MIME media type in order to allow other
+protocols (ex: HTTP {{!RFC7540}}) to convey MLS messages.
+
+~~~~~
+  Media type name: message
+  Media subtype name: mls
+  Required parameters: none
+  Optional parameters: version
+     version: The MLS protocol version expressed as a string 
+     <major>.<minor>.  If omitted the version is "1.0", which
+     corresponds to MLS ProtocolVersion mls10. If for some reason
+     the version number in the MIME type parameter differs from the
+     ProtocolVersion embedded in the protocol, the protocol takes
+     precedence.
+
+  Encoding scheme: MLS messages are represented using the TLS
+     presentation language [RFC8446]. Therefore MLS messages need to be
+     treated as binary data.
+
+  Security considerations: MLS is an encrypted messaging layer designed to
+     be transmitted over arbitrary lower layer protocols. The security
+     considerations in this document (the MLS protocol) also apply.
+~~~~~
+
 # Contributors
 
 * Joel Alwen \\
