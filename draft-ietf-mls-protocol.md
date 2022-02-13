@@ -419,8 +419,69 @@ Application Message:
 Terminology specific to tree computations is described in
 {{ratchet-tree-terminology}}.
 
-We use the TLS presentation language {{!RFC8446}} to
-describe the structure of protocol messages.
+## Presentation Langauge
+
+We use the TLS presentation language {{!RFC8446}} to describe the structure of
+protocol messages.  In addition to the base syntax, we add two additional
+features, the ability for fields to be optional and the ability for vectors to
+have variable-size length headers.
+
+### Optional Value
+
+An optional value is encoded with a presence-signaling octet, followed by the
+value itself if present.  When decoding, a presence octet with a value other
+than 0 or 1 MUST be rejected as malformed.
+
+~~~~~
+struct {
+    uint8 present;
+    select (present) {
+        case 0: struct{};
+        case 1: T value;
+    }
+} optional<T>;
+~~~~~
+
+### Variable-size Vector Headers
+
+In the TLS presentation language, vectors are encoded as a sequence of encoded
+elements prefixed with a length.  The length field has a fixed size set by
+specifying the minimum and maximum lengths of the encoded sequence of elements.
+
+In MLS, there are several vectors whose sizes vary over significant ranges.  So
+instead of using a fixed-size length field, we use a variable-size length using
+the variable-length integer encoding described in Section 16 of  {{?RFC9000}}.
+Instead of presenting min and max values, the vector description simply includes
+a `V`. For example:
+
+~~~~~
+struct {
+    uint32 fixed<0..255>;
+    opaque variable<V>;
+} StructWithVectors;
+~~~~~
+
+Such a vector can represent values with length from 0 bytes to 2^62 bytes.
+The variable-length integer encoding reserves the two most significant bits
+of the first byte to encode the base 2 logarithm of the integer encoding length
+in bytes.  The integer value is encoded on the remaining bits, in network byte
+order.
+
+This means that integers are encoded on 1, 2, 4, or 8 bytes and can encode 6-,
+14-, 30-, or 62-bit values respectively.
+
+| 2Bit | Length | Usable Bits | Range                 |
+|:-----|:-------|:------------|:----------------------|
+| 00   | 1      | 6           | 0-63                  |
+| 01   | 2      | 14          | 0-16383               |
+| 10   | 4      | 30          | 0-1073741823          |
+| 11   | 8      | 62          | 0-4611686018427387903 |
+{: #integer-summary title="Summary of Integer Encodings"}
+
+For example, the eight-byte sequence c2 19 7c 5e ff 14 e8 8c (in hexadecimal)
+decodes to the decimal value 151288809941952652; the four byte sequence 9d 7f 3e
+7d decodes to 494878333; the two byte sequence 7b bd decodes to 15293; and the
+single byte 25 decodes to 37 (as does the two byte sequence 40 25).
 
 # Operating Context
 
@@ -1767,19 +1828,6 @@ of the group, this section defines a scheme for generating a hash value (called
 the "tree hash") that represents the contents of the group's ratchet tree and the
 members' KeyPackages. The tree hash of a tree is the tree hash of its root node,
 which we define recursively, starting with the leaves.
-
-As some nodes may be blank while others contain data we use the following struct
-to include data if present.
-
-~~~~~
-struct {
-    uint8 present;
-    select (present) {
-        case 0: struct{};
-        case 1: T value;
-    }
-} optional<T>;
-~~~~~
 
 The tree hash of a leaf node is the hash of leaf's `LeafNodeHashInput` object which
 might include a Key Package depending on whether or not it is blank.
