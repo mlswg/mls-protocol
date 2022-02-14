@@ -1809,10 +1809,10 @@ The field `public_key` contains the HPKE public key of P. If P is the root,
 then the `parent_hash` field is set to a zero-length octet string. Otherwise,
 `parent_hash` is the Parent Hash of the next node after P on the filtered
 direct path of U (see {{resolution-example}}). This way, P's Parent Hash fixes
-the new HPKE public keys of all nodes on the path from P to the root. Note that
-the path from P to the root may contain some blank nodes that are not fixed by
-P's Parent Hash. However, for each node that has an HPKE key, this key is
-fixed by P's Parent Hash.
+the new HPKE public key of each node V on the path from P to the root. Note
+that the path from P to the root may contain some blank nodes that are not
+fixed by P's Parent Hash. However, for each node that has an HPKE key, this key
+is fixed by P's Parent Hash.
 
 Finally, `original_child_resolution` is the array of HPKE public keys of the
 nodes in the resolution of S but with the `unmerged_leaves` of P omitted. For
@@ -1824,16 +1824,16 @@ D has an array with one element in it: the HPKE public key of D.
 
 Observe that `original_child_resolution` is equal to the resolution of S at the
 time the `UpdatePath` was generated, since at that point P's set of unmerged
-leaves was emptied. (Note also that `original_child_resolution` contains all
-unmerged leaves of S.) Therefore, P's Parent Hash fixes the set of HPKE public
-keys to which the generator of the `UpdatePath` encrypted the new HPKE secret
-keys of the nodes on the path from P to the root.
-
+leaves was emptied. (Observe also that `original_child_resolution` contains all
+unmerged leaves of S.) Therefore, P's Parent Hash fixes, for each node V on the
+path from P to the root, not only the HPKE public key of V, but also the set of
+HPKE public keys to which the corresponding HPKE secret key of V was encrypted by
+the generator of the `UpdatePath`. 
 
 ### Using Parent Hashes
 
 The Parent Hash of P appears in three types of structs. If V is itself a parent node
-then P's Parent Hash is stored in the `parent_hash` fields of the structs 
+then P's Parent Hash is stored in the `parent_hash` fields of the structs
 `ParentHashInput` and `ParentNode` of the node before P on the filtered direct
 path of U. (The `ParentNode` struct is used to encapsulate all public
 information about that node that must be conveyed to a new
