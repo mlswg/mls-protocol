@@ -465,7 +465,9 @@ Such a vector can represent values with length from 0 bytes to 2^62 bytes.
 The variable-length integer encoding reserves the two most significant bits
 of the first byte to encode the base 2 logarithm of the integer encoding length
 in bytes.  The integer value is encoded on the remaining bits, in network byte
-order.
+order.  The encoded value MUST use the smallest number of bits required to
+represent the value.  When decoding, values using more bits than necessary MUST
+be treated as malformed.
 
 This means that integers are encoded on 1, 2, 4, or 8 bytes and can encode 6-,
 14-, 30-, or 62-bit values respectively.
