@@ -1519,7 +1519,7 @@ More precisely, they refresh the key pairs of their leaf and of all nodes on
 their leaf's direct path.
 
 The member initiating the epoch change generates the fresh key pairs using the
-following procedure. The procedure is designed in a way that allows to
+following procedure. The procedure is designed in a way that allows group members to
 efficiently communicate the fresh secret keys to other group members, as
 described in {{update-paths}}. 
 
