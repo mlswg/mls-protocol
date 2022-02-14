@@ -1521,17 +1521,17 @@ their leaf's direct path.
 The member initiating the epoch change generates the fresh key pairs using the
 following procedure. The procedure is designed in a way that allows group members to
 efficiently communicate the fresh secret keys to other group members, as
-described in {{update-paths}}. 
+described in {{update-paths}}.
 
 * Generate a fresh HPKE key pair for the leaf.
 * Generate a sequence of path secrets, one for each node on the leaf's direct
-path as follows. Sample a fresh random value `path_secret[0]` and compute
-
+  path as follows. In this context, `path_secret[0]` is generated for the
+  leaf's parent, `path_secret[1]` is generated for the leaf's grandparent, etc.
+  
   ~~~~~
+  path_secret[0] is sampled at random
   path_secret[n] = DeriveSecret(path_secret[n-1], "path")
   ~~~~~
-In this context, `path_secret[0]` is generated for the leaf's parent,
-`path_secret[1]` is generated for the leaf's grandparent, etc.
 
 * Compute the sequence of HPKE key pairs `(node_priv,node_pub)`, one for each
 node on the leaf's direct path, as follows.
