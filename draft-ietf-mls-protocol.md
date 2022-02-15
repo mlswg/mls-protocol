@@ -472,12 +472,12 @@ be treated as malformed.
 This means that integers are encoded on 1, 2, 4, or 8 bytes and can encode 6-,
 14-, 30-, or 62-bit values respectively.
 
-| 2Bit | Length | Usable Bits | Range                 |
-|:-----|:-------|:------------|:----------------------|
-| 00   | 1      | 6           | 0-63                  |
-| 01   | 2      | 14          | 0-16383               |
-| 10   | 4      | 30          | 0-1073741823          |
-| 11   | 8      | 62          | 0-4611686018427387903 |
+| Prefix | Length | Usable Bits | Min        | Max                 |
+|:-------|:-------|:------------|:-----------|:--------------------|
+| 00     | 1      | 6           | 0          | 63                  |
+| 01     | 2      | 14          | 64         | 16383               |
+| 10     | 4      | 30          | 16384      | 1073741823          |
+| 11     | 8      | 62          | 1073741824 | 4611686018427387903 |
 {: #integer-summary title="Summary of Integer Encodings"}
 
 For example, the eight-byte sequence c2 19 7c 5e ff 14 e8 8c (in hexadecimal)
@@ -1303,7 +1303,7 @@ enum {
 } SenderType;
 
 struct {
-    SenderType sendertype;
+    SenderType sender_type;
     switch (sender_type) {
         case member:        LeafNodeRef member;
         case preconfigured: opaque external_key_id<V>;
