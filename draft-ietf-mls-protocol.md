@@ -3628,7 +3628,7 @@ The information in a GroupInfo is not deemed public in general, but applications
 can choose to make it available to new members in order to allow External
 Commits.
 
-External Commits work like regular Commits, with a few differences:
+In principle, External Commits work like regular Commits. However, their content has to meet a specific set of requirements:
 
 * External Commits MUST contain a `path` field (and is therefore a "full"
   Commit).  The joiner is added at the leftmost free leaf node (just as if they
@@ -3638,13 +3638,13 @@ External Commits work like regular Commits, with a few differences:
   joiner cannot determine the validity of proposals sent within the group
 * The proposals included by value in an External Commit MUST meet the following
   conditions:
-  * There MUST be a single ExternalInit proposal
-  * There MUST NOT be any Update proposals
-  * If a Remove proposal is present, then the LeafNode in the `path`
+  * There MUST be a single ExternalInit proposal.
+  * There MAY be a single Remove proposal, where the LeafNode in the `path`
     field MUST meet the same criteria as the LeafNode in an Update for the
-    removed leaf (see {{update}}).  In particular, the `credential` in the
+    removed leaf (see {{update}}). In particular, the `credential` in the
     LeafNode MUST present a set of identifiers that is acceptable to the
     application for the removed participant.
+  * There MUST NOT be any other proposals.
 * External Commits MUST be signed by the new member.  In particular, the
   signature on the enclosing MLSPlaintext MUST verify using the public key for
   the credential in the `leaf_key_package` of the `path` field.
