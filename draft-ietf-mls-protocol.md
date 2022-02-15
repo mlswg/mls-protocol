@@ -1620,8 +1620,8 @@ subgroups of the group (for parent nodes).  Parent nodes are simpler:
 ~~~~~
 struct {
     HPKEPublicKey public_key;
-    opaque parent_hash<0..255>;
-    uint32 unmerged_leaves<0..2^32-1>;
+    opaque parent_hash<V>;
+    uint32 unmerged_leaves<V>;
 } ParentNode;
 ~~~~~
 
@@ -1644,10 +1644,10 @@ enum {
 } LeafNodeSource;
 
 struct {
-    ProtocolVersion versions<0..255>;
-    CipherSuite ciphersuites<0..255>;
-    ExtensionType extensions<0..255>;
-    ProposalType proposals<0..255>;
+    ProtocolVersion versions<V>;
+    CipherSuite ciphersuites<V>;
+    ExtensionType extensions<V>;
+    ProposalType proposals<V>;
 } Capabilities;
 
 struct {
@@ -1669,12 +1669,12 @@ struct {
             struct {}
 
         case commit:
-            opaque parent_hash<0..255>;
+            opaque parent_hash<V>;
     }
 
-    Extension extensions<8..2^32-1>;
+    Extension extensions<V>;
     // SignWithLabel(., "LeafNodeTBS", LeafNodeTBS)
-    opaque signature<0..2^16-1>;
+    opaque signature<V>;
 } LeafNode;
 
 struct {
@@ -1691,20 +1691,20 @@ struct {
             struct{};
 
         case commit:
-            opaque parent_hash<0..255>;
+            opaque parent_hash<V>;
     }
 
-    Extension extensions<8..2^32-1>;
+    Extension extensions<V>;
 
     select (leaf_node_source) {
         case add:
             struct{};
 
         case update:
-            opaque group_id<0..255>;
+            opaque group_id<V>;
 
         case commit:
-            opaque group_id<0..255>;
+            opaque group_id<V>;
     }
 } LeafNodeTBS;
 ~~~~~
