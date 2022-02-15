@@ -3310,25 +3310,44 @@ provides forward secrecy and post-compromise security with regard to the sender
 of the Commit.  An Update proposal can be regarded as a "lazy" version of this
 operation, where only the leaf changes and intermediate nodes are blanked out.
 
-The `path` field of a Commit message MUST be populated if the Commit covers at
-least one Update or Remove proposal. The `path` field MUST also be populated
-if the Commit covers no proposals at all (i.e., if the proposals vector
-is empty). The `path` field MAY be omitted if the Commit covers only Add
-proposals.  In pseudocode, the logic for validating a Commit is as follows:
+By default, the `path` field of a Commit MUST be populated.  The `path` field
+MAY be omitted if (a) it covers at least one proposal and (b) all proposals in
+the Commit are of "path safe" types.  A proposal type is "path safe" if it
+cannot change the group membership in a way that requires the forward secrecy
+and post-compromise security guarantees that an UpdatePath provides.  The
+path-safe proposal types defined in this document are:
+
+* `add`
+* `psk`
+* `app_ack`
+* `reinit`
+
+New proposal types MUST state whether they are path-safe. If a the path-safety
+of a proposal of a given type depends on the instance, then the proposal type is
+not path-safe. The path-safety of a proposal type is reflected in the
+"Path-safe" field of the proposal type registry defined in
+{{mls-proposal-types}}.
+
+Update and Remove proposals are the clearest examples of non-path-safe types.
+An UpdatePath is required to evict the removed member or the old appearance of
+the updated member.
+
+In pseudocode, the logic for validating the `path` field of a Commit is as
+follows:
 
 ~~~~~
-hasUpdates = false
-hasRemoves = false
+pathSafeTypes = [add, psk, app_ack]
+
+allPathSafe = true
 
 for i, id in commit.proposals:
     proposal = proposalCache[id]
     assert(proposal != null)
 
-    hasUpdates = hasUpdates || proposal.msg_type == update
-    hasRemoves = hasRemoves || proposal.msg_type == remove
+    allPathSafe = allPathSafe && (proposal.msg_type in pathSafeTypes)
 
-if len(commit.proposals) == 0 || hasUpdates || hasRemoves:
-  assert(commit.path != null)
+if len(commit.proposals) == 0 || !allPathSafe:
+    assert(commit.path != null)
 ~~~~~
 
 To summarize, a Commit can have three different configurations, with different
@@ -3337,9 +3356,8 @@ uses:
 1. An "empty" Commit that references no proposals, which updates the committer's
    contribution to the group and provides PCS with regard to the committer.
 
-2. A "partial" Commit that references Add, PreSharedKey, or ReInit proposals but
-   where the path is empty. Such a commit doesn't provide PCS with regard to the
-   committer.
+2. A "partial" Commit that references path-safe proposals but where the path is
+   empty. Such a commit doesn't provide PCS with regard to the committer.
 
 3. A "full" Commit that references proposals of any type, which provides FS with
    regard to any removed members and PCS for the committer and any updated
@@ -4466,18 +4484,18 @@ Template:
 
 Initial contents:
 
-| Value            | Name                     | Recommended | Reference |
-|:-----------------|:-------------------------|:------------|:----------|
-| 0x0000           | RESERVED                 | N/A         | RFC XXXX  |
-| 0x0001           | add                      | Y           | RFC XXXX  |
-| 0x0002           | update                   | Y           | RFC XXXX  |
-| 0x0003           | remove                   | Y           | RFC XXXX  |
-| 0x0004           | psk                      | Y           | RFC XXXX  |
-| 0x0005           | reinit                   | Y           | RFC XXXX  |
-| 0x0006           | external_init            | Y           | RFC XXXX  |
-| 0x0007           | app_ack                  | Y           | RFC XXXX  |
-| 0x0008           | group_context_extensions | Y           | RFC XXXX  |
-| 0xff00  - 0xffff | Reserved for Private Use | N/A         | RFC XXXX  |
+| Value            | Name                     | Recommended | Path-Safe | Reference |
+|:-----------------|:-------------------------|:------------|:----------|:----------|
+| 0x0000           | RESERVED                 | N/A         | N/A       | RFC XXXX  |
+| 0x0001           | add                      | Y           | Y         | RFC XXXX  |
+| 0x0002           | update                   | Y           | N         | RFC XXXX  |
+| 0x0003           | remove                   | Y           | N         | RFC XXXX  |
+| 0x0004           | psk                      | Y           | Y         | RFC XXXX  |
+| 0x0005           | reinit                   | Y           | Y         | RFC XXXX  |
+| 0x0006           | external_init            | Y           | N         | RFC XXXX  |
+| 0x0007           | app_ack                  | Y           | Y         | RFC XXXX  |
+| 0x0008           | group_context_extensions | Y           | N         | RFC XXXX  |
+| 0xff00  - 0xffff | Reserved for Private Use | N/A         | N/A       | RFC XXXX  |
 
 ## MLS Credential Types
 
