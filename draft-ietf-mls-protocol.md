@@ -3628,7 +3628,8 @@ The information in a GroupInfo is not deemed public in general, but applications
 can choose to make it available to new members in order to allow External
 Commits.
 
-In principle, External Commits work like regular Commits. However, their content has to meet a specific set of requirements:
+In principle, External Commits work like regular Commits. However, their content
+has to meet a specific set of requirements:
 
 * External Commits MUST contain a `path` field (and is therefore a "full"
   Commit).  The joiner is added at the leftmost free leaf node (just as if they
