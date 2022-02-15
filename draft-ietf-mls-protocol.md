@@ -864,7 +864,7 @@ Each leaf is given an _index_ (or _leaf index_), starting at `0` from the left t
 
 Finally, a node in the tree may also be _blank_, indicating that no value
 is present at that node (i.e. no keying material). This is often the case
-when a leaf was recently removed from the tree.  
+when a leaf was recently removed from the tree.
 
 There are multiple ways that an implementation might represent a ratchet tree in
 memory.  For example, left-balanced binary trees can be represented as an array
@@ -936,7 +936,7 @@ A   ?   ?   ?     ?   B   ?   ?     ?   ?   C   ?     ?   ?   ?   D
 Note how the tree invariant applies: Each member knows only their own leaf, and
 the private key AB is known only to A and B.
 
-## Ratchet Tree Nodes {#resolution-example}
+## Ratchet Tree Nodes
 
 A particular instance of a ratchet tree is defined by the same parameters that
 define an instance of HPKE, namely:
@@ -1029,9 +1029,9 @@ opaque HPKEPublicKey<1..2^16-1>;
 ~~~~~
 
 The signature algorithm specified in the ciphersuite is the mandatory algorithm
-to be used for signatures in MLSPlaintext and the tree signatures.  It MUST be
-the same as the signature algorithm specified in the credential field of the
-KeyPackage objects in the leaves of the tree (including those used to add new
+to be used for signatures in MLSMessageAuth and the tree signatures.  It MUST be
+the same as the signature algorithm specified in the credentials in the leaves
+of the tree (including the leaf node information in KeyPackages used to add new
 members).
 
 To disambiguate different signatures used in MLS, each signed value is prefixed
@@ -1069,17 +1069,23 @@ opaque HashReference[16];
 MakeKeyPackageRef(value) = KDF.expand(
   KDF.extract("", value), "MLS 1.0 KeyPackage Reference", 16)
 
+MakeLeafNodeRef(value) = KDF.expand(
+  KDF.extract("", value), "MLS 1.0 Leaf Node Reference", 16)
+
 MakeProposalRef(value) = KDF.expand(
   KDF.extract("", value), "MLS 1.0 Proposal Reference", 16)
 
 HashReference KeyPackageRef;
+HashReference LeafNodeRef;
 HashReference ProposalRef;
 ~~~~~
 
 For a KeyPackageRef, the `value` input is the encoded KeyPackage, and the
 ciphersuite specified in the KeyPackage determines the KDF used.  For a
-ProposalRef, the `value` input is the MLSPlaintext carrying the proposal, and
-the KDF is determined by the group's ciphersuite.
+LeafNodeRef, the `value` input is the LeafNode object for the leaf node in
+question.  For a ProposalRef, the `value` input is the MLSMessageContentAuth carrying the
+proposal.  In the latter two cases, the KDF is determined by the group's
+ciphersuite.
 
 ## Credentials
 
@@ -1141,11 +1147,11 @@ struct {
 
 A BasicCredential is a raw, unauthenticated assertion of an identity/key
 binding. The format of the key in the `public_key` field is defined by the
-relevant ciphersuite: the group ciphersuite for a credential in a ratchet tree,
-the KeyPackage ciphersuite for a credential in a KeyPackage object.
-For ciphersuites using Ed25519 or Ed448 signature schemes, the public key is in
-the format specified {{?RFC8032}}.  For ciphersuites using ECDSA with the NIST
-curves P-256 or P-521, the public key is the output of the uncompressed
+relevant ciphersuite: the group ciphersuite for a credential in a leaf node of a
+ratchet tree or the KeyPackage ciphersuite for a credential in a KeyPackage
+object.  For ciphersuites using Ed25519 or Ed448 signature schemes, the public
+key is in the format specified {{?RFC8032}}.  For ciphersuites using ECDSA with
+the NIST curves P-256 or P-521, the public key is the output of the uncompressed
 Elliptic-Curve-Point-to-Octet-String conversion according to {{SECG}}.
 
 For an X.509 credential, each entry in the chain represents a single DER-encoded
@@ -1182,7 +1188,7 @@ all present in an MLS group, then those devices' clients will all present the
 user's application-layer identifiers.
 
 Internally to the the protocol, group members are uniquely identified by their
-leaves, expressed as KeyPackageRef objects.  These identifiers are unstable:
+leaves, expressed as LeafNodeRef objects.  These identifiers are unstable:
 They change whenever the member sends a Commit, or whenever an Update
 proposal from the member is committed.
 
@@ -1192,7 +1198,7 @@ MLS provides two unique client identifiers that are stable across epochs:
 * The `epoch_id` field in the key package
 
 The application may also provide application-specific unique identifiers in the
-`extensions` field of KeyPackage object.
+`extensions` field of KeyPackage or LeafNode objects.
 
 # Message Framing
 
@@ -1200,7 +1206,13 @@ Handshake and application messages use a common framing structure.
 This framing provides encryption to ensure confidentiality within the
 group, as well as signing to authenticate the sender within the group.
 
-The two main structures involved are MLSPlaintext and MLSCiphertext.
+The main structure is MLSMessageContent, which contains the content of
+the message.  This structure is authenticated using MLSMessageAuth
+(see {{content-authentication}}).
+The two structures are combined in MLSMessageContentAuth, which can then be
+encoded/decoded from/to MLSPlaintext or MLSCiphertext, which are then included
+in the MLSMessage structure.
+
 MLSCiphertext represents a signed and encrypted message, with
 protections for both the content of the message and related
 metadata.  MLSPlaintext represents a message that is only signed,
@@ -1230,32 +1242,30 @@ enum {
 struct {
     SenderType sender_type;
     switch (sender_type) {
-        case member:        KeyPackageRef member;
+        case member:        LeafNodeRef member;
         case preconfigured: opaque external_key_id<0..255>;
         case new_member:    struct{};
     }
 } Sender;
 
-struct {
-    opaque mac_value<0..255>;
-} MAC;
-
 enum {
   reserved(0),
   mls_plaintext(1),
   mls_ciphertext(2),
+  mls_welcome(3),
+  mls_public_group_state(4),
+  mls_key_package(5),
   (255)
 } WireFormat;
 
 struct {
-    WireFormat wire_format;
     opaque group_id<0..255>;
     uint64 epoch;
     Sender sender;
     opaque authenticated_data<0..2^32-1>;
 
     ContentType content_type;
-    select (MLSPlaintext.content_type) {
+    select (MLSMessageContent.content_type) {
         case application:
           opaque application_data<0..2^32-1>;
 
@@ -1265,17 +1275,134 @@ struct {
         case commit:
           Commit commit;
     }
-
-    // SignWithLabel(., "MLSPlaintextTBS", MLSPlaintextTBS)
-    opaque signature<0..2^16-1>;
-    // MAC(confirmation_key, GroupContext.confirmed_transcript_hash)
-    optional<MAC> confirmation_tag;
-    // MAC(membership_key, MLSPlaintextTBM);
-    optional<MAC> membership_tag;
-} MLSPlaintext;
+} MLSMessageContent;
 
 struct {
-    WireFormat wire_format = mls_ciphertext;
+    WireFormat wire_format;
+    select (MLSMessage.wire_format) {
+        case mls_plaintext:
+            MLSPlaintext plaintext;
+        case mls_ciphertext:
+            MLSCiphertext ciphertext;
+        case mls_welcome:
+            Welcome welcome;
+        case mls_public_group_state:
+            PublicGroupState public_group_state;
+        case mls_key_package:
+            KeyPackage key_package;
+    }
+} MLSMessage;
+~~~~~
+
+External sender types are sent as MLSPlaintext, see {{external-proposals}}
+for their use.
+
+The following structure is used to fully describe the data transmitted in
+plaintexts or ciphertexts.
+
+~~~~~
+struct MLSMessageContentAuth {
+    WireFormat wire_format;
+    MLSMessageContent content;
+    MLSMessageAuth auth;
+}
+~~~~~
+
+## Content Authentication
+
+MLSMessageContent is authenticated using the MLSMessageAuth structure.
+
+~~~~~
+struct {
+    opaque mac_value<0..255>;
+} MAC;
+
+struct {
+    // SignWithLabel(., "MLSMessageContentTBS", MLSMessageContentTBS)
+    opaque signature<0..2^16-1>;
+    select (MLSMessageContent.content_type) {
+        case commit:
+            // MAC(confirmation_key, GroupContext.confirmed_transcript_hash)
+            MAC confirmation_tag;
+        case application:
+        case proposal:
+            struct{};
+    }
+} MLSMessageAuth;
+~~~~~
+
+The `signature` field in an MLSMessageAuth object is computed using the signing
+private key corresponding to the public key, which was authenticated by the
+credential at the leaf of the tree indicated by the sender field. The signature
+is computed using `SignWithLabel` with label `"MLSMessageContentTBS"` and with a content
+that covers the message content and the wire format that will be used for this message.
+If the sender is a member of the group, the content also covers the
+GroupContext for the current epoch, so that signatures are specific to a given
+group and epoch.
+
+~~~~~
+struct {
+    WireFormat wire_format;
+    MLSMessageContent content;
+    select (MLSMessageContentTBS.content.sender.sender_type) {
+        case member:
+        case new_member:
+            GroupContext context;
+
+        case preconfigured:
+            struct{};
+    }
+} MLSMessageContentTBS;
+~~~~~
+
+The confirmation tag value confirms that the members of the group have arrived
+at the same state of the group.
+
+A MLSMessageAuth is said to be valid when both the `signature` and
+`confirmation_tag` fields are valid.
+
+## Encoding and Decoding a Plaintext
+
+Plaintexts are encoded using the MLSPlaintext structure.
+
+~~~~~
+struct {
+    MLSMessageContent content;
+    MLSMessageAuth auth;
+    select(MLSPlaintext.content.sender.sender_type) {
+        case member:
+            MAC membership_tag;
+        case preconfigured:
+        case new_member:
+            struct{};
+    }
+} MLSPlaintext;
+~~~~~
+
+The `membership_tag` field in the MLSPlaintext object authenticates the sender's
+membership in the group. For messages sent by members, it MUST be set to the
+following value:
+
+~~~~~
+struct {
+  MLSMessageContentTBS content_tbs;
+  MLSMessageAuth auth;
+} MLSMessageContentTBM;
+
+membership_tag = MAC(membership_key, MLSMessageContentTBM);
+~~~~~
+
+
+When decoding a MLSPlaintext into a MLSMessageContentAuth,
+the application MUST check `membership_tag`, and MUST check that the
+MLSMessageAuth is valid.
+
+## Encoding and Decoding a Ciphertext
+
+Ciphertexts are encoded using the MLSCiphertext structure.
+
+~~~~~
+struct {
     opaque group_id<0..255>;
     uint64 epoch;
     ContentType content_type;
@@ -1285,102 +1412,13 @@ struct {
 } MLSCiphertext;
 ~~~~~
 
-The field `confirmation_tag` MUST be present if `content_type` equals commit.
-Otherwise, it MUST NOT be present.
+`encrypted_sender_data` and `ciphertext` are encrypted using the AEAD function
+specified by the ciphersuite in use, using as input the structures MLSSenderData
+and MLSCiphertextContent.
 
-External sender types are sent as MLSPlaintext, see {{external-proposals}}
-for their use.
+### Content Encryption
 
-The remainder of this section describes how to compute the signature of an
-MLSPlaintext object and how to convert it to an MLSCiphertext object for
-`member` sender types.  The steps are:
-
-* Set `group_id`, `epoch`, `content_type` and `authenticated_data` fields from the
-  MLSPlaintext object directly
-
-* Identify the key and key generation depending on the content type
-
-* Encrypt an MLSCiphertextContent for the ciphertext field using the key
-  identified and MLSPlaintext object
-
-* Encrypt the sender data using a key and nonce derived from the
-  `sender_data_secret` for the epoch and a sample of the encrypted
-  MLSCiphertextContent.
-
-Decryption is done by decrypting the sender data, then the message, and then
-verifying the content signature.
-
-The following sections describe the encryption and signing processes in detail.
-
-## Content Authentication
-
-The `signature` field in an MLSPlaintext object is computed using the signing
-private key corresponding to the public key, which was authenticated by the
-credential at the leaf of the tree indicated by the sender field. The signature
-is computed using `SignWithLabel` with label `"MLSPlaintextTBS"` and with a content
-that covers the plaintext metadata and message content, which is all of MLSPlaintext
-except for the `signature`, the `confirmation_tag` and `membership_tag` fields.
-If the sender is a member of the group, the content also covers the
-GroupContext for the current epoch, so that signatures are specific to a given
-group and epoch.
-
-~~~~~
-struct {
-    WireFormat wire_format;
-    opaque group_id<0..255>;
-    uint64 epoch;
-    Sender sender;
-    opaque authenticated_data<0..2^32-1>;
-
-    ContentType content_type;
-    select (MLSPlaintextTBS.content_type) {
-        case application:
-          opaque application_data<0..2^32-1>;
-
-        case proposal:
-          Proposal proposal;
-
-        case commit:
-          Commit commit;
-    }
-
-    select (MLSPlaintextTBS.sender.sender_type) {
-        case member:
-        case new_member:
-            GroupContext context;
-
-        case preconfigured:
-            struct{};
-    }
-} MLSPlaintextTBS;
-~~~~~
-
-The `membership_tag` field in the MLSPlaintext object authenticates the sender's
-membership in the group. For an MLSPlaintext with a sender type other than
-`member`, this field MUST be omitted. For messages sent by members, it MUST be
-present and set to the following value:
-
-~~~~~
-struct {
-  MLSPlaintextTBS tbs;
-  opaque signature<0..2^16-1>;
-  optional<MAC> confirmation_tag;
-} MLSPlaintextTBM;
-
-membership_tag = MAC(membership_key, MLSPlaintextTBM);
-~~~~~
-
-Note that the `membership_tag` only needs to be computed for MLSPlaintext
-messages that will be sent over the wire (`wire_format == mls_plaintext`).  It
-isn't needed for messages that will be encrypted and transmitted as
-MLSCiphertext messages (`wire_format == mls_ciphertext`).
-
-## Content Encryption
-
-The `ciphertext` field of the MLSCiphertext object is produced by supplying the
-inputs described below to the AEAD function specified by the ciphersuite in use.
-The plaintext input contains the content and signature of the MLSPlaintext, plus
-optional padding. These values are encoded in the following form:
+The ciphertext content is encoded using the MLSCiphertextContent structure.
 
 ~~~~~
 struct {
@@ -1395,10 +1433,7 @@ struct {
           Commit commit;
     }
 
-    // SignWithLabel(., "MLSPlaintextTBS", MLSPlaintextTBS)
-    opaque signature<0..2^16-1>;
-    // MAC(confirmation_key, GroupContext.confirmed_transcript_hash)
-    optional<MAC> confirmation_tag;
+    MLSMessageAuth auth;
     opaque padding<0..2^16-1>;
 } MLSCiphertextContent;
 ~~~~~
@@ -1450,7 +1485,10 @@ struct {
 } MLSCiphertextContentAAD;
 ~~~~~
 
-## Sender Data Encryption
+When decoding a MLSCiphertextContent, the application MUST check that the
+MLSMessageAuth is valid.
+
+### Sender Data Encryption
 
 The "sender data" used to look up the key for the content encryption is
 encrypted with the ciphersuite's AEAD with a key and nonce derived from both the
@@ -1459,7 +1497,7 @@ encrypted, the sender data is encoded as an object of the following form:
 
 ~~~~~
 struct {
-    KeyPackageRef sender;
+    LeafNodeRef sender;
     uint32 generation;
     opaque reuse_guard[4];
 } MLSSenderData;
@@ -1498,7 +1536,7 @@ struct {
 ~~~~~
 
 When parsing a SenderData struct as part of message decryption, the recipient
-MUST verify that the KeyPackageRef indicated in the `sender` field identifies a
+MUST verify that the LeafNodeRef indicated in the `sender` field identifies a
 member of the group.
 
 # Ratchet Tree Operations
@@ -1509,6 +1547,190 @@ the group as well as information to authenticate the members.  In order to
 reflect changes to the membership of the group from one epoch to the next,
 corresponding changes are made to the ratchet tree.  In this section, we
 describe the content of the tree and the required operations.
+
+## Ratchet Tree Node Contents
+
+As discussed in {{ratchet-tree-nodes}}, the nodes of a ratchet tree contain
+several types of data describing individual members (for leaf nodes) or
+subgroups of the group (for parent nodes).  Parent nodes are simpler:
+
+~~~~~
+struct {
+    HPKEPublicKey public_key;
+    opaque parent_hash<0..255>;
+    uint32 unmerged_leaves<0..2^32-1>;
+} ParentNode;
+~~~~~
+
+The `public_key` field contains a HPKE public key whose private key is held only
+by the members at the leaves among its descendants.  The `parent_hash` field
+contains a hash of this node's parent node, as described in {{parent-hash}}.
+The `unmerged_leaves` field lists the leaves under this parent node that are
+unmerged, according to their indices among all the leaves in the tree.
+
+A leaf node in the tree describes all the details of an individual client's
+appearance in the group, signed by that client:
+
+~~~~~
+enum {
+    reserved(0),
+    add(1),
+    update(2),
+    commit(3),
+    (255)
+} LeafNodeSource;
+
+struct {
+    ProtocolVersion versions<0..255>;
+    CipherSuite ciphersuites<0..255>;
+    ExtensionType extensions<0..255>;
+    ProposalType proposals<0..255>;
+} Capabilities;
+
+struct {
+    uint64 not_before;
+    uint64 not_after;
+} Lifetime;
+
+struct {
+    HPKEPublicKey public_key;
+    Credential credential;
+    Capabilities capabilities;
+
+    LeafNodeSource leaf_node_source;
+    select (leaf_node_source) {
+        case add:
+            Lifetime lifetime;
+
+        case update:
+            struct {}
+
+        case commit:
+            opaque parent_hash<0..255>;
+    }
+
+    Extension extensions<8..2^32-1>;
+    // SignWithLabel(., "LeafNodeTBS", LeafNodeTBS)
+    opaque signature<0..2^16-1>;
+} LeafNode;
+
+struct {
+    HPKEPublicKey public_key;
+    Credential credential;
+    Capabilities capabilities;
+
+    LeafNodeSource leaf_node_source;
+    select (leaf_node_source) {
+        case add:
+            Lifetime lifetime;
+
+        case update:
+            struct{};
+
+        case commit:
+            opaque parent_hash<0..255>;
+    }
+
+    Extension extensions<8..2^32-1>;
+
+    select (leaf_node_source) {
+        case add:
+            struct{};
+
+        case update:
+            opaque group_id<0..255>;
+
+        case commit:
+            opaque group_id<0..255>;
+    }
+} LeafNodeTBS;
+~~~~~
+
+The `public_key` field conains an HPKE public key whose private key is held only
+by the member occupying this leaf.  The `credential` contains authentication
+information for this member, as described in {{credentials}}.
+
+The `capabilities` field indicates what protocol versions, ciphersuites,
+protocol extensions, and non-default proposal types are supported by a client.
+Proposal types defined in this document are considered "default" and thus need
+not be listed.  Extensions that appear in the `extensions` field of a LeafNode
+MUST be included in the `extensions` field of the `capabilities` field.
+
+The `leaf_node_source` field indicates how this LeafNode came to be added to the
+tree.
+
+In the case where the leaf was added to the tree based on a pre-published
+KeyPackage, the `lifetime` field represents the times between which clients will
+consider a LeafNode valid.  These times are represented as absolute times,
+measured in seconds since the Unix epoch (1970-01-01T00:00:00Z).  Applications
+MUST define a maximum total lifetime that is acceptable for a LeafNode, and
+reject any LeafNode where the total lifetime is longer than this duration.
+
+In the case where the leaf node was inserted into the tree via a Commit message,
+the `parent_hash` field contains the parent hash for this leaf node (see
+{{parent-hash}}).
+
+The LeafNodeTBS structure covers the fields above the signature in the LeafNode.
+In addition, when the leaf node was created in the context of a group (the
+update and commit cases), the group ID of the group is added as context to the
+signature.
+
+Since the LeafNode is a structure which is stored in the group's ratchet tree
+and updated depending on the evolution of the tree, each modification of its
+content MUST be reflected by a change in its signature. This allows other
+members to verify the validity of the LeafNode at any time, particularly in the
+case of a newcomer joining the group.
+
+### Leaf Node Validation
+
+The validity of a LeafNode needs to be verified at a few stages:
+
+* When a LeafNode is downloaded in a KeyPackage, before it is used
+  to add the client to the group
+* When a LeafNode is received by a group member in an Add, Update, or Commit
+  message
+* When a client joining a group receives LeafNode objects for the other members
+  of the group in the group's ratchet tree
+
+The client verifies the validity of a LeafNode using the following steps:
+
+* Verify that the credential in the KeyPackage is valid according to the
+  authentication service and the client's local policy. These actions MUST be
+  the same regardless of at what point in the protocol the KeyPackage is being
+  verified with the following exception: If the KeyPackage is an update to
+  another KeyPackage, the authentication service MUST additionally validate that
+  the set of identities attested by the credential in the new KeyPackage is
+  acceptable relative to the identities attested by the old credential.
+
+* Verify that the signature on the LeafNode is valid using the public key
+  in the LeafNode's credential
+
+* Verify that the LeafNode is compatible with the group's parameters.  The
+  ciphersuite and protocol version of the KeyPackage must match those in
+  use in the group.  If the GroupContext has a `required_capabilities`
+  extension, then the required extensions and proposals MUST be listed in
+  the KeyPackage's `capabilities` extension.
+
+* Verify the `lifetime` field:
+  * When validating a downloaded KeyPackage, the current time MUST be within the
+    `lifetime` range.  A KeyPackage that is expired or not yet valid MUST NOT be
+    sent in an Add proposal.
+  * When receiving an Add or validating a tree, checking the `lifetime` is
+    RECOMMENDED, if it is feasible in a given application context.  Because of
+    the asynchronous nature of MLS, the `lifetime` may have been valid when the
+    leaf node was proposed for addition, even if it is expired at these later
+    points in the protocol.
+
+* Verify that the `membership` field has the appropriate contents for the
+  context in which the KeyPackage is being validated (as defined in
+  {{ratchet-tree-node-contents}}).
+
+* Verify that the following fields in the KeyPackage are unique among the
+  members of the group (including any other members added in the same
+  Commit):
+
+    * `public_key`
+    * `credential.signature_key`
 
 ## Ratchet Tree Evolution
 
@@ -1540,6 +1762,10 @@ node on the leaf's direct path, as follows.
   node_secret[n] = DeriveSecret(path_secret[n], "node")
   node_priv[n], node_pub[n] = KEM.DeriveKeyPair(node_secret[n])
   ~~~~~
+
+The node secret is derived as a temporary intermediate secret so that each
+secret is only used with one algorithm: The path secret is used as an input to
+DeriveSecret and the node secret is used as an input to DeriveKeyPair.
 
 For example, suppose there is a group with four members, with C an unmerged leaf
 at node 5:
@@ -1721,7 +1947,7 @@ specifically:
 To allow group members to verify that they agree on the public cryptographic state
 of the group, this section defines a scheme for generating a hash value (called
 the "tree hash") that represents the contents of the group's ratchet tree and the
-members' KeyPackages. The tree hash of a tree is the tree hash of its root node,
+members' leaf nodes. The tree hash of a tree is the tree hash of its root node,
 which we define recursively, starting with the leaves.
 
 As some nodes may be blank while others contain data we use the following struct
@@ -1738,12 +1964,12 @@ struct {
 ~~~~~
 
 The tree hash of a leaf node is the hash of leaf's `LeafNodeHashInput` object which
-might include a Key Package depending on whether or not it is blank.
+might include a `LeafNode` object depending on whether or not it is blank.
 
 ~~~~~
 struct {
     uint32 leaf_index;
-    optional<KeyPackage> key_package;
+    optional<LeafNode> leaf_node;
 } LeafNodeHashInput;
 ~~~~~
 
@@ -1752,12 +1978,6 @@ its `ParentNodeHashInput`. This includes an optional `ParentNode`
 object depending on whether the node is blank or not.
 
 ~~~~~
-struct {
-    HPKEPublicKey public_key;
-    opaque parent_hash<0..255>;
-    uint32 unmerged_leaves<0..2^32-1>;
-} ParentNode;
-
 struct {
     optional<ParentNode> parent_node;
     opaque left_hash<0..255>;
@@ -1768,7 +1988,7 @@ struct {
 The `left_hash` and `right_hash` fields hold the tree hashes of the node's
 left and right children, respectively.
 
-## Parent Hash {#parent-hash}
+## Parent Hash
 
 The `parent_hash` extension carries information to authenticate the structure of
 the tree, as described below.
@@ -1803,7 +2023,7 @@ co-path child.
 
 Finally, `original_child_resolution` is the array of `HPKEPublicKey` values of the
 nodes in the resolution of S but with the `unmerged_leaves` of P omitted. For
-example, in the ratchet tree depicted in {{resolution-example}} the
+example, in the ratchet tree depicted in {{ratchet-tree-nodes}} the
 `ParentHashInput` of node Z with co-path child C would contain an empty
 `original_child_resolution` since C's resolution includes only itself but C is also
 an unmerged leaf of Z. Meanwhile, the `ParentHashInput` of node Z with co-path child
@@ -1817,10 +2037,10 @@ then P's Parent Hash is stored in the `parent_hash` fields of both V's
 used to encapsulate all public information about V that must be conveyed to a new
 member joining the group as well as to define the Tree Hash of node V.)
 
-If, on the other hand, V is a leaf and its KeyPackage contains the `parent_hash`
-extension then the Parent Hash of P (with V's sibling as co-path child) is stored in
+If, on the other hand, V is a leaf and the `parent_hash` field of its LeafNode
+is populated then the Parent Hash of P (with V's sibling as co-path child) is stored in
 that field. In particular, the extension MUST be present in the `leaf_key_package`
-field of an `UpdatePath` object. (This way, the signature of such a KeyPackage also
+field of an `UpdatePath` object. (This way, the signature of such a LeafNode also
 serves to attest to which keys the group member introduced into the ratchet tree and
 to whom the corresponding secret keys were sent. This helps prevent malicious insiders
 from constructing artificial ratchet trees with a node V whose HPKE secret key is
@@ -1849,7 +2069,7 @@ between a parent node and its right child.
 ## Update Paths
 
 As described in {{commit}}, each MLS Commit message may optionally
-transmit a KeyPackage leaf and node values along its direct path.
+transmit a LeafNode and parent node values along its direct path.
 The path contains a public key and encrypted secret value for all
 intermediate nodes in the path above the leaf.  The path is ordered
 from the closest node to the leaf to the root; each node MUST be the
@@ -1867,7 +2087,7 @@ struct {
 } UpdatePathNode;
 
 struct {
-    KeyPackage leaf_key_package;
+    LeafNode leaf_node;
     UpdatePathNode nodes<0..2^32-1>;
 } UpdatePath;
 ~~~~~
@@ -2045,38 +2265,33 @@ included directly. Proposal messages are indirectly included via the Commit that
 applied them. Both types of message are included by hashing the MLSPlaintext
 in which they were sent.
 
-The `confirmed_transcript_hash` is updated with an MLSPlaintext containing a
-Commit in two steps:
+The `confirmed_transcript_hash` is updated with an MLSMessageContent and
+MLSMessageAuth containing a Commit in two steps:
 
 ~~~~~
 struct {
     WireFormat wire_format;
-    opaque group_id<0..255>;
-    uint64 epoch;
-    Sender sender;
-    opaque authenticated_data<0..2^32-1>;
-    ContentType content_type = commit;
-    Commit commit;
+    MLSMessageContent content; //with content.content_type == commit
     opaque signature<0..2^16-1>;
-} MLSPlaintextCommitContent;
+} MLSMessageCommitContent;
 
 struct {
-    optional<MAC> confirmation_tag;
-} MLSPlaintextCommitAuthData;
+    MAC confirmation_tag;
+} MLSMessageCommitAuthData;
 
 interim_transcript_hash_[0] = ""; // zero-length octet string
 
 confirmed_transcript_hash_[n] =
     Hash(interim_transcript_hash_[n] ||
-        MLSPlaintextCommitContent_[n]);
+        MLSMessageCommitContent_[n]);
 
 interim_transcript_hash_[n+1] =
     Hash(confirmed_transcript_hash_[n] ||
-        MLSPlaintextCommitAuthData_[n]);
+        MLSMessageCommitAuthData_[n]);
 ~~~~~
 
 Thus the `confirmed_transcript_hash` field in a GroupContext object represents a
-transcript over the whole history of MLSPlaintext Commit messages, up to the
+transcript over the whole history of MLSMessage Commit messages, up to the
 confirmation_tag field of the most recent Commit.  The confirmation
 tag is then included in the transcript for the next epoch.  The interim
 transcript hash is computed by new members using the confirmation_tag of the
@@ -2429,19 +2644,22 @@ group, key packages are pre-published that
 provide some public information about a user. A KeyPackage object specifies:
 
 1. A protocol version and ciphersuite that the client supports,
-2. a public key that others can use for key agreement,
-3. a credential authenticating the client's application-layer identity, and
+2. a public key that others can use to encrypt a Welcome message to this client,
+   and
+3. the content of the leaf node that should be added to the tree to represent
+   this client.
 
 KeyPackages are intended to be used only once and SHOULD NOT
 be reused except in case of last resort. (See {{keypackage-reuse}}).
 Clients MAY generate and publish multiple KeyPackages to
 support multiple ciphersuites.
 
-The value for hpke\_init\_key MUST be a public key for the asymmetric
-encryption scheme defined by cipher\_suite, and it MUST be unique among
-the set of KeyPackages created by this client. The whole structure
-is signed using the client's signature key. A KeyPackage object
-with an invalid signature field MUST be considered malformed.
+The value for `init_key` MUST be a public key for the asymmetric encryption
+scheme defined by cipher\_suite, and it MUST be unique among the set of
+KeyPackages created by this client.  Likewise, the `leaf_node` field MUST be
+valid for the ciphersuite, including both the `hpke_key` and `credential`
+fields.  The whole structure is signed using the client's signature key. A
+KeyPackage object with an invalid signature field MUST be considered malformed.
 
 The signature is computed by the function `SignWithLabel` with a label
 `KeyPackage` and a content comprising of all of the fields except for the
@@ -2465,8 +2683,8 @@ struct {
 struct {
     ProtocolVersion version;
     CipherSuite cipher_suite;
-    HPKEPublicKey hpke_init_key;
-    Credential credential;
+    HPKEPublicKey init_key;
+    LeafNode leaf_node;
     Extension extensions<8..2^32-1>;
     // SignWithLabel(., "KeyPackageTBS", KeyPackageTBS)
     opaque signature<0..2^16-1>;
@@ -2475,24 +2693,16 @@ struct {
 struct {
     ProtocolVersion version;
     CipherSuite cipher_suite;
-    HPKEPublicKey hpke_init_key;
-    Credential credential;
+    HPKEPublicKey init_key;
+    LeafNode leaf_node;
     Extension extensions<8..2^32-1>;
 } KeyPackageTBS;
 ~~~~~
 
-KeyPackage objects MUST contain at least two extensions, one of type
-`capabilities`, and one of
-type `lifetime`.  The `capabilities` extension
-allows MLS session establishment to be safe from downgrade attacks on the
-parameters described (as discussed in {{group-creation}}), while still only advertising
-one version / ciphersuite per KeyPackage.
-
-As the `KeyPackage` is a structure which is stored in the Ratchet
-Tree and updated depending on the evolution of the tree, each
-modification of its content MUST be reflected by a change in its
-signature. This allows other members to verify the validity of the KeyPackage
-at any time, particularly in the case of a newcomer joining the group.
+Note that the `capabilties` field in the `leaf_node` allows MLS session
+establishment to be safe from downgrade attacks on the parameters described (as
+discussed in {{group-creation}}), while still only advertising one version /
+ciphersuite per KeyPackage.
 
 ## KeyPackage Validation
 
@@ -2508,9 +2718,12 @@ The validity of a KeyPackage needs to be verified at a few stages:
 The client verifies the validity of a KeyPackage using the following steps:
 
 * Verify that the credential in the KeyPackage is valid according to the
-  authentication service and the client's local policy.  These actions MUST be
+  authentication service and the client's local policy. These actions MUST be
   the same regardless of at what point in the protocol the KeyPackage is being
-  verified.
+  verified with the following exception: If the KeyPackage is an update to
+  another KeyPackage, the authentication service MUST additionally validate that
+  the set of identities attested by the credential in the new KeyPackage is
+  acceptable relative to the identities attested by the old credential.
 
 * Verify that the signature on the KeyPackage is valid using the public key
   in the KeyPackage's credential
@@ -2570,8 +2783,8 @@ This extension MUST always be present in a KeyPackage.
 ## KeyPackage Identifiers
 
 Within MLS, a KeyPackage is identified by its hash (see, e.g.,
-{{joining-via-welcome-message}}).  The `external_key_id` extension allows applications to add
-an explicit, application-defined identifier to a KeyPackage.
+{{joining-via-welcome-message}}).  The `external_key_id` extension allows
+applications to add an explicit, application-defined identifier to a KeyPackage.
 
 ~~~~~
 opaque external_key_id<0..2^16-1>;
@@ -2589,7 +2802,7 @@ The creator of a group MUST take the following steps to initialize the group:
 
 * Fetch KeyPackages for the members to be added, and select a version and
   ciphersuite according to the capabilities of the members.  To protect against
-  downgrade attacks, the creator MUST use the `capabilities` extensions
+  downgrade attacks, the creator MUST use the `capabilities` information
   in these KeyPackages to verify that the
   chosen version and ciphersuite is the best option supported by all members.
 
@@ -2698,7 +2911,7 @@ the referenced group.
 
 * The `version` and `ciphersuite` values in the Welcome MUST be the same as
   those used by the old group.
-* Each KeyPackage in a leaf node of the new group's tree MUST be a leaf in the
+* Each LeafNode in the new group's tree MUST be a leaf in the
   old group's tree at the epoch indicated in the PreSharedKey.
 
 In addition, to avoid key re-use, the `psk_nonce` included in the
@@ -2726,8 +2939,8 @@ a state transition occurs, the epoch number is incremented by one.
 
 ## Proposals
 
-Proposals are included in an MLSPlaintext by way of a Proposal structure that
-indicates their type:
+Proposals are included in an MLSMessageContent by way of a Proposal structure
+that indicates their type:
 
 ~~~~~
 // See IANA registry for registered values
@@ -2748,8 +2961,8 @@ struct {
 } Proposal;
 ~~~~~
 
-On receiving an MLSPlaintext containing a Proposal, a client MUST verify the
-signature on the enclosing MLSPlaintext.  If the signature verifies
+On receiving an MLSMessageContent containing a Proposal, a client MUST verify the
+signature inside MLSMessageAuth.  If the signature verifies
 successfully, then the Proposal should be cached in such a way that it can be
 retrieved by hash (as a ProposalOrRef object) in a later Commit message.
 
@@ -2781,61 +2994,49 @@ the right.
 * For each non-blank intermediate node along the path from the leaf L
   to the root, add L's leaf index to the `unmerged_leaves` list for the node.
 
-* Set the leaf node L to a new node containing the public key from the
-  KeyPackage in the Add, as well as the credential under which the KeyPackage
-  was signed.
+* Set the leaf node L to a new node containing the LeafNode object carried in
+  the `leaf_node` field of the KeyPackage in the Add.
 
 ### Update
 
 An Update proposal is a similar mechanism to Add with the distinction
-that it is the sender's leaf KeyPackage in the tree which would be
-updated with a new KeyPackage.
+that it replaces the sender's LeafNode in the tree instead of adding a new leaf
+to the tree.
 
 ~~~~~
 struct {
-    KeyPackage key_package;
+    LeafNode leaf_node;
 } Update;
 ~~~~~
 
 A member of the group applies an Update message by taking the following steps:
 
-* Validate the KeyPackage as specified in {{keypackage-validation}}
+* Validate the LeafNode as specified in {{keypackage-validation}}
 
-* Verify that the following fields in the new KeyPackage are the same as the
-  one being replaced:
+* Verify that the `public_key` value is different from the corresponding
+  field in the LeafNode being replaced.
 
-    * `version`
-    * `cipher_suite`
-
-* Verify that the `hpke_init_key` value is different from the corresponding
-  field in the KeyPackage being replaced.
-
-* Verify that the set of identities attested by the credential is acceptable
-  to the application for the participant being updated.
-
-* Replace the sender's leaf KeyPackage with the one contained in
-  the Update proposal
+* Replace the sender's LeafNode with the one contained in the Update proposal
 
 * Blank the intermediate nodes along the path from the sender's leaf to the root
 
 ### Remove
 
-A Remove proposal requests that the member with KeyPackageRef `removed` be removed
+A Remove proposal requests that the member with LeafNodeRef `removed` be removed
 from the group.
 
 ~~~~~
 struct {
-    KeyPackageRef removed;
+    LeafNodeRef removed;
 } Remove;
 ~~~~~
 
 A member of the group applies a Remove message by taking the following steps:
 
-* Identify a leaf node containing a key package matching `removed`.  This
-  lookup MUST be done on the tree before any non-Remove proposals have
-  been applied (the "old" tree in the terminology of {{commit}}), since
-  proposals such as Update can change the KeyPackage stored at a leaf.
-  Let L be this leaf node.
+* Identify a leaf node matching `removed`.  This lookup MUST be done on the tree
+  before any non-Remove proposals have been applied (the "old" tree in the
+  terminology of {{commit}}), since proposals such as Update can change the
+  LeafNode stored at a leaf.  Let L be this leaf node.
 
 * Replace the leaf node L with a blank node
 
@@ -2915,7 +3116,7 @@ included in Commit messages.
 
 ~~~~~
 struct {
-    KeyPackageRef sender;
+    LeafNodeRef sender;
     uint32 first_generation;
     uint32 last_generation;
 } MessageRange;
@@ -3084,8 +3285,8 @@ KeyPackages sharing the same Credential), the committer again chooses one to
 include and considers the rest invalid. The committer MUST consider invalid any
 Add or Update proposal if the Credential in the contained KeyPackage shares the
 same signature key with a Credential in any leaf of the group, or if the
-KeyPackage shares the same `hpke_init_key` with another KeyPackage in the
-group.
+LeafNode in the KeyPackage shares the same `public_key` with another LeafNode in
+the group.
 
 The Commit MUST NOT combine proposals sent within different epochs. Due to the
 asynchronous nature of proposals, receivers of a Commit SHOULD NOT enforce that
@@ -3185,9 +3386,9 @@ message at the same time, by taking the following steps:
   ratchet tree and GroupContext. Any new member (from an add proposal) MUST be
   excluded from the resolution during the computation of the UpdatePath.  The
   `leaf_key_package` for this UpdatePath must have a `parent_hash` extension.
-  Note that the KeyPackage in the `UpdatePath` effectively updates an existing
-  KeyPackage in the group and thus MUST adhere to the same restrictions as
-  KeyPackages used in `Update` proposals.
+  Note that the LeafNode in the `UpdatePath` effectively updates an existing
+  LeafNode in the group and thus MUST adhere to the same restrictions as
+  LeafNodess used in `Update` proposals.
 
    * Assign this UpdatePath to the `path` field in the Commit.
 
@@ -3205,9 +3406,9 @@ message at the same time, by taking the following steps:
   of PSKs in the derivation corresponds to the order of PreSharedKey proposals
   in the `proposals` vector.
 
-* Construct an MLSPlaintext object containing the Commit object. Sign the
-  MLSPlaintext using the old GroupContext as context.
-  * Use the MLSPlaintext to update the confirmed transcript hash and generate
+* Construct an MLSMessageContent object containing the Commit object. Sign the
+  MLSMessageContent using the old GroupContext as context.
+  * Use the MLSMessageContent to update the confirmed transcript hash and generate
     the new GroupContext.
   * Use the `init_secret` from the previous epoch, the `commit_secret` and the
     `psk_secret` as defined in the previous steps, and the new GroupContext to
@@ -3217,12 +3418,12 @@ message at the same time, by taking the following steps:
     `confirmation_tag` value, and the `membership_key` for the old epoch to
     compute the `membership_tag` value in the MLSPlaintext.
   * Calculate the interim transcript hash using the new confirmed transcript
-    hash and the `confirmation_tag` from the MLSPlaintext.
+    hash and the `confirmation_tag` from the MLSMessageAuth.
 
 * Construct a GroupInfo reflecting the new state:
   * Group ID, epoch, tree, confirmed transcript hash, interim transcript
     hash, and group context extensions from the new state
-  * The confirmation_tag from the MLSPlaintext object
+  * The confirmation_tag from the MLSMessageAuth object
   * Other extensions as defined by the application
   * Optionally derive an external keypair as described in {{key-schedule}}
     (required for External Commits, see {{joining-via-external-commits}})
@@ -3257,10 +3458,10 @@ message at the same time, by taking the following steps:
 
 A member of the group applies a Commit message by taking the following steps:
 
-* Verify that the `epoch` field of the enclosing MLSPlaintext message is equal
+* Verify that the `epoch` field of the enclosing MLSMessageContent is equal
   to the `epoch` field of the current GroupContext object
 
-* Verify that the signature on the MLSPlaintext message verifies using the
+* Verify that the signature on the MLSMessageContent message verifies using the
   public key from the credential stored at the leaf in the tree indicated by
   the `sender` field.
 
@@ -3286,14 +3487,14 @@ A member of the group applies a Commit message by taking the following steps:
   provisional ratchet tree and GroupContext, to generate the new ratchet tree
   and the `commit_secret`:
 
-  * Verify that the KeyPackage is acceptable according to the rules for Update
+  * Verify that the LeafNode is acceptable according to the rules for Update
     (see {{update}})
 
   * Apply the UpdatePath to the tree, as described in
     {{synchronizing-views-of-the-tree}}, and store `leaf_key_package` at the
     Committer's leaf.
 
-  * Verify that the KeyPackage has a `parent_hash` extension and that its value
+  * Verify that the LeafNode has a `parent_hash` field and that its value
     matches the new parent of the sender's leaf node.
 
   * Define `commit_secret` as the value `path_secret[n+1]` derived from the
@@ -3316,7 +3517,7 @@ A member of the group applies a Commit message by taking the following steps:
 
 * Use the `confirmation_key` for the new epoch to compute the confirmation tag
   for this message, as described below, and verify that it is the same as the
-  `confirmation_tag` field in the MLSPlaintext object.
+  `confirmation_tag` field in the MLSMessageAuth object.
 
 * If the above checks are successful, consider the new GroupContext object
   as the current state of the group.
@@ -3324,14 +3525,6 @@ A member of the group applies a Commit message by taking the following steps:
 * If the Commit included a ReInit proposal, the client MUST NOT use the group to
   send messages anymore. Instead, it MUST wait for a Welcome message from the committer
   meeting the requirements of {{reinitialization}}.
-
-The confirmation tag value confirms that the members of the group have arrived
-at the same state of the group:
-
-~~~~~
-MLSPlaintext.confirmation_tag =
-    MAC(confirmation_key, GroupContext.confirmed_transcript_hash)
-~~~~~
 
 ### Adding Members to the Group
 
@@ -3350,14 +3543,14 @@ struct {
     Extension group_context_extensions<0..2^32-1>;
     Extension other_extensions<0..2^32-1>;
     MAC confirmation_tag;
-    KeyPackageRef signer;
+    LeafNodeRef signer;
     // SignWithLabel(., "GroupInfoTBS", GroupInfoTBS)
     opaque signature<0..2^16-1>;
 } GroupInfo;
 ~~~
 
 New members MUST verify the `signature` using the public key taken from the
-credential in the leaf node of the member with KeyPackageRef `signer`. The
+credential in the leaf node of the member with LeafNodeRef `signer`. The
 signature covers the following structure, comprising all the fields in the
 GroupInfo above `signature`:
 
@@ -3371,7 +3564,7 @@ struct {
     Extension group_context_extensions<0..2^32-1>;
     Extension other_extensions<0..2^32-1>;
     MAC confirmation_tag;
-    KeyPackageRef signer;
+    LeafNodeRef signer;
 } GroupInfoTBS;
 ~~~
 
@@ -3439,10 +3632,10 @@ External Commits work like regular Commits, with a few differences:
   conditions:
   * There MUST be a single ExternalInit proposal
   * There MUST NOT be any Update proposals
-  * If a Remove proposal is present, then the leaf KeyPackage in the `path`
-    field MUST meet the same criteria as the KeyPackage in an Update for the
+  * If a Remove proposal is present, then the LeafNode in the `path`
+    field MUST meet the same criteria as the LeafNode in an Update for the
     removed leaf (see {{update}}).  In particular, the `credential` in the
-    KeyPackage MUST present a set of identifiers that is acceptable to the
+    LeafNode MUST present a set of identifiers that is acceptable to the
     application for the removed participant.
 * External Commits MUST be signed by the new member.  In particular, the
   signature on the enclosing MLSPlaintext MUST verify using the public key for
@@ -3545,7 +3738,7 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 * Verify the signature on the GroupInfo object. The signature input comprises
   all of the fields in the GroupInfo object except the signature field. The
   public key and algorithm are taken from the credential in the leaf node of the
-  member with KeyPackageRef `signer`. If there is no matching leaf node, or if
+  member with LeafNodeRef `signer`. If there is no matching leaf node, or if
   signature verification fails, return an error.
 
 * Verify the integrity of the ratchet tree.
@@ -3556,16 +3749,17 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
   * For each non-empty parent node, verify that exactly one of the node's
     children are non-empty and have the hash of this node set as their
     `parent_hash` value (if the child is another parent) or has a `parent_hash`
-    extension in the KeyPackage containing the same value (if the child is a
+    field in the LeafNode containing the same value (if the child is a
     leaf). If either of the node's children is empty, and in particular does not
     have a parent hash, then its respective children's `parent_hash` values have
     to be considered instead.
 
-  * For each non-empty leaf node, verify the signature on the KeyPackage.
+  * For each non-empty leaf node, validate the LeafNode as described in
+    {{leaf-node-validation}}.
 
-* Identify a leaf in the `tree` array (any even-numbered node) whose
-  `key_package` field is identical to the KeyPackage.  If no such field
-  exists, return an error.  Let `my_leaf` represent this leaf in the tree.
+* Identify a leaf in the `tree` array (any even-numbered node) whose LeafNode is
+  identical to the one in the KeyPackage.  If no such field exists, return an
+  error.  Let `my_leaf` represent this leaf in the tree.
 
 * Construct a new group state using the information in the GroupInfo object.
     * The GroupContext contains the `group_id`, `epoch`, `tree_hash`,
@@ -3580,7 +3774,7 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 
     * If the `path_secret` value is set in the GroupSecrets object: Identify the
       lowest common ancestor of the leaf node `my_leaf` and of the node of
-      the member with KeyPackageRef `GroupInfo.signer`. Set the private key for
+      the member with LeafNodeRef `GroupInfo.signer`. Set the private key for
       this node to the private key derived from the `path_secret`.
 
     * For each parent of the common ancestor, up to the root of the tree, derive
@@ -3624,8 +3818,8 @@ enum {
 struct {
     NodeType node_type;
     select (Node.node_type) {
-        case leaf:   KeyPackage key_package;
-        case parent: ParentNode node;
+        case leaf:   LeafNode leaf_node;
+        case parent: ParentNode parent_node;
     };
 } Node;
 
@@ -3761,7 +3955,8 @@ its choices for the session with extensions in its ServerHello and
 EncryptedExtensions messages.  In MLS, extensions appear in the following
 places:
 
-* In KeyPackages, to describe client capabilities and aspects of their
+* In KeyPackages, to describe additional information related to the client
+* In LeafNodes, to describe additional information about the client or its
   participation in the group (once in the ratchet tree)
 * In the GroupInfo, to tell new members of a group what parameters are
   being used by the group, and to provide any additional details required to
@@ -3771,8 +3966,8 @@ places:
 
 In other words, an application can use GroupContext extensions to ensure that
 all members of the group agree on a set of parameters. Clients indicate their
-support for parameters in KeyPackage extensions. New members of a group are
-informed of the group's GroupContext extensions via the
+support for parameters in the `capabilities` field of their LeafNode. New
+members of a group are informed of the group's GroupContext extensions via the
 `group_context_extensions` field in the GroupInfo object. The `other_extensions`
 field in a GroupInfo object can be used to provide additional parameters to new
 joiners that are used to join the group.
@@ -3789,16 +3984,13 @@ handle extensible fields:
   extensions, and other parameters.  Otherwise, it may fail to interoperate with
   newer clients.
 
-* A client adding a new member to a group MUST verify that the KeyPackage
-  for the new member contains extensions that are consistent with the group's
-  extensions.  For each extension in the GroupContext, the KeyPackage MUST
-  have an extension of the same type, and the contents of the extension MUST be
-  consistent with the value of the extension in the GroupContext, according to
-  the semantics of the specific extension.
+* A client adding a new member to a group MUST verify that the LeafNode for the
+  new member is compatible with the group's extensions.  The `capabilities`
+  field MUST indicate support for each extension in the GroupContext.
 
 * If any extension in a GroupInfo message is unrecognized (i.e., not contained
-  in the corresponding KeyPackage), then the client MUST reject the Welcome
-  message and not join the group.
+  in the `capabilities` of the corresponding KeyPackage), then the client MUST
+  reject the Welcome message and not join the group.
 
 * The extensions populated into a GroupContext object are drawn from those in
   the GroupInfo object, according to the definitions of those extensions.
@@ -3815,8 +4007,8 @@ once it has been created; such a behavior could be implemented as an extension.
 # Sequencing of State Changes {#sequencing}
 
 Each Commit message is premised on a given starting state,
-indicated by the `epoch` field of the enclosing MLSPlaintext
-message. If the changes implied by a Commit messages are made
+indicated by the `epoch` field of the enclosing MLSMessageContent.
+If the changes implied by a Commit messages are made
 starting from a different state, the results will be incorrect.
 
 This need for sequencing is not a problem as long as each time a
@@ -4009,7 +4201,7 @@ digital signature on each message from the sender's signature key.
 
 The signature keys held by group members are critical to the security of MLS
 against active attacks.  If a member's signature key is compromised, then an
-attacker can create KeyPackages impersonating the member; depending on the
+attacker can create LeafNodes and KeyPackages impersonating the member; depending on the
 application, this can then allow the attacker to join the group with the
 compromised member's identity.  For example, if a group has enabled external
 parties to join via external commits, then an attacker that has compromised a
@@ -4219,7 +4411,8 @@ Template:
 * Message(s): The messages in which the extension may appear, drawn from the following
   list:
 
-  * KP: KeyPackage messages
+  * KP: KeyPackage objects
+  * LN: LeafNode objects
   * GC: GroupContext objects (and the `group_context_extensions` field of
     GroupInfo objects)
   * GI: The `other_extensions` field of GroupInfo objects
@@ -4237,13 +4430,10 @@ Initial contents:
 | Value            | Name                     | Message(s) | Recommended | Reference |
 |:-----------------|:-------------------------|:-----------|:------------|:----------|
 | 0x0000           | RESERVED                 | N/A        | N/A         | RFC XXXX  |
-| 0x0001           | capabilities             | KP         | Y           | RFC XXXX  |
-| 0x0002           | lifetime                 | KP         | Y           | RFC XXXX  |
-| 0x0003           | external_key_id          | KP         | Y           | RFC XXXX  |
-| 0x0004           | parent_hash              | KP         | Y           | RFC XXXX  |
-| 0x0005           | ratchet_tree             | GI         | Y           | RFC XXXX  |
-| 0x0006           | required_capabilities    | GC         | Y           | RFC XXXX  |
-| 0x0007           | external_pub             | GI         | Y           | RFC XXXX  |
+| 0x0001           | external_key_id          | KP         | Y           | RFC XXXX  |
+| 0x0002           | ratchet_tree             | GI         | Y           | RFC XXXX  |
+| 0x0003           | required_capabilities    | GC         | Y           | RFC XXXX  |
+| 0x0004           | external_pub             | GI         | Y           | RFC XXXX  |
 | 0xff00  - 0xffff | Reserved for Private Use | N/A        | N/A         | RFC XXXX  |
 
 ## MLS Proposal Types
@@ -4347,6 +4537,32 @@ specification, in order to enable broadly informed review of
 registration decisions. In cases where a registration decision could
 be perceived as creating a conflict of interest for a particular
 MLS DE, that MLS DE SHOULD defer to the judgment of the other MLS DEs.
+
+## The "message/mls" MIME Type
+
+This document registers the "message/mls" MIME media type in order to allow other
+protocols (ex: HTTP {{!RFC7540}}) to convey MLS messages.
+
+~~~~~
+  Media type name: message
+  Media subtype name: mls
+  Required parameters: none
+  Optional parameters: version
+     version: The MLS protocol version expressed as a string
+     <major>.<minor>.  If omitted the version is "1.0", which
+     corresponds to MLS ProtocolVersion mls10. If for some reason
+     the version number in the MIME type parameter differs from the
+     ProtocolVersion embedded in the protocol, the protocol takes
+     precedence.
+
+  Encoding scheme: MLS messages are represented using the TLS
+     presentation language [RFC8446]. Therefore MLS messages need to be
+     treated as binary data.
+
+  Security considerations: MLS is an encrypted messaging layer designed to
+     be transmitted over arbitrary lower layer protocols. The security
+     considerations in this document (the MLS protocol) also apply.
+~~~~~
 
 # Contributors
 
