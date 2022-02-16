@@ -3645,6 +3645,7 @@ has to meet a specific set of requirements:
     removed leaf (see {{update}}). In particular, the `credential` in the
     LeafNode MUST present a set of identifiers that is acceptable to the
     application for the removed participant.
+  * There MAY be one or more PreSharedKey proposals.
   * There MUST NOT be any other proposals.
 * External Commits MUST be signed by the new member.  In particular, the
   signature on the enclosing MLSPlaintext MUST verify using the public key for
