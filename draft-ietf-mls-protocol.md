@@ -450,9 +450,10 @@ specifying the minimum and maximum lengths of the encoded sequence of elements.
 
 In MLS, there are several vectors whose sizes vary over significant ranges.  So
 instead of using a fixed-size length field, we use a variable-size length using
-the variable-length integer encoding described in Section 16 of  {{?RFC9000}}.
-Instead of presenting min and max values, the vector description simply includes
-a `V`. For example:
+a variable-length integer encoding based on the one in Section 16 of
+{{?RFC9000}}. (They differ only in that the one here requires a minimum-size
+encoding.) Instead of presenting min and max values, the vector description
+simply includes a `V`. For example:
 
 ~~~~~
 struct {
@@ -484,6 +485,35 @@ For example, the eight-byte sequence c2 19 7c 5e ff 14 e8 8c (in hexadecimal)
 decodes to the decimal value 151288809941952652; the four byte sequence 9d 7f 3e
 7d decodes to 494878333; the two byte sequence 7b bd decodes to 15293; and the
 single byte 25 decodes to 37 (as does the two byte sequence 40 25).
+
+The following figure adapts the pseudocode provided in {{RFC9000}} to add a
+check for minimum-length encoding:
+
+~~~~~
+ReadVarint(data):
+  // The length of variable-length integers is encoded in the
+  // first two bits of the first byte.
+  v = data.next_byte()
+  prefix = v >> 6
+  length = 1 << prefix
+
+  // Once the length is known, remove these bits and read any
+  // remaining bytes.
+  v = v & 0x3f
+  repeat length-1 times:
+    v = (v << 8) + data.next_byte()
+  return v
+
+  // Check that the encoder used the minimum bits required
+  if length > 1 && v < (1 << (length - 1)):
+    raise an exception
+~~~~~
+
+The use of variable-size integers for vector lengths allows vectors to grow
+very large, up to 2^62 bytes.  Implementations should take care not to allow
+vectors to overflow available storage.  To facilitate debugging of potential
+interoperatbility problems, implementations should provide a clear error when
+such an overflow condition occurs.
 
 # Operating Context
 
