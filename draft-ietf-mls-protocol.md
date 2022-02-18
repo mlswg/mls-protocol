@@ -419,8 +419,101 @@ Application Message:
 Terminology specific to tree computations is described in
 {{ratchet-tree-terminology}}.
 
-We use the TLS presentation language {{!RFC8446}} to
-describe the structure of protocol messages.
+## Presentation Langauge
+
+We use the TLS presentation language {{!RFC8446}} to describe the structure of
+protocol messages.  In addition to the base syntax, we add two additional
+features, the ability for fields to be optional and the ability for vectors to
+have variable-size length headers.
+
+### Optional Value
+
+An optional value is encoded with a presence-signaling octet, followed by the
+value itself if present.  When decoding, a presence octet with a value other
+than 0 or 1 MUST be rejected as malformed.
+
+~~~~~
+struct {
+    uint8 present;
+    select (present) {
+        case 0: struct{};
+        case 1: T value;
+    }
+} optional<T>;
+~~~~~
+
+### Variable-size Vector Headers
+
+In the TLS presentation language, vectors are encoded as a sequence of encoded
+elements prefixed with a length.  The length field has a fixed size set by
+specifying the minimum and maximum lengths of the encoded sequence of elements.
+
+In MLS, there are several vectors whose sizes vary over significant ranges.  So
+instead of using a fixed-size length field, we use a variable-size length using
+a variable-length integer encoding based on the one in Section 16 of
+{{?RFC9000}}. (They differ only in that the one here requires a minimum-size
+encoding.) Instead of presenting min and max values, the vector description
+simply includes a `V`. For example:
+
+~~~~~
+struct {
+    uint32 fixed<0..255>;
+    opaque variable<V>;
+} StructWithVectors;
+~~~~~
+
+Such a vector can represent values with length from 0 bytes to 2^62 bytes.
+The variable-length integer encoding reserves the two most significant bits
+of the first byte to encode the base 2 logarithm of the integer encoding length
+in bytes.  The integer value is encoded on the remaining bits, in network byte
+order.  The encoded value MUST use the smallest number of bits required to
+represent the value.  When decoding, values using more bits than necessary MUST
+be treated as malformed.
+
+This means that integers are encoded on 1, 2, 4, or 8 bytes and can encode 6-,
+14-, 30-, or 62-bit values respectively.
+
+| Prefix | Length | Usable Bits | Min        | Max                 |
+|:-------|:-------|:------------|:-----------|:--------------------|
+| 00     | 1      | 6           | 0          | 63                  |
+| 01     | 2      | 14          | 64         | 16383               |
+| 10     | 4      | 30          | 16384      | 1073741823          |
+| 11     | 8      | 62          | 1073741824 | 4611686018427387903 |
+{: #integer-summary title="Summary of Integer Encodings"}
+
+For example, the eight-byte sequence c2 19 7c 5e ff 14 e8 8c (in hexadecimal)
+decodes to the decimal value 151288809941952652; the four byte sequence 9d 7f 3e
+7d decodes to 494878333; the two byte sequence 7b bd decodes to 15293; and the
+single byte 25 decodes to 37 (as does the two byte sequence 40 25).
+
+The following figure adapts the pseudocode provided in {{RFC9000}} to add a
+check for minimum-length encoding:
+
+~~~~~
+ReadVarint(data):
+  // The length of variable-length integers is encoded in the
+  // first two bits of the first byte.
+  v = data.next_byte()
+  prefix = v >> 6
+  length = 1 << prefix
+
+  // Once the length is known, remove these bits and read any
+  // remaining bytes.
+  v = v & 0x3f
+  repeat length-1 times:
+    v = (v << 8) + data.next_byte()
+  return v
+
+  // Check that the encoder used the minimum bits required
+  if length > 1 && v < (1 << (length - 1)):
+    raise an exception
+~~~~~
+
+The use of variable-size integers for vector lengths allows vectors to grow
+very large, up to 2^62 bytes.  Implementations should take care not to allow
+vectors to overflow available storage.  To facilitate debugging of potential
+interoperatbility problems, implementations should provide a clear error when
+such an overflow condition occurs.
 
 # Operating Context
 
@@ -1025,7 +1118,7 @@ protocol (see the Cryptographic Dependencies section of the HPKE specification f
 information).
 
 ~~~~~
-opaque HPKEPublicKey<1..2^16-1>;
+opaque HPKEPublicKey<V>;
 ~~~~~
 
 The signature algorithm specified in the ciphersuite is the mandatory algorithm
@@ -1047,8 +1140,8 @@ VerifyWithLabel(VerificationKey, Label, Content) =
 Where SignContent is specified as:
 
 struct {
-    opaque label<9..255> = "MLS 1.0 " + Label;
-    opaque content<0..2^32-1> = Content;
+    opaque label<V> = "MLS 1.0 " + Label;
+    opaque content<V> = Content;
 } SignContent;
 ~~~~~
 
@@ -1124,13 +1217,13 @@ uint16 SignatureScheme;
 uint16 CredentialType;
 
 struct {
-    opaque identity<0..2^16-1>;
+    opaque identity<V>;
     SignatureScheme signature_scheme;
-    opaque signature_key<0..2^16-1>;
+    opaque signature_key<V>;
 } BasicCredential;
 
 struct {
-    opaque cert_data<0..2^16-1>;
+    opaque cert_data<V>;
 } Certificate;
 
 struct {
@@ -1140,7 +1233,7 @@ struct {
             BasicCredential;
 
         case x509:
-            Certificate chain<1..2^32-1>;
+            Certificate chain<V>;
     };
 } Credential;
 ~~~~~
@@ -1243,7 +1336,7 @@ struct {
     SenderType sender_type;
     switch (sender_type) {
         case member:        LeafNodeRef member;
-        case preconfigured: opaque external_key_id<0..255>;
+        case preconfigured: opaque external_key_id<V>;
         case new_member:    struct{};
     }
 } Sender;
@@ -1259,15 +1352,15 @@ enum {
 } WireFormat;
 
 struct {
-    opaque group_id<0..255>;
+    opaque group_id<V>;
     uint64 epoch;
     Sender sender;
-    opaque authenticated_data<0..2^32-1>;
+    opaque authenticated_data<V>;
 
     ContentType content_type;
     select (MLSMessageContent.content_type) {
         case application:
-          opaque application_data<0..2^32-1>;
+          opaque application_data<V>;
 
         case proposal:
           Proposal proposal;
@@ -1314,12 +1407,12 @@ MLSMessageContent is authenticated using the MLSMessageAuth structure.
 
 ~~~~~
 struct {
-    opaque mac_value<0..255>;
+    opaque mac_value<V>;
 } MAC;
 
 struct {
     // SignWithLabel(., "MLSMessageContentTBS", MLSMessageContentTBS)
-    opaque signature<0..2^16-1>;
+    opaque signature<V>;
     select (MLSMessageContent.content_type) {
         case commit:
             // MAC(confirmation_key, GroupContext.confirmed_transcript_hash)
@@ -1403,12 +1496,12 @@ Ciphertexts are encoded using the MLSCiphertext structure.
 
 ~~~~~
 struct {
-    opaque group_id<0..255>;
+    opaque group_id<V>;
     uint64 epoch;
     ContentType content_type;
-    opaque authenticated_data<0..2^32-1>;
-    opaque encrypted_sender_data<0..255>;
-    opaque ciphertext<0..2^32-1>;
+    opaque authenticated_data<V>;
+    opaque encrypted_sender_data<V>;
+    opaque ciphertext<V>;
 } MLSCiphertext;
 ~~~~~
 
@@ -1424,7 +1517,7 @@ The ciphertext content is encoded using the MLSCiphertextContent structure.
 struct {
     select (MLSCiphertext.content_type) {
         case application:
-          opaque application_data<0..2^32-1>;
+          opaque application_data<V>;
 
         case proposal:
           Proposal proposal;
@@ -1434,7 +1527,7 @@ struct {
     }
 
     MLSMessageAuth auth;
-    opaque padding<0..2^16-1>;
+    opaque padding<V>;
 } MLSCiphertextContent;
 ~~~~~
 
@@ -1478,10 +1571,10 @@ identify the key and nonce:
 
 ~~~~~
 struct {
-    opaque group_id<0..255>;
+    opaque group_id<V>;
     uint64 epoch;
     ContentType content_type;
-    opaque authenticated_data<0..2^32-1>;
+    opaque authenticated_data<V>;
 } MLSCiphertextContentAAD;
 ~~~~~
 
@@ -1529,7 +1622,7 @@ fields of MLSCiphertext excluding `encrypted_sender_data`:
 
 ~~~~~
 struct {
-    opaque group_id<0..255>;
+    opaque group_id<V>;
     uint64 epoch;
     ContentType content_type;
 } MLSSenderDataAAD;
@@ -1557,8 +1650,8 @@ subgroups of the group (for parent nodes).  Parent nodes are simpler:
 ~~~~~
 struct {
     HPKEPublicKey public_key;
-    opaque parent_hash<0..255>;
-    uint32 unmerged_leaves<0..2^32-1>;
+    opaque parent_hash<V>;
+    uint32 unmerged_leaves<V>;
 } ParentNode;
 ~~~~~
 
@@ -1581,10 +1674,10 @@ enum {
 } LeafNodeSource;
 
 struct {
-    ProtocolVersion versions<0..255>;
-    CipherSuite ciphersuites<0..255>;
-    ExtensionType extensions<0..255>;
-    ProposalType proposals<0..255>;
+    ProtocolVersion versions<V>;
+    CipherSuite ciphersuites<V>;
+    ExtensionType extensions<V>;
+    ProposalType proposals<V>;
 } Capabilities;
 
 struct {
@@ -1606,12 +1699,12 @@ struct {
             struct {}
 
         case commit:
-            opaque parent_hash<0..255>;
+            opaque parent_hash<V>;
     }
 
-    Extension extensions<8..2^32-1>;
+    Extension extensions<V>;
     // SignWithLabel(., "LeafNodeTBS", LeafNodeTBS)
-    opaque signature<0..2^16-1>;
+    opaque signature<V>;
 } LeafNode;
 
 struct {
@@ -1628,20 +1721,20 @@ struct {
             struct{};
 
         case commit:
-            opaque parent_hash<0..255>;
+            opaque parent_hash<V>;
     }
 
-    Extension extensions<8..2^32-1>;
+    Extension extensions<V>;
 
     select (leaf_node_source) {
         case add:
             struct{};
 
         case update:
-            opaque group_id<0..255>;
+            opaque group_id<V>;
 
         case commit:
-            opaque group_id<0..255>;
+            opaque group_id<V>;
     }
 } LeafNodeTBS;
 ~~~~~
@@ -1958,19 +2051,6 @@ the "tree hash") that represents the contents of the group's ratchet tree and th
 members' leaf nodes. The tree hash of a tree is the tree hash of its root node,
 which we define recursively, starting with the leaves.
 
-As some nodes may be blank while others contain data we use the following struct
-to include data if present.
-
-~~~~~
-struct {
-    uint8 present;
-    select (present) {
-        case 0: struct{};
-        case 1: T value;
-    }
-} optional<T>;
-~~~~~
-
 The tree hash of a leaf node is the hash of leaf's `LeafNodeHashInput` object which
 might include a `LeafNode` object depending on whether or not it is blank.
 
@@ -1988,8 +2068,8 @@ object depending on whether the node is blank or not.
 ~~~~~
 struct {
     optional<ParentNode> parent_node;
-    opaque left_hash<0..255>;
-    opaque right_hash<0..255>;
+    opaque left_hash<V>;
+    opaque right_hash<V>;
 } ParentNodeHashInput;
 ~~~~~
 
@@ -2002,7 +2082,7 @@ The `parent_hash` extension carries information to authenticate the structure of
 the tree, as described below.
 
 ~~~~~
-opaque parent_hash<0..255>;
+opaque parent_hash<V>;
 ~~~~~
 
 Consider a ratchet tree with a parent node P and children V and S. The parent hash
@@ -2018,8 +2098,8 @@ to which PK's secret key was encrypted in the Commit that contained the
 ~~~~~
 struct {
     HPKEPublicKey public_key;
-    opaque parent_hash<0..255>;
-    HPKEPublicKey original_child_resolution<0..2^32-1>;
+    opaque parent_hash<V>;
+    HPKEPublicKey original_child_resolution<V>;
 } ParentHashInput;
 ~~~~~
 
@@ -2085,18 +2165,18 @@ parent of its predecessor.
 
 ~~~~~
 struct {
-    opaque kem_output<0..2^16-1>;
-    opaque ciphertext<0..2^16-1>;
+    opaque kem_output<V>;
+    opaque ciphertext<V>;
 } HPKECiphertext;
 
 struct {
     HPKEPublicKey public_key;
-    HPKECiphertext encrypted_path_secret<0..2^32-1>;
+    HPKECiphertext encrypted_path_secret<V>;
 } UpdatePathNode;
 
 struct {
     LeafNode leaf_node;
-    UpdatePathNode nodes<0..2^32-1>;
+    UpdatePathNode nodes<V>;
 } UpdatePath;
 ~~~~~
 
@@ -2134,8 +2214,8 @@ Where KDFLabel is specified as:
 
 struct {
     uint16 length = Length;
-    opaque label<7..255> = "MLS 1.0 " + Label;
-    opaque context<0..2^32-1> = Context;
+    opaque label<V> = "MLS 1.0 " + Label;
+    opaque context<V> = Context;
 } KDFLabel;
 
 DeriveSecret(Secret, Label) =
@@ -2225,11 +2305,11 @@ summarizes the state of the group:
 
 ~~~~~
 struct {
-    opaque group_id<0..255>;
+    opaque group_id<V>;
     uint64 epoch;
-    opaque tree_hash<0..255>;
-    opaque confirmed_transcript_hash<0..255>;
-    Extension extensions<0..2^32-1>;
+    opaque tree_hash<V>;
+    opaque confirmed_transcript_hash<V>;
+    Extension extensions<V>;
 } GroupContext;
 ~~~~~
 
@@ -2280,7 +2360,7 @@ MLSMessageAuth containing a Commit in two steps:
 struct {
     WireFormat wire_format;
     MLSMessageContent content; //with content.content_type == commit
-    opaque signature<0..2^16-1>;
+    opaque signature<V>;
 } MLSMessageCommitContent;
 
 struct {
@@ -2388,18 +2468,18 @@ struct {
   PSKType psktype;
   select (PreSharedKeyID.psktype) {
     case external:
-      opaque psk_id<0..255>;
+      opaque psk_id<V>;
 
     case resumption:
       ResumptionPSKUsage usage;
-      opaque psk_group_id<0..255>;
+      opaque psk_group_id<V>;
       uint64 psk_epoch;
   }
-  opaque psk_nonce<0..255>;
+  opaque psk_nonce<V>;
 } PreSharedKeyID;
 
 struct {
-    PreSharedKeyID psks<0..2^16-1>;
+    PreSharedKeyID psks<V>;
 } PreSharedKeys;
 ~~~~~
 
@@ -2685,7 +2765,7 @@ uint16 ExtensionType;
 
 struct {
     ExtensionType extension_type;
-    opaque extension_data<0..2^32-1>;
+    opaque extension_data<V>;
 } Extension;
 
 struct {
@@ -2693,9 +2773,9 @@ struct {
     CipherSuite cipher_suite;
     HPKEPublicKey init_key;
     LeafNode leaf_node;
-    Extension extensions<8..2^32-1>;
+    Extension extensions<V>;
     // SignWithLabel(., "KeyPackageTBS", KeyPackageTBS)
-    opaque signature<0..2^16-1>;
+    opaque signature<V>;
 } KeyPackage;
 
 struct {
@@ -2703,7 +2783,7 @@ struct {
     CipherSuite cipher_suite;
     HPKEPublicKey init_key;
     LeafNode leaf_node;
-    Extension extensions<8..2^32-1>;
+    Extension extensions<V>;
 } KeyPackageTBS;
 ~~~~~
 
@@ -2758,10 +2838,10 @@ not be listed.
 
 ~~~~~
 struct {
-    ProtocolVersion versions<0..255>;
-    CipherSuite ciphersuites<0..255>;
-    ExtensionType extensions<0..255>;
-    ProposalType proposals<0..255>;
+    ProtocolVersion versions<V>;
+    CipherSuite ciphersuites<V>;
+    ExtensionType extensions<V>;
+    ProposalType proposals<V>;
 } Capabilities;
 ~~~~~
 
@@ -2795,7 +2875,7 @@ Within MLS, a KeyPackage is identified by its hash (see, e.g.,
 applications to add an explicit, application-defined identifier to a KeyPackage.
 
 ~~~~~
-opaque external_key_id<0..2^16-1>;
+opaque external_key_id<V>;
 ~~~~~
 
 # Group Creation
@@ -2858,8 +2938,8 @@ including a `required_capabilities` extension in the GroupContext.
 
 ~~~~~
 struct {
-    ExtensionType extensions<0..255>;
-    ProposalType proposals<0..255>;
+    ExtensionType extensions<V>;
+    ProposalType proposals<V>;
 } RequiredCapabilities;
 ~~~~~
 
@@ -3083,10 +3163,10 @@ and shutting down the old one.
 
 ~~~~~
 struct {
-    opaque group_id<0..255>;
+    opaque group_id<V>;
     ProtocolVersion version;
     CipherSuite cipher_suite;
-    Extension extensions<0..2^32-1>;
+    Extension extensions<V>;
 } ReInit;
 ~~~~~
 
@@ -3107,7 +3187,7 @@ using an external commit. This proposal can only be used in that context.
 
 ~~~~
 struct {
-  opaque kem_output<0..2^16-1>;
+  opaque kem_output<V>;
 } ExternalInit;
 ~~~~
 
@@ -3130,7 +3210,7 @@ struct {
 } MessageRange;
 
 struct {
-    MessageRange received_ranges<0..2^32-1>;
+    MessageRange received_ranges<V>;
 } AppAck;
 ~~~~~
 
@@ -3178,7 +3258,7 @@ the GroupContext for the group.
 
 ```
 struct {
-  Extension extensions<0..2^32-1>;
+  Extension extensions<V>;
 } GroupContextExtensions;
 ```
 
@@ -3261,7 +3341,7 @@ struct {
 } ProposalOrRef;
 
 struct {
-    ProposalOrRef proposals<0..2^32-1>;
+    ProposalOrRef proposals<V>;
     optional<UpdatePath> path;
 } Commit;
 ~~~~~
@@ -3544,16 +3624,16 @@ new members need information to bootstrap their local group state.
 struct {
     ProtocolVersion version = mls10;
     CipherSuite cipher_suite;
-    opaque group_id<0..255>;
+    opaque group_id<V>;
     uint64 epoch;
-    opaque tree_hash<0..255>;
-    opaque confirmed_transcript_hash<0..255>;
-    Extension group_context_extensions<0..2^32-1>;
-    Extension other_extensions<0..2^32-1>;
+    opaque tree_hash<V>;
+    opaque confirmed_transcript_hash<V>;
+    Extension group_context_extensions<V>;
+    Extension other_extensions<V>;
     MAC confirmation_tag;
     LeafNodeRef signer;
     // SignWithLabel(., "GroupInfoTBS", GroupInfoTBS)
-    opaque signature<0..2^16-1>;
+    opaque signature<V>;
 } GroupInfo;
 ~~~
 
@@ -3565,12 +3645,12 @@ GroupInfo above `signature`:
 ~~~
 struct {
     CipherSuite cipher_suite;
-    opaque group_id<0..255>;
+    opaque group_id<V>;
     uint64 epoch;
-    opaque tree_hash<0..255>;
-    opaque confirmed_transcript_hash<0..255>;
-    Extension group_context_extensions<0..2^32-1>;
-    Extension other_extensions<0..2^32-1>;
+    opaque tree_hash<V>;
+    opaque confirmed_transcript_hash<V>;
+    Extension group_context_extensions<V>;
+    Extension other_extensions<V>;
     MAC confirmation_tag;
     LeafNodeRef signer;
 } GroupInfoTBS;
@@ -3695,11 +3775,11 @@ indicating which PSK to use.
 
 ~~~~~
 struct {
-  opaque path_secret<1..255>;
+  opaque path_secret<V>;
 } PathSecret;
 
 struct {
-  opaque joiner_secret<1..255>;
+  opaque joiner_secret<V>;
   optional<PathSecret> path_secret;
   PreSharedKeys psks;
 } GroupSecrets;
@@ -3711,8 +3791,8 @@ struct {
 
 struct {
   CipherSuite cipher_suite;
-  EncryptedGroupSecrets secrets<0..2^32-1>;
-  opaque encrypted_group_info<1..2^32-1>;
+  EncryptedGroupSecrets secrets<V>;
+  opaque encrypted_group_info<V>;
 } Welcome;
 ~~~~~
 
@@ -3833,7 +3913,7 @@ struct {
     };
 } Node;
 
-optional<Node> ratchet_tree<1..2^32-1>;
+optional<Node> ratchet_tree<V>;
 ~~~~~
 
 The nodes are listed in the order specified by a left-to-right in-order
