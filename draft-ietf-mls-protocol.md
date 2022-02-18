@@ -1318,6 +1318,12 @@ Delivery Service to examine such messages.
 ~~~~~
 enum {
     reserved(0),
+    mls10(1),
+    (255)
+} ProtocolVersion;
+
+enum {
+    reserved(0),
     application(1),
     proposal(2),
     commit(3),
@@ -1371,6 +1377,7 @@ struct {
 } MLSMessageContent;
 
 struct {
+    ProtocolVersion version;
     WireFormat wire_format;
     select (MLSMessage.wire_format) {
         case mls_plaintext:
@@ -1850,9 +1857,9 @@ equivalent to using the key pair of the removed node.
 * Blank all the nodes on the direct path from the leaf to the root.
 * Generate a fresh HPKE key pair for the leaf.
 * Generate a sequence of path secrets, one for each node on the leaf's filtered direct
-  path, as follows. In this setting, `path_secret[0]` refers to the first parent node 
+  path, as follows. In this setting, `path_secret[0]` refers to the first parent node
   in the filtered direct path, `path_secret[1]` to the second parent node, and so on.
-  
+
   ~~~~~
   path_secret[0] is sampled at random
   path_secret[n] = DeriveSecret(path_secret[n-1], "path")
@@ -2125,7 +2132,7 @@ leaves was emptied. (Observe also that `original_child_resolution` contains all
 unmerged leaves of S.) Therefore, P's Parent Hash fixes, for each node V on the
 path from P to the root, not only the HPKE public key of V, but also the set of
 HPKE public keys to which the corresponding HPKE secret key of V was encrypted by
-the generator of the `UpdatePath`. 
+the generator of the `UpdatePath`.
 
 ### Using Parent Hashes
 
@@ -2757,12 +2764,6 @@ The signature is computed by the function `SignWithLabel` with a label
 signature field.
 
 ~~~~~
-enum {
-    reserved(0),
-    mls10(1),
-    (255)
-} ProtocolVersion;
-
 // See IANA registry for registered values
 uint16 ExtensionType;
 
