@@ -473,12 +473,15 @@ be treated as malformed.
 This means that integers are encoded on 1, 2, or 4 bytes and can encode 6-,
 14-, or 30-bit values respectively.
 
-| Prefix | Length | Usable Bits | Min        | Max                 |
-|:-------|:-------|:------------|:-----------|:--------------------|
-| 00     | 1      | 6           | 0          | 63                  |
-| 01     | 2      | 14          | 64         | 16383               |
-| 10     | 4      | 30          | 16384      | 1073741823          |
+| Prefix | Length  | Usable Bits | Min        | Max                 |
+|:-------|:--------|:------------|:-----------|:--------------------|
+| 00     | 1       | 6           | 0          | 63                  |
+| 01     | 2       | 14          | 64         | 16383               |
+| 10     | 4       | 30          | 16384      | 1073741823          |
+| 11     | invalid | -           | -          | -                   |
 {: #integer-summary title="Summary of Integer Encodings"}
+
+Vectors that start with "11" prefix are invalid and MUST be rejected.
 
 For example, the four byte sequence 9d 7f 3e 7d decodes to 494878333; 
 the two byte sequence 7b bd decodes to 15293; and the single byte 25 
