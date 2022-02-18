@@ -2031,22 +2031,23 @@ co-path child.
 
 Finally, `original_sibling_tree_hash` is the original tree hash of S. The
 original tree hash corresponds to the tree hash of S the last time P was
-updated. It can be computed as the tree hash of S modified the following way:
+updated. It can be computed as the tree hash of S in the ratchet tree modified
+the following way:
 
 * reset the leaves in P.unmerged_leaves to blanks
 * remove P.unmerged_leaves from all unmerged_leaves lists
-* truncate the tree as described in {{remove}}
+* truncate the ratchet tree as described in {{remove}}
 
 For example, in the following tree:
 
 ~~~~~
-              W [H]
+              W [D, H]
         ______|_____
        /             \
-      U               Y [F, H]
+      U [D]           Y [F, H]
     __|__           __|__
    /     \         /     \
-  T       V       X [F]   _
+  T       _       X [F]   _
  / \     / \     / \     / \
 A   B   C   D   E   F   G   H
 ~~~~~
@@ -2066,6 +2067,21 @@ E   F    G
 Because `W.unmerged_leaves = [H]`, H is removed from `Y.unmerged_leaves`,
 then H is replaced with a blank leaf, then the tree is truncated removing the
 last two nodes.
+
+With P = W and S = U, `original_sibling_tree_hash` is the tree hash of the
+following tree:
+
+~~~~~
+      U
+    __|__
+   /     \
+  T       _
+ / \     / \
+A   B   C   _
+~~~~~
+
+This time we have 4 leaf nodes because the truncation of the ratchet tree didn't
+remove the last leaf.
 
 ### Using Parent Hashes
 
