@@ -1377,7 +1377,7 @@ struct {
 } MLSMessageContent;
 
 struct {
-    ProtocolVersion version;
+    ProtocolVersion version = mls10;
     WireFormat wire_format;
     select (MLSMessage.wire_format) {
         case mls_plaintext:
