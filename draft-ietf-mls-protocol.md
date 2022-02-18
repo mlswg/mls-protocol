@@ -3390,25 +3390,49 @@ provides forward secrecy and post-compromise security with regard to the sender
 of the Commit.  An Update proposal can be regarded as a "lazy" version of this
 operation, where only the leaf changes and intermediate nodes are blanked out.
 
-The `path` field of a Commit message MUST be populated if the Commit covers at
-least one Update or Remove proposal. The `path` field MUST also be populated
-if the Commit covers no proposals at all (i.e., if the proposals vector
-is empty). The `path` field MAY be omitted if the Commit covers only Add
-proposals.  In pseudocode, the logic for validating a Commit is as follows:
+By default, the `path` field of a Commit MUST be populated.  The `path` field
+MAY be omitted if (a) it covers at least one proposal and (b) none proposals
+covered by the Commit are of "path required" types.  A proposal type requires a
+path if it cannot change the group membership in a way that requires the forward
+secrecy and post-compromise security guarantees that an UpdatePath provides.
+The only proposal types defined in this document that do not require a path are:
+
+* `add`
+* `psk`
+* `app_ack`
+* `reinit`
+
+New proposal types MUST state whether they require a path. If any instance of a
+proposal type requires a path, then the proposal type requires a path. This
+attribute of a proposal type is reflected in the "Path Required" field of the
+proposal type registry defined in {{mls-proposal-types}}.
+
+Update and Remove proposals are the clearest examples of proposals that require
+a path.  An UpdatePath is required to evict the removed member or the old
+appearance of the updated member.
+
+In pseudocode, the logic for validating the `path` field of a Commit is as
+follows:
 
 ~~~~~
-hasUpdates = false
-hasRemoves = false
+pathRequiredTypes = [
+    update,
+    remove,
+    external_init,
+    group_context_extensions
+]
+
+pathRequired = false
 
 for i, id in commit.proposals:
     proposal = proposalCache[id]
     assert(proposal != null)
 
-    hasUpdates = hasUpdates || proposal.msg_type == update
-    hasRemoves = hasRemoves || proposal.msg_type == remove
+    pathRequired = pathRequired ||
+                   (proposal.msg_type in pathRequiredTypes)
 
-if len(commit.proposals) == 0 || hasUpdates || hasRemoves:
-  assert(commit.path != null)
+if len(commit.proposals) == 0 || pathRequired:
+    assert(commit.path != null)
 ~~~~~
 
 To summarize, a Commit can have three different configurations, with different
@@ -3417,7 +3441,7 @@ uses:
 1. An "empty" Commit that references no proposals, which updates the committer's
    contribution to the group and provides PCS with regard to the committer.
 
-2. A "partial" Commit that references Add, PreSharedKey, or ReInit proposals but
+2. A "partial" Commit that references proposals that do not require a path, and
    where the path is empty. Such a commit doesn't provide PCS with regard to the
    committer.
 
@@ -4548,18 +4572,18 @@ Template:
 
 Initial contents:
 
-| Value            | Name                     | Recommended | Reference |
-|:-----------------|:-------------------------|:------------|:----------|
-| 0x0000           | RESERVED                 | N/A         | RFC XXXX  |
-| 0x0001           | add                      | Y           | RFC XXXX  |
-| 0x0002           | update                   | Y           | RFC XXXX  |
-| 0x0003           | remove                   | Y           | RFC XXXX  |
-| 0x0004           | psk                      | Y           | RFC XXXX  |
-| 0x0005           | reinit                   | Y           | RFC XXXX  |
-| 0x0006           | external_init            | Y           | RFC XXXX  |
-| 0x0007           | app_ack                  | Y           | RFC XXXX  |
-| 0x0008           | group_context_extensions | Y           | RFC XXXX  |
-| 0xff00  - 0xffff | Reserved for Private Use | N/A         | RFC XXXX  |
+| Value            | Name                     | Recommended | Path Required | Reference |
+|:-----------------|:-------------------------|:------------|:--------------|:----------|
+| 0x0000           | RESERVED                 | N/A         | N/A           | RFC XXXX  |
+| 0x0001           | add                      | Y           | N             | RFC XXXX  |
+| 0x0002           | update                   | Y           | Y             | RFC XXXX  |
+| 0x0003           | remove                   | Y           | Y             | RFC XXXX  |
+| 0x0004           | psk                      | Y           | N             | RFC XXXX  |
+| 0x0005           | reinit                   | Y           | N             | RFC XXXX  |
+| 0x0006           | external_init            | Y           | Y             | RFC XXXX  |
+| 0x0007           | app_ack                  | Y           | N             | RFC XXXX  |
+| 0x0008           | group_context_extensions | Y           | Y             | RFC XXXX  |
+| 0xff00  - 0xffff | Reserved for Private Use | N/A         | N/A           | RFC XXXX  |
 
 ## MLS Credential Types
 
