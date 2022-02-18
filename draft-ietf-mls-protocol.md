@@ -1379,8 +1379,8 @@ struct {
             MLSCiphertext ciphertext;
         case mls_welcome:
             Welcome welcome;
-        case mls_public_group_state:
-            PublicGroupState public_group_state;
+        case mls_group_info:
+            GroupInfo group_info;
         case mls_key_package:
             KeyPackage key_package;
     }
@@ -1850,9 +1850,9 @@ equivalent to using the key pair of the removed node.
 * Blank all the nodes on the direct path from the leaf to the root.
 * Generate a fresh HPKE key pair for the leaf.
 * Generate a sequence of path secrets, one for each node on the leaf's filtered direct
-  path, as follows. In this setting, `path_secret[0]` refers to the first parent node 
+  path, as follows. In this setting, `path_secret[0]` refers to the first parent node
   in the filtered direct path, `path_secret[1]` to the second parent node, and so on.
-  
+
   ~~~~~
   path_secret[0] is sampled at random
   path_secret[n] = DeriveSecret(path_secret[n-1], "path")
@@ -2125,7 +2125,7 @@ leaves was emptied. (Observe also that `original_child_resolution` contains all
 unmerged leaves of S.) Therefore, P's Parent Hash fixes, for each node V on the
 path from P to the root, not only the HPKE public key of V, but also the set of
 HPKE public keys to which the corresponding HPKE secret key of V was encrypted by
-the generator of the `UpdatePath`. 
+the generator of the `UpdatePath`.
 
 ### Using Parent Hashes
 
@@ -2400,7 +2400,7 @@ is joining via an external commit.
 
 In this process, the joiner sends a new `init_secret` value to the group using
 the HPKE export method.  The joiner then uses that `init_secret` with
-information provided in the PublicGroupState and an external Commit to initialize
+information provided in the GroupInfo and an external Commit to initialize
 their copy of the key schedule for the new epoch.
 
 ~~~~~
@@ -2416,7 +2416,7 @@ context = SetupBaseR(kem_output, external_priv, "")
 init_secret = context.export("MLS 1.0 external init secret", KDF.Nh)
 ~~~~~
 
-In both cases, the `info` input to HPKE is set to the PublicGroupState for the
+In both cases, the `info` input to HPKE is set to the GroupInfo for the
 previous epoch, encoded using the TLS serialization.
 
 ## Pre-Shared Keys
