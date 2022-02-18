@@ -2105,7 +2105,7 @@ struct {
 The field `public_key` contains the HPKE public key of P. If P is the root,
 then the `parent_hash` field is set to a zero-length octet string. Otherwise,
 `parent_hash` is the Parent Hash of the next node after P on the filtered
-direct path of U (see {{resolution-example}}). This way, P's Parent Hash fixes
+direct path of U. This way, P's Parent Hash fixes
 the new HPKE public key of each node V on the path from P to the root. Note
 that the path from P to the root may contain some blank nodes that are not
 fixed by P's Parent Hash. However, for each node that has an HPKE key, this key
