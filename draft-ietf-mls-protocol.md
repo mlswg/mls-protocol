@@ -1336,7 +1336,7 @@ struct {
     SenderType sender_type;
     switch (sender_type) {
         case member:        LeafNodeRef member;
-        case preconfigured: opaque external_key_id<V>;
+        case preconfigured: opaque sender_id<V>;
         case new_member:    struct{};
     }
 } Sender;
@@ -1850,9 +1850,9 @@ equivalent to using the key pair of the removed node.
 * Blank all the nodes on the direct path from the leaf to the root.
 * Generate a fresh HPKE key pair for the leaf.
 * Generate a sequence of path secrets, one for each node on the leaf's filtered direct
-  path, as follows. In this setting, `path_secret[0]` refers to the first parent node 
+  path, as follows. In this setting, `path_secret[0]` refers to the first parent node
   in the filtered direct path, `path_secret[1]` to the second parent node, and so on.
-  
+
   ~~~~~
   path_secret[0] is sampled at random
   path_secret[n] = DeriveSecret(path_secret[n-1], "path")
@@ -2125,7 +2125,7 @@ leaves was emptied. (Observe also that `original_child_resolution` contains all
 unmerged leaves of S.) Therefore, P's Parent Hash fixes, for each node V on the
 path from P to the root, not only the HPKE public key of V, but also the set of
 HPKE public keys to which the corresponding HPKE secret key of V was encrypted by
-the generator of the `UpdatePath`. 
+the generator of the `UpdatePath`.
 
 ### Using Parent Hashes
 
