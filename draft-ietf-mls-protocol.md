@@ -3361,8 +3361,9 @@ uses:
 1. An "empty" Commit that references no proposals, which updates the committer's
    contribution to the group and provides PCS with regard to the committer.
 
-2. A "partial" Commit that references path-safe proposals but where the path is
-   empty. Such a commit doesn't provide PCS with regard to the committer.
+2. A "partial" Commit that references proposals that do not require a path, and
+   where the path is empty. Such a commit doesn't provide PCS with regard to the
+   committer.
 
 3. A "full" Commit that references proposals of any type, which provides FS with
    regard to any removed members and PCS for the committer and any updated
