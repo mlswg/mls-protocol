@@ -483,9 +483,9 @@ This means that integers are encoded on 1, 2, or 4 bytes and can encode 6-,
 
 Vectors that start with "11" prefix are invalid and MUST be rejected.
 
-For example, the four byte sequence 9d 7f 3e 7d decodes to 494878333; 
-the two byte sequence 7b bd decodes to 15293; and the single byte 25 
-decodes to 37 (as does the two byte sequence 40 25).
+For example, the four byte sequence 0x9d7f3e7d decodes to 494878333; 
+the two byte sequence 0x7bbd decodes to 15293; and the single byte 0x25 
+decodes to 37.
 
 The following figure adapts the pseudocode provided in {{RFC9000}} to add a
 check for minimum-length encoding:
