@@ -1667,7 +1667,7 @@ appearance in the group, signed by that client:
 ~~~~~
 enum {
     reserved(0),
-    add(1),
+    key_package(1),
     update(2),
     commit(3),
     (255)
@@ -1714,7 +1714,7 @@ struct {
 
     LeafNodeSource leaf_node_source;
     select (leaf_node_source) {
-        case add:
+        case key_package:
             Lifetime lifetime;
 
         case update:
@@ -1727,7 +1727,7 @@ struct {
     Extension extensions<V>;
 
     select (leaf_node_source) {
-        case add:
+        case key_package:
             struct{};
 
         case update:
@@ -1798,11 +1798,10 @@ The client verifies the validity of a LeafNode using the following steps:
 * Verify that the signature on the LeafNode is valid using the public key
   in the LeafNode's credential
 
-* Verify that the LeafNode is compatible with the group's parameters.  The
-  ciphersuite and protocol version of the KeyPackage must match those in
-  use in the group.  If the GroupContext has a `required_capabilities`
-  extension, then the required extensions and proposals MUST be listed in
-  the KeyPackage's `capabilities` extension.
+* Verify that the LeafNode is compatible with the group's parameters.  If the
+  GroupContext has a `required_capabilities` extension, then the required
+  extensions and proposals MUST be listed in the LeafNode's `capabilities`
+  field.
 
 * Verify the `lifetime` field:
   * When validating a downloaded KeyPackage, the current time MUST be within the
@@ -1814,8 +1813,8 @@ The client verifies the validity of a LeafNode using the following steps:
     leaf node was proposed for addition, even if it is expired at these later
     points in the protocol.
 
-* Verify that the `membership` field has the appropriate contents for the
-  context in which the KeyPackage is being validated (as defined in
+* Verify that the `leaf_node_source` field has the appropriate value for the
+  context in which the LeafNode is being validated (as defined in
   {{ratchet-tree-node-contents}}).
 
 * Verify that the following fields in the KeyPackage are unique among the
@@ -1850,9 +1849,9 @@ equivalent to using the key pair of the removed node.
 * Blank all the nodes on the direct path from the leaf to the root.
 * Generate a fresh HPKE key pair for the leaf.
 * Generate a sequence of path secrets, one for each node on the leaf's filtered direct
-  path, as follows. In this setting, `path_secret[0]` refers to the first parent node 
+  path, as follows. In this setting, `path_secret[0]` refers to the first parent node
   in the filtered direct path, `path_secret[1]` to the second parent node, and so on.
-  
+
   ~~~~~
   path_secret[0] is sampled at random
   path_secret[n] = DeriveSecret(path_secret[n-1], "path")
@@ -1896,7 +1895,7 @@ path_secret[0] --> node_secret[0] --> node_priv[0], node_pub[0]
      ^
      |
 leaf_secret    --> leaf_node_secret --> leaf_priv, leaf_pub
-                                     ~> leaf_key_package
+                                     ~> leaf_node
 ~~~~~
 
 After applying the UpdatePath, the tree will have the following structure, where
@@ -2081,14 +2080,26 @@ left and right children, respectively.
 
 ## Parent Hash
 
-The `parent_hash` extension carries information to authenticate the HPKE keys
-in the ratchet tree, as described below.
-
-~~~~~
-opaque parent_hash<V>;
-~~~~~
+The `parent_hash` field in ratchet tree nodes carries information to
+authenticate the information in the ratchet tree.  Parent hashes chain together
+so that the signature on a leaf node, by covering the leaf node's parent hash,
+indirectly includes information about the structure of the tree at the time the
+leaf node was last updated.
 
 Consider a ratchet tree with a non-blank parent node P and children V and S.
+
+~~~~~
+        ...
+        /
+       P
+     __|__
+    /     \
+   V       S
+  / \     / \
+... ... ... ...
+~~~~~
+
+
 The parent hash of P changes whenever an `UpdatePath` object is applied to
 the ratchet tree along a path from a leaf U traversing node V (and hence also
 P). The new "Parent Hash of P (with Co-Path Child S)" is obtained by hashing P's
@@ -2125,32 +2136,32 @@ leaves was emptied. (Observe also that `original_child_resolution` contains all
 unmerged leaves of S.) Therefore, P's Parent Hash fixes, for each node V on the
 path from P to the root, not only the HPKE public key of V, but also the set of
 HPKE public keys to which the corresponding HPKE secret key of V was encrypted by
-the generator of the `UpdatePath`. 
+the generator of the `UpdatePath`.
 
 ### Using Parent Hashes
 
 The Parent Hash of P appears in three types of structs. If V is itself a parent node
-then P's Parent Hash is stored in the `parent_hash` fields of the structs
+then P's Parent Hash is stored in the `parent_hash` field of the structs
 `ParentHashInput` and `ParentNode` of the node before P on the filtered direct
 path of U. (The `ParentNode` struct is used to encapsulate all public
 information about that node that must be conveyed to a new
 member joining the group as well as to define its Tree Hash.)
 
-If, on the other hand, V is the leaf U and its LeafNode contains the `parent_hash`
-extension then the Parent Hash of P (with V's sibling as co-path child) is stored in
-that field. In particular, the extension MUST be present in the `leaf_key_package`
-field of an `UpdatePath` object. (This way, the signature of such a LeafNode also
-serves to attest to which keys the group member introduced into the ratchet tree and
+If, on the other hand, V is the leaf U and its LeafNode has `leaf_node_source` set to `commit`,
+then the Parent Hash of P (with V's sibling as co-path child) is stored in
+the `parent_hash` field.  This is true in particular of the LeafNode object sent
+in the `leaf_node` field of an UpdatePath. The signature of such a LeafNode thus also
+attests to which keys the group member introduced into the ratchet tree and
 to whom the corresponding secret keys were sent. This helps prevent malicious insiders
 from constructing artificial ratchet trees with a node V whose HPKE secret key is
 known to the insider yet where the insider isn't assigned a leaf in the subtree rooted
-at V. Indeed, such a ratchet tree would violate the tree invariant.)
+at V. Indeed, such a ratchet tree would violate the tree invariant.
 
 ### Verifying Parent Hashes
 
 To this end, when processing a Commit message clients MUST recompute the
 expected value of `parent_hash` for the committer's new leaf and verify that it
-matches the `parent_hash` value in the supplied `leaf_key_package`. Moreover, when
+matches the `parent_hash` value in the supplied `leaf_node`. Moreover, when
 joining a group, new members MUST authenticate each non-blank parent node P. A parent
 node P is authenticated by checking that there exists a child V of P and a node U in the
 resolution of V such that V.`parent_hash` is equal to the Parent Hash of P with V's
@@ -2795,42 +2806,27 @@ establishment to be safe from downgrade attacks on the parameters described (as
 discussed in {{group-creation}}), while still only advertising one version /
 ciphersuite per KeyPackage.
 
+The `leaf_node_source` field of the LeafNode in a KeyPackage MUST be set to
+`key_package`.
+
 ## KeyPackage Validation
 
 The validity of a KeyPackage needs to be verified at a few stages:
 
 * When a KeyPackage is downloaded by a group member, before it is used
   to add the client to the group
-* When a KeyPackage is received by a group member in an Add, Update, or Commit
-  message
-* When a client joining a group receives KeyPackages for the other members of
-  the group in the group's ratchet tree
+* When a KeyPackage is received by a group member in an Add message
 
 The client verifies the validity of a KeyPackage using the following steps:
 
-* Verify that the credential in the KeyPackage is valid according to the
-  authentication service and the client's local policy. These actions MUST be
-  the same regardless of at what point in the protocol the KeyPackage is being
-  verified with the following exception: If the KeyPackage is an update to
-  another KeyPackage, the authentication service MUST additionally validate that
-  the set of identities attested by the credential in the new KeyPackage is
-  acceptable relative to the identities attested by the old credential.
+* Verify the LeafNode in the KeyPackage according to the process defined in
+  {{leaf-node-validation}}.
 
 * Verify that the signature on the KeyPackage is valid using the public key
-  in the KeyPackage's credential
+  in the LeafNode's credential
 
-* Verify that the KeyPackage is compatible with the group's parameters.  The
-  ciphersuite and protocol version of the KeyPackage must match those in
-  use in the group.  If the GroupContext has a `required_capabilities`
-  extension, then the required extensions and proposals MUST be listed in
-  the KeyPackage's `capabilities` extension.
-
-* Verify that the following fields in the KeyPackage are unique among the
-  members of the group (including any other members added in the same
-  Commit):
-
-    * `credential.signature_key`
-    * `hpke_init_key`
+* Verify that the ciphersuite and protocol version of the LeafNode match
+  those in use in the group.
 
 ## Client Capabilities
 
@@ -3076,7 +3072,8 @@ placed in the leftmost empty leaf in the tree, for the second Add, the next
 empty leaf to the right, etc. If no empty leaf exists, the tree is extended to
 the right.
 
-* Validate the KeyPackage as specified in {{keypackage-validation}}
+* Validate the KeyPackage as specified in {{keypackage-validation}}.  The
+  `leaf_node_source` field in the LeafNode MUST be set to `key_package`.
 
 * Identify the leaf L for the new member: if there are empty leaves in the tree,
   L is the leftmost empty leaf.  Otherwise, the tree is extended to the right
@@ -3102,10 +3099,11 @@ struct {
 
 A member of the group applies an Update message by taking the following steps:
 
-* Validate the LeafNode as specified in {{keypackage-validation}}
+* Validate the LeafNode as specified in {{leaf-node-validation}}.  The
+  `leaf_node_source` field MUST be set to `update`.
 
-* Verify that the `public_key` value is different from the corresponding
-  field in the LeafNode being replaced.
+* Verify that the `public_key` value in the LeafNode is different from the
+  corresponding field in the LeafNode being replaced.
 
 * Replace the sender's LeafNode with the one contained in the Update proposal
 
@@ -3496,10 +3494,10 @@ message at the same time, by taking the following steps:
 * If populating the `path` field: Create an UpdatePath using the provisional
   ratchet tree and GroupContext. Any new member (from an add proposal) MUST be
   excluded from the resolution during the computation of the UpdatePath.  The
-  `leaf_key_package` for this UpdatePath must have a `parent_hash` extension.
+  `leaf_node` for this UpdatePath MUST have `leaf_node_source` set to `commit`.
   Note that the LeafNode in the `UpdatePath` effectively updates an existing
   LeafNode in the group and thus MUST adhere to the same restrictions as
-  LeafNodess used in `Update` proposals.
+  LeafNodes used in `Update` proposals (aside from `leaf_node_source`).
 
    * Assign this UpdatePath to the `path` field in the Commit.
 
@@ -3598,12 +3596,15 @@ A member of the group applies a Commit message by taking the following steps:
   provisional ratchet tree and GroupContext, to generate the new ratchet tree
   and the `commit_secret`:
 
-  * Verify that the LeafNode is acceptable according to the rules for Update
-    (see {{update}})
+  * Validate the LeafNode as specified in {{leaf-node-validation}}.  The
+    `leaf_node_source` field MUST be set to `commit`.
+
+  * Verify that the `public_key` value in the LeafNode is different from the
+    committer's current leaf node.
 
   * Apply the UpdatePath to the tree, as described in
-    {{synchronizing-views-of-the-tree}}, and store `leaf_key_package` at the
-    Committer's leaf.
+    {{synchronizing-views-of-the-tree}}, and store `leaf_node` at the
+    committer's leaf.
 
   * Verify that the LeafNode has a `parent_hash` field and that its value
     matches the new parent of the sender's leaf node.
@@ -3752,7 +3753,7 @@ has to meet a specific set of requirements:
   * There MUST NOT be any other proposals.
 * External Commits MUST be signed by the new member.  In particular, the
   signature on the enclosing MLSPlaintext MUST verify using the public key for
-  the credential in the `leaf_key_package` of the `path` field.
+  the credential in the `leaf_node` of the `path` field.
 * When processing a Commit, both existing and new members MUST use the external
   init secret as described in {{external-initialization}}.
 * The sender type for the MLSPlaintext encapsulating the External Commit MUST be
