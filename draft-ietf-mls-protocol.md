@@ -3311,42 +3311,47 @@ of the Commit.  An Update proposal can be regarded as a "lazy" version of this
 operation, where only the leaf changes and intermediate nodes are blanked out.
 
 By default, the `path` field of a Commit MUST be populated.  The `path` field
-MAY be omitted if (a) it covers at least one proposal and (b) all proposals in
-the Commit are of "path safe" types.  A proposal type is "path safe" if it
-cannot change the group membership in a way that requires the forward secrecy
-and post-compromise security guarantees that an UpdatePath provides.  The
-path-safe proposal types defined in this document are:
+MAY be omitted if (a) it covers at least one proposal and (b) none proposals
+covered by the Commit are of "path required" types.  A proposal type requires a
+path if it cannot change the group membership in a way that requires the forward
+secrecy and post-compromise security guarantees that an UpdatePath provides.
+The only proposal types defined in this document that do not require a path are:
 
 * `add`
 * `psk`
 * `app_ack`
 * `reinit`
 
-New proposal types MUST state whether they are path-safe. If a the path-safety
-of a proposal of a given type depends on the instance, then the proposal type is
-not path-safe. The path-safety of a proposal type is reflected in the
-"Path-safe" field of the proposal type registry defined in
-{{mls-proposal-types}}.
+New proposal types MUST state whether they require a path. If any instance of a
+proposal type requires a path, then the proposal type requires a path. This
+attribute of a proposal type is reflected in the "Path Required" field of the
+proposal type registry defined in {{mls-proposal-types}}.
 
-Update and Remove proposals are the clearest examples of non-path-safe types.
-An UpdatePath is required to evict the removed member or the old appearance of
-the updated member.
+Update and Remove proposals are the clearest examples of proposals that require
+a path.  An UpdatePath is required to evict the removed member or the old
+appearance of the updated member.
 
 In pseudocode, the logic for validating the `path` field of a Commit is as
 follows:
 
 ~~~~~
-pathSafeTypes = [add, psk, app_ack]
+pathRequiredTypes = [
+    update,
+    remove,
+    external_init,
+    group_context_extensions
+]
 
-allPathSafe = true
+pathRequired = false
 
 for i, id in commit.proposals:
     proposal = proposalCache[id]
     assert(proposal != null)
 
-    allPathSafe = allPathSafe && (proposal.msg_type in pathSafeTypes)
+    pathRequired = pathRequired ||
+                   (proposal.msg_type in pathRequiredTypes)
 
-if len(commit.proposals) == 0 || !allPathSafe:
+if len(commit.proposals) == 0 || pathRequired:
     assert(commit.path != null)
 ~~~~~
 
@@ -4484,18 +4489,18 @@ Template:
 
 Initial contents:
 
-| Value            | Name                     | Recommended | Path-Safe | Reference |
-|:-----------------|:-------------------------|:------------|:----------|:----------|
-| 0x0000           | RESERVED                 | N/A         | N/A       | RFC XXXX  |
-| 0x0001           | add                      | Y           | Y         | RFC XXXX  |
-| 0x0002           | update                   | Y           | N         | RFC XXXX  |
-| 0x0003           | remove                   | Y           | N         | RFC XXXX  |
-| 0x0004           | psk                      | Y           | Y         | RFC XXXX  |
-| 0x0005           | reinit                   | Y           | Y         | RFC XXXX  |
-| 0x0006           | external_init            | Y           | N         | RFC XXXX  |
-| 0x0007           | app_ack                  | Y           | Y         | RFC XXXX  |
-| 0x0008           | group_context_extensions | Y           | N         | RFC XXXX  |
-| 0xff00  - 0xffff | Reserved for Private Use | N/A         | N/A       | RFC XXXX  |
+| Value            | Name                     | Recommended | Path Required | Reference |
+|:-----------------|:-------------------------|:------------|:--------------|:----------|
+| 0x0000           | RESERVED                 | N/A         | N/A           | RFC XXXX  |
+| 0x0001           | add                      | Y           | N             | RFC XXXX  |
+| 0x0002           | update                   | Y           | Y             | RFC XXXX  |
+| 0x0003           | remove                   | Y           | Y             | RFC XXXX  |
+| 0x0004           | psk                      | Y           | N             | RFC XXXX  |
+| 0x0005           | reinit                   | Y           | N             | RFC XXXX  |
+| 0x0006           | external_init            | Y           | Y             | RFC XXXX  |
+| 0x0007           | app_ack                  | Y           | N             | RFC XXXX  |
+| 0x0008           | group_context_extensions | Y           | Y             | RFC XXXX  |
+| 0xff00  - 0xffff | Reserved for Private Use | N/A         | N/A           | RFC XXXX  |
 
 ## MLS Credential Types
 
