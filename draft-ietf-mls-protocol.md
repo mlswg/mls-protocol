@@ -2037,7 +2037,20 @@ the following way:
 * reset the leaves in P.unmerged_leaves to blanks
 * remove P.unmerged_leaves from all unmerged_leaves lists
 * truncate the ratchet tree as described in {{remove}}
+Note that no recomputation is needed if the tree hash of S is unchanged since
+the last time P was updated.  This is the case for computing or processing a
+Commit whose UpdatePath traverses P, since the Commit itself resets P.  (In
+other words, it is only necessary to recompute the original sibling tree hash
+when validating group's tree on joining.) More generally, if none of the entries
+in `P.unmerged_leaves` is in the subtree under S (and thus no nodes were truncated),
+then the original tree hash at S is the tree hash of S in the current tree.
 
+If it is necessary to recompute the original tree hash of a node, the efficiency
+of recomputation can be improved by caching intermediate tree hashes, to avoid
+recomputing over the subtree when the subtree is included in multiple parent
+hashes.  A subtree hash can be reused as long as the intersection of the
+parent's unmerged leaves with the subtree is the same as in the earlier
+computation.
 For example, in the following tree:
 
 ~~~~~
