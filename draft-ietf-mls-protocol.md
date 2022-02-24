@@ -1315,6 +1315,11 @@ handshake messages, but MAY transmit handshake messages encoded
 as MLSPlaintext objects in cases where it is necessary for the
 Delivery Service to examine such messages.
 
+The `mime_type` vector is a 7-bit ASCII string representing the MIME
+type of the `application_data`. If the `mime_type` is zero characters
+long, no representation is made about the contents of the
+`application_data`.
+
 ~~~~~
 enum {
     reserved(0),
@@ -1360,6 +1365,7 @@ struct {
     ContentType content_type;
     select (MLSMessageContent.content_type) {
         case application:
+          opaque mime_type<V>;
           opaque application_data<V>;
 
         case proposal:
@@ -1517,6 +1523,7 @@ The ciphertext content is encoded using the MLSCiphertextContent structure.
 struct {
     select (MLSCiphertext.content_type) {
         case application:
+          opaque mime_type<V>;
           opaque application_data<V>;
 
         case proposal:
