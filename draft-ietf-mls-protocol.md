@@ -1401,11 +1401,11 @@ The following structure is used to fully describe the data transmitted in
 plaintexts or ciphertexts.
 
 ~~~~~
-struct MLSMessageContentAuth {
+struct {
     WireFormat wire_format;
     MLSMessageContent content;
     MLSMessageAuth auth;
-}
+} MLSMessageContentAuth;
 ~~~~~
 
 ## Content Authentication
@@ -1442,6 +1442,7 @@ group and epoch.
 
 ~~~~~
 struct {
+    ProtocolVersion version = mls10;
     WireFormat wire_format;
     MLSMessageContent content;
     select (MLSMessageContentTBS.content.sender.sender_type) {
