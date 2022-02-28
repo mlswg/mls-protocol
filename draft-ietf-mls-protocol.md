@@ -419,8 +419,102 @@ Application Message:
 Terminology specific to tree computations is described in
 {{ratchet-tree-terminology}}.
 
-We use the TLS presentation language {{!RFC8446}} to
-describe the structure of protocol messages.
+## Presentation Langauge
+
+We use the TLS presentation language {{!RFC8446}} to describe the structure of
+protocol messages.  In addition to the base syntax, we add two additional
+features, the ability for fields to be optional and the ability for vectors to
+have variable-size length headers.
+
+### Optional Value
+
+An optional value is encoded with a presence-signaling octet, followed by the
+value itself if present.  When decoding, a presence octet with a value other
+than 0 or 1 MUST be rejected as malformed.
+
+~~~~~
+struct {
+    uint8 present;
+    select (present) {
+        case 0: struct{};
+        case 1: T value;
+    }
+} optional<T>;
+~~~~~
+
+### Variable-size Vector Headers
+
+In the TLS presentation language, vectors are encoded as a sequence of encoded
+elements prefixed with a length.  The length field has a fixed size set by
+specifying the minimum and maximum lengths of the encoded sequence of elements.
+
+In MLS, there are several vectors whose sizes vary over significant ranges.  So
+instead of using a fixed-size length field, we use a variable-size length using
+a variable-length integer encoding based on the one in Section 16 of
+{{?RFC9000}}. (They differ only in that the one here requires a minimum-size
+encoding.) Instead of presenting min and max values, the vector description
+simply includes a `V`. For example:
+
+~~~~~
+struct {
+    uint32 fixed<0..255>;
+    opaque variable<V>;
+} StructWithVectors;
+~~~~~
+
+Such a vector can represent values with length from 0 bytes to 2^30 bytes.
+The variable-length integer encoding reserves the two most significant bits
+of the first byte to encode the base 2 logarithm of the integer encoding length
+in bytes.  The integer value is encoded on the remaining bits, in network byte
+order.  The encoded value MUST use the smallest number of bits required to
+represent the value.  When decoding, values using more bits than necessary MUST
+be treated as malformed.
+
+This means that integers are encoded on 1, 2, or 4 bytes and can encode 6-,
+14-, or 30-bit values respectively.
+
+| Prefix | Length  | Usable Bits | Min        | Max                 |
+|:-------|:--------|:------------|:-----------|:--------------------|
+| 00     | 1       | 6           | 0          | 63                  |
+| 01     | 2       | 14          | 64         | 16383               |
+| 10     | 4       | 30          | 16384      | 1073741823          |
+| 11     | invalid | -           | -          | -                   |
+{: #integer-summary title="Summary of Integer Encodings"}
+
+Vectors that start with "11" prefix are invalid and MUST be rejected.
+
+For example, the four byte sequence 0x9d7f3e7d decodes to 494878333; 
+the two byte sequence 0x7bbd decodes to 15293; and the single byte 0x25 
+decodes to 37.
+
+The following figure adapts the pseudocode provided in {{RFC9000}} to add a
+check for minimum-length encoding:
+
+~~~~~
+ReadVarint(data):
+  // The length of variable-length integers is encoded in the
+  // first two bits of the first byte.
+  v = data.next_byte()
+  prefix = v >> 6
+  length = 1 << prefix
+
+  // Once the length is known, remove these bits and read any
+  // remaining bytes.
+  v = v & 0x3f
+  repeat length-1 times:
+    v = (v << 8) + data.next_byte()
+  return v
+
+  // Check that the encoder used the minimum bits required
+  if length > 1 && v < (1 << (length - 1)):
+    raise an exception
+~~~~~
+
+The use of variable-size integers for vector lengths allows vectors to grow
+very large, up to 2^30 bytes.  Implementations should take care not to allow
+vectors to overflow available storage.  To facilitate debugging of potential
+interoperatbility problems, implementations should provide a clear error when
+such an overflow condition occurs.
 
 # Operating Context
 
@@ -1025,7 +1119,7 @@ protocol (see the Cryptographic Dependencies section of the HPKE specification f
 information).
 
 ~~~~~
-opaque HPKEPublicKey<1..2^16-1>;
+opaque HPKEPublicKey<V>;
 ~~~~~
 
 The signature algorithm specified in the ciphersuite is the mandatory algorithm
@@ -1047,8 +1141,8 @@ VerifyWithLabel(VerificationKey, Label, Content) =
 Where SignContent is specified as:
 
 struct {
-    opaque label<9..255> = "MLS 1.0 " + Label;
-    opaque content<0..2^32-1> = Content;
+    opaque label<V> = "MLS 1.0 " + Label;
+    opaque content<V> = Content;
 } SignContent;
 ~~~~~
 
@@ -1124,13 +1218,13 @@ uint16 SignatureScheme;
 uint16 CredentialType;
 
 struct {
-    opaque identity<0..2^16-1>;
+    opaque identity<V>;
     SignatureScheme signature_scheme;
-    opaque signature_key<0..2^16-1>;
+    opaque signature_key<V>;
 } BasicCredential;
 
 struct {
-    opaque cert_data<0..2^16-1>;
+    opaque cert_data<V>;
 } Certificate;
 
 struct {
@@ -1140,7 +1234,7 @@ struct {
             BasicCredential;
 
         case x509:
-            Certificate chain<1..2^32-1>;
+            Certificate chain<V>;
     };
 } Credential;
 ~~~~~
@@ -1243,7 +1337,7 @@ struct {
     SenderType sender_type;
     switch (sender_type) {
         case member:        LeafNodeRef member;
-        case preconfigured: opaque external_key_id<0..255>;
+        case preconfigured: opaque sender_id<V>;
         case new_member:    struct{};
     }
 } Sender;
@@ -1259,15 +1353,15 @@ enum {
 } WireFormat;
 
 struct {
-    opaque group_id<0..255>;
+    opaque group_id<V>;
     uint64 epoch;
     Sender sender;
-    opaque authenticated_data<0..2^32-1>;
+    opaque authenticated_data<V>;
 
     ContentType content_type;
     select (MLSMessageContent.content_type) {
         case application:
-          opaque application_data<0..2^32-1>;
+          opaque application_data<V>;
 
         case proposal:
           Proposal proposal;
@@ -1314,12 +1408,12 @@ MLSMessageContent is authenticated using the MLSMessageAuth structure.
 
 ~~~~~
 struct {
-    opaque mac_value<0..255>;
+    opaque mac_value<V>;
 } MAC;
 
 struct {
     // SignWithLabel(., "MLSMessageContentTBS", MLSMessageContentTBS)
-    opaque signature<0..2^16-1>;
+    opaque signature<V>;
     select (MLSMessageContent.content_type) {
         case commit:
             // MAC(confirmation_key, GroupContext.confirmed_transcript_hash)
@@ -1403,12 +1497,12 @@ Ciphertexts are encoded using the MLSCiphertext structure.
 
 ~~~~~
 struct {
-    opaque group_id<0..255>;
+    opaque group_id<V>;
     uint64 epoch;
     ContentType content_type;
-    opaque authenticated_data<0..2^32-1>;
-    opaque encrypted_sender_data<0..255>;
-    opaque ciphertext<0..2^32-1>;
+    opaque authenticated_data<V>;
+    opaque encrypted_sender_data<V>;
+    opaque ciphertext<V>;
 } MLSCiphertext;
 ~~~~~
 
@@ -1424,7 +1518,7 @@ The ciphertext content is encoded using the MLSCiphertextContent structure.
 struct {
     select (MLSCiphertext.content_type) {
         case application:
-          opaque application_data<0..2^32-1>;
+          opaque application_data<V>;
 
         case proposal:
           Proposal proposal;
@@ -1434,7 +1528,7 @@ struct {
     }
 
     MLSMessageAuth auth;
-    opaque padding<0..2^16-1>;
+    opaque padding<V>;
 } MLSCiphertextContent;
 ~~~~~
 
@@ -1478,10 +1572,10 @@ identify the key and nonce:
 
 ~~~~~
 struct {
-    opaque group_id<0..255>;
+    opaque group_id<V>;
     uint64 epoch;
     ContentType content_type;
-    opaque authenticated_data<0..2^32-1>;
+    opaque authenticated_data<V>;
 } MLSCiphertextContentAAD;
 ~~~~~
 
@@ -1529,7 +1623,7 @@ fields of MLSCiphertext excluding `encrypted_sender_data`:
 
 ~~~~~
 struct {
-    opaque group_id<0..255>;
+    opaque group_id<V>;
     uint64 epoch;
     ContentType content_type;
 } MLSSenderDataAAD;
@@ -1542,7 +1636,7 @@ member of the group.
 # Ratchet Tree Operations
 
 The ratchet tree for an epoch describes the membership of a group in that epoch,
-providing public-key encryption keys that can be used to encrypt to subsets of
+providing public-key encryption (HPKE) keys that can be used to encrypt to subsets of
 the group as well as information to authenticate the members.  In order to
 reflect changes to the membership of the group from one epoch to the next,
 corresponding changes are made to the ratchet tree.  In this section, we
@@ -1557,8 +1651,8 @@ subgroups of the group (for parent nodes).  Parent nodes are simpler:
 ~~~~~
 struct {
     HPKEPublicKey public_key;
-    opaque parent_hash<0..255>;
-    uint32 unmerged_leaves<0..2^32-1>;
+    opaque parent_hash<V>;
+    uint32 unmerged_leaves<V>;
 } ParentNode;
 ~~~~~
 
@@ -1574,17 +1668,17 @@ appearance in the group, signed by that client:
 ~~~~~
 enum {
     reserved(0),
-    add(1),
+    key_package(1),
     update(2),
     commit(3),
     (255)
 } LeafNodeSource;
 
 struct {
-    ProtocolVersion versions<0..255>;
-    CipherSuite ciphersuites<0..255>;
-    ExtensionType extensions<0..255>;
-    ProposalType proposals<0..255>;
+    ProtocolVersion versions<V>;
+    CipherSuite ciphersuites<V>;
+    ExtensionType extensions<V>;
+    ProposalType proposals<V>;
 } Capabilities;
 
 struct {
@@ -1606,12 +1700,12 @@ struct {
             struct {}
 
         case commit:
-            opaque parent_hash<0..255>;
+            opaque parent_hash<V>;
     }
 
-    Extension extensions<8..2^32-1>;
+    Extension extensions<V>;
     // SignWithLabel(., "LeafNodeTBS", LeafNodeTBS)
-    opaque signature<0..2^16-1>;
+    opaque signature<V>;
 } LeafNode;
 
 struct {
@@ -1621,27 +1715,27 @@ struct {
 
     LeafNodeSource leaf_node_source;
     select (leaf_node_source) {
-        case add:
+        case key_package:
             Lifetime lifetime;
 
         case update:
             struct{};
 
         case commit:
-            opaque parent_hash<0..255>;
+            opaque parent_hash<V>;
     }
 
-    Extension extensions<8..2^32-1>;
+    Extension extensions<V>;
 
     select (leaf_node_source) {
-        case add:
+        case key_package:
             struct{};
 
         case update:
-            opaque group_id<0..255>;
+            opaque group_id<V>;
 
         case commit:
-            opaque group_id<0..255>;
+            opaque group_id<V>;
     }
 } LeafNodeTBS;
 ~~~~~
@@ -1705,11 +1799,10 @@ The client verifies the validity of a LeafNode using the following steps:
 * Verify that the signature on the LeafNode is valid using the public key
   in the LeafNode's credential
 
-* Verify that the LeafNode is compatible with the group's parameters.  The
-  ciphersuite and protocol version of the KeyPackage must match those in
-  use in the group.  If the GroupContext has a `required_capabilities`
-  extension, then the required extensions and proposals MUST be listed in
-  the KeyPackage's `capabilities` extension.
+* Verify that the LeafNode is compatible with the group's parameters.  If the
+  GroupContext has a `required_capabilities` extension, then the required
+  extensions and proposals MUST be listed in the LeafNode's `capabilities`
+  field.
 
 * Verify the `lifetime` field:
   * When validating a downloaded KeyPackage, the current time MUST be within the
@@ -1721,8 +1814,8 @@ The client verifies the validity of a LeafNode using the following steps:
     leaf node was proposed for addition, even if it is expired at these later
     points in the protocol.
 
-* Verify that the `membership` field has the appropriate contents for the
-  context in which the KeyPackage is being validated (as defined in
+* Verify that the `leaf_node_source` field has the appropriate value for the
+  context in which the LeafNode is being validated (as defined in
   {{ratchet-tree-node-contents}}).
 
 * Verify that the following fields in the KeyPackage are unique among the
@@ -1734,39 +1827,44 @@ The client verifies the validity of a LeafNode using the following steps:
 
 ## Ratchet Tree Evolution
 
-A member of an MLS group advances the key schedule to provide forward secrecy
-and post-compromise security by providing the group with fresh key material to
-be added into the group's shared secret.
-To do so, one member of the group generates fresh key
-material, applies it to their local tree state, and then sends this key material
-to other members in the group via an UpdatePath message (see {{update-paths}}) .
-All other group members then apply the key material in the UpdatePath to their
-own local tree state to derive the group's now-updated shared secret.
+In order to provide forward secrecy and post-compromise security, whenever a
+member initiates an epoch change (i.e., commits; see {{commit}}), they refresh
+all HPKE key pairs in the ratchet tree for which they know the secret keys.
+More precisely, they refresh the key pairs of their leaf and of all nodes on
+their leaf's direct path.
 
-To begin, the generator of the UpdatePath updates its leaf node and its
-direct path to the root with new secret values.  The HPKE leaf public key within
-the KeyPackage MUST be derived from a freshly generated HPKE secret key to
-provide post-compromise security.
+The member initiating the epoch change generates the fresh key pairs using the
+following procedure. The procedure is designed in a way that allows group members to
+efficiently communicate the fresh secret keys to other group members, as
+described in {{update-paths}}.
 
-The generator of the UpdatePath starts by sampling a fresh random value called
-"leaf_secret", and uses the leaf_secret to generate their leaf HPKE key pair
-(see {{key-packages}}) and to seed a sequence of "path secrets", one for each
-ancestor of its leaf. In this setting,
-path_secret\[0\] refers to the leaf's parent,
-path_secret\[1\] to the parent's parent, and so on. At each step, the path
-secret is used to derive a new secret value for the corresponding
-node, from which the node's key pair is derived.
+To begin with, the generator of the UpdatePath updates its leaf and its leaf's
+_filtered direct path_ with new key pairs. The filtered direct path  of a node
+is obtained from the node's direct path by removing all nodes whose child on
+the nodes's copath has an empty resolution (any unmerged leaves of the copath
+child count towards its resolution). Such a removed node does not need a key
+pair, since after blanking it, its resolution consists of a single node on the
+filtered direct path. Using the key pair of the node in the resolution is
+equivalent to using the key pair of the removed node.
 
-~~~~~
-leaf_node_secret = DeriveSecret(leaf_secret, "node")
-path_secret[0] = DeriveSecret(leaf_secret, "path")
+* Blank all the nodes on the direct path from the leaf to the root.
+* Generate a fresh HPKE key pair for the leaf.
+* Generate a sequence of path secrets, one for each node on the leaf's filtered direct
+  path, as follows. In this setting, `path_secret[0]` refers to the first parent node
+  in the filtered direct path, `path_secret[1]` to the second parent node, and so on.
 
-path_secret[n] = DeriveSecret(path_secret[n-1], "path")
-node_secret[n] = DeriveSecret(path_secret[n], "node")
+  ~~~~~
+  path_secret[0] is sampled at random
+  path_secret[n] = DeriveSecret(path_secret[n-1], "path")
+  ~~~~~
 
-leaf_priv, leaf_pub = KEM.DeriveKeyPair(leaf_node_secret)
-node_priv[n], node_pub[n] = KEM.DeriveKeyPair(node_secret[n])
-~~~~~
+* Compute the sequence of HPKE key pairs `(node_priv,node_pub)`, one for each
+  node on the leaf's direct path, as follows.
+
+  ~~~~~
+  node_secret[n] = DeriveSecret(path_secret[n], "node")
+  node_priv[n], node_pub[n] = KEM.DeriveKeyPair(node_secret[n])
+  ~~~~~
 
 The node secret is derived as a temporary intermediate secret so that each
 secret is only used with one algorithm: The path secret is used as an input to
@@ -1798,7 +1896,7 @@ path_secret[0] --> node_secret[0] --> node_priv[0], node_pub[0]
      ^
      |
 leaf_secret    --> leaf_node_secret --> leaf_priv, leaf_pub
-                                     ~> leaf_key_package
+                                     ~> leaf_node
 ~~~~~
 
 After applying the UpdatePath, the tree will have the following structure, where
@@ -1818,9 +1916,6 @@ np[0] -> X'      Z[C]
 
        0 1 2 3 4 5 6
 ~~~~~
-
-After performing these operations, the generator of the UpdatePath MUST
-delete the leaf_secret.
 
 ## Adding and Removing Leaves
 
@@ -1886,13 +1981,13 @@ apply it to keep their local views of the tree in
 sync with the sender's.  More specifically, when a member commits a change to
 the tree (e.g., to add or remove a member), it transmits an UpdatePath
 containing a set of public keys and encrypted path secrets
-for intermediate nodes in the direct path of its leaf. The
+for intermediate nodes in the filtered direct path of its leaf. The
 other members of the group use these values to update
 their view of the tree, aligning their copy of the tree to the
 sender's.
 
 An UpdatePath contains
-the following information for each node in the direct path of the
+the following information for each node in the filtered direct path of the
 sender's leaf, including the root:
 
 * The public key for the node
@@ -1908,7 +2003,7 @@ of the non-updated child.
 The recipient of an UpdatePath processes it with the following steps:
 
 1. Compute the updated path secrets.
-   * Identify a node in the direct path for which the local member
+   * Identify a node in the filtered direct path for which the local member
      is in the subtree of the non-updated child.
    * Identify a node in the resolution of the copath node for
      which this node has a private key.
@@ -1919,13 +2014,14 @@ The recipient of an UpdatePath processes it with the following steps:
    * The recipient SHOULD verify that the received public keys agree
      with the public keys derived from the new path_secret values.
 2. Merge the updated path secrets into the tree.
-   * For all updated nodes,
-     * Replace the public key for each node with the received public key.
+   * Blank all nodes on the direct path of the sender's leaf.
+   * For all nodes on the filtered direct path of the sender's leaf,
+     * Set the public key to the received public key.
      * Set the list of unmerged leaves to the empty list.
-     * Store the updated hash of the node's parent (represented as a ParentNode
-       struct), going from root to leaf, so that each hash incorporates all the
-       nodes above it. The root node always has a zero-length hash for this
-       value.
+     * Store the updated hash of the next node on the filtered direct path
+       (represented as a ParentNode struct), going from root to leaf, so that
+       each hash incorporates all the non-blank nodes above it. The root node
+       always has a zero-length hash for this value.
    * For nodes where a path secret was recovered in step 1,
      compute and store the node's updated private key.
 
@@ -1958,19 +2054,6 @@ the "tree hash") that represents the contents of the group's ratchet tree and th
 members' leaf nodes. The tree hash of a tree is the tree hash of its root node,
 which we define recursively, starting with the leaves.
 
-As some nodes may be blank while others contain data we use the following struct
-to include data if present.
-
-~~~~~
-struct {
-    uint8 present;
-    select (present) {
-        case 0: struct{};
-        case 1: T value;
-    }
-} optional<T>;
-~~~~~
-
 The tree hash of a leaf node is the hash of leaf's `LeafNodeHashInput` object which
 might include a `LeafNode` object depending on whether or not it is blank.
 
@@ -1988,8 +2071,8 @@ object depending on whether the node is blank or not.
 ~~~~~
 struct {
     optional<ParentNode> parent_node;
-    opaque left_hash<0..255>;
-    opaque right_hash<0..255>;
+    opaque left_hash<V>;
+    opaque right_hash<V>;
 } ParentNodeHashInput;
 ~~~~~
 
@@ -1998,36 +2081,47 @@ left and right children, respectively.
 
 ## Parent Hash
 
-The `parent_hash` extension carries information to authenticate the structure of
-the tree, as described below.
+The `parent_hash` field in ratchet tree nodes carries information to
+authenticate the information in the ratchet tree.  Parent hashes chain together
+so that the signature on a leaf node, by covering the leaf node's parent hash,
+indirectly includes information about the structure of the tree at the time the
+leaf node was last updated.
+
+Consider a ratchet tree with a non-blank parent node P and children V and S.
 
 ~~~~~
-opaque parent_hash<0..255>;
+        ...
+        /
+       P
+     __|__
+    /     \
+   V       S
+  / \     / \
+... ... ... ...
 ~~~~~
 
-Consider a ratchet tree with a parent node P and children V and S. The parent hash
-of P changes whenever an `UpdatePath` object is applied to the ratchet tree along
-a path traversing node V (and hence also P). The new "Parent Hash of P (with Co-Path
-Child S)" is obtained by hashing P's `ParentHashInput` struct using the resolution
-of S to populate the `original_child_resolution` field. This way, P's Parent Hash
-fixes the new HPKE public keys of all nodes on the path from P to the root.
-Furthermore, for each such key PK the hash also binds the set of HPKE public keys
-to which PK's secret key was encrypted in the Commit that contained the
-`UpdatePath` object.
+
+The parent hash of P changes whenever an `UpdatePath` object is applied to
+the ratchet tree along a path from a leaf U traversing node V (and hence also
+P). The new "Parent Hash of P (with Co-Path Child S)" is obtained by hashing P's
+`ParentHashInput` struct.
 
 ~~~~~
 struct {
     HPKEPublicKey public_key;
-    opaque parent_hash<0..255>;
-    opaque original_sibling_tree_hash<0..255>;
+    opaque parent_hash<V>;
+    opaque original_sibling_tree_hash<V>;
 } ParentHashInput;
 ~~~~~
 
-The Parent Hash of P with Co-Path Child S is the hash of a `ParentHashInput` object
-populated as follows. The field `public_key` contains the HPKE public key of P. If P
-is the root, then `parent_hash` is set to a zero-length octet string.
-Otherwise `parent_hash` is the Parent Hash of P's parent with P's sibling as the
-co-path child.
+The field `public_key` contains the HPKE public key of P. If P is the root,
+then the `parent_hash` field is set to a zero-length octet string. Otherwise,
+`parent_hash` is the Parent Hash of the next node after P on the filtered
+direct path of U. This way, P's Parent Hash fixes
+the new HPKE public key of each node V on the path from P to the root. Note
+that the path from P to the root may contain some blank nodes that are not
+fixed by P's Parent Hash. However, for each node that has an HPKE key, this key
+is fixed by P's Parent Hash.
 
 Finally, `original_sibling_tree_hash` is the original tree hash of S. The
 original tree hash corresponds to the tree hash of S the last time P was
@@ -2098,66 +2192,67 @@ hashes.  A subtree hash can be reused as long as the intersection of the
 parent's unmerged leaves with the subtree is the same as in the earlier
 computation.
 
+Observe that `original_child_resolution` is equal to the resolution of S at the
+time the `UpdatePath` was generated, since at that point P's set of unmerged
+leaves was emptied. (Observe also that `original_child_resolution` contains all
+unmerged leaves of S.) Therefore, P's Parent Hash fixes, for each node V on the
+path from P to the root, not only the HPKE public key of V, but also the set of
+HPKE public keys to which the corresponding HPKE secret key of V was encrypted by
+the generator of the `UpdatePath`.
+
 ### Using Parent Hashes
 
 The Parent Hash of P appears in three types of structs. If V is itself a parent node
-then P's Parent Hash is stored in the `parent_hash` fields of both V's
-`ParentHashInput` struct and V's `ParentNode` struct. (The `ParentNode` struct is
-used to encapsulate all public information about V that must be conveyed to a new
-member joining the group as well as to define the Tree Hash of node V.)
+then P's Parent Hash is stored in the `parent_hash` field of the structs
+`ParentHashInput` and `ParentNode` of the node before P on the filtered direct
+path of U. (The `ParentNode` struct is used to encapsulate all public
+information about that node that must be conveyed to a new
+member joining the group as well as to define its Tree Hash.)
 
-If, on the other hand, V is a leaf and the `parent_hash` field of its LeafNode
-is populated then the Parent Hash of P (with V's sibling as co-path child) is stored in
-that field. In particular, the extension MUST be present in the `leaf_key_package`
-field of an `UpdatePath` object. (This way, the signature of such a LeafNode also
-serves to attest to which keys the group member introduced into the ratchet tree and
+If, on the other hand, V is the leaf U and its LeafNode has `leaf_node_source` set to `commit`,
+then the Parent Hash of P (with V's sibling as co-path child) is stored in
+the `parent_hash` field.  This is true in particular of the LeafNode object sent
+in the `leaf_node` field of an UpdatePath. The signature of such a LeafNode thus also
+attests to which keys the group member introduced into the ratchet tree and
 to whom the corresponding secret keys were sent. This helps prevent malicious insiders
 from constructing artificial ratchet trees with a node V whose HPKE secret key is
 known to the insider yet where the insider isn't assigned a leaf in the subtree rooted
-at V. Indeed, such a ratchet tree would violate the tree invariant.)
+at V. Indeed, such a ratchet tree would violate the tree invariant.
 
 ### Verifying Parent Hashes
 
 To this end, when processing a Commit message clients MUST recompute the
 expected value of `parent_hash` for the committer's new leaf and verify that it
-matches the `parent_hash` value in the supplied `leaf_key_package`. Moreover, when
+matches the `parent_hash` value in the supplied `leaf_node`. Moreover, when
 joining a group, new members MUST authenticate each non-blank parent node P. A parent
-node P is authenticated by performing the following check:
-
-* Let L and R be the left and right children of P, respectively
-* If L.parent_hash is equal to the Parent Hash of P with Co-Path Child R, the check passes
-* If R is blank, replace R with its left child until R is either non-blank or a leaf node
-* If R is a blank leaf node, the check fails
-* If R.parent_hash is equal to the Parent Hash of P with Co-Path Child L, the check passes
-* Otherwise, the check fails
-
-The left-child recursion under the right child of P is necessary because the expansion of
-the tree to the right due to Add proposals can cause blank nodes to be interposed
-between a parent node and its right child.
+node P is authenticated by checking that there exists a child V of P and a node U in the
+resolution of V such that V.`parent_hash` is equal to the Parent Hash of P with V's
+sibling as the co-path child.
 
 ## Update Paths
 
 As described in {{commit}}, each MLS Commit message may optionally
 transmit a LeafNode and parent node values along its direct path.
 The path contains a public key and encrypted secret value for all
-intermediate nodes in the path above the leaf.  The path is ordered
+intermediate nodes in the filtered direct path from the leaf to the
+root. The path is ordered
 from the closest node to the leaf to the root; each node MUST be the
 parent of its predecessor.
 
 ~~~~~
 struct {
-    opaque kem_output<0..2^16-1>;
-    opaque ciphertext<0..2^16-1>;
+    opaque kem_output<V>;
+    opaque ciphertext<V>;
 } HPKECiphertext;
 
 struct {
     HPKEPublicKey public_key;
-    HPKECiphertext encrypted_path_secret<0..2^32-1>;
+    HPKECiphertext encrypted_path_secret<V>;
 } UpdatePathNode;
 
 struct {
     LeafNode leaf_node;
-    UpdatePathNode nodes<0..2^32-1>;
+    UpdatePathNode nodes<V>;
 } UpdatePath;
 ~~~~~
 
@@ -2195,8 +2290,8 @@ Where KDFLabel is specified as:
 
 struct {
     uint16 length = Length;
-    opaque label<7..255> = "MLS 1.0 " + Label;
-    opaque context<0..2^32-1> = Context;
+    opaque label<V> = "MLS 1.0 " + Label;
+    opaque context<V> = Context;
 } KDFLabel;
 
 DeriveSecret(Secret, Label) =
@@ -2286,11 +2381,11 @@ summarizes the state of the group:
 
 ~~~~~
 struct {
-    opaque group_id<0..255>;
+    opaque group_id<V>;
     uint64 epoch;
-    opaque tree_hash<0..255>;
-    opaque confirmed_transcript_hash<0..255>;
-    Extension extensions<0..2^32-1>;
+    opaque tree_hash<V>;
+    opaque confirmed_transcript_hash<V>;
+    Extension extensions<V>;
 } GroupContext;
 ~~~~~
 
@@ -2341,7 +2436,7 @@ MLSMessageAuth containing a Commit in two steps:
 struct {
     WireFormat wire_format;
     MLSMessageContent content; //with content.content_type == commit
-    opaque signature<0..2^16-1>;
+    opaque signature<V>;
 } MLSMessageCommitContent;
 
 struct {
@@ -2449,18 +2544,18 @@ struct {
   PSKType psktype;
   select (PreSharedKeyID.psktype) {
     case external:
-      opaque psk_id<0..255>;
+      opaque psk_id<V>;
 
     case resumption:
       ResumptionPSKUsage usage;
-      opaque psk_group_id<0..255>;
+      opaque psk_group_id<V>;
       uint64 psk_epoch;
   }
-  opaque psk_nonce<0..255>;
+  opaque psk_nonce<V>;
 } PreSharedKeyID;
 
 struct {
-    PreSharedKeyID psks<0..2^16-1>;
+    PreSharedKeyID psks<V>;
 } PreSharedKeys;
 ~~~~~
 
@@ -2746,7 +2841,7 @@ uint16 ExtensionType;
 
 struct {
     ExtensionType extension_type;
-    opaque extension_data<0..2^32-1>;
+    opaque extension_data<V>;
 } Extension;
 
 struct {
@@ -2754,9 +2849,9 @@ struct {
     CipherSuite cipher_suite;
     HPKEPublicKey init_key;
     LeafNode leaf_node;
-    Extension extensions<8..2^32-1>;
+    Extension extensions<V>;
     // SignWithLabel(., "KeyPackageTBS", KeyPackageTBS)
-    opaque signature<0..2^16-1>;
+    opaque signature<V>;
 } KeyPackage;
 
 struct {
@@ -2764,7 +2859,7 @@ struct {
     CipherSuite cipher_suite;
     HPKEPublicKey init_key;
     LeafNode leaf_node;
-    Extension extensions<8..2^32-1>;
+    Extension extensions<V>;
 } KeyPackageTBS;
 ~~~~~
 
@@ -2773,42 +2868,27 @@ establishment to be safe from downgrade attacks on the parameters described (as
 discussed in {{group-creation}}), while still only advertising one version /
 ciphersuite per KeyPackage.
 
+The `leaf_node_source` field of the LeafNode in a KeyPackage MUST be set to
+`key_package`.
+
 ## KeyPackage Validation
 
 The validity of a KeyPackage needs to be verified at a few stages:
 
 * When a KeyPackage is downloaded by a group member, before it is used
   to add the client to the group
-* When a KeyPackage is received by a group member in an Add, Update, or Commit
-  message
-* When a client joining a group receives KeyPackages for the other members of
-  the group in the group's ratchet tree
+* When a KeyPackage is received by a group member in an Add message
 
 The client verifies the validity of a KeyPackage using the following steps:
 
-* Verify that the credential in the KeyPackage is valid according to the
-  authentication service and the client's local policy. These actions MUST be
-  the same regardless of at what point in the protocol the KeyPackage is being
-  verified with the following exception: If the KeyPackage is an update to
-  another KeyPackage, the authentication service MUST additionally validate that
-  the set of identities attested by the credential in the new KeyPackage is
-  acceptable relative to the identities attested by the old credential.
+* Verify the LeafNode in the KeyPackage according to the process defined in
+  {{leaf-node-validation}}.
 
 * Verify that the signature on the KeyPackage is valid using the public key
-  in the KeyPackage's credential
+  in the LeafNode's credential
 
-* Verify that the KeyPackage is compatible with the group's parameters.  The
-  ciphersuite and protocol version of the KeyPackage must match those in
-  use in the group.  If the GroupContext has a `required_capabilities`
-  extension, then the required extensions and proposals MUST be listed in
-  the KeyPackage's `capabilities` extension.
-
-* Verify that the following fields in the KeyPackage are unique among the
-  members of the group (including any other members added in the same
-  Commit):
-
-    * `credential.signature_key`
-    * `hpke_init_key`
+* Verify that the ciphersuite and protocol version of the LeafNode match
+  those in use in the group.
 
 ## Client Capabilities
 
@@ -2819,10 +2899,10 @@ not be listed.
 
 ~~~~~
 struct {
-    ProtocolVersion versions<0..255>;
-    CipherSuite ciphersuites<0..255>;
-    ExtensionType extensions<0..255>;
-    ProposalType proposals<0..255>;
+    ProtocolVersion versions<V>;
+    CipherSuite ciphersuites<V>;
+    ExtensionType extensions<V>;
+    ProposalType proposals<V>;
 } Capabilities;
 ~~~~~
 
@@ -2856,7 +2936,7 @@ Within MLS, a KeyPackage is identified by its hash (see, e.g.,
 applications to add an explicit, application-defined identifier to a KeyPackage.
 
 ~~~~~
-opaque external_key_id<0..2^16-1>;
+opaque external_key_id<V>;
 ~~~~~
 
 # Group Creation
@@ -2919,8 +2999,8 @@ including a `required_capabilities` extension in the GroupContext.
 
 ~~~~~
 struct {
-    ExtensionType extensions<0..255>;
-    ProposalType proposals<0..255>;
+    ExtensionType extensions<V>;
+    ProposalType proposals<V>;
 } RequiredCapabilities;
 ~~~~~
 
@@ -3054,7 +3134,8 @@ placed in the leftmost empty leaf in the tree, for the second Add, the next
 empty leaf to the right, etc. If no empty leaf exists, the tree is extended to
 the right.
 
-* Validate the KeyPackage as specified in {{keypackage-validation}}
+* Validate the KeyPackage as specified in {{keypackage-validation}}.  The
+  `leaf_node_source` field in the LeafNode MUST be set to `key_package`.
 
 * Identify the leaf L for the new member: if there are empty leaves in the tree,
   L is the leftmost empty leaf.  Otherwise, the tree is extended to the right
@@ -3080,10 +3161,11 @@ struct {
 
 A member of the group applies an Update message by taking the following steps:
 
-* Validate the LeafNode as specified in {{keypackage-validation}}
+* Validate the LeafNode as specified in {{leaf-node-validation}}.  The
+  `leaf_node_source` field MUST be set to `update`.
 
-* Verify that the `public_key` value is different from the corresponding
-  field in the LeafNode being replaced.
+* Verify that the `public_key` value in the LeafNode is different from the
+  corresponding field in the LeafNode being replaced.
 
 * Replace the sender's LeafNode with the one contained in the Update proposal
 
@@ -3111,12 +3193,8 @@ A member of the group applies a Remove message by taking the following steps:
 
 * Blank the intermediate nodes along the path from L to the root
 
-* Truncate the tree by removing leaves from the right side of the tree as long
-  as all of the following conditions hold (since non-blank intermediate nodes hold
-  information that is necessary for verifying parent hashes):
-
-  * The rightmost leaf is blank
-  * The parent of the rightmost leaf is either blank or the root of the tree
+* Truncate the tree by removing leaves from the right side of the tree until the
+  rightmost leaf node is not blank.
 
 ### PreSharedKey
 
@@ -3144,10 +3222,10 @@ and shutting down the old one.
 
 ~~~~~
 struct {
-    opaque group_id<0..255>;
+    opaque group_id<V>;
     ProtocolVersion version;
     CipherSuite cipher_suite;
-    Extension extensions<0..2^32-1>;
+    Extension extensions<V>;
 } ReInit;
 ~~~~~
 
@@ -3168,7 +3246,7 @@ using an external commit. This proposal can only be used in that context.
 
 ~~~~
 struct {
-  opaque kem_output<0..2^16-1>;
+  opaque kem_output<V>;
 } ExternalInit;
 ~~~~
 
@@ -3191,7 +3269,7 @@ struct {
 } MessageRange;
 
 struct {
-    MessageRange received_ranges<0..2^32-1>;
+    MessageRange received_ranges<V>;
 } AppAck;
 ~~~~~
 
@@ -3239,7 +3317,7 @@ the GroupContext for the group.
 
 ```
 struct {
-  Extension extensions<0..2^32-1>;
+  Extension extensions<V>;
 } GroupContextExtensions;
 ```
 
@@ -3322,7 +3400,7 @@ struct {
 } ProposalOrRef;
 
 struct {
-    ProposalOrRef proposals<0..2^32-1>;
+    ProposalOrRef proposals<V>;
     optional<UpdatePath> path;
 } Commit;
 ~~~~~
@@ -3371,25 +3449,49 @@ provides forward secrecy and post-compromise security with regard to the sender
 of the Commit.  An Update proposal can be regarded as a "lazy" version of this
 operation, where only the leaf changes and intermediate nodes are blanked out.
 
-The `path` field of a Commit message MUST be populated if the Commit covers at
-least one Update or Remove proposal. The `path` field MUST also be populated
-if the Commit covers no proposals at all (i.e., if the proposals vector
-is empty). The `path` field MAY be omitted if the Commit covers only Add
-proposals.  In pseudocode, the logic for validating a Commit is as follows:
+By default, the `path` field of a Commit MUST be populated.  The `path` field
+MAY be omitted if (a) it covers at least one proposal and (b) none proposals
+covered by the Commit are of "path required" types.  A proposal type requires a
+path if it cannot change the group membership in a way that requires the forward
+secrecy and post-compromise security guarantees that an UpdatePath provides.
+The only proposal types defined in this document that do not require a path are:
+
+* `add`
+* `psk`
+* `app_ack`
+* `reinit`
+
+New proposal types MUST state whether they require a path. If any instance of a
+proposal type requires a path, then the proposal type requires a path. This
+attribute of a proposal type is reflected in the "Path Required" field of the
+proposal type registry defined in {{mls-proposal-types}}.
+
+Update and Remove proposals are the clearest examples of proposals that require
+a path.  An UpdatePath is required to evict the removed member or the old
+appearance of the updated member.
+
+In pseudocode, the logic for validating the `path` field of a Commit is as
+follows:
 
 ~~~~~
-hasUpdates = false
-hasRemoves = false
+pathRequiredTypes = [
+    update,
+    remove,
+    external_init,
+    group_context_extensions
+]
+
+pathRequired = false
 
 for i, id in commit.proposals:
     proposal = proposalCache[id]
     assert(proposal != null)
 
-    hasUpdates = hasUpdates || proposal.msg_type == update
-    hasRemoves = hasRemoves || proposal.msg_type == remove
+    pathRequired = pathRequired ||
+                   (proposal.msg_type in pathRequiredTypes)
 
-if len(commit.proposals) == 0 || hasUpdates || hasRemoves:
-  assert(commit.path != null)
+if len(commit.proposals) == 0 || pathRequired:
+    assert(commit.path != null)
 ~~~~~
 
 To summarize, a Commit can have three different configurations, with different
@@ -3398,7 +3500,7 @@ uses:
 1. An "empty" Commit that references no proposals, which updates the committer's
    contribution to the group and provides PCS with regard to the committer.
 
-2. A "partial" Commit that references Add, PreSharedKey, or ReInit proposals but
+2. A "partial" Commit that references proposals that do not require a path, and
    where the path is empty. Such a commit doesn't provide PCS with regard to the
    committer.
 
@@ -3454,10 +3556,10 @@ message at the same time, by taking the following steps:
 * If populating the `path` field: Create an UpdatePath using the provisional
   ratchet tree and GroupContext. Any new member (from an add proposal) MUST be
   excluded from the resolution during the computation of the UpdatePath.  The
-  `leaf_key_package` for this UpdatePath must have a `parent_hash` extension.
+  `leaf_node` for this UpdatePath MUST have `leaf_node_source` set to `commit`.
   Note that the LeafNode in the `UpdatePath` effectively updates an existing
   LeafNode in the group and thus MUST adhere to the same restrictions as
-  LeafNodess used in `Update` proposals.
+  LeafNodes used in `Update` proposals (aside from `leaf_node_source`).
 
    * Assign this UpdatePath to the `path` field in the Commit.
 
@@ -3556,12 +3658,15 @@ A member of the group applies a Commit message by taking the following steps:
   provisional ratchet tree and GroupContext, to generate the new ratchet tree
   and the `commit_secret`:
 
-  * Verify that the LeafNode is acceptable according to the rules for Update
-    (see {{update}})
+  * Validate the LeafNode as specified in {{leaf-node-validation}}.  The
+    `leaf_node_source` field MUST be set to `commit`.
+
+  * Verify that the `public_key` value in the LeafNode is different from the
+    committer's current leaf node.
 
   * Apply the UpdatePath to the tree, as described in
-    {{synchronizing-views-of-the-tree}}, and store `leaf_key_package` at the
-    Committer's leaf.
+    {{synchronizing-views-of-the-tree}}, and store `leaf_node` at the
+    committer's leaf.
 
   * Verify that the LeafNode has a `parent_hash` field and that its value
     matches the new parent of the sender's leaf node.
@@ -3605,16 +3710,16 @@ new members need information to bootstrap their local group state.
 struct {
     ProtocolVersion version = mls10;
     CipherSuite cipher_suite;
-    opaque group_id<0..255>;
+    opaque group_id<V>;
     uint64 epoch;
-    opaque tree_hash<0..255>;
-    opaque confirmed_transcript_hash<0..255>;
-    Extension group_context_extensions<0..2^32-1>;
-    Extension other_extensions<0..2^32-1>;
+    opaque tree_hash<V>;
+    opaque confirmed_transcript_hash<V>;
+    Extension group_context_extensions<V>;
+    Extension other_extensions<V>;
     MAC confirmation_tag;
     LeafNodeRef signer;
     // SignWithLabel(., "GroupInfoTBS", GroupInfoTBS)
-    opaque signature<0..2^16-1>;
+    opaque signature<V>;
 } GroupInfo;
 ~~~
 
@@ -3626,12 +3731,12 @@ GroupInfo above `signature`:
 ~~~
 struct {
     CipherSuite cipher_suite;
-    opaque group_id<0..255>;
+    opaque group_id<V>;
     uint64 epoch;
-    opaque tree_hash<0..255>;
-    opaque confirmed_transcript_hash<0..255>;
-    Extension group_context_extensions<0..2^32-1>;
-    Extension other_extensions<0..2^32-1>;
+    opaque tree_hash<V>;
+    opaque confirmed_transcript_hash<V>;
+    Extension group_context_extensions<V>;
+    Extension other_extensions<V>;
     MAC confirmation_tag;
     LeafNodeRef signer;
 } GroupInfoTBS;
@@ -3710,7 +3815,7 @@ has to meet a specific set of requirements:
   * There MUST NOT be any other proposals.
 * External Commits MUST be signed by the new member.  In particular, the
   signature on the enclosing MLSPlaintext MUST verify using the public key for
-  the credential in the `leaf_key_package` of the `path` field.
+  the credential in the `leaf_node` of the `path` field.
 * When processing a Commit, both existing and new members MUST use the external
   init secret as described in {{external-initialization}}.
 * The sender type for the MLSPlaintext encapsulating the External Commit MUST be
@@ -3756,11 +3861,11 @@ indicating which PSK to use.
 
 ~~~~~
 struct {
-  opaque path_secret<1..255>;
+  opaque path_secret<V>;
 } PathSecret;
 
 struct {
-  opaque joiner_secret<1..255>;
+  opaque joiner_secret<V>;
   optional<PathSecret> path_secret;
   PreSharedKeys psks;
 } GroupSecrets;
@@ -3772,8 +3877,8 @@ struct {
 
 struct {
   CipherSuite cipher_suite;
-  EncryptedGroupSecrets secrets<0..2^32-1>;
-  opaque encrypted_group_info<1..2^32-1>;
+  EncryptedGroupSecrets secrets<V>;
+  opaque encrypted_group_info<V>;
 } Welcome;
 ~~~~~
 
@@ -3894,7 +3999,7 @@ struct {
     };
 } Node;
 
-optional<Node> ratchet_tree<1..2^32-1>;
+optional<Node> ratchet_tree<V>;
 ~~~~~
 
 The nodes are listed in the order specified by a left-to-right in-order
@@ -4529,18 +4634,18 @@ Template:
 
 Initial contents:
 
-| Value            | Name                     | Recommended | Reference |
-|:-----------------|:-------------------------|:------------|:----------|
-| 0x0000           | RESERVED                 | N/A         | RFC XXXX  |
-| 0x0001           | add                      | Y           | RFC XXXX  |
-| 0x0002           | update                   | Y           | RFC XXXX  |
-| 0x0003           | remove                   | Y           | RFC XXXX  |
-| 0x0004           | psk                      | Y           | RFC XXXX  |
-| 0x0005           | reinit                   | Y           | RFC XXXX  |
-| 0x0006           | external_init            | Y           | RFC XXXX  |
-| 0x0007           | app_ack                  | Y           | RFC XXXX  |
-| 0x0008           | group_context_extensions | Y           | RFC XXXX  |
-| 0xff00  - 0xffff | Reserved for Private Use | N/A         | RFC XXXX  |
+| Value            | Name                     | Recommended | Path Required | Reference |
+|:-----------------|:-------------------------|:------------|:--------------|:----------|
+| 0x0000           | RESERVED                 | N/A         | N/A           | RFC XXXX  |
+| 0x0001           | add                      | Y           | N             | RFC XXXX  |
+| 0x0002           | update                   | Y           | Y             | RFC XXXX  |
+| 0x0003           | remove                   | Y           | Y             | RFC XXXX  |
+| 0x0004           | psk                      | Y           | N             | RFC XXXX  |
+| 0x0005           | reinit                   | Y           | N             | RFC XXXX  |
+| 0x0006           | external_init            | Y           | Y             | RFC XXXX  |
+| 0x0007           | app_ack                  | Y           | N             | RFC XXXX  |
+| 0x0008           | group_context_extensions | Y           | Y             | RFC XXXX  |
+| 0xff00  - 0xffff | Reserved for Private Use | N/A         | N/A           | RFC XXXX  |
 
 ## MLS Credential Types
 
