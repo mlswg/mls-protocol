@@ -2221,13 +2221,35 @@ at V. Indeed, such a ratchet tree would violate the tree invariant.
 
 ### Verifying Parent Hashes
 
-To this end, when processing a Commit message clients MUST recompute the
-expected value of `parent_hash` for the committer's new leaf and verify that it
-matches the `parent_hash` value in the supplied `leaf_node`. Moreover, when
-joining a group, new members MUST authenticate each non-blank parent node P. A parent
-node P is authenticated by checking that there exists a child V of P and a node U in the
-resolution of V such that V.`parent_hash` is equal to the Parent Hash of P with V's
-sibling as the co-path child.
+Parent hashes are verified at two points in the protocol: When joining a group
+and when processing a Commit.
+
+The parent hash in a node U is valid with respect to a parent node P if the
+following criteria hold:
+
+* U is a descendant of P in the tree
+* The nodes between U and P in the tree are all blank
+* The `parent_hash` field of U is equal to the parent hash of P with copath
+  child S, where S is the child of P that is not on the path from U to P.
+
+A parent node P is "parent-hash valid" if it can be chained back to a leaf node
+in this way.  That is, if there is leaf node L and a sequence of parent nodes
+P\_1, ..., P\_N such that P\_N = P and each step in the chain is authenticated
+by a parent hash: L's parent hash is valid with respect to P\_1, P\_1's parent
+hash is valid with respect to P\_2, and so on.
+
+When joining a group, the new member MUST authenticate that each non-blank
+parent node P is parent-hash valid.  This can be done "bottom up" by building
+chains up from leaves and verifying that all non-blank parent nodes are covered
+by exactly one such chain, or "top down" by verifying that there is exactly one
+descendant of each non-blank parent node for which the parent node is
+parent-hash valid.
+
+When processing a Commit message that includes an UpdatePath, clients MUST
+recompute the expected value of `parent_hash` for the committer's new leaf and
+verify that it matches the `parent_hash` value in the supplied `leaf_node`.
+After being merged into the tree, the nodes in the UpdatePath form a parent-hash
+chain from the committer's leaf to the root.
 
 ## Update Paths
 
