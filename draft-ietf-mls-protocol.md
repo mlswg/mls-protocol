@@ -1347,7 +1347,7 @@ enum {
   mls_plaintext(1),
   mls_ciphertext(2),
   mls_welcome(3),
-  mls_public_group_state(4),
+  mls_group_info(4),
   mls_key_package(5),
   (255)
 } WireFormat;
@@ -1380,8 +1380,8 @@ struct {
             MLSCiphertext ciphertext;
         case mls_welcome:
             Welcome welcome;
-        case mls_public_group_state:
-            PublicGroupState public_group_state;
+        case mls_group_info:
+            GroupInfo group_info;
         case mls_key_package:
             KeyPackage key_package;
     }
@@ -2473,7 +2473,7 @@ is joining via an external commit.
 
 In this process, the joiner sends a new `init_secret` value to the group using
 the HPKE export method.  The joiner then uses that `init_secret` with
-information provided in the PublicGroupState and an external Commit to initialize
+information provided in the GroupInfo and an external Commit to initialize
 their copy of the key schedule for the new epoch.
 
 ~~~~~
@@ -2489,7 +2489,7 @@ context = SetupBaseR(kem_output, external_priv, "")
 init_secret = context.export("MLS 1.0 external init secret", KDF.Nh)
 ~~~~~
 
-In both cases, the `info` input to HPKE is set to the PublicGroupState for the
+In both cases, the `info` input to HPKE is set to the GroupInfo for the
 previous epoch, encoded using the TLS serialization.
 
 ## Pre-Shared Keys
