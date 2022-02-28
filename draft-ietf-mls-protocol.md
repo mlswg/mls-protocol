@@ -462,7 +462,7 @@ struct {
 } StructWithVectors;
 ~~~~~
 
-Such a vector can represent values with length from 0 bytes to 2^62 bytes.
+Such a vector can represent values with length from 0 bytes to 2^30 bytes.
 The variable-length integer encoding reserves the two most significant bits
 of the first byte to encode the base 2 logarithm of the integer encoding length
 in bytes.  The integer value is encoded on the remaining bits, in network byte
@@ -470,21 +470,22 @@ order.  The encoded value MUST use the smallest number of bits required to
 represent the value.  When decoding, values using more bits than necessary MUST
 be treated as malformed.
 
-This means that integers are encoded on 1, 2, 4, or 8 bytes and can encode 6-,
-14-, 30-, or 62-bit values respectively.
+This means that integers are encoded on 1, 2, or 4 bytes and can encode 6-,
+14-, or 30-bit values respectively.
 
-| Prefix | Length | Usable Bits | Min        | Max                 |
-|:-------|:-------|:------------|:-----------|:--------------------|
-| 00     | 1      | 6           | 0          | 63                  |
-| 01     | 2      | 14          | 64         | 16383               |
-| 10     | 4      | 30          | 16384      | 1073741823          |
-| 11     | 8      | 62          | 1073741824 | 4611686018427387903 |
+| Prefix | Length  | Usable Bits | Min        | Max                 |
+|:-------|:--------|:------------|:-----------|:--------------------|
+| 00     | 1       | 6           | 0          | 63                  |
+| 01     | 2       | 14          | 64         | 16383               |
+| 10     | 4       | 30          | 16384      | 1073741823          |
+| 11     | invalid | -           | -          | -                   |
 {: #integer-summary title="Summary of Integer Encodings"}
 
-For example, the eight-byte sequence c2 19 7c 5e ff 14 e8 8c (in hexadecimal)
-decodes to the decimal value 151288809941952652; the four byte sequence 9d 7f 3e
-7d decodes to 494878333; the two byte sequence 7b bd decodes to 15293; and the
-single byte 25 decodes to 37 (as does the two byte sequence 40 25).
+Vectors that start with "11" prefix are invalid and MUST be rejected.
+
+For example, the four byte sequence 0x9d7f3e7d decodes to 494878333; 
+the two byte sequence 0x7bbd decodes to 15293; and the single byte 0x25 
+decodes to 37.
 
 The following figure adapts the pseudocode provided in {{RFC9000}} to add a
 check for minimum-length encoding:
@@ -510,7 +511,7 @@ ReadVarint(data):
 ~~~~~
 
 The use of variable-size integers for vector lengths allows vectors to grow
-very large, up to 2^62 bytes.  Implementations should take care not to allow
+very large, up to 2^30 bytes.  Implementations should take care not to allow
 vectors to overflow available storage.  To facilitate debugging of potential
 interoperatbility problems, implementations should provide a clear error when
 such an overflow condition occurs.
