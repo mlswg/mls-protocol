@@ -1346,7 +1346,7 @@ enum {
   mls_plaintext(1),
   mls_ciphertext(2),
   mls_welcome(3),
-  mls_public_group_state(4),
+  mls_group_info(4),
   mls_key_package(5),
   (255)
 } WireFormat;
