@@ -483,8 +483,8 @@ This means that integers are encoded on 1, 2, or 4 bytes and can encode 6-,
 
 Vectors that start with "11" prefix are invalid and MUST be rejected.
 
-For example, the four byte sequence 0x9d7f3e7d decodes to 494878333; 
-the two byte sequence 0x7bbd decodes to 15293; and the single byte 0x25 
+For example, the four byte sequence 0x9d7f3e7d decodes to 494878333;
+the two byte sequence 0x7bbd decodes to 15293; and the single byte 0x25
 decodes to 37.
 
 The following figure adapts the pseudocode provided in {{RFC9000}} to add a
@@ -2103,7 +2103,7 @@ Consider a ratchet tree with a non-blank parent node P and children V and S.
 
 The parent hash of P changes whenever an `UpdatePath` object is applied to
 the ratchet tree along a path from a leaf U traversing node V (and hence also
-P). The new "Parent Hash of P (with Co-Path Child S)" is obtained by hashing P's
+P). The new "Parent hash of P (with copath child S)" is obtained by hashing P's
 `ParentHashInput` struct.
 
 ~~~~~
@@ -2210,7 +2210,7 @@ information about that node that must be conveyed to a new
 member joining the group as well as to define its Tree Hash.)
 
 If, on the other hand, V is the leaf U and its LeafNode has `leaf_node_source` set to `commit`,
-then the Parent Hash of P (with V's sibling as co-path child) is stored in
+then the Parent Hash of P (with V's sibling as copath child) is stored in
 the `parent_hash` field.  This is true in particular of the LeafNode object sent
 in the `leaf_node` field of an UpdatePath. The signature of such a LeafNode thus also
 attests to which keys the group member introduced into the ratchet tree and
