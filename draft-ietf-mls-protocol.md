@@ -2110,7 +2110,7 @@ P). The new "Parent Hash of P (with Co-Path Child S)" is obtained by hashing P's
 struct {
     HPKEPublicKey public_key;
     opaque parent_hash<V>;
-    HPKEPublicKey original_child_resolution<V>;
+    opaque original_sibling_tree_hash<V>;
 } ParentHashInput;
 ~~~~~
 
@@ -2123,13 +2123,74 @@ that the path from P to the root may contain some blank nodes that are not
 fixed by P's Parent Hash. However, for each node that has an HPKE key, this key
 is fixed by P's Parent Hash.
 
-Finally, `original_child_resolution` is the array of HPKE public keys of the
-nodes in the resolution of S but with the `unmerged_leaves` of P omitted. For
-example, in the ratchet tree depicted in {{ratchet-tree-nodes}} the
-`ParentHashInput` of node Z with co-path child C would contain an empty
-`original_child_resolution` since C's resolution includes only itself but C is also
-an unmerged leaf of Z. Meanwhile, the `ParentHashInput` of node Z with co-path child
-D has an array with one element in it: the HPKE public key of D.
+Finally, `original_sibling_tree_hash` is the original tree hash of S. The
+original tree hash corresponds to the tree hash of S the last time P was
+updated. It can be computed as the tree hash of S in the ratchet tree modified
+the following way:
+
+* reset the leaves in P.unmerged_leaves to blanks
+* remove P.unmerged_leaves from all unmerged_leaves lists
+* truncate the ratchet tree as described in {{remove}}
+
+For example, in the following tree:
+
+~~~~~
+              W [D, H]
+        ______|_____
+       /             \
+      U [D]           Y [F, H]
+    __|__           __|__
+   /     \         /     \
+  T       _       X [F]   _
+ / \     / \     / \     / \
+A   B   C   D   E   F   G   H
+~~~~~
+
+With P = W and S = Y, `original_sibling_tree_hash` is the tree hash of the
+following tree:
+
+~~~~~
+      Y [F]
+    __|__
+   /     \
+  X [F]  |
+ / \     |
+E   F    G
+~~~~~
+
+Because `W.unmerged_leaves = [H]`, H is removed from `Y.unmerged_leaves`,
+then H is replaced with a blank leaf, then the tree is truncated removing the
+last two nodes.
+
+With P = W and S = U, `original_sibling_tree_hash` is the tree hash of the
+following tree:
+
+~~~~~
+      U
+    __|__
+   /     \
+  T       _
+ / \     / \
+A   B   C   _
+~~~~~
+
+This time we have 4 leaf nodes because the truncation of the ratchet tree didn't
+remove the last leaf.
+
+Note that no recomputation is needed if the tree hash of S is unchanged since
+the last time P was updated.  This is the case for computing or processing a
+Commit whose UpdatePath traverses P, since the Commit itself resets P.  (In
+other words, it is only necessary to recompute the original sibling tree hash
+when validating group's tree on joining.) More generally, if none of the entries
+in `P.unmerged_leaves` is in the subtree under S (and thus no nodes were truncated),
+then the original tree hash at S is the tree hash of S in the current tree.
+
+If it is necessary to recompute the original tree hash of a node, the efficiency
+of recomputation can be improved by caching intermediate tree hashes, to avoid
+recomputing over the subtree when the subtree is included in multiple parent
+hashes.  A subtree hash can be reused as long as the intersection of the
+parent's unmerged leaves with the subtree is the same as in the earlier
+computation.
 
 Observe that `original_child_resolution` is equal to the resolution of S at the
 time the `UpdatePath` was generated, since at that point P's set of unmerged
