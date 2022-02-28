@@ -2179,13 +2179,15 @@ hash is valid with respect to P\_2, and so on.
 When joining a group, the new member MUST authenticate that each non-blank
 parent node P is parent-hash valid.  This can be done "bottom up" by building
 chains up from leaves and verifying that all non-blank parent nodes are covered
-by such chains, or "top down" by verifying that there is exactly one
+by exactly one such chain, or "top down" by verifying that there is exactly one
 descendant of each non-blank parent node for which the parent node is
 parent-hash valid.
 
-When processing a Commit message, clients MUST recompute the expected value of
-`parent_hash` for the committer's new leaf and verify that it matches the
-`parent_hash` value in the supplied `leaf_node`.
+When processing a Commit message that includes an UpdatePath, clients MUST
+recompute the expected value of `parent_hash` for the committer's new leaf and
+verify that it matches the `parent_hash` value in the supplied `leaf_node`.
+After being merged into the tree, the nodes in the UpdatePath form a parent-hash
+chain from the committer's leaf to the root.
 
 ## Update Paths
 
