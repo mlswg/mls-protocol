@@ -2792,7 +2792,13 @@ struct {
 } KeyPackageTBS;
 ~~~~~
 
-Note that the `capabilties` field in the `leaf_node` allows MLS session
+If a client receives a KeyPackage carried within an MLSMessage object, then it
+MUST verify that the `version` field of the KeyPackage has the same value as the
+`version` field of the MLSMessage.  The `version` field in the KeyPackage
+provides an explicit signal of the intended version to the other members of
+group when they receive the KeyPackage in an Add proposal.
+
+The `capabilities` field in the `leaf_node` allows MLS session
 establishment to be safe from downgrade attacks on the parameters described (as
 discussed in {{group-creation}}), while still only advertising one version /
 ciphersuite per KeyPackage.
@@ -3647,7 +3653,6 @@ new members need information to bootstrap their local group state.
 
 ~~~
 struct {
-    ProtocolVersion version = mls10;
     CipherSuite cipher_suite;
     opaque group_id<V>;
     uint64 epoch;
