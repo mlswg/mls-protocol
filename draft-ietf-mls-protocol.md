@@ -1319,6 +1319,12 @@ Delivery Service to examine such messages.
 ~~~~~
 enum {
     reserved(0),
+    mls10(1),
+    (255)
+} ProtocolVersion;
+
+enum {
+    reserved(0),
     application(1),
     proposal(2),
     commit(3),
@@ -1372,6 +1378,7 @@ struct {
 } MLSMessageContent;
 
 struct {
+    ProtocolVersion version = mls10;
     WireFormat wire_format;
     select (MLSMessage.wire_format) {
         case mls_plaintext:
@@ -1395,11 +1402,11 @@ The following structure is used to fully describe the data transmitted in
 plaintexts or ciphertexts.
 
 ~~~~~
-struct MLSMessageContentAuth {
+struct {
     WireFormat wire_format;
     MLSMessageContent content;
     MLSMessageAuth auth;
-}
+} MLSMessageContentAuth;
 ~~~~~
 
 ## Content Authentication
@@ -1436,6 +1443,7 @@ group and epoch.
 
 ~~~~~
 struct {
+    ProtocolVersion version = mls10;
     WireFormat wire_format;
     MLSMessageContent content;
     select (MLSMessageContentTBS.content.sender.sender_type) {
@@ -2852,12 +2860,6 @@ The signature is computed by the function `SignWithLabel` with a label
 signature field.
 
 ~~~~~
-enum {
-    reserved(0),
-    mls10(1),
-    (255)
-} ProtocolVersion;
-
 // See IANA registry for registered values
 uint16 ExtensionType;
 
@@ -2885,7 +2887,13 @@ struct {
 } KeyPackageTBS;
 ~~~~~
 
-Note that the `capabilties` field in the `leaf_node` allows MLS session
+If a client receives a KeyPackage carried within an MLSMessage object, then it
+MUST verify that the `version` field of the KeyPackage has the same value as the
+`version` field of the MLSMessage.  The `version` field in the KeyPackage
+provides an explicit signal of the intended version to the other members of
+group when they receive the KeyPackage in an Add proposal.
+
+The `capabilities` field in the `leaf_node` allows MLS session
 establishment to be safe from downgrade attacks on the parameters described (as
 discussed in {{group-creation}}), while still only advertising one version /
 ciphersuite per KeyPackage.
@@ -3730,7 +3738,6 @@ new members need information to bootstrap their local group state.
 
 ~~~
 struct {
-    ProtocolVersion version = mls10;
     CipherSuite cipher_suite;
     opaque group_id<V>;
     uint64 epoch;
