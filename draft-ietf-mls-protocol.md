@@ -3800,20 +3800,9 @@ Note that the `tree_hash` field is used the same way as in the Welcome message.
 The full tree can be included via the `ratchet_tree` extension
 {{ratchet-tree-extension}}.
 
-The `signature` on the GroupInfo struct authenticates the HPKE public key, so
-that the joiner knows that the public key was provided by a member of the group.
-The fields that are not signed are included in the key schedule via the
-GroupContext object. If the joiner has provided inaccurate data for these
-fields, then its external Commit will have an incorrect `confirmation_tag` and
-thus be rejected.
-
 The information in a GroupInfo is not generally public information, but applications
 can choose to make it available to new members in order to allow External
 Commits.
-
-External Commits come in two "flavors" -- a "join" commit that
-adds the sender to the group or a "resync" commit that replaces a member's prior
-appearance with a new one.
 
 In principle, External Commits work like regular Commits. However, their content
 has to meet a specific set of requirements:
@@ -3841,6 +3830,10 @@ has to meet a specific set of requirements:
   init secret as described in {{external-initialization}}.
 * The sender type for the MLSPlaintext encapsulating the External Commit MUST be
   `new_member`
+
+External Commits come in two "flavors" -- a "join" commit that
+adds the sender to the group or a "resync" commit that replaces a member's prior
+appearance with a new one.
 
 Note that the "resync" operation allows an attacker that has compromised a
 member's signature private key to introduce themselves into the group and remove the
