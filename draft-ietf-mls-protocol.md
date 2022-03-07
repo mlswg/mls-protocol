@@ -1843,7 +1843,7 @@ The client verifies the validity of a LeafNode using the following steps:
 
 * Verify that the `leaf_node_source` field has the appropriate value for the
   context in which the LeafNode is being validated (as defined in
-  {{ratchet-tree-node-contents}}).
+  {{leaf-node-contents}}).
 
 * Verify that the following fields in the LeafNode are unique among the
   members of the group (including any other members added in the same
@@ -3862,7 +3862,7 @@ information describing the group is encrypted with a symmetric key and nonce
 derived from the `joiner_secret` for the new epoch.  The `joiner_secret` is
 then encrypted to each new member using HPKE.  In the same encrypted package,
 the committer transmits the path secret for the lowest (closest to the leaf) node
-which is contained in the direct paths of both the committer and the new member.  
+which is contained in the direct paths of both the committer and the new member.
 This allows the new
 member to compute private keys for nodes in its direct path that are being
 reset by the corresponding Commit.
