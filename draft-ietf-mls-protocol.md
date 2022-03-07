@@ -3091,12 +3091,14 @@ considered invalid.
 
 Over the lifetime of a group, its membership can change, and existing members
 might want to change their keys in order to achieve post-compromise security.
-In MLS, changes can be made immediately using a Commit message with embedded
-Proposals, such changes can be accomplished via a two-step process:
+In MLS, each such change is accomplished by a two-step process:
 
 1. A proposal to make the change is broadcast to the group in a Proposal message
 2. A member of the group or a new member broadcasts a Commit message that causes
    one or more proposed changes to enter into effect
+   
+In cases where the Proposal and Commit are sent by the same member, these two steps
+can be combined by sending the proposals in the commit.
 
 The group thus evolves from one cryptographic state to another each time a
 Commit message is sent and processed.  These states are referred to as "epochs"
@@ -3396,7 +3398,8 @@ Each proposal covered by the Commit is included by a ProposalOrRef value, which
 identifies the proposal to be applied by value or by reference.  Commits that
 refer to new Proposals from the committer can be included by value. Commits
 for previously sent proposals from anyone (including the committer) can be sent
-by reference.
+by reference.  Proposals sent by reference are specified by including the hash of
+the MLSPlaintext in which the proposal was sent (see {{hash-based-identifiers}}).
 
 ~~~~~
 enum {
@@ -3477,7 +3480,7 @@ The only proposal types defined in this document that do not require a path are:
 * `reinit`
 
 New proposal types MUST state whether they require a path. If any instance of a
-proposal type requires a path, then the Commit requires a path. This
+proposal type requires a path, then the proposal type requires a path. This
 attribute of a proposal type is reflected in the "Path Required" field of the
 proposal type registry defined in {{mls-proposal-types}}.
 
@@ -3550,8 +3553,7 @@ message at the same time, by taking the following steps:
   field populated from Proposals received during the current epoch, and an empty
   `path` field.
 
-* Generate the provisional ratchet tree and GroupContext by applying the valid,
-  compatible proposals
+* Generate the provisional ratchet tree and GroupContext by applying the proposals
   referenced in the initial Commit object, as described in {{proposals}}. Update
   proposals are applied first, followed by Remove proposals, and then finally
   Add proposals. Add proposals are applied in the order listed in the
@@ -3584,8 +3586,8 @@ message at the same time, by taking the following steps:
      `commit_secret` as the value `path_secret[n+1]` derived from the
      `path_secret[n]` value assigned to the root node.
 
-* If not populating the `path` field: Set the `path` field in the Commit to a
-  zero-length vector.  Define `commit_secret` as the all-zero vector of length
+* If not populating the `path` field: Set the `path` field in the Commit to the
+  null optional.  Define `commit_secret` as the all-zero vector of length
   `KDF.Nh` (the same length as a `path_secret` value would be).  In this case,
   the new ratchet tree is the same as the provisional ratchet tree.
 
@@ -3638,8 +3640,8 @@ message at the same time, by taking the following steps:
   parameters:
   * `psktype`: `resumption`
   * `usage`: `reinit`
-  * `group_id`: The group ID for the new group
-  * `epoch`: The epoch that the group will be in after this Commit (0x0)
+  * `group_id`: The group ID for the current group
+  * `epoch`: The epoch that the group will be in after this Commit
 
 ### Processing a Commit
 
