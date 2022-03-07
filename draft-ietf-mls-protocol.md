@@ -134,6 +134,50 @@ shared keys with costs that scale as the log of the group size.
 
 RFC EDITOR PLEASE DELETE THIS SECTION.
 
+draft-13
+
+- TLS syntax updates (including variable-header-length vectors) (\*)
+
+- Stop generating redundant PKE key pairs. (\*)
+
+- Move validation of identity change to the AS
+
+- Add message/mls MIME type registration
+
+- Split LeafNode from KeyPackage (\*)
+
+- Remove endpoint_id (\*)
+
+- Reorganize to make section layout more sane
+
+- Forbid proposals by reference in external commits (\*)
+
+- Domain separation for KeyPackage and Proposal references (\*)
+
+- Downgrade MUST to SHOULD for commit senders including all valid commits
+
+- Stronger parent hashes for authenticated identities (\*)
+
+- Move wire_format to a separate tagged-union structure MLSMessage
+
+- Generalize tree extend/truncate algorithms
+
+- Add algorithms for link-based trees
+
+- Forbid self-Update entirely (\*)
+
+- Consolidate resumption PSK cases (\*)
+
+- 384 Ciphersuite Addition
+
+- Remove explicit version pin on HPKE (\*)
+
+- Remove the requirement for Add in external commit (\*)
+
+- Use smaller, fixed-size hash-based identifiers (\*)
+
+- Be explicit that Credentials can attest to multiple identities (\*)
+
 draft-12
 
 - Use the GroupContext to derive the joiner_secret (\*)
@@ -1434,7 +1478,7 @@ struct {
 ~~~~~
 
 The `signature` field in an MLSMessageAuth object is computed using the signing
-private key corresponding to the public key, which was authenticated by the 
+private key corresponding to the public key, which was authenticated by the
 credential at the leaf of the tree indicated by the sender field. The signature
 is computed using `SignWithLabel` with label `"MLSMessageContentTBS"` and with a content
 that covers the message content and the wire format that will be used for this message.
@@ -3096,7 +3140,7 @@ In MLS, each such change is accomplished by a two-step process:
 1. A proposal to make the change is broadcast to the group in a Proposal message
 2. A member of the group or a new member broadcasts a Commit message that causes
    one or more proposed changes to enter into effect
-   
+
 In cases where the Proposal and Commit are sent by the same member, these two steps
 can be combined by sending the proposals in the commit.
 
