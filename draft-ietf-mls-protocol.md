@@ -1239,7 +1239,7 @@ binding. The format of the key in the `public_key` field is defined by the
 relevant ciphersuite: the group ciphersuite for a credential in a leaf node of a
 ratchet tree or the KeyPackage ciphersuite for a credential in a KeyPackage
 object.  For ciphersuites using Ed25519 or Ed448 signature schemes, the public
-key is in the format specified {{?RFC8032}}.  For ciphersuites using ECDSA with
+key is in the format specified in {{?RFC8032}}.  For ciphersuites using ECDSA with
 the NIST curves P-256 or P-521, the public key is the output of the uncompressed
 Elliptic-Curve-Point-to-Octet-String conversion according to {{SECG}}.
 
@@ -1270,13 +1270,13 @@ protocol operations with regard to other clients (e.g., removing clients).  Such
 functions will need to refer to the other clients using some identifier.  MLS
 clients have a few types of identifiers, with different operational properties.
 
-The Credentials presented by the clients in a group authenticate
+The Credentials presented by the clients in a group, authenticate
 application-level identifiers for the clients.  These identifiers may not
 uniquely identify clients.  For example, if a user has multiple devices that are
-all present in an MLS group, then those devices' clients will all present the
+all present in an MLS group, then those devices' clients could all present the
 user's application-layer identifiers.
 
-Internally to the the protocol, group members are uniquely identified by their
+Internally to the protocol, group members are uniquely identified by their
 leaves, expressed as LeafNodeRef objects.  These identifiers are unstable:
 They change whenever the member sends a Commit, or whenever an Update
 proposal from the member is committed.
