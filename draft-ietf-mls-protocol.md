@@ -1650,7 +1650,7 @@ reflect changes to the membership of the group from one epoch to the next,
 corresponding changes are made to the ratchet tree.  In this section, we
 describe the content of the tree and the required operations.
 
-## Ratchet Tree Node Contents
+## Parent Node Contents
 
 As discussed in {{ratchet-tree-nodes}}, the nodes of a ratchet tree contain
 several types of data describing individual members (for leaf nodes) or
@@ -1664,14 +1664,18 @@ struct {
 } ParentNode;
 ~~~~~
 
-The `public_key` field contains a HPKE public key whose private key is held only
+The `public_key` field contains an HPKE public key whose private key is held only
 by the members at the leaves among its descendants.  The `parent_hash` field
 contains a hash of this node's parent node, as described in {{parent-hash}}.
 The `unmerged_leaves` field lists the leaves under this parent node that are
 unmerged, according to their indices among all the leaves in the tree.
 
+## Leaf Node Contents
+
 A leaf node in the tree describes all the details of an individual client's
-appearance in the group, signed by that client:
+appearance in the group, signed by that client. It is also used in client
+KeyPackage objects to store the information that will be needed to add a
+client to a group.
 
 ~~~~~
 enum {
@@ -1791,13 +1795,13 @@ In addition, when the leaf node was created in the context of a group (the
 update and commit cases), the group ID of the group is added as context to the
 signature.
 
-Since the LeafNode is a structure which is stored in the group's ratchet tree
-and updated depending on the evolution of the tree, each modification of its
-content MUST be reflected by a change in its signature. This allows other
+LeafNode objects stored in the group's ratchet tree
+are updated according to the evolution of the tree. Each modification of
+LeafNode content MUST be reflected by a change in its signature. This allows other
 members to verify the validity of the LeafNode at any time, particularly in the
 case of a newcomer joining the group.
 
-### Leaf Node Validation
+## Leaf Node Validation
 
 The validity of a LeafNode needs to be verified at a few stages:
 
@@ -1856,17 +1860,17 @@ The client verifies the validity of a LeafNode using the following steps:
 
 In order to provide forward secrecy and post-compromise security, whenever a
 member initiates an epoch change (i.e., commits; see {{commit}}), they refresh
-all HPKE key pairs in the ratchet tree for which they know the secret keys.
-More precisely, they refresh the key pairs of their leaf and of all nodes on
-their leaf's direct path.
+the key pairs of their leaf and of all nodes on their leaf's direct path (all
+nodes for which they know the secret key).
 
 The member initiating the epoch change generates the fresh key pairs using the
 following procedure. The procedure is designed in a way that allows group members to
 efficiently communicate the fresh secret keys to other group members, as
 described in {{update-paths}}.
 
+Recall the definition of resolution from {{ratchet-tree-nodes}}.
 To begin with, the generator of the UpdatePath updates its leaf and its leaf's
-_filtered direct path_ with new key pairs. The filtered direct path  of a node
+_filtered direct path_ with new key pairs. The filtered direct path of a node
 is obtained from the node's direct path by removing all nodes whose child on
 the nodes's copath has an empty resolution (any unmerged leaves of the copath
 child count towards its resolution). Such a removed node does not need a key
@@ -2002,7 +2006,8 @@ produces the correct tree in its internal representation.
 ## Synchronizing Views of the Tree
 
 After generating fresh key material and applying it to ratchet forward their
-local tree state as described in the prior section, the generator must broadcast
+local tree state as described in the {{ratchet-tree-evolution}}, the
+generator must broadcast
 this update to other members of the group in a Commit message, who
 apply it to keep their local views of the tree in
 sync with the sender's.  More specifically, when a member commits a change to
@@ -2033,7 +2038,7 @@ The recipient of an UpdatePath processes it with the following steps:
    * Identify a node in the filtered direct path for which the local member
      is in the subtree of the non-updated child.
    * Identify a node in the resolution of the copath node for
-     which this node has a private key.
+     which the recipient node has a private key.
    * Decrypt the path secret for the parent of the copath node using
      the private key from the resolution node.
    * Derive path secrets for ancestors of that node using the
@@ -2049,8 +2054,8 @@ The recipient of an UpdatePath processes it with the following steps:
        (represented as a ParentNode struct), going from root to leaf, so that
        each hash incorporates all the non-blank nodes above it. The root node
        always has a zero-length hash for this value.
-   * For nodes where a path secret was recovered in step 1,
-     compute and store the node's updated private key.
+   * For nodes where a path secret was recovered in step 1 ("Compute the
+     updated path secrets"), compute and store the node's updated private key.
 
 For example, in order to communicate the example update described in
 the previous section, the sender would transmit the following
@@ -2350,8 +2355,8 @@ DeriveSecret(Secret, Label) =
 The value `KDF.Nh` is the size of an output from `KDF.Extract`, in bytes.  In
 the below diagram:
 
-* KDF.Extract takes its salt argument from the top and its IKM
-  argument from the left
+* KDF.Extract takes its salt argument from the top and its Input
+  Key Material (IKM) argument from the left
 * DeriveSecret takes its Secret argument from the incoming arrow
 * `0` represents an all-zero byte string of length `KDF.Nh`.
 
@@ -2442,7 +2447,7 @@ The fields in this state have the following semantics:
 
 * The `group_id` field is an application-defined identifier for the
   group.
-* The `epoch` field represents the current version of the group key.
+* The `epoch` field represents the current version of the group.
 * The `tree_hash` field contains a commitment to the contents of the
   group's ratchet tree and the credentials for the members of the
   group, as described in {{tree-hashes}}.
@@ -3857,8 +3862,9 @@ In order to allow the same Welcome message to be sent to all new members,
 information describing the group is encrypted with a symmetric key and nonce
 derived from the `joiner_secret` for the new epoch.  The `joiner_secret` is
 then encrypted to each new member using HPKE.  In the same encrypted package,
-the committer transmits the path secret for the lowest node contained in the
-direct paths of both the committer and the new member.  This allows the new
+the committer transmits the path secret for the lowest (closest to the leaf) node
+which is contained in the direct paths of both the committer and the new member.  
+This allows the new
 member to compute private keys for nodes in its direct path that are being
 reset by the corresponding Commit.
 
