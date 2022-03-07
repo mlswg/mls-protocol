@@ -614,15 +614,15 @@ state.  MLS messages are used to initialize these views and keep them in sync as
 the group transitions between epochs.
 
 Each new epoch is initiated with a Commit message.  The Commit instructs
-existing members of the group to update their views of ratchet tree by applying
+existing members of the group to update their views of the ratchet tree by applying
 a set of Proposals, and uses the updated ratchet tree to distribute fresh
 entropy to the group.  This fresh entropy is provided only to members in the new
 epoch, not to members who have been removed, so it maintains the confidentiality
 of the epoch secret (in other words, it provides post-compromise security with
 respect to those members).
 
-For each Commit that adds member(s) to the group, there is a corresponding
-Welcome message.  The Welcome message provides new members with the information
+For each Commit that adds member(s) to the group, there is a single corresponding
+Welcome message.  The Welcome message provides all the new members with the information
 they need to initialize their views of the key schedule and ratchet tree, so
 that these views are equivalent to the views held by other members of the group
 in this epoch.
@@ -790,12 +790,12 @@ A              B     ...      Z          Directory       Channel
 
 ## Relationships Between Epochs
 
-A group comprises a single linear sequence of epochs and groups are generally
+A group has a single linear sequence of epochs. Groups and epochs are generally
 independent of one-another. However, it can sometimes be useful to link epochs
 cryptographically, either within a group or across groups. MLS derives a
 resumption pre-shared key (PSK) from each epoch to allow entropy extracted from
 one epoch to be injected into a future epoch. This link guarantees that members
-entering the new epoch agree on a key if and only if were members of the group
+entering the new epoch agree on a key if and only if they were members of the group
 during the epoch from which the resumption key was extracted.
 
 MLS supports two ways to tie a new group to an existing group. Re-initialization
@@ -1031,7 +1031,7 @@ the private key AB is known only to A and B.
 
 ## Ratchet Tree Nodes
 
-A particular instance of a ratchet tree is defined by the same parameters that
+A particular instance of a ratchet tree includes the same parameters that
 define an instance of HPKE, namely:
 
 * A Key Encapsulation Mechanism (KEM), including a `DeriveKeyPair` function that
@@ -1039,18 +1039,14 @@ define an instance of HPKE, namely:
 * A Key Derivation Function (KDF), including `Extract` and `Expand` functions
 * An AEAD encryption scheme
 
-Each node in a ratchet tree contains up to five values:
+Each non-blank node in a ratchet tree contains up to five values:
 
-* A private key (only within the member's direct path, see below)
 * A public key
-* An ordered list of leaf indices for "unmerged" leaves (see
-  {{views}})
+* A private key (only within the member's direct path, see below)
 * A credential (only for leaf nodes)
+* An ordered list of "unmerged" leaves (see {{views}})
 * A hash of certain information about the node's parent, as of the last time the
   node was changed (see {{parent-hash}}).
-
-The conditions under which each of these values must or must not be
-present are laid out in {{views}}.
 
 The _resolution_ of a node is an ordered list of non-blank nodes
 that collectively cover all non-blank descendants of the node.  The resolution
