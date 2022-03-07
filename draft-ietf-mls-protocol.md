@@ -402,7 +402,7 @@ Member:
 
 Key Package:
 : A signed object describing a client's identity and capabilities, and including
-  a hybrid public-key encryption (HPKE {{!I-D.irtf-cfrg-hpke}}) public key that
+  a hybrid public-key encryption (HPKE {{!RFC9180}}) public key that
   can be used to encrypt to that client, and which other clients can use to
   introduce the client to a new group.
 
@@ -615,15 +615,15 @@ state.  MLS messages are used to initialize these views and keep them in sync as
 the group transitions between epochs.
 
 Each new epoch is initiated with a Commit message.  The Commit instructs
-existing members of the group to update their views of ratchet tree by applying
+existing members of the group to update their views of the ratchet tree by applying
 a set of Proposals, and uses the updated ratchet tree to distribute fresh
 entropy to the group.  This fresh entropy is provided only to members in the new
 epoch, not to members who have been removed, so it maintains the confidentiality
 of the epoch secret (in other words, it provides post-compromise security with
 respect to those members).
 
-For each Commit that adds member(s) to the group, there is a corresponding
-Welcome message.  The Welcome message provides new members with the information
+For each Commit that adds member(s) to the group, there is a single corresponding
+Welcome message.  The Welcome message provides all the new members with the information
 they need to initialize their views of the key schedule and ratchet tree, so
 that these views are equivalent to the views held by other members of the group
 in this epoch.
@@ -791,12 +791,12 @@ A              B     ...      Z          Directory       Channel
 
 ## Relationships Between Epochs
 
-A group comprises a single linear sequence of epochs and groups are generally
+A group has a single linear sequence of epochs. Groups and epochs are generally
 independent of one-another. However, it can sometimes be useful to link epochs
 cryptographically, either within a group or across groups. MLS derives a
 resumption pre-shared key (PSK) from each epoch to allow entropy extracted from
 one epoch to be injected into a future epoch. This link guarantees that members
-entering the new epoch agree on a key if and only if were members of the group
+entering the new epoch agree on a key if and only if they were members of the group
 during the epoch from which the resumption key was extracted.
 
 MLS supports two ways to tie a new group to an existing group. Re-initialization
@@ -949,6 +949,7 @@ A   B   C   D   E   F   G
 
 0   1   2   3   4   5   6
 ~~~~~
+{: #full-tree title="A complete tree with seven members" }
 
 A tree with `n` leaves has `2*n - 1` nodes.  For example, the above tree has 7
 leaves (A, B, C, D, E, F, G) and 13 nodes.
@@ -1032,7 +1033,7 @@ the private key AB is known only to A and B.
 
 ## Ratchet Tree Nodes
 
-A particular instance of a ratchet tree is defined by the same parameters that
+A particular instance of a ratchet tree includes the same parameters that
 define an instance of HPKE, namely:
 
 * A Key Encapsulation Mechanism (KEM), including a `DeriveKeyPair` function that
@@ -1040,18 +1041,14 @@ define an instance of HPKE, namely:
 * A Key Derivation Function (KDF), including `Extract` and `Expand` functions
 * An AEAD encryption scheme
 
-Each node in a ratchet tree contains up to five values:
+Each non-blank node in a ratchet tree contains up to five values:
 
-* A private key (only within the member's direct path, see below)
 * A public key
-* An ordered list of leaf indices for "unmerged" leaves (see
-  {{views}})
+* A private key (only within the member's direct path, see below)
 * A credential (only for leaf nodes)
+* An ordered list of "unmerged" leaves (see {{views}})
 * A hash of certain information about the node's parent, as of the last time the
   node was changed (see {{parent-hash}}).
-
-The conditions under which each of these values must or must not be
-present are laid out in {{views}}.
 
 The _resolution_ of a node is an ordered list of non-blank nodes
 that collectively cover all non-blank descendants of the node.  The resolution
@@ -1066,11 +1063,13 @@ non-blank nodes below the node:
   concatenating the resolution of its left child with the resolution
   of its right child, in that order
 
-For example, consider the following tree, where the "\_" character
+For example, consider the following subtree, where the `_` character
 represents a blank node and unmerged leaves are indicated in square
 brackets:
 
 ~~~~~
+       ...
+       /
       _
     __|__
    /     \
@@ -1080,12 +1079,13 @@ A   _   C   D
 
 0   1   2   3
 ~~~~~
+{: #resolution-tree title="A tree with blanks and unmerged leaves" }
 
 In this tree, we can see all of the above rules in play:
 
 * The resolution of node Z is the list \[Z, C\]
 * The resolution of leaf 1 is the empty list \[\]
-* The resolution of root node is the list \[A, Z, C\]
+* The resolution of top node is the list \[A, Z, C\]
 
 Every node, regardless of whether the node is blank or populated, has
 a corresponding _hash_ that summarizes the contents of the subtree
@@ -1107,7 +1107,7 @@ following primitives to be used in group key computations:
 * A MAC algorithm
 * A signature algorithm
 
-MLS uses HPKE for public-key encryption {{I-D.irtf-cfrg-hpke}}.  The
+MLS uses HPKE for public-key encryption {{!RFC9180}}.  The
 `DeriveKeyPair` function associated to the KEM for the ciphersuite maps octet
 strings to HPKE key pairs.  As in HPKE, MLS assumes that an AEAD algorithm
 produces a single ciphertext output from AEAD encryption (aligning with
@@ -1244,7 +1244,7 @@ binding. The format of the key in the `public_key` field is defined by the
 relevant ciphersuite: the group ciphersuite for a credential in a leaf node of a
 ratchet tree or the KeyPackage ciphersuite for a credential in a KeyPackage
 object.  For ciphersuites using Ed25519 or Ed448 signature schemes, the public
-key is in the format specified {{?RFC8032}}.  For ciphersuites using ECDSA with
+key is in the format specified in {{?RFC8032}}.  For ciphersuites using ECDSA with
 the NIST curves P-256 or P-521, the public key is the output of the uncompressed
 Elliptic-Curve-Point-to-Octet-String conversion according to {{SECG}}.
 
@@ -1278,10 +1278,10 @@ clients have a few types of identifiers, with different operational properties.
 The Credentials presented by the clients in a group authenticate
 application-level identifiers for the clients.  These identifiers may not
 uniquely identify clients.  For example, if a user has multiple devices that are
-all present in an MLS group, then those devices' clients will all present the
+all present in an MLS group, then those devices' clients could all present the
 user's application-layer identifiers.
 
-Internally to the the protocol, group members are uniquely identified by their
+Internally to the protocol, group members are uniquely identified by their
 leaves, expressed as LeafNodeRef objects.  These identifiers are unstable:
 They change whenever the member sends a Commit, or whenever an Update
 proposal from the member is committed.
@@ -1342,9 +1342,12 @@ enum {
 struct {
     SenderType sender_type;
     switch (sender_type) {
-        case member:        LeafNodeRef member;
-        case preconfigured: opaque sender_id<V>;
-        case new_member:    struct{};
+        case member:
+            LeafNodeRef member_ref;
+        case preconfigured:
+            opaque sender_id<V>;
+        case new_member:
+            struct{};
     }
 } Sender;
 
@@ -1368,10 +1371,8 @@ struct {
     select (MLSMessageContent.content_type) {
         case application:
           opaque application_data<V>;
-
         case proposal:
           Proposal proposal;
-
         case commit:
           Commit commit;
     }
@@ -1433,7 +1434,7 @@ struct {
 ~~~~~
 
 The `signature` field in an MLSMessageAuth object is computed using the signing
-private key corresponding to the public key, which was authenticated by the
+private key corresponding to the public key, which was authenticated by the 
 credential at the leaf of the tree indicated by the sender field. The signature
 is computed using `SignWithLabel` with label `"MLSMessageContentTBS"` and with a content
 that covers the message content and the wire format that will be used for this message.
@@ -1626,8 +1627,8 @@ sender_data_nonce = ExpandWithLabel(sender_data_secret, "nonce",
                       ciphertext_sample, AEAD.Nn)
 ~~~~~
 
-The Additional Authenticated Data (AAD) for the SenderData ciphertext is all the
-fields of MLSCiphertext excluding `encrypted_sender_data`:
+The Additional Authenticated Data (AAD) for the SenderData ciphertext is the
+first three fields of MLSCiphertext:
 
 ~~~~~
 struct {
@@ -1902,7 +1903,7 @@ secret is only used with one algorithm: The path secret is used as an input to
 DeriveSecret and the node secret is used as an input to DeriveKeyPair.
 
 For example, suppose there is a group with four members, with C an unmerged leaf
-at node 5:
+at Z:
 
 ~~~~~
       Y
@@ -1912,8 +1913,9 @@ at node 5:
  / \     / \
 A   B   C   D
 
-0 1 2 3 4 5 6
+0   1   2   3
 ~~~~~
+{: #evolution-tree title="A full tree with one unmerged leaf" }
 
 If member B subsequently generates an UpdatePath based on a secret
 "leaf_secret", then it would generate the following sequence
@@ -1945,7 +1947,7 @@ np[0] -> X'      Z[C]
            |
            lp
 
-       0 1 2 3 4 5 6
+       0   1   2   3
 ~~~~~
 
 ## Adding and Removing Leaves
@@ -2035,10 +2037,10 @@ of the non-updated child.
 The recipient of an UpdatePath processes it with the following steps:
 
 1. Compute the updated path secrets.
-   * Identify a node in the filtered direct path for which the local member
+   * Identify a node in the filtered direct path for which the recipient
      is in the subtree of the non-updated child.
    * Identify a node in the resolution of the copath node for
-     which the recipient node has a private key.
+     which the recipient has a private key.
    * Decrypt the path secret for the parent of the copath node using
      the private key from the resolution node.
    * Derive path secrets for ancestors of that node using the
@@ -2177,6 +2179,8 @@ For example, in the following tree:
  / \     / \     / \     / \
 A   B   C   D   E   F   G   H
 ~~~~~
+{: #parent-hash-tree title="A full tree unmerged leaves that illustrate parent
+hash computations" }
 
 With P = W and S = Y, `original_sibling_tree_hash` is the tree hash of the
 following tree:
@@ -2326,7 +2330,7 @@ ciphertext = context.Seal("", path_secret)
 where `node_public_key` is the public key of the node that the path
 secret is being encrypted for, group_context is the current GroupContext object
 for the group, and the functions `SetupBaseS` and
-`Seal` are defined according to {{!I-D.irtf-cfrg-hpke}}.
+`Seal` are defined according to {{!RFC9180}}.
 
 Decryption is performed in the corresponding way, using the private
 key of the resolution node.
@@ -4541,7 +4545,7 @@ Initial contents:
 All of these ciphersuites use HMAC {{!RFC2104}} as their MAC function, with
 different hashes per ciphersuite.  The mapping of ciphersuites to HPKE
 primitives, HMAC hash functions, and TLS signature schemes is as follows
-{{I-D.irtf-cfrg-hpke}} {{RFC8446}}:
+{{RFC9180}} {{RFC8446}}:
 
 | Value  | KEM    | KDF    | AEAD   | Hash   | Signature              |
 |:-------|:-------|:-------|:-------|:-------|:-----------------------|
@@ -4743,9 +4747,9 @@ protocols (ex: HTTP {{!RFC7540}}) to convey MLS messages.
      presentation language [RFC8446]. Therefore MLS messages need to be
      treated as binary data.
 
-  Security considerations: MLS is an encrypted messaging layer designed to
-     be transmitted over arbitrary lower layer protocols. The security
-     considerations in this document (the MLS protocol) also apply.
+  Security considerations: MLS is an encrypted messaging layer designed
+     to be transmitted over arbitrary lower layer protocols. The
+     security considerations in this document (RFC XXXX) also apply.
 ~~~~~
 
 # Contributors
@@ -4799,6 +4803,48 @@ protocols (ex: HTTP {{!RFC7540}}) to convey MLS messages.
   thyla.van.der@merwe.tech
 
 --- back
+
+# Protocol Origins of Example Trees
+
+Protocol operations in MLS give rise to specific forms of ratchet tree,
+typically affecting a whole direct path at once.  In this section, we describe
+the protocol operations that could have given rise to the various example trees
+in this document.
+
+To construct the tree in {{full-tree}}:
+
+* A creates a group with B, ..., G
+* Each member sends an empty Commit setting its direct path
+
+To construct the tree in {{resolution-tree}}:
+
+* A creates a group with B, C, D, as well as some members outside this subtree
+* D removes C, setting Z and the top node (as well as any further nodes in the
+  direct path)
+* A member outside this subtree removes B, blanking B's direct path
+* A adds a new member at C with a partial Commit, adding it as unmerged at Z
+
+To construct the tree in {{evolution-tree}}:
+
+* A creates a group with B, C, D
+* B sends a full Commit, setting X and Y
+* D removes C, setting Z and Y
+* B adds a new member at C with a full Commit
+  * The Add proposal adds C as unmerged at Z and Y
+  * The path in the Commit resets X and Y, clearing Y's unmerged leaves
+
+To construct the tree in {{parent-hash-tree}}:
+
+* A creates a group with B, ... G
+* A removes F in a full Commit, setting T, U, and W
+* E sends an empty Commit, setting X, Y, and W
+* A adds a new member at F in a partial Commit, adding F as unmerged at X, Y,
+  and W
+* A removes D, resetting T, U, and W (in particular, F is no longer unmerged at
+  W)
+* A adds new memebers at D and H in a partial commit
+  * D is added as unmerged at U, W
+  * H is added as unmerged at Y, W
 
 # Array-Based Trees
 
