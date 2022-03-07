@@ -949,6 +949,7 @@ A   B   C   D   E   F   G
 
 0   1   2   3   4   5   6
 ~~~~~
+{: #full-tree title="A complete tree with seven members" }
 
 A tree with `n` leaves has `2*n - 1` nodes.  For example, the above tree has 7
 leaves (A, B, C, D, E, F, G) and 13 nodes.
@@ -1062,11 +1063,13 @@ non-blank nodes below the node:
   concatenating the resolution of its left child with the resolution
   of its right child, in that order
 
-For example, consider the following tree, where the "\_" character
+For example, consider the following subtree, where the `_` character
 represents a blank node and unmerged leaves are indicated in square
 brackets:
 
 ~~~~~
+       ...
+       /
       _
     __|__
    /     \
@@ -1076,12 +1079,13 @@ A   _   C   D
 
 0   1   2   3
 ~~~~~
+{: #resolution-tree title="A tree with blanks and unmerged leaves" }
 
 In this tree, we can see all of the above rules in play:
 
 * The resolution of node Z is the list \[Z, C\]
 * The resolution of leaf 1 is the empty list \[\]
-* The resolution of root node is the list \[A, Z, C\]
+* The resolution of top node is the list \[A, Z, C\]
 
 Every node, regardless of whether the node is blank or populated, has
 a corresponding _hash_ that summarizes the contents of the subtree
@@ -1895,7 +1899,7 @@ secret is only used with one algorithm: The path secret is used as an input to
 DeriveSecret and the node secret is used as an input to DeriveKeyPair.
 
 For example, suppose there is a group with four members, with C an unmerged leaf
-at node 5:
+at Z:
 
 ~~~~~
       Y
@@ -1905,8 +1909,9 @@ at node 5:
  / \     / \
 A   B   C   D
 
-0 1 2 3 4 5 6
+0   1   2   3
 ~~~~~
+{: #evolution-tree title="A full tree with one unmerged leaf" }
 
 If member B subsequently generates an UpdatePath based on a secret
 "leaf_secret", then it would generate the following sequence
@@ -1938,7 +1943,7 @@ np[0] -> X'      Z[C]
            |
            lp
 
-       0 1 2 3 4 5 6
+       0   1   2   3
 ~~~~~
 
 ## Adding and Removing Leaves
@@ -2027,10 +2032,10 @@ of the non-updated child.
 The recipient of an UpdatePath processes it with the following steps:
 
 1. Compute the updated path secrets.
-   * Identify a node in the filtered direct path for which the local member
+   * Identify a node in the filtered direct path for which the recipient
      is in the subtree of the non-updated child.
    * Identify a node in the resolution of the copath node for
-     which this node has a private key.
+     which the recipient has a private key.
    * Decrypt the path secret for the parent of the copath node using
      the private key from the resolution node.
    * Derive path secrets for ancestors of that node using the
@@ -2169,6 +2174,8 @@ For example, in the following tree:
  / \     / \     / \     / \
 A   B   C   D   E   F   G   H
 ~~~~~
+{: #parent-hash-tree title="A full tree unmerged leaves that illustrate parent
+hash computations" }
 
 With P = W and S = Y, `original_sibling_tree_hash` is the tree hash of the
 following tree:
@@ -4795,6 +4802,48 @@ protocols (ex: HTTP {{!RFC7540}}) to convey MLS messages.
   thyla.van.der@merwe.tech
 
 --- back
+
+# Protocol Origins of Example Trees
+
+Protocol operations in MLS give rise to specific forms of ratchet tree,
+typically affecting a whole direct path at once.  In this section, we describe
+the protocol operations that could have given rise to the various example trees
+in this document.
+
+To construct the tree in {{full-tree}}:
+
+* A creates a group with B, ..., G
+* Each member sends an empty Commit setting its direct path
+
+To construct the tree in {{resolution-tree}}:
+
+* A creates a group with B, C, D, as well as some members outside this subtree
+* D removes C, setting Z and the top node (as well as any further nodes in the
+  direct path)
+* A member outside this subtree removes B, blanking B's direct path
+* A adds a new member at C with a partial Commit, adding it as unmerged at Z
+
+To construct the tree in {{evolution-tree}}:
+
+* A creates a group with B, C, D
+* B sends a full Commit, setting X and Y
+* D removes C, setting Z and Y
+* B adds a new member at C with a full Commit
+  * The Add proposal adds C as unmerged at Z and Y
+  * The path in the Commit resets X and Y, clearing Y's unmerged leaves
+
+To construct the tree in {{parent-hash-tree}}:
+
+* A creates a group with B, ... G
+* A removes F in a full Commit, setting T, U, and W
+* E sends an empty Commit, setting X, Y, and W
+* A adds a new member at F in a partial Commit, adding F as unmerged at X, Y,
+  and W
+* A removes D, resetting T, U, and W (in particular, F is no longer unmerged at
+  W)
+* A adds new memebers at D and H in a partial commit
+  * D is added as unmerged at U, W
+  * H is added as unmerged at Y, W
 
 # Array-Based Trees
 
