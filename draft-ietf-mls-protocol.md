@@ -4673,9 +4673,9 @@ protocols (ex: HTTP {{!RFC7540}}) to convey MLS messages.
      presentation language [RFC8446]. Therefore MLS messages need to be
      treated as binary data.
 
-  Security considerations: MLS is an encrypted messaging layer designed to
-     be transmitted over arbitrary lower layer protocols. The security
-     considerations in this document (the MLS protocol) also apply.
+  Security considerations: MLS is an encrypted messaging layer designed
+     to be transmitted over arbitrary lower layer protocols. The
+     security considerations in this document (RFC XXXX) also apply.
 ~~~~~
 
 # Contributors
