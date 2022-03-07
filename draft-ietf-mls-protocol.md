@@ -1102,7 +1102,7 @@ following primitives to be used in group key computations:
 * A MAC algorithm
 * A signature algorithm
 
-MLS uses HPKE for public-key encryption {{I-D.irtf-cfrg-hpke}}.  The
+MLS uses HPKE for public-key encryption {{!RFC9180}}.  The
 `DeriveKeyPair` function associated to the KEM for the ciphersuite maps octet
 strings to HPKE key pairs.  As in HPKE, MLS assumes that an AEAD algorithm
 produces a single ciphertext output from AEAD encryption (aligning with
@@ -4468,7 +4468,7 @@ Initial contents:
 All of these ciphersuites use HMAC {{!RFC2104}} as their MAC function, with
 different hashes per ciphersuite.  The mapping of ciphersuites to HPKE
 primitives, HMAC hash functions, and TLS signature schemes is as follows
-{{I-D.irtf-cfrg-hpke}} {{RFC8446}}:
+{{RFC9180}} {{RFC8446}}:
 
 | Value  | KEM    | KDF    | AEAD   | Hash   | Signature              |
 |:-------|:-------|:-------|:-------|:-------|:-----------------------|
