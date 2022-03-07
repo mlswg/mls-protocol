@@ -402,7 +402,7 @@ Member:
 
 Key Package:
 : A signed object describing a client's identity and capabilities, and including
-  a hybrid public-key encryption (HPKE {{!I-D.irtf-cfrg-hpke}}) public key that
+  a hybrid public-key encryption (HPKE {{!RFC9180}}) public key that
   can be used to encrypt to that client, and which other clients can use to
   introduce the client to a new group.
 
@@ -2210,7 +2210,7 @@ ciphertext = context.Seal("", path_secret)
 where `node_public_key` is the public key of the node that the path
 secret is being encrypted for, group_context is the current GroupContext object
 for the group, and the functions `SetupBaseS` and
-`Seal` are defined according to {{!I-D.irtf-cfrg-hpke}}.
+`Seal` are defined according to {{!RFC9180}}.
 
 Decryption is performed in the corresponding way, using the private
 key of the resolution node.
