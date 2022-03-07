@@ -1632,46 +1632,32 @@ When parsing a SenderData struct as part of message decryption, the recipient
 MUST verify that the LeafNodeRef indicated in the `sender` field identifies a
 member of the group.
 
-# Ratchet Tree Operations
+# ClientInfo Object
 
-The ratchet tree for an epoch describes the membership of a group in that epoch,
-providing public-key encryption (HPKE) keys that can be used to encrypt to subsets of
-the group as well as information to authenticate the members.  In order to
-reflect changes to the membership of the group from one epoch to the next,
-corresponding changes are made to the ratchet tree.  In this section, we
-describe the content of the tree and the required operations.
-
-## Ratchet Tree Node Contents
-
-As discussed in {{ratchet-tree-nodes}}, the nodes of a ratchet tree contain
-several types of data describing individual members (for leaf nodes) or
-subgroups of the group (for parent nodes).  Parent nodes are simpler:
-
-~~~~~
-struct {
-    HPKEPublicKey public_key;
-    opaque parent_hash<V>;
-    uint32 unmerged_leaves<V>;
-} ParentNode;
-~~~~~
-
-The `public_key` field contains a HPKE public key whose private key is held only
-by the members at the leaves among its descendants.  The `parent_hash` field
-contains a hash of this node's parent node, as described in {{parent-hash}}.
-The `unmerged_leaves` field lists the leaves under this parent node that are
-unmerged, according to their indices among all the leaves in the tree.
-
-A leaf node in the tree describes all the details of an individual client's
-appearance in the group, signed by that client:
+The ClientInfo object contains instance information about a client which is used
+both in the context of group membership (described as a LeafNode object) and in
+offers for potential membership (each called a KeyPackage) used by other clients
+to add the issuer of the KeyPackage to the other clients' own groups.  LeafNode
+objects are used specifically inside Add and Update proposals, and Commits, all of
+three of which introduce new key material into a group.
 
 ~~~~~
 enum {
     reserved(0),
     key_package(1),
-    update(2),
-    commit(3),
+    add(2),
+    update(3),
+    commit(4),
     (255)
-} LeafNodeSource;
+} ClientInfoSource;
+
+// See IANA registry for registered values
+uint16 ExtensionType;
+
+struct {
+    ExtensionType extension_type;
+    opaque extension_data<V>;
+} Extension;
 
 struct {
     ProtocolVersion versions<V>;
@@ -1689,84 +1675,109 @@ struct {
     HPKEPublicKey public_key;
     Credential credential;
     Capabilities capabilities;
+    Extension extensions<V>;
 
-    LeafNodeSource leaf_node_source;
-    select (leaf_node_source) {
+    ClientInfoSource client_info_source;
+    select (client_info_source) {
+        case key_package:
         case add:
             Lifetime lifetime;
-
         case update:
             struct {}
-
         case commit:
             opaque parent_hash<V>;
     }
 
-    Extension extensions<V>;
     // SignWithLabel(., "LeafNodeTBS", LeafNodeTBS)
     opaque signature<V>;
-} LeafNode;
+} ClientInfo;
 
 struct {
     HPKEPublicKey public_key;
     Credential credential;
     Capabilities capabilities;
-
-    LeafNodeSource leaf_node_source;
-    select (leaf_node_source) {
-        case key_package:
-            Lifetime lifetime;
-
-        case update:
-            struct{};
-
-        case commit:
-            opaque parent_hash<V>;
-    }
-
     Extension extensions<V>;
 
-    select (leaf_node_source) {
+    ClientInfoSource client_info_source;
+    select (client_info_source) {
         case key_package:
-            struct{};
-
+        case add:
+            Lifetime lifetime;
         case update:
             opaque group_id<V>;
-
         case commit:
+            opaque parent_hash<V>;
             opaque group_id<V>;
     }
-} LeafNodeTBS;
+} ClientInfoTBS;
+
+LeafNode ClientInfo;
 ~~~~~
 
-The `public_key` field conains an HPKE public key whose private key is held only
-by the member occupying this leaf.  The `credential` contains authentication
-information for this member, as described in {{credentials}}.
+The `public_key` field conains an ephemeral HPKE public key whose private key
+is held only by the issuer of the KeyPackage (when used inside a KeyPackage),
+or the member occupying the referenced leaf (when used as a LeafNode).
+The `credential` contains permanent or semi-permanent authentication
+information for this member or potential member, as described in {{credentials}}.
 
 The `capabilities` field indicates what protocol versions, ciphersuites,
 protocol extensions, and non-default proposal types are supported by a client.
 Proposal types defined in this document are considered "default" and thus need
-not be listed.  Extensions that appear in the `extensions` field of a LeafNode
+not be listed.  Extensions that appear in the `extensions` field of a ClientInfo
 MUST be included in the `extensions` field of the `capabilities` field.
 
-The `leaf_node_source` field indicates how this LeafNode came to be added to the
-tree.
+The `client_info_source` field indicates the context in which the ClientInfo
+object is used.
 
-In the case where the leaf was added to the tree based on a pre-published
-KeyPackage, the `lifetime` field represents the times between which clients will
-consider a LeafNode valid.  These times are represented as absolute times,
-measured in seconds since the Unix epoch (1970-01-01T00:00:00Z).  Applications
-MUST define a maximum total lifetime that is acceptable for a LeafNode, and
-reject any LeafNode where the total lifetime is longer than this duration.
+In a KeyPackage or an Add proposal, the `lifetime` field represents the times
+between which clients will consider the KeyPackage or LeafNode (public_key and credential) valid.  These
+times are represented as absolute times, measured in seconds since the
+Unix epoch (1970-01-01T00:00:00Z).  Applications MUST define a maximum total
+lifetime that is acceptable for a ClientInfo object, and reject any ClientInfo
+object where the total lifetime is longer than this duration.
 
-In the case where the leaf node was inserted into the tree via a Commit message,
-the `parent_hash` field contains the parent hash for this leaf node (see
-{{parent-hash}}).
+In the case where the ClientInfo refers to a leaf node inserted into the tree
+via a Commit message, the `parent_hash` field contains the parent hash for
+this leaf node (see {{parent-hash}}).
 
-The LeafNodeTBS structure covers the fields above the signature in the LeafNode.
+The ClientInfoTBS structure covers the fields above the signature in the ClientInfo.
 In addition, when the leaf node was created in the context of a group (the
 update and commit cases), the group ID of the group is added as context to the
 signature.
+
+
+# Ratchet Tree Operations
+
+The ratchet tree for an epoch describes the membership of a group in that epoch,
+providing public-key encryption (HPKE) keys that can be used to encrypt to subsets of
+the group as well as information to authenticate the members.  In order to
+reflect changes to the membership of the group from one epoch to the next,
+corresponding changes are made to the ratchet tree.  In this section, we
+describe the content of the tree and the required operations.
+
+## Ratchet Tree Node Contents
+
+As discussed in {{ratchet-tree-nodes}}, the non-blank nodes of a ratchet tree contain
+several types of data describing individual members (for leaf nodes) or
+subgroups of the group (for parent nodes).  Parent nodes are simpler:
+
+~~~~~
+struct {
+    HPKEPublicKey public_key;
+    opaque parent_hash<V>;
+    uint32 unmerged_leaves<V>;
+} ParentNode;
+~~~~~
+
+The `public_key` field contains a HPKE public key whose private key is held only
+by the members at the leaves among its descendants.  The `parent_hash` field
+contains a hash of this node's parent node, as described in {{parent-hash}}.
+The `unmerged_leaves` field lists the leaves under this parent node that are
+unmerged, according to their indices among all the leaves in the tree.
+
+A leaf node is represented in the tree by a LeafNode/ClientInfo object.
+It describes all the details of an individual client's
+appearance in the group, and is signed by that client.
 
 Since the LeafNode is a structure which is stored in the group's ratchet tree
 and updated depending on the evolution of the tree, each modification of its
@@ -1778,8 +1789,6 @@ case of a newcomer joining the group.
 
 The validity of a LeafNode needs to be verified at a few stages:
 
-* When a LeafNode is downloaded in a KeyPackage, before it is used
-  to add the client to the group
 * When a LeafNode is received by a group member in an Add, Update, or Commit
   message
 * When a client joining a group receives LeafNode objects for the other members
@@ -1787,12 +1796,12 @@ The validity of a LeafNode needs to be verified at a few stages:
 
 The client verifies the validity of a LeafNode using the following steps:
 
-* Verify that the credential in the KeyPackage is valid according to the
+* Verify that the credential in the LeafNode is valid according to the
   authentication service and the client's local policy. These actions MUST be
-  the same regardless of at what point in the protocol the KeyPackage is being
-  verified with the following exception: If the KeyPackage is an update to
-  another KeyPackage, the authentication service MUST additionally validate that
-  the set of identities attested by the credential in the new KeyPackage is
+  the same regardless of at what point in the protocol the LeafNode is being
+  verified with the following exception: If the LeafNode is an update to
+  another LeafNode, the authentication service MUST additionally validate that
+  the set of identities attested by the credential in the new LeafNode is
   acceptable relative to the identities attested by the old credential.
 
 * Verify that the signature on the LeafNode is valid using the public key
@@ -1805,7 +1814,7 @@ The client verifies the validity of a LeafNode using the following steps:
 
 * Verify the `lifetime` field:
   * When validating a downloaded KeyPackage, the current time MUST be within the
-    `lifetime` range.  A KeyPackage that is expired or not yet valid MUST NOT be
+    `lifetime` range.  A ClientInfo that is expired or not yet valid MUST NOT be
     sent in an Add proposal.
   * When receiving an Add or validating a tree, checking the `lifetime` is
     RECOMMENDED, if it is feasible in a given application context.  Because of
@@ -1813,11 +1822,11 @@ The client verifies the validity of a LeafNode using the following steps:
     leaf node was proposed for addition, even if it is expired at these later
     points in the protocol.
 
-* Verify that the `leaf_node_source` field has the appropriate value for the
+* Verify that the `client_info_source` field has the appropriate value for the
   context in which the LeafNode is being validated (as defined in
   {{ratchet-tree-node-contents}}).
 
-* Verify that the following fields in the KeyPackage are unique among the
+* Verify that the following fields in the LeafNode are unique among the
   members of the group (including any other members added in the same
   Commit):
 
@@ -2746,9 +2755,10 @@ group, key packages are pre-published that
 provide some public information about a user. A KeyPackage object specifies:
 
 1. A protocol version and ciphersuite that the client supports,
-2. a public key that others can use to encrypt a Welcome message to this client,
+2. a public key that others can use to encrypt a Welcome message to this client
+   (the `init_key`),
    and
-3. the content of the leaf node that should be added to the tree to represent
+3. the contents of the ClientInfo object that should be added to the tree to represent
    this client.
 
 KeyPackages are intended to be used only once and SHOULD NOT
@@ -2757,9 +2767,9 @@ Clients MAY generate and publish multiple KeyPackages to
 support multiple ciphersuites.
 
 The value for `init_key` MUST be a public key for the asymmetric encryption
-scheme defined by cipher\_suite, and it MUST be unique among the set of
-KeyPackages created by this client.  Likewise, the `leaf_node` field MUST be
-valid for the ciphersuite, including both the `hpke_key` and `credential`
+scheme defined by `cipher_suite`, and it MUST be unique among the set of
+KeyPackages created by this client.  Likewise, the `client_info` field MUST be
+valid for the ciphersuite, including both the `public_key` and `credential`
 fields.  The whole structure is signed using the client's signature key. A
 KeyPackage object with an invalid signature field MUST be considered malformed.
 
@@ -2774,20 +2784,11 @@ enum {
     (255)
 } ProtocolVersion;
 
-// See IANA registry for registered values
-uint16 ExtensionType;
-
-struct {
-    ExtensionType extension_type;
-    opaque extension_data<V>;
-} Extension;
-
 struct {
     ProtocolVersion version;
     CipherSuite cipher_suite;
     HPKEPublicKey init_key;
-    LeafNode leaf_node;
-    Extension extensions<V>;
+    ClientInfo client_info;
     // SignWithLabel(., "KeyPackageTBS", KeyPackageTBS)
     opaque signature<V>;
 } KeyPackage;
@@ -2796,76 +2797,52 @@ struct {
     ProtocolVersion version;
     CipherSuite cipher_suite;
     HPKEPublicKey init_key;
-    LeafNode leaf_node;
-    Extension extensions<V>;
+    ClientInfo client_info;
 } KeyPackageTBS;
 ~~~~~
 
-Note that the `capabilties` field in the `leaf_node` allows MLS session
+The `client_info.capabilities` field  indicates what protocol versions, ciphersuites,
+protocol extensions, and non-default proposal types are supported by the client.
+Proposal types defined in this document are considered "default" and thus need
+not be listed.
+
+Note that the `capabilties` field in the `client_info` allows MLS session
 establishment to be safe from downgrade attacks on the parameters described (as
 discussed in {{group-creation}}), while still only advertising one version /
 ciphersuite per KeyPackage.
 
-The `leaf_node_source` field of the LeafNode in a KeyPackage MUST be set to
+The `client_info.client_info_source` field in a KeyPackage MUST be set to
 `key_package`.
+
+Extensions that appear in the KeyPackage `client_info.extensions` field
+MUST be included in the `client_info.capabilities` field.
 
 ## KeyPackage Validation
 
-The validity of a KeyPackage needs to be verified at a few stages:
-
-* When a KeyPackage is downloaded by a group member, before it is used
-  to add the client to the group
-* When a KeyPackage is received by a group member in an Add message
-
+The validity of a KeyPackage needs to be verified when a KeyPackage is
+downloaded by a group member, before it is used to add the client to the group.
 The client verifies the validity of a KeyPackage using the following steps:
 
-* Verify the LeafNode in the KeyPackage according to the process defined in
+* Verify `client_info` in the KeyPackage according to the process defined in
   {{leaf-node-validation}}.
 
 * Verify that the signature on the KeyPackage is valid using the public key
-  in the LeafNode's credential
+  in the `client_info.credential`
 
-* Verify that the ciphersuite and protocol version of the LeafNode match
+* Verify that the ciphersuite and protocol version of the KeyPackage match
   those in use in the group.
-
-## Client Capabilities
-
-The `capabilities` extension indicates what protocol versions, ciphersuites,
-protocol extensions, and non-default proposal types are supported by a client.
-Proposal types defined in this document are considered "default" and thus need
-not be listed.
-
-~~~~~
-struct {
-    ProtocolVersion versions<V>;
-    CipherSuite ciphersuites<V>;
-    ExtensionType extensions<V>;
-    ProposalType proposals<V>;
-} Capabilities;
-~~~~~
-
-This extension MUST be always present in a KeyPackage.  Extensions that appear
-in the `extensions` field of a KeyPackage MUST be included in the `extensions`
-field of the `capabilities` extension.
 
 ## Lifetime
 
-The `lifetime` extension represents the times between which clients will
-consider a KeyPackage valid.  This time is represented as an absolute time,
-measured in seconds since the Unix epoch (1970-01-01T00:00:00Z). A client MUST
+The `client_info.lifetime` field represents the times between which clients will
+consider a KeyPackage valid.  A client MUST
 NOT use the data in a KeyPackage for any processing before the `not_before`
 date, or after the `not_after` date.
 
-~~~~~
-uint64 not_before;
-uint64 not_after;
-~~~~~
 
 Applications MUST define a maximum total lifetime that is acceptable for a
 KeyPackage, and reject any KeyPackage where the total lifetime is longer than
 this duration.
-
-This extension MUST always be present in a KeyPackage.
 
 ## KeyPackage Identifiers
 
