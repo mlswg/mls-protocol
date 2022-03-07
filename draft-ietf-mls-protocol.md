@@ -1270,7 +1270,7 @@ protocol operations with regard to other clients (e.g., removing clients).  Such
 functions will need to refer to the other clients using some identifier.  MLS
 clients have a few types of identifiers, with different operational properties.
 
-The Credentials presented by the clients in a group, authenticate
+The Credentials presented by the clients in a group authenticate
 application-level identifiers for the clients.  These identifiers may not
 uniquely identify clients.  For example, if a user has multiple devices that are
 all present in an MLS group, then those devices' clients could all present the
@@ -1422,8 +1422,8 @@ struct {
 ~~~~~
 
 The `signature` field in an MLSMessageAuth object is computed using the signing
-private key corresponding to the public key of the sender. The sender is authenticated 
-by the credential at the leaf of the tree indicated by the sender field. The signature
+private key corresponding to the public key, which was authenticated by the 
+credential at the leaf of the tree indicated by the sender field. The signature
 is computed using `SignWithLabel` with label `"MLSMessageContentTBS"` and with a content
 that covers the message content and the wire format that will be used for this message.
 If the sender is a member of the group, the content also covers the
