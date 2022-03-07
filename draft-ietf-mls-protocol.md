@@ -3012,8 +3012,8 @@ including a `required_capabilities` extension in the GroupContext.
 
 ~~~~~
 struct {
-    ExtensionType extensions<V>;
-    ProposalType proposals<V>;
+    ExtensionType extension_types<V>;
+    ProposalType proposal_types<V>;
 } RequiredCapabilities;
 ~~~~~
 
@@ -3086,12 +3086,13 @@ considered invalid.
 # Group Evolution
 
 Over the lifetime of a group, its membership can change, and existing members
-might want to change their keys in order to achieve post-compromise security. In
-MLS, each such change is accomplished by a two-step process:
+might want to change their keys in order to achieve post-compromise security.
+In MLS, changes can be made immediately using a Commit message with embedded
+Proposals, such changes can be accomplished via a two-step process:
 
 1. A proposal to make the change is broadcast to the group in a Proposal message
-2. A member of the group or a new member broadcasts a Commit message that causes one or more
-   proposed changes to enter into effect
+2. A member of the group or a new member broadcasts a Commit message that causes
+   one or more proposed changes to enter into effect
 
 The group thus evolves from one cryptographic state to another each time a
 Commit message is sent and processed.  These states are referred to as "epochs"
@@ -3388,13 +3389,10 @@ Proposals. It instructs group members to update their representation of the
 state of the group by applying the proposals and advancing the key schedule.
 
 Each proposal covered by the Commit is included by a ProposalOrRef value, which
-identifies the proposal to be applied by value or by reference.  Proposals
-supplied by value are included directly in the Commit object.  Proposals
-supplied by reference are specified by including the hash of the MLSPlaintext in
-which the Proposal was sent (see {{hash-based-identifiers}}).  For proposals
-supplied by value, the sender of the proposal is the same as the sender of the
-Commit.  Conversely, proposals sent by people other than the committer MUST be
-included by reference.
+identifies the proposal to be applied by value or by reference.  Commits that
+refer to new Proposals from the committer can be included by value. Commits
+for previously sent proposals from anyone (including the committer) can be sent
+by reference.
 
 ~~~~~
 enum {
@@ -3418,7 +3416,7 @@ struct {
 } Commit;
 ~~~~~
 
-A group member that has observed one or more proposals within an epoch MUST send
+A group member that has observed one or more valid proposals within an epoch MUST send
 a Commit message before sending application data. This ensures, for example,
 that any members whose removal was proposed during the epoch are actually
 removed before any application data is transmitted.
@@ -3453,7 +3451,7 @@ asynchronous nature of proposals, receivers of a Commit SHOULD NOT enforce that
 all valid proposals sent within the current epoch are referenced by the next
 Commit. In the event that a valid proposal is omitted from the next Commit, and
 that proposal is still valid in the current epoch, the sender of the proposal
-MAY retransmit it.
+MAY resend it after updating it to reflect the current epoch.
 
 A member of the group MAY send a Commit that references no proposals at all,
 which would thus have an empty `proposals` vector.  Such
@@ -3463,7 +3461,7 @@ of the Commit.  An Update proposal can be regarded as a "lazy" version of this
 operation, where only the leaf changes and intermediate nodes are blanked out.
 
 By default, the `path` field of a Commit MUST be populated.  The `path` field
-MAY be omitted if (a) it covers at least one proposal and (b) none proposals
+MAY be omitted if (a) it covers at least one proposal and (b) none of the proposals
 covered by the Commit are of "path required" types.  A proposal type requires a
 path if it cannot change the group membership in a way that requires the forward
 secrecy and post-compromise security guarantees that an UpdatePath provides.
@@ -3475,7 +3473,7 @@ The only proposal types defined in this document that do not require a path are:
 * `reinit`
 
 New proposal types MUST state whether they require a path. If any instance of a
-proposal type requires a path, then the proposal type requires a path. This
+proposal type requires a path, then the Commit requires a path. This
 attribute of a proposal type is reflected in the "Path Required" field of the
 proposal type registry defined in {{mls-proposal-types}}.
 
@@ -3548,7 +3546,8 @@ message at the same time, by taking the following steps:
   field populated from Proposals received during the current epoch, and an empty
   `path` field.
 
-* Generate the provisional ratchet tree and GroupContext by applying the proposals
+* Generate the provisional ratchet tree and GroupContext by applying the valid,
+  compatible proposals
   referenced in the initial Commit object, as described in {{proposals}}. Update
   proposals are applied first, followed by Remove proposals, and then finally
   Add proposals. Add proposals are applied in the order listed in the
@@ -3581,8 +3580,8 @@ message at the same time, by taking the following steps:
      `commit_secret` as the value `path_secret[n+1]` derived from the
      `path_secret[n]` value assigned to the root node.
 
-* If not populating the `path` field: Set the `path` field in the Commit to the
-  null optional.  Define `commit_secret` as the all-zero vector of length
+* If not populating the `path` field: Set the `path` field in the Commit to a
+  zero-length vector.  Define `commit_secret` as the all-zero vector of length
   `KDF.Nh` (the same length as a `path_secret` value would be).  In this case,
   the new ratchet tree is the same as the provisional ratchet tree.
 
@@ -3635,8 +3634,8 @@ message at the same time, by taking the following steps:
   parameters:
   * `psktype`: `resumption`
   * `usage`: `reinit`
-  * `group_id`: The group ID for the current group
-  * `epoch`: The epoch that the group will be in after this Commit
+  * `group_id`: The group ID for the new group
+  * `epoch`: The epoch that the group will be in after this Commit (0x0)
 
 ### Processing a Commit
 
@@ -3798,13 +3797,17 @@ The full tree can be included via the `ratchet_tree` extension
 The `signature` on the GroupInfo struct authenticates the HPKE public key, so
 that the joiner knows that the public key was provided by a member of the group.
 The fields that are not signed are included in the key schedule via the
-GroupContext object. If the joiner is provided an inaccurate data for these
+GroupContext object. If the joiner has provided inaccurate data for these
 fields, then its external Commit will have an incorrect `confirmation_tag` and
 thus be rejected.
 
-The information in a GroupInfo is not deemed public in general, but applications
+The information in a GroupInfo is not generally public information, but applications
 can choose to make it available to new members in order to allow External
 Commits.
+
+External Commits come in two "flavors" -- a "join" commit that
+adds the sender to the group or a "resync" commit that replaces a member's prior
+appearance with a new one.
 
 In principle, External Commits work like regular Commits. However, their content
 has to meet a specific set of requirements:
@@ -3833,10 +3836,6 @@ has to meet a specific set of requirements:
 * The sender type for the MLSPlaintext encapsulating the External Commit MUST be
   `new_member`
 
-In other words, External Commits come in two "flavors" -- a "join" commit that
-adds the sender to the group or a "resync" commit that replaces a member's prior
-appearance with a new one.
-
 Note that the "resync" operation allows an attacker that has compromised a
 member's signature private key to introduce themselves into the group and remove the
 prior, legitimate member in a single Commit.  Without resync, this
@@ -3845,14 +3844,14 @@ a second Commit to remove the old appearance.  Applications for whom this
 distinction is salient can choose to disallow external commits that contain a
 Remove, or to allow such resync commits only if they contain a "reinit" PSK
 proposal that demonstrates the joining member's presence in a prior epoch of the
-group.  With the latter approach, the attacke would need to compromise the PSK
+group.  With the latter approach, the attacker would need to compromise the PSK
 as well as the signing key, but the application will need to ensure that
-continuing, non-resync'ing members have the required PSK.
+continuing, non-resynchronizing members have the required PSK.
 
 #### Joining via Welcome Message
 
-The sender of a Commit message is responsible for sending a Welcome message to
-any new members added via Add proposals.  The Welcome message provides the new
+The sender of a Commit message is responsible for sending a single Welcome message to
+all the new members added via Add proposals.  The Welcome message provides the new
 members with the current state of the group, after the application of the Commit
 message.  The new members will not be able to decrypt or verify the Commit
 message, but will have the secrets they need to participate in the epoch
@@ -4048,10 +4047,6 @@ def subtree_root(nodes):
     root.right = subtree_root(nodes[(R+1):])
     return root
 ~~~~~
-
-(Note that this is the same ordering of nodes as in the array-based tree representation
-described in {{array-based-trees}}.  The algorithms in that section may be used to
-simplify decoding this extension into other representations.)
 
 (Note that this is the same ordering of nodes as in the array-based tree representation
 described in {{array-based-trees}}.  The algorithms in that section may be used to
