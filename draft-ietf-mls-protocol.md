@@ -1268,22 +1268,24 @@ client presents a new credential, the application MUST verify that the set
 of identifiers in the credential is acceptable to the application for this
 client.
 
-### Deniable Signature Keys
-
-Some 1-to-1 messaging protocols such as Signal achieve varying degrees of
-plausible deniability by leveraging the symmetry of the Diffie-Hellman key
-exchange.
+### Alternative Signature Keys
 
 MLS uses signatures to achieve strong authentication of messages (see Section
-{{content-authentication}}). Since these signatures do not allow for plausible
-deniability, signatures on MLS messages can either be performed using the
-private key corresponding to the signature public key in the sender's
-credential, or by using another signature key that is not directly tied to the
-identity of the sender, thus allowing for some degree of deniability.
+{{content-authentication}}), where the signature establishes a non-repudiable
+link between the sender's credential and the message.
 
-Such deniable signature keys MUST be distributed and authenticated to and by
-each member out-of-band prior to any use for signature verification to ensure
-that MLS messages are still strongly authenticated.
+Alternative signature keys allow applications to negotiate an additional
+signature key out-of-band that recipients of MLS messages use to verify messages
+instead of the key contained in the sender's credential.
+
+Depending on how these alternative keys are distributed to new members, an
+application might be able to achive some degree of deniability w.r.t. signed MLS
+messages.
+
+To maintain strong authentication of MLS messages, the recipient of an
+alternative signature key for a group member MUST verify that the sender of the
+alternative signature key is in fact the holder of the credential in that group
+member's leaf.
 
 ### Uniquely Identifying Clients
 
@@ -1452,8 +1454,8 @@ struct {
 The `signature` field in an MLSMessageAuth object is computed either using the
 signing private key corresponding to the public key included in the credential
 at the leaf of the tree indicated by the sender field, or by the private key
-corresponding to the sender's deniable signature key as described in Section
-{{deniable-signature-keys}}. The signature is computed using `SignWithLabel`
+corresponding to the sender's alternative signature key as described in Section
+{{alternative-signature-keys}}. The signature is computed using `SignWithLabel`
 with label `"MLSMessageContentTBS"` and with a content that covers the message
 content and the wire format that will be used for this message. If the sender is
 a member of the group, the content also covers the GroupContext for the current
@@ -1477,8 +1479,8 @@ struct {
 
 Recipients of an MLSMessageAuth object authenticate it by verifying the
 signature over the corresponding MLSMessageContentTBS object using either the
-signature key contained in the sender's credential, or the sender's deniable
-signature key (see Section {{deniable-signature-keys}}.
+signature key contained in the sender's credential, or the sender's alternative
+signature key (see Section {{alternative-signature-keys}}.
 
 The confirmation tag value confirms that the members of the group have arrived
 at the same state of the group.
@@ -3777,7 +3779,7 @@ struct {
 
 New members MUST verify the `signature` using either the public key taken from
 the credential in the leaf node of the member with LeafNodeRef `signer`, or the
-deniable signature key of that member. The signature covers the following
+alternative signature key of that member. The signature covers the following
 structure, comprising all the fields in the GroupInfo above `signature`:
 
 ~~~
