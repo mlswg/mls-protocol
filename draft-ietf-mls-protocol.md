@@ -462,7 +462,7 @@ struct {
 } StructWithVectors;
 ~~~~~
 
-Such a vector can represent values with length from 0 bytes to 2^62 bytes.
+Such a vector can represent values with length from 0 bytes to 2^30 bytes.
 The variable-length integer encoding reserves the two most significant bits
 of the first byte to encode the base 2 logarithm of the integer encoding length
 in bytes.  The integer value is encoded on the remaining bits, in network byte
@@ -470,21 +470,22 @@ order.  The encoded value MUST use the smallest number of bits required to
 represent the value.  When decoding, values using more bits than necessary MUST
 be treated as malformed.
 
-This means that integers are encoded on 1, 2, 4, or 8 bytes and can encode 6-,
-14-, 30-, or 62-bit values respectively.
+This means that integers are encoded on 1, 2, or 4 bytes and can encode 6-,
+14-, or 30-bit values respectively.
 
-| Prefix | Length | Usable Bits | Min        | Max                 |
-|:-------|:-------|:------------|:-----------|:--------------------|
-| 00     | 1      | 6           | 0          | 63                  |
-| 01     | 2      | 14          | 64         | 16383               |
-| 10     | 4      | 30          | 16384      | 1073741823          |
-| 11     | 8      | 62          | 1073741824 | 4611686018427387903 |
+| Prefix | Length  | Usable Bits | Min        | Max                 |
+|:-------|:--------|:------------|:-----------|:--------------------|
+| 00     | 1       | 6           | 0          | 63                  |
+| 01     | 2       | 14          | 64         | 16383               |
+| 10     | 4       | 30          | 16384      | 1073741823          |
+| 11     | invalid | -           | -          | -                   |
 {: #integer-summary title="Summary of Integer Encodings"}
 
-For example, the eight-byte sequence c2 19 7c 5e ff 14 e8 8c (in hexadecimal)
-decodes to the decimal value 151288809941952652; the four byte sequence 9d 7f 3e
-7d decodes to 494878333; the two byte sequence 7b bd decodes to 15293; and the
-single byte 25 decodes to 37 (as does the two byte sequence 40 25).
+Vectors that start with "11" prefix are invalid and MUST be rejected.
+
+For example, the four byte sequence 0x9d7f3e7d decodes to 494878333;
+the two byte sequence 0x7bbd decodes to 15293; and the single byte 0x25
+decodes to 37.
 
 The following figure adapts the pseudocode provided in {{RFC9000}} to add a
 check for minimum-length encoding:
@@ -510,7 +511,7 @@ ReadVarint(data):
 ~~~~~
 
 The use of variable-size integers for vector lengths allows vectors to grow
-very large, up to 2^62 bytes.  Implementations should take care not to allow
+very large, up to 2^30 bytes.  Implementations should take care not to allow
 vectors to overflow available storage.  To facilitate debugging of potential
 interoperatbility problems, implementations should provide a clear error when
 such an overflow condition occurs.
@@ -1318,6 +1319,12 @@ Delivery Service to examine such messages.
 ~~~~~
 enum {
     reserved(0),
+    mls10(1),
+    (255)
+} ProtocolVersion;
+
+enum {
+    reserved(0),
     application(1),
     proposal(2),
     commit(3),
@@ -1346,7 +1353,7 @@ enum {
   mls_plaintext(1),
   mls_ciphertext(2),
   mls_welcome(3),
-  mls_public_group_state(4),
+  mls_group_info(4),
   mls_key_package(5),
   (255)
 } WireFormat;
@@ -1371,6 +1378,7 @@ struct {
 } MLSMessageContent;
 
 struct {
+    ProtocolVersion version = mls10;
     WireFormat wire_format;
     select (MLSMessage.wire_format) {
         case mls_plaintext:
@@ -1379,8 +1387,8 @@ struct {
             MLSCiphertext ciphertext;
         case mls_welcome:
             Welcome welcome;
-        case mls_public_group_state:
-            PublicGroupState public_group_state;
+        case mls_group_info:
+            GroupInfo group_info;
         case mls_key_package:
             KeyPackage key_package;
     }
@@ -1394,11 +1402,11 @@ The following structure is used to fully describe the data transmitted in
 plaintexts or ciphertexts.
 
 ~~~~~
-struct MLSMessageContentAuth {
+struct {
     WireFormat wire_format;
     MLSMessageContent content;
     MLSMessageAuth auth;
-}
+} MLSMessageContentAuth;
 ~~~~~
 
 ## Content Authentication
@@ -1435,6 +1443,7 @@ group and epoch.
 
 ~~~~~
 struct {
+    ProtocolVersion version = mls10;
     WireFormat wire_format;
     MLSMessageContent content;
     select (MLSMessageContentTBS.content.sender.sender_type) {
@@ -2111,14 +2120,14 @@ Consider a ratchet tree with a non-blank parent node P and children V and S.
 
 The parent hash of P changes whenever an `UpdatePath` object is applied to
 the ratchet tree along a path from a leaf U traversing node V (and hence also
-P). The new "Parent Hash of P (with Co-Path Child S)" is obtained by hashing P's
+P). The new "Parent hash of P (with copath child S)" is obtained by hashing P's
 `ParentHashInput` struct.
 
 ~~~~~
 struct {
     HPKEPublicKey public_key;
     opaque parent_hash<V>;
-    HPKEPublicKey original_child_resolution<V>;
+    opaque original_sibling_tree_hash<V>;
 } ParentHashInput;
 ~~~~~
 
@@ -2131,13 +2140,74 @@ that the path from P to the root may contain some blank nodes that are not
 fixed by P's Parent Hash. However, for each node that has an HPKE key, this key
 is fixed by P's Parent Hash.
 
-Finally, `original_child_resolution` is the array of HPKE public keys of the
-nodes in the resolution of S but with the `unmerged_leaves` of P omitted. For
-example, in the ratchet tree depicted in {{ratchet-tree-nodes}} the
-`ParentHashInput` of node Z with co-path child C would contain an empty
-`original_child_resolution` since C's resolution includes only itself but C is also
-an unmerged leaf of Z. Meanwhile, the `ParentHashInput` of node Z with co-path child
-D has an array with one element in it: the HPKE public key of D.
+Finally, `original_sibling_tree_hash` is the original tree hash of S. The
+original tree hash corresponds to the tree hash of S the last time P was
+updated. It can be computed as the tree hash of S in the ratchet tree modified
+the following way:
+
+* reset the leaves in P.unmerged_leaves to blanks
+* remove P.unmerged_leaves from all unmerged_leaves lists
+* truncate the ratchet tree as described in {{remove}}
+
+For example, in the following tree:
+
+~~~~~
+              W [D, H]
+        ______|_____
+       /             \
+      U [D]           Y [F, H]
+    __|__           __|__
+   /     \         /     \
+  T       _       X [F]   _
+ / \     / \     / \     / \
+A   B   C   D   E   F   G   H
+~~~~~
+
+With P = W and S = Y, `original_sibling_tree_hash` is the tree hash of the
+following tree:
+
+~~~~~
+      Y [F]
+    __|__
+   /     \
+  X [F]  |
+ / \     |
+E   F    G
+~~~~~
+
+Because `W.unmerged_leaves = [H]`, H is removed from `Y.unmerged_leaves`,
+then H is replaced with a blank leaf, then the tree is truncated removing the
+last two nodes.
+
+With P = W and S = U, `original_sibling_tree_hash` is the tree hash of the
+following tree:
+
+~~~~~
+      U
+    __|__
+   /     \
+  T       _
+ / \     / \
+A   B   C   _
+~~~~~
+
+This time we have 4 leaf nodes because the truncation of the ratchet tree didn't
+remove the last leaf.
+
+Note that no recomputation is needed if the tree hash of S is unchanged since
+the last time P was updated.  This is the case for computing or processing a
+Commit whose UpdatePath traverses P, since the Commit itself resets P.  (In
+other words, it is only necessary to recompute the original sibling tree hash
+when validating group's tree on joining.) More generally, if none of the entries
+in `P.unmerged_leaves` is in the subtree under S (and thus no nodes were truncated),
+then the original tree hash at S is the tree hash of S in the current tree.
+
+If it is necessary to recompute the original tree hash of a node, the efficiency
+of recomputation can be improved by caching intermediate tree hashes, to avoid
+recomputing over the subtree when the subtree is included in multiple parent
+hashes.  A subtree hash can be reused as long as the intersection of the
+parent's unmerged leaves with the subtree is the same as in the earlier
+computation.
 
 Observe that `original_child_resolution` is equal to the resolution of S at the
 time the `UpdatePath` was generated, since at that point P's set of unmerged
@@ -2157,7 +2227,7 @@ information about that node that must be conveyed to a new
 member joining the group as well as to define its Tree Hash.)
 
 If, on the other hand, V is the leaf U and its LeafNode has `leaf_node_source` set to `commit`,
-then the Parent Hash of P (with V's sibling as co-path child) is stored in
+then the Parent Hash of P (with V's sibling as copath child) is stored in
 the `parent_hash` field.  This is true in particular of the LeafNode object sent
 in the `leaf_node` field of an UpdatePath. The signature of such a LeafNode thus also
 attests to which keys the group member introduced into the ratchet tree and
@@ -2168,13 +2238,35 @@ at V. Indeed, such a ratchet tree would violate the tree invariant.
 
 ### Verifying Parent Hashes
 
-To this end, when processing a Commit message clients MUST recompute the
-expected value of `parent_hash` for the committer's new leaf and verify that it
-matches the `parent_hash` value in the supplied `leaf_node`. Moreover, when
-joining a group, new members MUST authenticate each non-blank parent node P. A parent
-node P is authenticated by checking that there exists a child V of P and a node U in the
-resolution of V such that V.`parent_hash` is equal to the Parent Hash of P with V's
-sibling as the co-path child.
+Parent hashes are verified at two points in the protocol: When joining a group
+and when processing a Commit.
+
+The parent hash in a node U is valid with respect to a parent node P if the
+following criteria hold:
+
+* U is a descendant of P in the tree
+* The nodes between U and P in the tree are all blank
+* The `parent_hash` field of U is equal to the parent hash of P with copath
+  child S, where S is the child of P that is not on the path from U to P.
+
+A parent node P is "parent-hash valid" if it can be chained back to a leaf node
+in this way.  That is, if there is leaf node L and a sequence of parent nodes
+P\_1, ..., P\_N such that P\_N = P and each step in the chain is authenticated
+by a parent hash: L's parent hash is valid with respect to P\_1, P\_1's parent
+hash is valid with respect to P\_2, and so on.
+
+When joining a group, the new member MUST authenticate that each non-blank
+parent node P is parent-hash valid.  This can be done "bottom up" by building
+chains up from leaves and verifying that all non-blank parent nodes are covered
+by exactly one such chain, or "top down" by verifying that there is exactly one
+descendant of each non-blank parent node for which the parent node is
+parent-hash valid.
+
+When processing a Commit message that includes an UpdatePath, clients MUST
+recompute the expected value of `parent_hash` for the committer's new leaf and
+verify that it matches the `parent_hash` value in the supplied `leaf_node`.
+After being merged into the tree, the nodes in the UpdatePath form a parent-hash
+chain from the committer's leaf to the root.
 
 ## Update Paths
 
@@ -2420,7 +2512,7 @@ is joining via an external commit.
 
 In this process, the joiner sends a new `init_secret` value to the group using
 the HPKE export method.  The joiner then uses that `init_secret` with
-information provided in the PublicGroupState and an external Commit to initialize
+information provided in the GroupInfo and an external Commit to initialize
 their copy of the key schedule for the new epoch.
 
 ~~~~~
@@ -2436,7 +2528,7 @@ context = SetupBaseR(kem_output, external_priv, "")
 init_secret = context.export("MLS 1.0 external init secret", KDF.Nh)
 ~~~~~
 
-In both cases, the `info` input to HPKE is set to the PublicGroupState for the
+In both cases, the `info` input to HPKE is set to the GroupInfo for the
 previous epoch, encoded using the TLS serialization.
 
 ## Pre-Shared Keys
@@ -2784,6 +2876,14 @@ enum {
     (255)
 } ProtocolVersion;
 
+// See IANA registry for registered values
+uint16 ExtensionType;
+
+struct {
+    ExtensionType extension_type;
+    opaque extension_data<V>;
+} Extension;
+
 struct {
     ProtocolVersion version;
     CipherSuite cipher_suite;
@@ -2806,7 +2906,13 @@ protocol extensions, and non-default proposal types are supported by the client.
 Proposal types defined in this document are considered "default" and thus need
 not be listed.
 
-Note that the `capabilties` field in the `client_info` allows MLS session
+If a client receives a KeyPackage carried within an MLSMessage object, then it
+MUST verify that the `version` field of the KeyPackage has the same value as the
+`version` field of the MLSMessage.  The `version` field in the KeyPackage
+provides an explicit signal of the intended version to the other members of
+group when they receive the KeyPackage in an Add proposal.
+
+The `capabilties` field in the `client_info` allows MLS session
 establishment to be safe from downgrade attacks on the parameters described (as
 discussed in {{group-creation}}), while still only advertising one version /
 ciphersuite per KeyPackage.
@@ -3623,7 +3729,6 @@ new members need information to bootstrap their local group state.
 
 ~~~
 struct {
-    ProtocolVersion version = mls10;
     CipherSuite cipher_suite;
     opaque group_id<V>;
     uint64 epoch;
