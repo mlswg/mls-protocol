@@ -1331,9 +1331,12 @@ enum {
 struct {
     SenderType sender_type;
     switch (sender_type) {
-        case member:        LeafNodeRef member;
-        case preconfigured: opaque sender_id<V>;
-        case new_member:    struct{};
+        case member:
+            LeafNodeRef member_ref;
+        case preconfigured:
+            opaque sender_id<V>;
+        case new_member:
+            struct{};
     }
 } Sender;
 
@@ -1357,10 +1360,8 @@ struct {
     select (MLSMessageContent.content_type) {
         case application:
           opaque application_data<V>;
-
         case proposal:
           Proposal proposal;
-
         case commit:
           Commit commit;
     }
@@ -1421,8 +1422,8 @@ struct {
 ~~~~~
 
 The `signature` field in an MLSMessageAuth object is computed using the signing
-private key corresponding to the public key, which was authenticated by the
-credential at the leaf of the tree indicated by the sender field. The signature
+private key corresponding to the public key of the sender. The sender is authenticated 
+by the credential at the leaf of the tree indicated by the sender field. The signature
 is computed using `SignWithLabel` with label `"MLSMessageContentTBS"` and with a content
 that covers the message content and the wire format that will be used for this message.
 If the sender is a member of the group, the content also covers the
@@ -1613,8 +1614,8 @@ sender_data_nonce = ExpandWithLabel(sender_data_secret, "nonce",
                       ciphertext_sample, AEAD.Nn)
 ~~~~~
 
-The Additional Authenticated Data (AAD) for the SenderData ciphertext is all the
-fields of MLSCiphertext excluding `encrypted_sender_data`:
+The Additional Authenticated Data (AAD) for the SenderData ciphertext is the
+first three fields of MLSCiphertext:
 
 ~~~~~
 struct {
