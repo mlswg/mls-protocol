@@ -3433,15 +3433,13 @@ MUST be Add. The MLSPlaintext MUST be signed with the private key corresponding
 to the KeyPackage in the Add message.  Recipients MUST verify that the
 MLSPlaintext carrying the Proposal message is validly signed with this key.
 
-The `preconfigured` SenderType can only be used if the `preconfigured_senders`
-extension is present in the group's group context extensions. Recipients MUST
-verify that the MLSPlaintext carrying the Proposal message is validly signed
-with the signature key in the credential located at the index equal to the
-sender's `sender_id`.
+The `preconfigured` SenderType is reserved for signers that are pre-provisioned
+to the clients within a group. It can only be used if the
+`preconfigured_senders` extension is present in the group's group context
+extensions.
 
-An external proposal MUST be sent as an MLSPlaintext
-object, since the sender will not have the keys necessary to construct an
-MLSCiphertext object.
+An external proposal MUST be sent as an MLSPlaintext object, since the sender
+will not have the keys necessary to construct an MLSCiphertext object.
 
 #### Preconfigured Senders Extension
 
