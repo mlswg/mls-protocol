@@ -1343,7 +1343,7 @@ struct {
     SenderType sender_type;
     switch (sender_type) {
         case member:        LeafNodeRef member;
-        case preconfigured: opaque sender_id<V>;
+        case preconfigured: u32 sender_id;
         case new_member:    struct{};
     }
 } Sender;
@@ -3385,18 +3385,25 @@ MUST be Add. The MLSPlaintext MUST be signed with the private key corresponding
 to the KeyPackage in the Add message.  Recipients MUST verify that the
 MLSPlaintext carrying the Proposal message is validly signed with this key.
 
-The `preconfigured` SenderType is reserved for signers that are pre-provisioned
-to the clients within a group.  If proposals with these sender IDs are to be
-accepted within a group, the members of the group MUST be provisioned by the
-application with a mapping between these IDs and authorized signing keys.
-Recipients MUST verify that the MLSPlaintext carrying the Proposal message is
-validly signed with the corresponding key. To ensure consistent handling of
-external proposals, the application MUST ensure that the members of a group
-have the same mapping and apply the same policies to external proposals.
+The `preconfigured` SenderType can only be used if the `preconfigured_senders`
+extension is present in the group's group context extensions. Recipients MUST
+verify that the MLSPlaintext carrying the Proposal message is validly signed
+with the signature key in the credential located at the index equal to the
+sender's `sender_id`.
 
 An external proposal MUST be sent as an MLSPlaintext
 object, since the sender will not have the keys necessary to construct an
 MLSCiphertext object.
+
+#### Preconfigured Senders Extension
+
+The `preconfigured_senders` extension is a group context extension that contains
+credentials of senders that are permitted to send external proposals to the
+group.
+
+~~~~~
+Credential preconfigured_senders<V>;
+~~~~~
 
 ## Commit
 
