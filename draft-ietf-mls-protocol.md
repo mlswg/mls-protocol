@@ -1432,14 +1432,25 @@ struct {
 } MLSMessageAuth;
 ~~~~~
 
-The `signature` field in an MLSMessageAuth object is computed using the signing
-private key corresponding to the public key, which was authenticated by the
-credential at the leaf of the tree indicated by the sender field. The signature
-is computed using `SignWithLabel` with label `"MLSMessageContentTBS"` and with a content
-that covers the message content and the wire format that will be used for this message.
-If the sender is a member of the group, the content also covers the
-GroupContext for the current epoch, so that signatures are specific to a given
-group and epoch.
+The signature is computed using `SignWithLabel` with label
+`"MLSMessageContentTBS"` and with a content that covers the message content and
+the wire format that will be used for this message. If the sender's
+`sender_type` is `Member`, the content also covers the GroupContext for the
+current epoch, so that signatures are specific to a given group and epoch.
+
+The sender MUST use the private key corresponding to the following signature key
+depending on the sender's `sender_type`:
+
+* `member`: The signature key contained in the Credential at the leaf with the
+  sender's `LeafNodeRef`
+* `preconfigured`: The signature key contained in the Credential at the index
+  indicated by the `sender_id` in the `preconfigured_senders` group context
+  extension (see Section {{preconfigured-senders-extension}}).
+* `new_member`: The signature key depends on the `content_type`:
+  * `proposal`: The signature key in the credential contained in KeyPackage in
+    the Add proposal (see Section {{external-proposals}}).
+  * `commit`: The signature key in the credential contained in the KeyPackage in
+    the Commit's path (see Section {{external-initialization}}).
 
 ~~~~~
 struct {
@@ -1456,6 +1467,9 @@ struct {
     }
 } MLSMessageContentTBS;
 ~~~~~
+
+Recipients of an MLSMessage MUST verify the signature with the key depending on
+the `sender_type` of the sender as described above.
 
 The confirmation tag value confirms that the members of the group have arrived
 at the same state of the group.
@@ -3669,9 +3683,8 @@ A member of the group applies a Commit message by taking the following steps:
 * Verify that the `epoch` field of the enclosing MLSMessageContent is equal
   to the `epoch` field of the current GroupContext object
 
-* Verify that the signature on the MLSMessageContent message verifies using the
-  public key from the credential stored at the leaf in the tree indicated by
-  the `sender` field.
+* Verify that the signature on the MLSMessageContent message as described in
+  Section {{content-authentication}}.
 
 * Verify that all PreSharedKey proposals in the `proposals` vector have unique
   PreSharedKeyIDs and are available.
