@@ -1378,7 +1378,7 @@ enum {
 enum {
     reserved(0),
     member(1),
-    preconfigured(2),
+    external(2),
     new_member(3),
     (255)
 } SenderType;
@@ -1388,8 +1388,8 @@ struct {
     switch (sender_type) {
         case member:
             LeafNodeRef member_ref;
-        case preconfigured:
-            u32 sender_id;
+        case external:
+            u32 sender_index;
         case new_member:
             struct{};
     }
@@ -1488,9 +1488,9 @@ depending on the sender's `sender_type`:
 
 * `member`: The signature key contained in the Credential at the leaf with the
   sender's `LeafNodeRef`
-* `preconfigured`: The signature key contained in the Credential at the index
-  indicated by the `sender_id` in the `preconfigured_senders` group context
-  extension (see Section {{preconfigured-senders-extension}}).
+* `external`: The signature key contained in the Credential at the index
+  indicated by the `sender_index` in the `external_senders` group context
+  extension (see Section {{external-senders-extension}}).
 * `new_member`: The signature key depends on the `content_type`:
   * `proposal`: The signature key in the credential contained in KeyPackage in
     the Add proposal (see Section {{external-proposals}}).
@@ -1507,7 +1507,7 @@ struct {
         case new_member:
             GroupContext context;
 
-        case preconfigured:
+        case external:
             struct{};
     }
 } MLSMessageContentTBS;
@@ -1533,7 +1533,7 @@ struct {
     select(MLSPlaintext.content.sender.sender_type) {
         case member:
             MAC membership_tag;
-        case preconfigured:
+        case external:
         case new_member:
             struct{};
     }
@@ -3421,10 +3421,10 @@ Add and Remove proposals can be constructed and sent to the group by a party
 that is outside the group.  For example, a Delivery Service might propose to
 remove a member of a group who has been inactive for a long time, or propose adding
 a newly-hired staff member to a group representing a real-world team.  Proposals
-originating outside the group are identified by a `preconfigured` or
+originating outside the group are identified by a `external` or
 `new_member` SenderType in MLSPlaintext.
 
-ReInit proposals can also be sent to the group by a `preconfigured` sender, for
+ReInit proposals can also be sent to the group by a `external` sender, for
 example to enforce a changed policy regarding MLS version or ciphersuite.
 
 The `new_member` SenderType is used for clients proposing that they themselves
@@ -3433,22 +3433,22 @@ MUST be Add. The MLSPlaintext MUST be signed with the private key corresponding
 to the KeyPackage in the Add message.  Recipients MUST verify that the
 MLSPlaintext carrying the Proposal message is validly signed with this key.
 
-The `preconfigured` SenderType is reserved for signers that are pre-provisioned
+The `external` SenderType is reserved for signers that are pre-provisioned
 to the clients within a group. It can only be used if the
-`preconfigured_senders` extension is present in the group's group context
+`external_senders` extension is present in the group's group context
 extensions.
 
 An external proposal MUST be sent as an MLSPlaintext object, since the sender
 will not have the keys necessary to construct an MLSCiphertext object.
 
-#### Preconfigured Senders Extension
+#### External Senders Extension
 
-The `preconfigured_senders` extension is a group context extension that contains
+The `external_senders` extension is a group context extension that contains
 credentials of senders that are permitted to send external proposals to the
 group.
 
 ~~~~~
-Credential preconfigured_senders<V>;
+Credential external_senders<V>;
 ~~~~~
 
 ## Commit
