@@ -1490,7 +1490,9 @@ depending on the sender's `sender_type`:
   sender's `LeafNodeRef`
 * `external`: The signature key contained in the Credential at the index
   indicated by the `sender_index` in the `external_senders` group context
-  extension (see Section {{external-senders-extension}}).
+  extension (see Section {{external-senders-extension}}).  In this case, the
+  `content_type` of the message MUST NOT be `commit`, since only members
+  of the group or new joiners can send Commit messages.
 * `new_member`: The signature key depends on the `content_type`:
   * `proposal`: The signature key in the credential contained in KeyPackage in
     the Add proposal (see Section {{external-proposals}}).
