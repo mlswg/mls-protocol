@@ -2990,6 +2990,9 @@ The client verifies the validity of a KeyPackage using the following steps:
 * Verify that the signature on the KeyPackage is valid using the public key
   in `leaf_node.credential`.
 
+* Verify that the value of `leaf_node.public_key` is different from the value of
+  the `init_key` field.
+
 ## KeyPackage Identifiers
 
 Within MLS, a KeyPackage is identified by its hash (see, e.g.,
