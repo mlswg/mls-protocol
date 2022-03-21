@@ -476,7 +476,7 @@ An optional value is encoded with a presence-signaling octet, followed by the
 value itself if present.  When decoding, a presence octet with a value other
 than 0 or 1 MUST be rejected as malformed.
 
-~~~
+~~~ tls
 struct {
     uint8 present;
     select (present) {
@@ -499,7 +499,7 @@ a variable-length integer encoding based on the one in Section 16 of
 encoding.) Instead of presenting min and max values, the vector description
 simply includes a `V`. For example:
 
-~~~
+~~~ tls
 struct {
     uint32 fixed<0..255>;
     opaque variable<V>;
@@ -534,7 +534,7 @@ decodes to 37.
 The following figure adapts the pseudocode provided in {{RFC9000}} to add a
 check for minimum-length encoding:
 
-~~~
+~~~ pseudocode
 ReadVarint(data):
   // The length of variable-length integers is encoded in the
   // first two bits of the first byte.
@@ -625,7 +625,7 @@ both Proposal/Commit messages as well as any application data.
 
 The cryptographic state at the core of MLS is divided into three areas of responsibility:
 
-~~~
+~~~ ascii-art
                            epoch_secret
                          _      |      _
 |\ Ratchet              /      ...      \                    Secret /|
@@ -707,18 +707,18 @@ MLSPlaintext or MLSCiphertext objects.
 Before the initialization of a group, clients publish KeyPackages to a directory
 provided by the Service Provider.
 
-~~~
+~~~ aasvg
                                                                Group
 A                B                C            Directory       Channel
 |                |                |                |              |
 | KeyPackageA    |                |                |              |
-|------------------------------------------------->|              |
++------------------------------------------------->|              |
 |                |                |                |              |
 |                | KeyPackageB    |                |              |
-|                |-------------------------------->|              |
+|                +-------------------------------->|              |
 |                |                |                |              |
 |                |                | KeyPackageC    |              |
-|                |                |--------------->|              |
+|                |                +--------------->|              |
 |                |                |                |              |
 ~~~
 {: title="Clients A, B, and C publish KeyPackages to the directory"}
@@ -735,36 +735,36 @@ Upon receiving the Welcome message, the new member will be able to read and send
 new messages to the group. However, messages sent before they were added to the
 group will not be accessible.
 
-~~~
+~~~ aasvg
                                                                Group
 A              B              C          Directory            Channel
 |              |              |              |                   |
 |         KeyPackageB, KeyPackageC           |                   |
-|<-------------------------------------------|                   |
+|<-------------------------------------------+                   |
 |              |              |              |                   |
 |              |              |              | Add(A->AB)        |
 |              |              |              | Commit(Add)       |
-|--------------------------------------------------------------->|
++--------------------------------------------------------------->|
 |              |              |              |                   |
 |  Welcome(B)  |              |              |                   |
-|------------->|              |              |                   |
++------------->|              |              |                   |
 |              |              |              |                   |
 |              |              |              | Add(A->AB)        |
 |              |              |              | Commit(Add)       |
-|<---------------------------------------------------------------|
+|<---------------------------------------------------------------+
 |              |              |              |                   |
 |              |              |              |                   |
 |              |              |              | Add(AB->ABC)      |
 |              |              |              | Commit(Add)       |
-|--------------------------------------------------------------->|
++--------------------------------------------------------------->|
 |              |              |              |                   |
 |              |  Welcome(C)  |              |                   |
-|---------------------------->|              |                   |
++---------------------------->|              |                   |
 |              |              |              |                   |
 |              |              |              | Add(AB->ABC)      |
 |              |              |              | Commit(Add)       |
-|<---------------------------------------------------------------|
-|              |<------------------------------------------------|
+|<---------------------------------------------------------------+
+|              |<------------------------------------------------+
 |              |              |              |                   |
 ~~~
 {: title="Client A creates a group with clients B and C"}
@@ -787,20 +787,20 @@ is active, and members that don't update should eventually be removed from the
 group. It's left to the application to determine an appropriate amount of time
 between Updates.
 
-~~~
+~~~ aasvg
                                                           Group
 A              B     ...      Z          Directory        Channel
 |              |              |              |              |
 |              | Update(B)    |              |              |
-|              |------------------------------------------->|
+|              +------------------------------------------->|
 | Commit(Upd)  |              |              |              |
-|---------------------------------------------------------->|
++---------------------------------------------------------->|
 |              |              |              |              |
 |              |              |              | Update(B)    |
 |              |              |              | Commit(Upd)  |
-|<----------------------------------------------------------|
-|              |<-------------------------------------------|
-|              |              |<----------------------------|
+|<----------------------------------------------------------+
+|              |<-------------------------------------------+
+|              |              |<----------------------------+
 |              |              |              |              |
 ~~~
 {: title="Client B proposes to update its key, and client A commits the
@@ -817,18 +817,18 @@ is actually allowed to evict other members; groups can
 enforce access control policies on top of these
 basic mechanism.
 
-~~~
+~~~ aasvg
                                                           Group
 A              B     ...      Z          Directory       Channel
 |              |              |              |              |
 |              |              | Remove(B)    |              |
 |              |              | Commit(Rem)  |              |
-|              |              |---------------------------->|
+|              |              +---------------------------->|
 |              |              |              |              |
 |              |              |              | Remove(B)    |
 |              |              |              | Commit(Rem)  |
-|<----------------------------------------------------------|
-|              |              |<----------------------------|
+|<----------------------------------------------------------+
+|              |              |<----------------------------+
 |              |              |              |              |
 ~~~
 {: title="Client Z removes client B from the group"}
@@ -849,7 +849,7 @@ different parameters. Branching starts a new group with a subset of the original
 group's participants (with no effect on the original group).  In both cases,
 the new group is linked to the old group via a resumption PSK.
 
-~~~
+~~~ ascii-art
 epoch_A_[n-1]
      |
      |
@@ -867,13 +867,7 @@ epoch_A_[n]           epoch_B_[0]
 {: title="Reinitializing a group" }
 
 
-~~~
-epoch_A_[n-1]
-     |
-     |
-     |<-- ReInit
-     |
-     V
+~~~ ascii-art
 epoch_A_[n]           epoch_B_[0]
      |                     |
      |  PSK(usage=branch)  |
@@ -890,13 +884,7 @@ from epoch `n` is injected into epoch `n+k`.  This demonstrates that the members
 of the group at epoch `n+k` were also members at epoch `n`, irrespective of any
 changes to these members' keys due to Updates or Commits.
 
-~~~
-epoch_A_[n-1]
-     |
-     |
-     |<-- ReInit
-     |
-     V
+~~~ ascii-art
 epoch_A_[n]
      |
      |  PSK(usage=application)
@@ -980,7 +968,7 @@ For example, in the below tree:
 * The direct path of C is (W, V, X)
 * The copath of C is (D, U, Z)
 
-~~~
+~~~ ascii-art
               X = root
         ______|______
        /             \
@@ -1053,7 +1041,7 @@ private keys of the tree held by each participant would be as follows, where `_`
 represents a blank node, `?` represents an unknown private key, and `pk(X)`
 represents the public key corresponding to the private key `X`:
 
-~~~
+~~~ ascii-art
          Public Tree
 ============================
             pk(ABCD)
@@ -1111,7 +1099,7 @@ For example, consider the following subtree, where the `_` character
 represents a blank node and unmerged leaves are indicated in square
 brackets:
 
-~~~
+~~~ ascii-art
        ...
        /
       _
@@ -1162,7 +1150,7 @@ are opaque values in a format defined by the underlying
 protocol (see the Cryptographic Dependencies section of the HPKE specification for more
 information).
 
-~~~
+~~~ tls
 opaque HPKEPublicKey<V>;
 ~~~
 
@@ -1175,7 +1163,7 @@ members).
 To disambiguate different signatures used in MLS, each signed value is prefixed
 by a label as shown below:
 
-~~~
+~~~ pseudocode
 SignWithLabel(SignatureKey, Label, Content) =
     Signature.Sign(SignatureKey, SignContent)
 
@@ -1201,9 +1189,15 @@ Some MLS messages refer to other MLS objects by hash.  For example, Welcome
 messages refer to KeyPackages for the members being welcomed, and Commits refer
 to Proposals they cover.  These identifiers are computed as follows:
 
-~~~
+~~~ tls
 opaque HashReference[16];
 
+HashReference KeyPackageRef;
+HashReference LeafNodeRef;
+HashReference ProposalRef;
+~~~
+
+~~~ pseudocode
 MakeKeyPackageRef(value) = KDF.expand(
   KDF.extract("", value), "MLS 1.0 KeyPackage Reference", 16)
 
@@ -1212,10 +1206,6 @@ MakeLeafNodeRef(value) = KDF.expand(
 
 MakeProposalRef(value) = KDF.expand(
   KDF.extract("", value), "MLS 1.0 Proposal Reference", 16)
-
-HashReference KeyPackageRef;
-HashReference LeafNodeRef;
-HashReference ProposalRef;
 ~~~
 
 For a KeyPackageRef, the `value` input is the encoded KeyPackage, and the
@@ -1254,7 +1244,7 @@ to verify the identity / signing key binding.
 Additionally, Credentials SHOULD specify the signature scheme corresponding to
 each contained public key.
 
-~~~
+~~~ tls
 // See RFC 8446 and the IANA TLS SignatureScheme registry
 uint16 SignatureScheme;
 
@@ -1360,7 +1350,7 @@ handshake messages, but MAY transmit handshake messages encoded
 as MLSPlaintext objects in cases where it is necessary for the
 Delivery Service to examine such messages.
 
-~~~
+~~~ tls
 enum {
     reserved(0),
     mls10(1),
@@ -1446,7 +1436,7 @@ for their use.
 The following structure is used to fully describe the data transmitted in
 plaintexts or ciphertexts.
 
-~~~
+~~~ tls
 struct {
     WireFormat wire_format;
     MLSMessageContent content;
@@ -1458,7 +1448,7 @@ struct {
 
 MLSMessageContent is authenticated using the MLSMessageAuth structure.
 
-~~~
+~~~ tls
 struct {
     opaque mac_value<V>;
 } MAC;
@@ -1486,7 +1476,7 @@ If the sender is a member of the group, the content also covers the
 GroupContext for the current epoch, so that signatures are specific to a given
 group and epoch.
 
-~~~
+~~~ tls
 struct {
     ProtocolVersion version = mls10;
     WireFormat wire_format;
@@ -1512,7 +1502,7 @@ A MLSMessageAuth is said to be valid when both the `signature` and
 
 Plaintexts are encoded using the MLSPlaintext structure.
 
-~~~
+~~~ tls
 struct {
     MLSMessageContent content;
     MLSMessageAuth auth;
@@ -1530,13 +1520,15 @@ The `membership_tag` field in the MLSPlaintext object authenticates the sender's
 membership in the group. For messages sent by members, it MUST be set to the
 following value:
 
-~~~
+~~~ tls
 struct {
   MLSMessageContentTBS content_tbs;
   MLSMessageAuth auth;
 } MLSMessageContentTBM;
+~~~
 
-membership_tag = MAC(membership_key, MLSMessageContentTBM);
+~~~ pseudocode
+membership_tag = MAC(membership_key, MLSMessageContentTBM)
 ~~~
 
 
@@ -1548,7 +1540,7 @@ MLSMessageAuth is valid.
 
 Ciphertexts are encoded using the MLSCiphertext structure.
 
-~~~
+~~~ tls
 struct {
     opaque group_id<V>;
     uint64 epoch;
@@ -1567,7 +1559,7 @@ and MLSCiphertextContent.
 
 The ciphertext content is encoded using the MLSCiphertextContent structure.
 
-~~~
+~~~ tls
 struct {
     select (MLSCiphertext.content_type) {
         case application:
@@ -1605,7 +1597,7 @@ include the reuse guard in the `reuse_guard` field of the sender data object, so
 that the recipient of the message can use it to compute the nonce to be used for
 decryption.
 
-~~~
+~~~ ascii-art
 +-+-+-+-+---------...---+
 |   Key Schedule Nonce  |
 +-+-+-+-+---------...---+
@@ -1623,7 +1615,7 @@ The Additional Authenticated Data (AAD) input to the encryption
 contains an object of the following form, with the values used to
 identify the key and nonce:
 
-~~~
+~~~ tls
 struct {
     opaque group_id<V>;
     uint64 epoch;
@@ -1642,7 +1634,7 @@ encrypted with the ciphersuite's AEAD with a key and nonce derived from both the
 `sender_data_secret` and a sample of the encrypted content. Before being
 encrypted, the sender data is encoded as an object of the following form:
 
-~~~
+~~~ tls
 struct {
     LeafNodeRef sender;
     uint32 generation;
@@ -1662,7 +1654,7 @@ The key and nonce provided to the AEAD are computed as the KDF of the first
 length of the ciphertext is less than `KDF.Nh`, the whole ciphertext is used
 without padding. In pseudocode, the key and nonce are derived as:
 
-~~~
+~~~ pseudocode
 ciphertext_sample = ciphertext[0..KDF.Nh-1]
 
 sender_data_key = ExpandWithLabel(sender_data_secret, "key",
@@ -1674,7 +1666,7 @@ sender_data_nonce = ExpandWithLabel(sender_data_secret, "nonce",
 The Additional Authenticated Data (AAD) for the SenderData ciphertext is the
 first three fields of MLSCiphertext:
 
-~~~
+~~~ tls
 struct {
     opaque group_id<V>;
     uint64 epoch;
@@ -1701,7 +1693,7 @@ As discussed in {{ratchet-tree-nodes}}, the nodes of a ratchet tree contain
 several types of data describing individual members (for leaf nodes) or
 subgroups of the group (for parent nodes).  Parent nodes are simpler:
 
-~~~
+~~~ tls
 struct {
     HPKEPublicKey public_key;
     opaque parent_hash<V>;
@@ -1722,7 +1714,7 @@ appearance in the group, signed by that client. It is also used in client
 KeyPackage objects to store the information that will be needed to add a
 client to a group.
 
-~~~
+~~~ tls
 enum {
     reserved(0),
     key_package(1),
@@ -1949,7 +1941,7 @@ DeriveSecret and the node secret is used as an input to DeriveKeyPair.
 For example, suppose there is a group with four members, with C an unmerged leaf
 at Z:
 
-~~~
+~~~ ascii-art
       Y
     __|__
    /     \
@@ -1965,7 +1957,7 @@ If member B subsequently generates an UpdatePath based on a secret
 "leaf_secret", then it would generate the following sequence
 of path secrets:
 
-~~~
+~~~ ascii-art
 path_secret[1] --> node_secret[1] --> node_priv[1], node_pub[1]
      ^
      |
@@ -1980,7 +1972,7 @@ After applying the UpdatePath, the tree will have the following structure, where
 `lp` and `np[i]` represent the leaf_priv and node_priv values generated as
 described above:
 
-~~~
+~~~ ascii-art
     np[1] -> Y'
            __|__
           /     \
@@ -2011,7 +2003,7 @@ left-balanced (or set it as a new root).  The former right child of P's
 parent becomes P's left child (or the old root becomes P's left child if
 P is the new root).
 
-~~~
+~~~ ascii-art
                    _ <-- new parent              _
                  __|_                          __|__
                 /    \                        /     \
@@ -2025,7 +2017,7 @@ node P.  If P was the root of the tree, P's left child
 is now the root of the tree.  Otherwise, set the right child of P's parent
 to be P's left child.
 
-~~~
+~~~ ascii-art
       Y                                    Y
     __|__                                __|_
    /     \                              /    \
@@ -2135,7 +2127,7 @@ which we define recursively, starting with the leaves.
 The tree hash of a leaf node is the hash of leaf's `LeafNodeHashInput` object which
 might include a `LeafNode` object depending on whether or not it is blank.
 
-~~~
+~~~ tls
 struct {
     uint32 leaf_index;
     optional<LeafNode> leaf_node;
@@ -2146,7 +2138,7 @@ Now the tree hash of any non-leaf node is recursively defined to be the hash of
 its `ParentNodeHashInput`. This includes an optional `ParentNode`
 object depending on whether the node is blank or not.
 
-~~~
+~~~ tls
 struct {
     optional<ParentNode> parent_node;
     opaque left_hash<V>;
@@ -2167,7 +2159,7 @@ leaf node was last updated.
 
 Consider a ratchet tree with a non-blank parent node P and children V and S.
 
-~~~
+~~~ ascii-art
         ...
         /
        P
@@ -2184,7 +2176,7 @@ the ratchet tree along a path from a leaf U traversing node V (and hence also
 P). The new "Parent hash of P (with copath child S)" is obtained by hashing P's
 `ParentHashInput` struct.
 
-~~~
+~~~ tls
 struct {
     HPKEPublicKey public_key;
     opaque parent_hash<V>;
@@ -2212,7 +2204,7 @@ the following way:
 
 For example, in the following tree:
 
-~~~
+~~~ ascii-art
               W [D, H]
         ______|_____
        /             \
@@ -2229,7 +2221,7 @@ hash computations" }
 With P = W and S = Y, `original_sibling_tree_hash` is the tree hash of the
 following tree:
 
-~~~
+~~~ ascii-art
       Y [F]
     __|__
    /     \
@@ -2245,7 +2237,7 @@ last two nodes.
 With P = W and S = U, `original_sibling_tree_hash` is the tree hash of the
 following tree:
 
-~~~
+~~~ ascii-art
       U
     __|__
    /     \
@@ -2341,7 +2333,7 @@ root. The path is ordered
 from the closest node to the leaf to the root; each node MUST be the
 parent of its predecessor.
 
-~~~
+~~~ tls
 struct {
     opaque kem_output<V>;
     opaque ciphertext<V>;
@@ -2366,7 +2358,7 @@ encryption to the respective resolution node.
 
 The HPKECiphertext values are computed as
 
-~~~
+~~~ pseudocode
 kem_output, context = SetupBaseS(node_public_key, group_context)
 ciphertext = context.Seal("", path_secret)
 ~~~
@@ -2384,20 +2376,22 @@ key of the resolution node.
 Group keys are derived using the `Extract` and `Expand` functions from the KDF
 for the group's ciphersuite, as well as the functions defined below:
 
-~~~
+~~~ pseudocode
 ExpandWithLabel(Secret, Label, Context, Length) =
     KDF.Expand(Secret, KDFLabel, Length)
 
+DeriveSecret(Secret, Label) =
+    ExpandWithLabel(Secret, Label, "", KDF.Nh)
+~~~
+
 Where KDFLabel is specified as:
 
+~~~ tls
 struct {
     uint16 length = Length;
     opaque label<V> = "MLS 1.0 " + Label;
     opaque context<V> = Context;
 } KDFLabel;
-
-DeriveSecret(Secret, Label) =
-    ExpandWithLabel(Secret, Label, "", KDF.Nh)
 ~~~
 
 The value `KDF.Nh` is the size of an output from `KDF.Extract`, in bytes.  In
@@ -2418,7 +2412,7 @@ following information to derive new epoch secrets:
 Given these inputs, the derivation of secrets for an epoch
 proceeds as shown in the following diagram:
 
-~~~
+~~~ ascii-art
                    init_secret_[n-1]
                          |
                          V
@@ -2469,7 +2463,7 @@ A number of secrets are derived from the epoch secret for different purposes:
 The "external secret" is used to derive an HPKE key pair whose private key is
 held by the entire group:
 
-~~~
+~~~ pseudocode
 external_priv, external_pub = KEM.DeriveKeyPair(external_secret)
 ~~~
 
@@ -2481,7 +2475,7 @@ in order to allow non-members to join the group using an external commit.
 Each member of the group maintains a GroupContext object that
 summarizes the state of the group:
 
-~~~
+~~~ tls
 struct {
     opaque group_id<V>;
     uint64 epoch;
@@ -2534,7 +2528,7 @@ in which they were sent.
 The `confirmed_transcript_hash` is updated with an MLSMessageContent and
 MLSMessageAuth containing a Commit in two steps:
 
-~~~
+~~~ tls
 struct {
     WireFormat wire_format;
     MLSMessageContent content; //with content.content_type == commit
@@ -2544,7 +2538,9 @@ struct {
 struct {
     MAC confirmation_tag;
 } MLSMessageCommitAuthData;
+~~~
 
+~~~ pseudocode
 interim_transcript_hash_[0] = ""; // zero-length octet string
 
 confirmed_transcript_hash_[n] =
@@ -2578,7 +2574,7 @@ the HPKE export method.  The joiner then uses that `init_secret` with
 information provided in the GroupInfo and an external Commit to initialize
 their copy of the key schedule for the new epoch.
 
-~~~
+~~~ pseudocode
 kem_output, context = SetupBaseS(external_pub, "")
 init_secret = context.export("MLS 1.0 external init secret", KDF.Nh)
 ~~~
@@ -2586,7 +2582,7 @@ init_secret = context.export("MLS 1.0 external init secret", KDF.Nh)
 Members of the group receive the `kem_output` in an ExternalInit proposal and
 preform the corresponding calculation to retrieve the `init_secret` value.
 
-~~~
+~~~ pseudocode
 context = SetupBaseR(kem_output, external_priv, "")
 init_secret = context.export("MLS 1.0 external init secret", KDF.Nh)
 ~~~
@@ -2627,7 +2623,7 @@ Welcome message corresponding to the Commit.  To ensure that existing and new
 members compute the same PSK input to the key schedule, the Commit and
 GroupSecrets objects MUST indicate the same set of PSKs, in the same order.
 
-~~~
+~~~ tls
 enum {
   reserved(0),
   external(1),
@@ -2668,13 +2664,15 @@ For resumption PSKs, the PSK is defined as the `resumption_secret` of the group 
 epoch specified in the `PreSharedKeyID` object. Specifically, `psk_secret` is
 computed as follows:
 
-~~~
+~~~ tls
 struct {
     PreSharedKeyID id;
     uint16 index;
     uint16 count;
 } PSKLabel;
+~~~
 
+~~~ pseudocode
 psk_extracted_[i] = KDF.Extract(0, psk_[i])
 psk_input_[i] = ExpandWithLabel(psk_extracted_[i], "derived psk",
                   PSKLabel, KDF.Nh)
@@ -2690,7 +2688,7 @@ Here `0` represents the all-zero vector of length `KDF.Nh`. The `index` field in
 chained together with KDF.Extract invocations (labelled "Extract" for brevity
 in the diagram), as follows:
 
-~~~
+~~~ ascii-art
                  0                               0    = psk_secret_[0]
                  |                               |
                  V                               V
@@ -2716,7 +2714,7 @@ The main MLS key schedule provides an `exporter_secret` which can
 be used by an application as the basis to derive new secrets called
 `exported_value` outside the MLS layer.
 
-~~~
+~~~ pseudocode
 MLS-Exporter(Label, Context, key_length) =
        ExpandWithLabel(DeriveSecret(exporter_secret, Label),
                          "exporter", Hash(Context), key_length)
@@ -2765,7 +2763,7 @@ tree.
 If N is a parent node in the Secret Tree then the secrets of the children of N
 are defined as follows (where left(N) and right(N) denote the children of N):
 
-~~~
+~~~ ascii-art
 tree_node_[N]_secret
         |
         |
@@ -2780,7 +2778,7 @@ The secret in the leaf of the Secret Tree is used to initiate two symmetric hash
 ratchets, from which a sequence of single-use keys and nonces are derived, as
 described in {{encryption-keys}}. The root of each ratchet is computed as:
 
-~~~
+~~~ ascii-art
 tree_node_[N]_secret
         |
         |
@@ -2819,14 +2817,14 @@ Keys, nonces, and the secrets in ratchets are derived using
 DeriveTreeSecret. The context in a given call consists of the current position
 in the ratchet.
 
-~~~
+~~~ pseudocode
 DeriveTreeSecret(Secret, Label, Generation, Length) =
     ExpandWithLabel(Secret, Label, Generation, Length)
 
 Where Generation is encoded as a uint32.
 ~~~
 
-~~~
+~~~ ascii-art
 ratchet_secret_[N]_[j]
       |
       +--> DeriveTreeSecret(., "nonce", j, AEAD.Nn)
@@ -2877,7 +2875,7 @@ values have been consumed and MUST be deleted:
 Concretely, suppose we have the following Secret Tree and ratchet for
 participant D:
 
-~~~
+~~~ ascii-art
        G
      /   \
     /     \
@@ -2931,7 +2929,7 @@ The signature is computed by the function `SignWithLabel` with a label
 `KeyPackage` and a content comprising of all of the fields except for the
 signature field.
 
-~~~
+~~~ tls
 struct {
     ProtocolVersion version;
     CipherSuite cipher_suite;
@@ -2996,7 +2994,7 @@ Within MLS, a KeyPackage is identified by its hash (see, e.g.,
 {{joining-via-welcome-message}}).  The `external_key_id` extension allows
 applications to add an explicit, application-defined identifier to a KeyPackage.
 
-~~~
+~~~ tls
 opaque external_key_id<V>;
 ~~~
 
@@ -3058,7 +3056,7 @@ group.  At a minimum, all members of the group need to support the ciphersuite
 and protocol version in use.  Additional requirements can be imposed by
 including a `required_capabilities` extension in the GroupContext.
 
-~~~
+~~~ tls
 struct {
     ExtensionType extension_types<V>;
     ProposalType proposal_types<V>;
@@ -3155,7 +3153,7 @@ a state transition occurs, the epoch number is incremented by one.
 Proposals are included in an MLSMessageContent by way of a Proposal structure
 that indicates their type:
 
-~~~
+~~~ tls
 // See IANA registry for registered values
 uint16 ProposalType;
 
@@ -3185,7 +3183,7 @@ An Add proposal requests that a client with a specified KeyPackage be added
 to the group.  The proposer of the Add MUST verify the validity of the
 KeyPackage, as specified in {{keypackage-validation}}.
 
-~~~
+~~~ tls
 struct {
     KeyPackage key_package;
 } Add;
@@ -3217,7 +3215,7 @@ An Update proposal is a similar mechanism to Add with the distinction
 that it replaces the sender's LeafNode in the tree instead of adding a new leaf
 to the tree.
 
-~~~
+~~~ tls
 struct {
     LeafNode leaf_node;
 } Update;
@@ -3240,7 +3238,7 @@ A member of the group applies an Update message by taking the following steps:
 A Remove proposal requests that the member with LeafNodeRef `removed` be removed
 from the group.
 
-~~~
+~~~ tls
 struct {
     LeafNodeRef removed;
 } Remove;
@@ -3265,7 +3263,7 @@ A member of the group applies a Remove message by taking the following steps:
 A PreSharedKey proposal can be used to request that a pre-shared key be
 injected into the key schedule in the process of advancing the epoch.
 
-~~~
+~~~ tls
 struct {
     PreSharedKeyID psk;
 } PreSharedKey;
@@ -3284,7 +3282,7 @@ parameters, for example, to increase the version number or to change the
 ciphersuite. The reinitialization is done by creating a completely new group
 and shutting down the old one.
 
-~~~
+~~~ tls
 struct {
     opaque group_id<V>;
     ProtocolVersion version;
@@ -3308,7 +3306,7 @@ in the ReInit proposal MUST be no less than the version for the current group.
 An ExternalInit proposal is used by new members that want to join a group by
 using an external commit. This proposal can only be used in that context.
 
-~~~
+~~~ tls
 struct {
   opaque kem_output<V>;
 } ExternalInit;
@@ -3325,7 +3323,7 @@ Though this information implies no change to the group, it is structured as a
 Proposal message so that it is included in the group's transcript by being
 included in Commit messages.
 
-~~~
+~~~ tls
 struct {
     LeafNodeRef sender;
     uint32 first_generation;
@@ -3445,7 +3443,7 @@ for previously sent proposals from anyone (including the committer) can be sent
 by reference.  Proposals sent by reference are specified by including the hash of
 the MLSPlaintext in which the proposal was sent (see {{hash-based-identifiers}}).
 
-~~~
+~~~ tls
 enum {
   reserved(0),
   proposal(1)
@@ -3535,7 +3533,7 @@ appearance of the updated member.
 In pseudocode, the logic for validating the `path` field of a Commit is as
 follows:
 
-~~~
+~~~ pseudocode
 pathRequiredTypes = [
     update,
     remove,
@@ -3768,7 +3766,7 @@ New members can join the group in two ways. Either by being added by a group
 member, or by adding themselves through an external Commit. In both cases, the
 new members need information to bootstrap their local group state.
 
-~~~
+~~~ tls
 struct {
     CipherSuite cipher_suite;
     opaque group_id<V>;
@@ -3789,7 +3787,7 @@ credential in the leaf node of the member with LeafNodeRef `signer`. The
 signature covers the following structure, comprising all the fields in the
 GroupInfo above `signature`:
 
-~~~
+~~~ tls
 struct {
     CipherSuite cipher_suite;
     opaque group_id<V>;
@@ -3828,7 +3826,7 @@ following information for the group's current epoch:
 In other words, to join a group via an External Commit, a new member needs a
 GroupInfo with an `ExternalPub` extension present in the `other_extensions`.
 
-~~~
+~~~ tls
 struct {
     HPKEPublicKey external_pub;
 } ExternalPub;
@@ -3914,7 +3912,7 @@ If the sender of the Welcome message wants the receiving member to include a PSK
 in the derivation of the `epoch_secret`, they can populate the `psks` field
 indicating which PSK to use.
 
-~~~
+~~~ tls
 struct {
   opaque path_secret<V>;
 } PathSecret;
@@ -3961,7 +3959,7 @@ On receiving a Welcome message, a client processes it using the following steps:
   the `welcome_key` and `welcome_nonce`. Use the key and nonce to decrypt the
   `encrypted_group_info` field.
 
-~~~
+~~~ pseudocode
 welcome_nonce = KDF.Expand(welcome_secret, "nonce", AEAD.Nn)
 welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 ~~~
@@ -4038,7 +4036,7 @@ In cases where the application does not wish to provide such an external source,
 the whole public state of the ratchet tree can be provided in an extension of
 type `ratchet_tree`, containing a `ratchet_tree` object of the following form:
 
-~~~
+~~~ tls
 enum {
     reserved(0),
     leaf(1),
@@ -4069,7 +4067,7 @@ that 2^k is smaller than the length of the array. Intermediate parent nodes can
 be identified by performing the same calculation to the subarrays to the left
 and right of the root, following something like the following algorithm:
 
-~~~
+~~~ python
 # Assuming a class Node that has left and right members
 def subtree_root(nodes):
     # If there is only one node in the array return it
@@ -4099,7 +4097,7 @@ The example tree in {{ratchet-tree-terminology}} would be represented as an
 array of nodes in the following form, where R represents the "subtree root" for
 a given subarray of the node array:
 
-~~~
+~~~ ascii-art
               X
         ______|______
        /             \
@@ -4535,13 +4533,13 @@ cryptographic algorithms that should be used.
 
 Ciphersuite names follow the naming convention:
 
-~~~
+~~~ tls
 CipherSuite MLS_LVL_KEM_AEAD_HASH_SIG = VALUE;
 ~~~
 
 Where VALUE is represented as a sixteen-bit integer:
 
-~~~
+~~~ tls
 uint16 CipherSuite;
 ~~~
 
@@ -4770,7 +4768,7 @@ MLS DE, that MLS DE SHOULD defer to the judgment of the other MLS DEs.
 This document registers the "message/mls" MIME media type in order to allow other
 protocols (ex: HTTP {{!RFC7540}}) to convey MLS messages.
 
-~~~
+~~~ ascii-art
   Media type name: message
   Media subtype name: mls
   Required parameters: none
@@ -4893,7 +4891,7 @@ even-numbered nodes, with the n-th leaf at 2\*n.  Intermediate nodes
 are held in odd-numbered nodes.  For example, tree with 11 leaves has
 the following structure:
 
-~~~
+~~~ ascii-art
                                                    X
                            X
                X                       X                       X
@@ -4908,7 +4906,7 @@ manipulating indices, rather than having to maintain complicated structures in
 memory. The basic rule is that the high-order bits of parent and child nodes
 indices have the following relation (where `x` is an arbitrary bit string):
 
-~~~
+~~~ pseudocode
 parent=01x => left=00x, right=10x
 ~~~
 
@@ -4922,7 +4920,7 @@ nodes at the right edge of the tree are quite simple:
 The following python code demonstrates the tree computations necessary to use an
 array-based tree for MLS.
 
-~~~
+~~~ python
 # The exponent of the largest power of 2 less than x. Equivalent to:
 #   int(math.floor(math.log(x, 2)))
 def log2(x):
@@ -5072,7 +5070,7 @@ or truncated when memebers are removed.
 The following code snippet shows how these algorithms could be implemented in
 Python.
 
-~~~
+~~~ python
 class Node:
     def __init__(self, value, parent=None, left=None, right=None):
         self.value = value    # Value of the node
