@@ -1368,7 +1368,7 @@ enum {
 enum {
     reserved(0),
     member(1),
-    preconfigured(2),
+    external(2),
     new_member(3),
     (255)
 } SenderType;
@@ -1378,8 +1378,8 @@ struct {
     switch (sender_type) {
         case member:
             LeafNodeRef member_ref;
-        case preconfigured:
-            opaque sender_id<V>;
+        case external:
+            uint32 sender_index;
         case new_member:
             struct{};
     }
@@ -1467,14 +1467,27 @@ struct {
 } MLSMessageAuth;
 ~~~
 
-The `signature` field in an MLSMessageAuth object is computed using the signing
-private key corresponding to the public key, which was authenticated by the
-credential at the leaf of the tree indicated by the sender field. The signature
-is computed using `SignWithLabel` with label `"MLSMessageContentTBS"` and with a content
-that covers the message content and the wire format that will be used for this message.
-If the sender is a member of the group, the content also covers the
-GroupContext for the current epoch, so that signatures are specific to a given
-group and epoch.
+The signature is computed using `SignWithLabel` with label
+`"MLSMessageContentTBS"` and with a content that covers the message content and
+the wire format that will be used for this message. If the sender's
+`sender_type` is `Member`, the content also covers the GroupContext for the
+current epoch, so that signatures are specific to a given group and epoch.
+
+The sender MUST use the private key corresponding to the following signature key
+depending on the sender's `sender_type`:
+
+* `member`: The signature key contained in the Credential at the leaf with the
+  sender's `LeafNodeRef`
+* `external`: The signature key contained in the Credential at the index
+  indicated by the `sender_index` in the `external_senders` group context
+  extension (see Section {{external-senders-extension}}).  In this case, the
+  `content_type` of the message MUST NOT be `commit`, since only members
+  of the group or new joiners can send Commit messages.
+* `new_member`: The signature key depends on the `content_type`:
+  * `proposal`: The signature key in the credential contained in KeyPackage in
+    the Add proposal (see Section {{external-proposals}}).
+  * `commit`: The signature key in the credential contained in the KeyPackage in
+    the Commit's path (see Section {{external-initialization}}).
 
 ~~~ tls
 struct {
@@ -1486,11 +1499,14 @@ struct {
         case new_member:
             GroupContext context;
 
-        case preconfigured:
+        case external:
             struct{};
     }
 } MLSMessageContentTBS;
 ~~~
+
+Recipients of an MLSMessage MUST verify the signature with the key depending on
+the `sender_type` of the sender as described above.
 
 The confirmation tag value confirms that the members of the group have arrived
 at the same state of the group.
@@ -1509,7 +1525,7 @@ struct {
     select(MLSPlaintext.content.sender.sender_type) {
         case member:
             MAC membership_tag;
-        case preconfigured:
+        case external:
         case new_member:
             struct{};
     }
@@ -3408,10 +3424,10 @@ Add and Remove proposals can be constructed and sent to the group by a party
 that is outside the group.  For example, a Delivery Service might propose to
 remove a member of a group who has been inactive for a long time, or propose adding
 a newly-hired staff member to a group representing a real-world team.  Proposals
-originating outside the group are identified by a `preconfigured` or
+originating outside the group are identified by a `external` or
 `new_member` SenderType in MLSPlaintext.
 
-ReInit proposals can also be sent to the group by a `preconfigured` sender, for
+ReInit proposals can also be sent to the group by a `external` sender, for
 example to enforce a changed policy regarding MLS version or ciphersuite.
 
 The `new_member` SenderType is used for clients proposing that they themselves
@@ -3420,18 +3436,23 @@ MUST be Add. The MLSPlaintext MUST be signed with the private key corresponding
 to the KeyPackage in the Add message.  Recipients MUST verify that the
 MLSPlaintext carrying the Proposal message is validly signed with this key.
 
-The `preconfigured` SenderType is reserved for signers that are pre-provisioned
-to the clients within a group.  If proposals with these sender IDs are to be
-accepted within a group, the members of the group MUST be provisioned by the
-application with a mapping between these IDs and authorized signing keys.
-Recipients MUST verify that the MLSPlaintext carrying the Proposal message is
-validly signed with the corresponding key. To ensure consistent handling of
-external proposals, the application MUST ensure that the members of a group
-have the same mapping and apply the same policies to external proposals.
+The `external` SenderType is reserved for signers that are pre-provisioned
+to the clients within a group. It can only be used if the
+`external_senders` extension is present in the group's group context
+extensions.
 
-An external proposal MUST be sent as an MLSPlaintext
-object, since the sender will not have the keys necessary to construct an
-MLSCiphertext object.
+An external proposal MUST be sent as an MLSPlaintext object, since the sender
+will not have the keys necessary to construct an MLSCiphertext object.
+
+#### External Senders Extension
+
+The `external_senders` extension is a group context extension that contains
+credentials of senders that are permitted to send external proposals to the
+group.
+
+~~~~~
+Credential external_senders<V>;
+~~~~~
 
 ## Commit
 
@@ -3695,9 +3716,8 @@ A member of the group applies a Commit message by taking the following steps:
 * Verify that the `epoch` field of the enclosing MLSMessageContent is equal
   to the `epoch` field of the current GroupContext object
 
-* Verify that the signature on the MLSMessageContent message verifies using the
-  public key from the credential stored at the leaf in the tree indicated by
-  the `sender` field.
+* Verify that the signature on the MLSMessageContent message as described in
+  Section {{content-authentication}}.
 
 * Verify that all PreSharedKey proposals in the `proposals` vector have unique
   PreSharedKeyIDs and are available.
