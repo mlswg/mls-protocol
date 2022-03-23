@@ -1389,7 +1389,7 @@ struct {
         case member:
             LeafNodeRef member_ref;
         case external:
-            u32 sender_index;
+            uint32 sender_index;
         case new_member:
             struct{};
     }
