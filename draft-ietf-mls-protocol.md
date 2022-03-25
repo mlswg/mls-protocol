@@ -2891,7 +2891,7 @@ values have been consumed and MUST be deleted:
 Concretely, suppose we have the following Secret Tree and ratchet for
 participant D:
 
-~~~ ascii-art
+~~~ aasvg
        G
      /   \
     /     \
