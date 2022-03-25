@@ -625,17 +625,17 @@ both Proposal/Commit messages as well as any application data.
 
 The cryptographic state at the core of MLS is divided into three areas of responsibility:
 
-~~~ ascii-art
+~~~ aasvg
                            epoch_secret
                          _      |      _
 |\ Ratchet              /      ...      \                    Secret /|
-| \ Tree                :       |       :                     Tree / |
-|  \                    :       |       :                         /  |
-|   \                   :       V       :                        /   |
+| \ Tree                |       |       |                     Tree / |
+|  \                    |       |       |                         /  |
+|   \                   |       V       |                        /   |
 |    --> commit_secret --> epoch_secret --> encryption_secret -->    |
-|   /                   :       |       :                        \   |
-|  /                    :      ...      > Key Schedule            \  |
-| /                     :       |       :                          \ |
+|   /                   |       |       |                        \   |
+|  /                    |      ...      --> Key Schedule          \  |
+| /                     |       |       |                          \ |
 |/                      \_      |      _/                           \|
                                 V
                            epoch_secret
@@ -849,7 +849,7 @@ different parameters. Branching starts a new group with a subset of the original
 group's participants (with no effect on the original group).  In both cases,
 the new group is linked to the old group via a resumption PSK.
 
-~~~ ascii-art
+~~~ aasvg
 epoch_A_[n-1]
      |
      |
@@ -867,7 +867,7 @@ epoch_A_[n]           epoch_B_[0]
 {: title="Reinitializing a group" }
 
 
-~~~ ascii-art
+~~~ aasvg
 epoch_A_[n]           epoch_B_[0]
      |                     |
      |  PSK(usage=branch)  |
@@ -884,7 +884,7 @@ from epoch `n` is injected into epoch `n+k`.  This demonstrates that the members
 of the group at epoch `n+k` were also members at epoch `n`, irrespective of any
 changes to these members' keys due to Updates or Commits.
 
-~~~ ascii-art
+~~~ aasvg
 epoch_A_[n]
      |
      |  PSK(usage=application)
@@ -2428,7 +2428,7 @@ following information to derive new epoch secrets:
 Given these inputs, the derivation of secrets for an epoch
 proceeds as shown in the following diagram:
 
-~~~ ascii-art
+~~~ aasvg
                    init_secret_[n-1]
                          |
                          V
@@ -2704,7 +2704,7 @@ Here `0` represents the all-zero vector of length `KDF.Nh`. The `index` field in
 chained together with KDF.Extract invocations (labelled "Extract" for brevity
 in the diagram), as follows:
 
-~~~ ascii-art
+~~~ aasvg
                  0                               0    = psk_secret_[0]
                  |                               |
                  V                               V
@@ -2779,7 +2779,7 @@ tree.
 If N is a parent node in the Secret Tree then the secrets of the children of N
 are defined as follows (where left(N) and right(N) denote the children of N):
 
-~~~ ascii-art
+~~~ aasvg
 tree_node_[N]_secret
         |
         |
@@ -2794,7 +2794,7 @@ The secret in the leaf of the Secret Tree is used to initiate two symmetric hash
 ratchets, from which a sequence of single-use keys and nonces are derived, as
 described in {{encryption-keys}}. The root of each ratchet is computed as:
 
-~~~ ascii-art
+~~~ aasvg
 tree_node_[N]_secret
         |
         |
@@ -2840,7 +2840,7 @@ DeriveTreeSecret(Secret, Label, Generation, Length) =
 Where Generation is encoded as a uint32.
 ~~~
 
-~~~ ascii-art
+~~~ aasvg
 ratchet_secret_[N]_[j]
       |
       +--> DeriveTreeSecret(., "nonce", j, AEAD.Nn)
@@ -4556,7 +4556,7 @@ cryptographic algorithms that should be used.
 
 Ciphersuite names follow the naming convention:
 
-~~~ tls
+~~~ psuedocode
 CipherSuite MLS_LVL_KEM_AEAD_HASH_SIG = VALUE;
 ~~~
 
