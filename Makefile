@@ -12,3 +12,9 @@ endif
 
 fix-insecure-links:
 	sed -i'.bak' -e 's/http:/https:/g' draft-ietf-mls-protocol.html
+
+extract-tls:
+	cat draft-ietf-mls-protocol.md | python3 extract-tls.py > draft-ietf-mls-protocol.tls
+
+#extract-tls:
+#	cat draft-ietf-mls-protocol.md | python3 -c 'exec("""import sys, re\nmatch = False\nfor line in sys.stdin:\n if match:\n  if re.match("^~~~$", line):\n   match = False\n   print ("")\n  else:\n   print (line.rstrip())\n elif re.match("^~~~ tls$", line):\n  match = True\n""")' > draft-ietf-mls-protocol.tls
