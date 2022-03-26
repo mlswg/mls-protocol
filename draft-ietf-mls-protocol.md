@@ -4556,7 +4556,7 @@ cryptographic algorithms that should be used.
 
 Ciphersuite names follow the naming convention:
 
-~~~ psuedocode
+~~~ pseudocode
 CipherSuite MLS_LVL_KEM_AEAD_HASH_SIG = VALUE;
 ~~~
 
