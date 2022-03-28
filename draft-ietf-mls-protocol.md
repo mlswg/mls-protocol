@@ -2428,7 +2428,7 @@ following information to derive new epoch secrets:
 Given these inputs, the derivation of secrets for an epoch
 proceeds as shown in the following diagram:
 
-~~~ aasvg
+~~~ ascii-art
                    init_secret_[n-1]
                          |
                          V
@@ -2891,7 +2891,7 @@ values have been consumed and MUST be deleted:
 Concretely, suppose we have the following Secret Tree and ratchet for
 participant D:
 
-~~~ aasvg
+~~~ ascii-art
        G
      /   \
     /     \
