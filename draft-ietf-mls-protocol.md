@@ -4823,26 +4823,34 @@ MLS DE, that MLS DE SHOULD defer to the judgment of the other MLS DEs.
 This document registers the "message/mls" MIME media type in order to allow other
 protocols (ex: HTTP {{!RFC7540}}) to convey MLS messages.
 
-~~~ ascii-art
-  Media type name: message
-  Media subtype name: mls
-  Required parameters: none
-  Optional parameters: version
-     version: The MLS protocol version expressed as a string
-     <major>.<minor>.  If omitted the version is "1.0", which
-     corresponds to MLS ProtocolVersion mls10. If for some reason
-     the version number in the MIME type parameter differs from the
-     ProtocolVersion embedded in the protocol, the protocol takes
-     precedence.
+Media type name:
+: message
 
-  Encoding scheme: MLS messages are represented using the TLS
-     presentation language [RFC8446]. Therefore MLS messages need to be
-     treated as binary data.
+Media subtype name:
+: mls
 
-  Security considerations: MLS is an encrypted messaging layer designed
-     to be transmitted over arbitrary lower layer protocols. The
-     security considerations in this document (RFC XXXX) also apply.
-~~~
+Required parameters:
+: none
+
+Optional parameters:
+: version
+   version:
+   : The MLS protocol version expressed as a string
+   `<major>.<minor>`.  If omitted the version is "1.0", which
+   corresponds to MLS ProtocolVersion mls10. If for some reason
+   the version number in the MIME type parameter differs from the
+   ProtocolVersion embedded in the protocol, the protocol takes
+   precedence.
+
+Encoding scheme:
+: MLS messages are represented using the TLS
+  presentation language [RFC8446]. Therefore MLS messages need to be
+  treated as binary data.
+
+Security considerations:
+: MLS is an encrypted messaging layer designed
+   to be transmitted over arbitrary lower layer protocols. The
+   security considerations in this document (RFC XXXX) also apply.
 
 # Contributors
 
