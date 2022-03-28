@@ -1471,7 +1471,8 @@ struct {
     opaque signature<V>;
     select (MLSMessageContent.content_type) {
         case commit:
-            // MAC(confirmation_key, GroupContext.confirmed_transcript_hash)
+            // MAC(confirmation_key,
+            //     GroupContext.confirmed_transcript_hash)
             MAC confirmation_tag;
         case application:
         case proposal:
@@ -4999,9 +5000,9 @@ def log2(x):
         k += 1
     return k-1
 
-# The level of a node in the tree. Leaves are level 0, their parents are
-# level 1, etc. If a node's children are at different levels, then its
-# level is the max level of its children plus one.
+# The level of a node in the tree. Leaves are level 0, their parents
+# are level 1, etc. If a node's children are at different levels,
+# then its level is the max level of its children plus one.
 def level(x):
     if x & 0x01 == 0:
         return 0
@@ -5023,8 +5024,8 @@ def root(n):
     w = node_width(n)
     return (1 << log2(w)) - 1
 
-# The left child of an intermediate node. Note that because the tree is
-# left-balanced, there is no dependency on the size of the tree.
+# The left child of an intermediate node. Note that because the tree
+# is left-balanced, there is no dependency on the size of the tree.
 def left(x):
     k = level(x)
     if k == 0:
@@ -5033,8 +5034,8 @@ def left(x):
     return x ^ (0x01 << (k - 1))
 
 # The right child of an intermediate node. Depends on the number of
-# leaves because the straightforward calculation can take you beyond the
-# edge of the tree.
+# leaves because the straightforward calculation can take you beyond
+# the edge of the tree.
 def right(x, n):
     k = level(x)
     if k == 0:
@@ -5052,8 +5053,8 @@ def parent_step(x):
     b = (x >> (k + 1)) & 0x01
     return (x | (1 << k)) ^ (b << (k + 1))
 
-# The parent of a node. As with the right child calculation, we have to
-# walk back until the parent is within the range of the tree.
+# The parent of a node. As with the right child calculation, we have
+# to walk back until the parent is within the range of the tree.
 def parent(x, n):
     if x == root(n):
         raise Exception('root node has no parent')
