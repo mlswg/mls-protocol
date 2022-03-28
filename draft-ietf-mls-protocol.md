@@ -626,19 +626,29 @@ both Proposal/Commit messages as well as any application data.
 The cryptographic state at the core of MLS is divided into three areas of responsibility:
 
 ~~~ aasvg
-                           epoch_secret
-                         _      |      _
-|\ Ratchet              /      ...      \                    Secret /|
-| \ Tree                |       |       |                     Tree / |
-|  \                    |       |       |                         /  |
-|   \                   |       V       |                        /   |
-|    --> commit_secret --> epoch_secret --> encryption_secret -->    |
-|   /                   |       |       |                        \   |
-|  /                    |      ...      --> Key Schedule          \  |
-| /                     |       |       |                          \ |
-|/                      \_      |      _/                           \|
-                                V
-                           epoch_secret
+                          .-    ...    -.
+                         |               |
+                         |       |       |
+                         |       |       | Key Schedule
+                         |       V       |
+                         |  epoch_secret |
+.                        |       |       |                             .
+|\ Ratchet               |       |       |                     Secret /|
+| \ Tree                 |       |       |                      Tree / |
+|  \                     |       |       |                          /  |
+|   \                    |       V       |                         /   |
+|    +--> commit_secret --> epoch_secret --> encryption_secret -->+    |
+|   /                    |       |       |                         \   |
+|  /                     |       |       |                          \  |
+| /                      |       |       |                           \ |
+|/                       |       |       |                            \|
+'                        |       V       |                             '
+                         |  epoch_secret |
+                         |       |       |
+                         |       |       |
+                         |       V       |
+                         |               |
+                          '-    ...    -'
 ~~~
 {: title="Overview of MLS group evolution"}
 
@@ -968,14 +978,16 @@ For example, in the below tree:
 * The direct path of C is (W, V, X)
 * The copath of C is (D, U, Z)
 
-~~~ ascii-art
+~~~ aasvg
               X = root
-        ______|______
+              |
+        .-----+-----.
        /             \
       V               Z
-    __|__           __|
+      |               |
+    .-+-.           .-+
    /     \         /   \
-  U       W       Y     |
+  U       W       Y     +
  / \     / \     / \    |
 A   B   C   D   E   F   G
 
@@ -1103,7 +1115,8 @@ brackets:
        ...
        /
       _
-    __|__
+      |
+    .-+-.
    /     \
   _       Z[C]
  / \     / \
@@ -1458,7 +1471,8 @@ struct {
     opaque signature<V>;
     select (MLSMessageContent.content_type) {
         case commit:
-            // MAC(confirmation_key, GroupContext.confirmed_transcript_hash)
+            // MAC(confirmation_key,
+            //     GroupContext.confirmed_transcript_hash)
             MAC confirmation_tag;
         case application:
         case proposal:
@@ -1957,9 +1971,10 @@ DeriveSecret and the node secret is used as an input to DeriveKeyPair.
 For example, suppose there is a group with four members, with C an unmerged leaf
 at Z:
 
-~~~ ascii-art
+~~~ aasvg
       Y
-    __|__
+      |
+    .-+-.
    /     \
   X       Z[C]
  / \     / \
@@ -1973,33 +1988,39 @@ If member B subsequently generates an UpdatePath based on a secret
 "leaf_secret", then it would generate the following sequence
 of path secrets:
 
-~~~ ascii-art
-path_secret[1] --> node_secret[1] --> node_priv[1], node_pub[1]
+~~~ aasvg
+path_secret[1] ---> node_secret[1] -------> node_priv[1], node_pub[1]
+
      ^
      |
-path_secret[0] --> node_secret[0] --> node_priv[0], node_pub[0]
+     |
+path_secret[0] ---> node_secret[0] -------> node_priv[0], node_pub[0]
+
      ^
      |
-leaf_secret    --> leaf_node_secret --> leaf_priv, leaf_pub
-                                     ~> leaf_node
+     |
+leaf_secret ------> leaf_node_secret --+--> leaf_priv, leaf_pub
+                                           |                   |
+                                            '-------. .-------'
+                                                     |
+                                                 leaf_node
 ~~~
 
 After applying the UpdatePath, the tree will have the following structure, where
 `lp` and `np[i]` represent the leaf_priv and node_priv values generated as
 described above:
 
-~~~ ascii-art
-    np[1] -> Y'
-           __|__
-          /     \
-np[0] -> X'      Z[C]
-        / \     / \
-       A   B   C   D
-           ^
-           |
-           lp
-
-       0   1   2   3
+~~~ aasvg
+node_priv[1] --------> Y'
+                       |
+                     .-+-.
+                    /     \
+node_priv[0] ----> X'      Z[C]
+                  / \     / \
+                 A   B   C   D
+                     ^
+leaf_priv -----------+
+                 0   1   2   3
 ~~~
 
 ## Adding and Removing Leaves
@@ -2428,38 +2449,46 @@ following information to derive new epoch secrets:
 Given these inputs, the derivation of secrets for an epoch
 proceeds as shown in the following diagram:
 
-~~~ ascii-art
-                   init_secret_[n-1]
-                         |
-                         V
-    commit_secret -> KDF.Extract
-                         |
-                         V
-                 ExpandWithLabel(., "joiner", GroupContext_[n], KDF.Nh)
-                         |
-                         V
-                    joiner_secret
-                         |
-                         V
-psk_secret (or 0) -> KDF.Extract
-                         |
-                         +--> DeriveSecret(., "welcome")
-                         |    = welcome_secret
-                         |
-                         V
-                 ExpandWithLabel(., "epoch", GroupContext_[n], KDF.Nh)
-                         |
-                         V
-                    epoch_secret
-                         |
-                         +--> DeriveSecret(., <label>)
-                         |    = <secret>
-                         |
-                         V
-                   DeriveSecret(., "init")
-                         |
-                         V
-                   init_secret_[n]
+~~~ aasvg
+                    init_secret_[n-1]
+                          |
+                          |
+                          V
+    commit_secret --> KDF.Extract
+                          |
+                          |
+                          V
+                  ExpandWithLabel(., "joiner", GroupContext_[n], KDF.Nh)
+                          |
+                          |
+                          V
+                     joiner_secret
+                          |
+                          |
+                          V
+psk_secret (or 0) --> KDF.Extract
+                          |
+                          |
+                          +--> DeriveSecret(., "welcome")
+                          |    = welcome_secret
+                          |
+                          V
+                  ExpandWithLabel(., "epoch", GroupContext_[n], KDF.Nh)
+                          |
+                          |
+                          V
+                     epoch_secret
+                          |
+                          |
+                          +--> DeriveSecret(., <label>)
+                          |    = <secret>
+                          |
+                          V
+                    DeriveSecret(., "init")
+                          |
+                          |
+                          V
+                    init_secret_[n]
 ~~~
 
 A number of secrets are derived from the epoch secret for different purposes:
@@ -2891,21 +2920,22 @@ values have been consumed and MUST be deleted:
 Concretely, suppose we have the following Secret Tree and ratchet for
 participant D:
 
-~~~ ascii-art
+~~~ aasvg
        G
-     /   \
+       |
+     .-+-.
     /     \
    E       F
   / \     / \
  A   B   C   D
             / \
-          HR0  AR0 -+- K0
+          HR0  AR0--+--K0
                 |   |
-                |   +- N0
+                |   +--N0
                 |
-               AR1 -+- K1
+               AR1--+--K1
                 |   |
-                |   +- N1
+                |   +--N1
                 |
                AR2
 ~~~
@@ -4120,14 +4150,16 @@ The example tree in {{ratchet-tree-terminology}} would be represented as an
 array of nodes in the following form, where R represents the "subtree root" for
 a given subarray of the node array:
 
-~~~ ascii-art
-              X
-        ______|______
+~~~ aasvg
+              P
+              |
+        .-----+-----.
        /             \
-      V               Z
-    __|__           __|
+      N               R
+      |               |
+    .-+-.           .-+
    /     \         /   \
-  U       W       Y     |
+  M       O       Q     |
  / \     / \     / \    |
 A   B   C   D   E   F   G
 
@@ -4914,13 +4946,26 @@ even-numbered nodes, with the n-th leaf at 2\*n.  Intermediate nodes
 are held in odd-numbered nodes.  For example, tree with 11 leaves has
 the following structure:
 
-~~~ ascii-art
+~~~ aasvg
                                                    X
-                           X
+                                                   |
+                             .---------------------+---------.
+                            /                                 \
+                           X                                   |
+                           |                                   |
+                 .---------+---------.                         |
+                /                     \                        |
                X                       X                       X
-         X           X           X           X           X
+               |                       |                       |
+           .---+---.               .---+---.               .---+.
+          /         \             /         \             /      \
+         X           X           X           X           X        |
+        / \         / \         / \         / \         / \       |
+       /   \       /   \       /   \       /   \       /   \      |
       X     X     X     X     X     X     X     X     X     X     X
+
 Node: 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20
+
 Leaf: 0     1     2     3     4     5     6     7     8     9    10
 ~~~
 
@@ -4955,9 +5000,9 @@ def log2(x):
         k += 1
     return k-1
 
-# The level of a node in the tree. Leaves are level 0, their parents are
-# level 1, etc. If a node's children are at different levels, then its
-# level is the max level of its children plus one.
+# The level of a node in the tree. Leaves are level 0, their parents
+# are level 1, etc. If a node's children are at different levels,
+# then its level is the max level of its children plus one.
 def level(x):
     if x & 0x01 == 0:
         return 0
@@ -4979,8 +5024,8 @@ def root(n):
     w = node_width(n)
     return (1 << log2(w)) - 1
 
-# The left child of an intermediate node. Note that because the tree is
-# left-balanced, there is no dependency on the size of the tree.
+# The left child of an intermediate node. Note that because the tree
+# is left-balanced, there is no dependency on the size of the tree.
 def left(x):
     k = level(x)
     if k == 0:
@@ -4989,8 +5034,8 @@ def left(x):
     return x ^ (0x01 << (k - 1))
 
 # The right child of an intermediate node. Depends on the number of
-# leaves because the straightforward calculation can take you beyond the
-# edge of the tree.
+# leaves because the straightforward calculation can take you beyond
+# the edge of the tree.
 def right(x, n):
     k = level(x)
     if k == 0:
@@ -5008,8 +5053,8 @@ def parent_step(x):
     b = (x >> (k + 1)) & 0x01
     return (x | (1 << k)) ^ (b << (k + 1))
 
-# The parent of a node. As with the right child calculation, we have to
-# walk back until the parent is within the range of the tree.
+# The parent of a node. As with the right child calculation, we have
+# to walk back until the parent is within the range of the tree.
 def parent(x, n):
     if x == root(n):
         raise Exception('root node has no parent')
