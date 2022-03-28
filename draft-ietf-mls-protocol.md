@@ -3128,9 +3128,15 @@ considered invalid.
 ## Sub-group Branching
 
 A new group can be formed from a subset of an existing group's members, using
-the same parameters as the old group.  The creator of the group indicates this
-situation by including a PreSharedKey of type `resumption` with usage `branch`
-in the Welcome message that creates the branched subgroup.
+the same parameters as the old group.  
+
+A member can create a sub-group by performing the following steps:
+
+1. Determine a subset of existing members that should be a part of the sub-group. 
+2. Create a new tree for the sub-group by fetching a new KeyPackage for each 
+   existing member that should be included in the sub-group.
+3. Create a Welcome message that includes a PreSharedKey of type `resumption` with 
+   usage `branch`.
 
 A client receiving a Welcome including a PreSharedKey of type `resumption` with
 usage `branch` MUST verify that the new group reflects a subgroup branched from
