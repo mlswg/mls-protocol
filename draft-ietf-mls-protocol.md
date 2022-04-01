@@ -1226,17 +1226,18 @@ used with:
   by the CipherSuite of the group
 * One or more identifiers of the holder of the private key
 
-Note that a Credential can provide multiple identifiers for the client.  If an
-application wishes to decided whether a credential represents the correct
-identifier for a participant in a given context, it is up to the application to
-decide what the correct value is and compare it to the credential.  For example,
-a certificate in an X509Credential may attest to several domain names or email
-addresses in its subjectAltName extension.  An application may decide to
-present all of these to a user, or if it knows a "desired" domain name or email
-address, it can check that the desired identifier is among those attested.
-Using the terminology from {{?RFC6125}}, a Credential provides "presented
-identifiers", and it is up to the application to supply a "reference identifier"
-for the authenticated client, if any.
+These required components are included in a BasicCredential structure regardless
+of credential type. Note that a Credential can provide multiple identifiers for
+the client.  If an application wishes to decide whether a credential represents
+the correct identifier for a participant in a given context, it is up to the
+application to decide what the correct value is and compare it to the
+credential.  For example, a certificate in an X509Credential may attest to
+several domain names or email addresses in its subjectAltName extension.
+An application may decide to present all of these to a user, or if it knows a
+"desired" domain name or email address, it can check that the desired identifier
+is among those attested. Using the terminology from {{?RFC6125}}, a Credential
+provides "presented identifiers", and it is up to the application to supply a
+"reference identifier" for the authenticated client, if any.
 
 Credentials MAY also include information that allows a relying party
 to verify the identity / signing key binding.
@@ -1263,10 +1264,10 @@ struct {
 
 struct {
     CredentialType credential_type;
+    BasicCredential basic_credential;
     select (Credential.credential_type) {
         case basic:
-            BasicCredential;
-
+            struct {}
         case x509:
             Certificate chain<V>;
     };
@@ -1287,7 +1288,9 @@ X.509 certificate. The chain is ordered such that the first entry (chain[0])
 is the end-entity certificate and each subsequent certificate in the chain
 MUST be the issuer of the previous certificate. The algorithm for the
 `public_key` in the end-entity certificate MUST match the relevant
-ciphersuite.
+ciphersuite. The `basic_credential.identity` MUST match one on the elements
+in the end-entity SubjectAltName, or the Subject if the SubjectAltName is not
+present in the certificate.
 
 The signatures used in this document are encoded as specified in {{!RFC8446}}.
 In particular, ECDSA signatures are DER-encoded and EdDSA signatures are defined
