@@ -4734,6 +4734,9 @@ Template:
   "Recommended" value of "Y" requires Standards Action [RFC8126].  IESG Approval
   is REQUIRED for a Y->N transition.
 
+* Path Required: Whether a Commit covering a proposal of this type is required
+  to have its `path` field populated (see {{commit}}).
+
 * Reference: The document where this extension is defined
 
 Initial contents:
