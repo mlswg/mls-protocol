@@ -1780,7 +1780,7 @@ struct {
 
     LeafNodeSource leaf_node_source;
     select (leaf_node_source) {
-        case add:
+        case key_package:
             Lifetime lifetime;
 
         case update:
