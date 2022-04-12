@@ -3145,7 +3145,7 @@ the referenced group.
 * The `version` and `ciphersuite` values in the Welcome MUST be the same as
   those used by the old group.
 * Each LeafNode in a new subgroup MUST match some LeafNode in the original
-  group. In this context, a pair of LeafNodes are said to "match" if the
+  group. In this context, a pair of LeafNodes is said to "match" if the
   identifiers presented by their respective credentials are considered
   equivalent by the application.
 
