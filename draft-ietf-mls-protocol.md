@@ -1292,7 +1292,7 @@ relevant ciphersuite: the group ciphersuite for a credential in a leaf node of a
 ratchet tree or the KeyPackage ciphersuite for a credential in a KeyPackage
 object.  For ciphersuites using Ed25519 or Ed448 signature schemes, the public
 key is in the format specified in {{?RFC8032}}.  For ciphersuites using ECDSA with
-the NIST curves P-256 or P-521, the public key is the output of the uncompressed
+the NIST curves (P-256, P-384, or P-521), the public key is the output of the uncompressed
 Elliptic-Curve-Point-to-Octet-String conversion according to {{SECG}}.
 
 For an X.509 credential, each entry in the chain represents a single DER-encoded
@@ -3158,14 +3158,14 @@ considered invalid.
 ## Sub-group Branching
 
 A new group can be formed from a subset of an existing group's members, using
-the same parameters as the old group.  
+the same parameters as the old group.
 
 A member can create a sub-group by performing the following steps:
 
-1. Determine a subset of existing members that should be a part of the sub-group. 
-2. Create a new tree for the sub-group by fetching a new KeyPackage for each 
+1. Determine a subset of existing members that should be a part of the sub-group.
+2. Create a new tree for the sub-group by fetching a new KeyPackage for each
    existing member that should be included in the sub-group.
-3. Create a Welcome message that includes a PreSharedKey of type `resumption` with 
+3. Create a Welcome message that includes a PreSharedKey of type `resumption` with
    usage `branch`.
 
 A client receiving a Welcome including a PreSharedKey of type `resumption` with
