@@ -2233,7 +2233,8 @@ is fixed by P's Parent Hash.
 Finally, `original_sibling_tree_hash` is the tree hash of S in the ratchet tree
 modified as follows:
 
-* Extend the subtree of S until it is full (see {{adding-and-removing-leaves}}).
+* Extend the subtree of S by adding blank leaves until it is full, i.e., until
+its number of leaves is a power of 2 (see {{adding-and-removing-leaves}}).
 * For each leaf L in `P.unmerged_leaves`, blank L and remove it from the
 `unmerged_leaves` sets of all parent nodes.
 
@@ -2262,7 +2263,7 @@ following tree:
       Y
     __|__
    /     \
-  X       _
+  _       _
  / \     / \
 E   _   G   _
 ~~~
