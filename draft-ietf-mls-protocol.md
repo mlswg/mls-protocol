@@ -2230,65 +2230,50 @@ that the path from P to the root may contain some blank nodes that are not
 fixed by P's Parent Hash. However, for each node that has an HPKE key, this key
 is fixed by P's Parent Hash.
 
-Finally, `original_sibling_tree_hash` is the original tree hash of S. The
-original tree hash corresponds to the tree hash of S the last time P was
-updated. It can be computed as the tree hash of S in the ratchet tree modified
-the following way:
+Finally, `original_sibling_tree_hash` is the tree hash of S in the ratchet tree
+modified as follows:
 
-* reset the leaves in P.unmerged_leaves to blanks
-* remove P.unmerged_leaves from all unmerged_leaves lists
-* truncate the ratchet tree as described in {{remove}}
+* Extend the subtree of S by adding blank leaves until it is full, i.e., until
+its number of leaves is a power of 2 (see {{adding-and-removing-leaves}}).
+* For each leaf L in `P.unmerged_leaves`, blank L and remove it from the
+`unmerged_leaves` sets of all parent nodes.
+
+Observe that `original_sibling_tree_hash` does not change between updates of P.
+This property is crucial for the correctness of the protocol.
 
 For example, in the following tree:
 
 ~~~ ascii-art
-              W [D, H]
+              W [F]
         ______|_____
        /             \
-      U [D]           Y [F, H]
+      U               Y [F]
     __|__           __|__
    /     \         /     \
-  T       _       X [F]   _
- / \     / \     / \     / \
-A   B   C   D   E   F   G   H
+  T       _       _      |
+ / \     / \     / \     |
+A   B   C   D   E   F    G
 ~~~
-{: #parent-hash-tree title="A full tree unmerged leaves that illustrate parent
-hash computations" }
+{: #parent-hash-tree title="A tree illustrating parent hash computations." }
 
 With P = W and S = Y, `original_sibling_tree_hash` is the tree hash of the
 following tree:
 
 ~~~ ascii-art
-      Y [F]
+      Y
     __|__
    /     \
-  X [F]  |
- / \     |
-E   F    G
-~~~
-
-Because `W.unmerged_leaves = [H]`, H is removed from `Y.unmerged_leaves`,
-then H is replaced with a blank leaf, then the tree is truncated removing the
-last two nodes.
-
-With P = W and S = U, `original_sibling_tree_hash` is the tree hash of the
-following tree:
-
-~~~ ascii-art
-      U
-    __|__
-   /     \
-  T       _
+  _       _
  / \     / \
-A   B   C   _
+E   _   G   _
 ~~~
 
-This time we have 4 leaf nodes because the truncation of the ratchet tree didn't
-remove the last leaf.
+Because `W.unmerged_leaves` includes F, F is blanked and removed from
+`Y.unmerged_leaves`.
 
 Note that no recomputation is needed if the tree hash of S is unchanged since
-the last time P was updated.  This is the case for computing or processing a
-Commit whose UpdatePath traverses P, since the Commit itself resets P.  (In
+the last time P was updated. This is the case for computing or processing a
+Commit whose UpdatePath traverses P, since the Commit itself resets P. (In
 other words, it is only necessary to recompute the original sibling tree hash
 when validating group's tree on joining.) More generally, if none of the entries
 in `P.unmerged_leaves` is in the subtree under S (and thus no nodes were truncated),
@@ -2300,14 +2285,6 @@ recomputing over the subtree when the subtree is included in multiple parent
 hashes.  A subtree hash can be reused as long as the intersection of the
 parent's unmerged leaves with the subtree is the same as in the earlier
 computation.
-
-Observe that `original_child_resolution` is equal to the resolution of S at the
-time the `UpdatePath` was generated, since at that point P's set of unmerged
-leaves was emptied. (Observe also that `original_child_resolution` contains all
-unmerged leaves of S.) Therefore, P's Parent Hash fixes, for each node V on the
-path from P to the root, not only the HPKE public key of V, but also the set of
-HPKE public keys to which the corresponding HPKE secret key of V was encrypted by
-the generator of the `UpdatePath`.
 
 ### Using Parent Hashes
 
@@ -4946,16 +4923,10 @@ To construct the tree in {{evolution-tree}}:
 
 To construct the tree in {{parent-hash-tree}}:
 
-* A creates a group with B, ... G
+* A creates a group with B, ..., G
 * A removes F in a full Commit, setting T, U, and W
-* E sends an empty Commit, setting X, Y, and W
-* A adds a new member at F in a partial Commit, adding F as unmerged at X, Y,
-  and W
-* A removes D, resetting T, U, and W (in particular, F is no longer unmerged at
-  W)
-* A adds new memebers at D and H in a partial commit
-  * D is added as unmerged at U, W
-  * H is added as unmerged at Y, W
+* E sends an empty Commit, setting Y and W
+* A adds a new member at F in a partial Commit, adding F as unmerged at Y and W
 
 # Array-Based Trees
 
