@@ -1230,19 +1230,29 @@ ciphersuite.
 
 ## Credentials
 
-A member of a group authenticates the identities of other participants by means
-of credentials issued by some authentication system, like a PKI. Each type of
-credential MUST express the following data in the context of the group it is
-used with:
+Each member of a group presents a credential that associates an identity with
+the member's key material.  This information is verified according to the
+Authentication Service in use for a group.
 
-* The public key of a signature key pair matching the SignatureScheme specified
-  by the CipherSuite of the group
-* One or more identifiers of the holder of the private key
+Identity information is associated with a member's signature public key, which
+is transmitted to other members as an opaque value, encoded according to the
+signature scheme defined by the relevant ciphersuite: the group ciphersuite for
+a credential in a leaf node of a ratchet tree or the KeyPackage ciphersuite for
+a credential in a KeyPackage object.
 
-Note that a Credential can provide multiple identifiers for the client.  If an
-application wishes to decided whether a credential represents the correct
-identifier for a participant in a given context, it is up to the application to
-decide what the correct value is and compare it to the credential.  For example,
+~~~ tls
+opaque SignaturePublicKey<V>;
+~~~
+
+For ciphersuites using Ed25519 or Ed448 signature schemes, the public key is in
+the format specified in {{?RFC8032}}.  For ciphersuites using ECDSA with the
+NIST curves (P-256, P-384, or P-521), the public key is the output of the
+uncompressed Elliptic-Curve-Point-to-Octet-String conversion according to
+{{SECG}}.
+
+A Credential can provide multiple identifiers for the client.  It is up to the
+applciation to decide which identifier or identifiers to use at the application
+level.  For example,
 a certificate in an X509Credential may attest to several domain names or email
 addresses in its subjectAltName extension.  An application may decide to
 present all of these to a user, or if it knows a "desired" domain name or email
@@ -1252,23 +1262,12 @@ identifiers", and it is up to the application to supply a "reference identifier"
 for the authenticated client, if any.
 
 Credentials MAY also include information that allows a relying party
-to verify the identity / signing key binding.
-
-Additionally, Credentials SHOULD specify the signature scheme corresponding to
-each contained public key.
+to verify the identity / signing key binding, such as a signature from a trusted
+authority.
 
 ~~~ tls
-// See RFC 8446 and the IANA TLS SignatureScheme registry
-uint16 SignatureScheme;
-
 // See IANA registry for registered values
 uint16 CredentialType;
-
-struct {
-    opaque identity<V>;
-    SignatureScheme signature_scheme;
-    opaque signature_key<V>;
-} BasicCredential;
 
 struct {
     opaque cert_data<V>;
@@ -1276,9 +1275,9 @@ struct {
 
 struct {
     CredentialType credential_type;
-    select (Credential.credential_type) {
+    select (credential_type) {
         case basic:
-            BasicCredential;
+            opaque identity<V>;
 
         case x509:
             Certificate chain<V>;
@@ -1286,21 +1285,15 @@ struct {
 } Credential;
 ~~~
 
-A BasicCredential is a raw, unauthenticated assertion of an identity/key
-binding. The format of the key in the `public_key` field is defined by the
-relevant ciphersuite: the group ciphersuite for a credential in a leaf node of a
-ratchet tree or the KeyPackage ciphersuite for a credential in a KeyPackage
-object.  For ciphersuites using Ed25519 or Ed448 signature schemes, the public
-key is in the format specified in {{?RFC8032}}.  For ciphersuites using ECDSA with
-the NIST curves (P-256, P-384, or P-521), the public key is the output of the uncompressed
-Elliptic-Curve-Point-to-Octet-String conversion according to {{SECG}}.
+A BasicCredential is a bare assertion of an identity, without any additional
+information.  The format of the encoded identity is defined by the application.
 
 For an X.509 credential, each entry in the chain represents a single DER-encoded
-X.509 certificate. The chain is ordered such that the first entry (chain[0])
-is the end-entity certificate and each subsequent certificate in the chain
-MUST be the issuer of the previous certificate. The algorithm for the
-`public_key` in the end-entity certificate MUST match the relevant
-ciphersuite.
+X.509 certificate. The chain is ordered such that the first entry (chain[0]) is
+the end-entity certificate and each subsequent certificate in the chain MUST be
+the issuer of the previous certificate.  The public key encoded in the
+`subjectPublicKeyInfo` of the end-entity certificate MUST be identical to the
+`signature_key` in the LeafNode containing this credential.
 
 The signatures used in this document are encoded as specified in {{!RFC8446}}.
 In particular, ECDSA signatures are DER-encoded and EdDSA signatures are defined
@@ -1775,6 +1768,7 @@ struct {
 
 struct {
     HPKEPublicKey public_key;
+    SignaturePublicKey signature_key;
     Credential credential;
     Capabilities capabilities;
 
