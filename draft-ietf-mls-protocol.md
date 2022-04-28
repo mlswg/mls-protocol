@@ -2478,7 +2478,7 @@ A number of secrets are derived from the epoch secret for different purposes:
 | "external"       | `external_secret`     | Deriving the external init key                              |
 | "confirm"        | `confirmation_key`    | Computing the confirmation MAC for an epoch                 |
 | "membership"     | `membership_key`      | Computing the membership MAC for an MLSPlaintext            |
-| "resumption"     | `resumption_psk`      | Proving membership in a prior epoch (via a PSK)             |
+| "resumption"     | `resumption_psk`      | Proving membership in this epoch (via a PSK injected later) |
 | "authentication" | `authentication_code` | Confirming that two clients have the same view of the group |
 {: title="Epoch-derived secrets" #epoch-derived-secrets}
 
