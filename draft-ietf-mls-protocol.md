@@ -2470,16 +2470,16 @@ psk_secret (or 0) --> KDF.Extract
 
 A number of secrets are derived from the epoch secret for different purposes:
 
-| Label            | Secret                | Usage                                             |
-|:-----------------|:----------------------|:--------------------------------------------------|
-| "sender data"    | `sender_data_secret`  | Deriving keys to encrypt sender data              |
-| "encryption"     | `encryption_secret`   | Deriving message encryption keys                  |
-| "exporter"       | `exporter_secret`     | Deriving exported secrets                         |
-| "external"       | `external_secret`     | Deriving the external init key                    |
-| "confirm"        | `confirmation_key`    | Computing the confirmation MAC for an epoch       |
-| "membership"     | `membership_key`      | Computing the membership MAC for an MLSPlaintext  |
-| "resumption"     | `resumption_psk`      | Proving membership in a prior epoch (via a PSK)   |
-| "authentication" | `authentication_code` | Confirming that two clients are in the same epoch |
+| Label            | Secret                | Purpose                                                     |
+|:-----------------|:----------------------|:------------------------------------------------------------|
+| "sender data"    | `sender_data_secret`  | Deriving keys to encrypt sender data                        |
+| "encryption"     | `encryption_secret`   | Deriving message encryption keys (via the secret tree)      |
+| "exporter"       | `exporter_secret`     | Deriving exported secrets                                   |
+| "external"       | `external_secret`     | Deriving the external init key                              |
+| "confirm"        | `confirmation_key`    | Computing the confirmation MAC for an epoch                 |
+| "membership"     | `membership_key`      | Computing the membership MAC for an MLSPlaintext            |
+| "resumption"     | `resumption_psk`      | Proving membership in a prior epoch (via a PSK)             |
+| "authentication" | `authentication_code` | Confirming that two clients have the same view of the group |
 {: title="Epoch-derived secrets" #epoch-derived-secrets}
 
 The "external secret" is used to derive an HPKE key pair whose private key is
