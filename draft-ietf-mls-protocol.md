@@ -2468,21 +2468,25 @@ psk_secret (or 0) --> KDF.Extract
                     init_secret_[n]
 ~~~
 
-A number of secrets are derived from the epoch secret for different purposes:
+A number of values are derived from the epoch secret for different purposes:
 
-| Secret                  | Label           |
-|:------------------------|:----------------|
-| `sender_data_secret`    | "sender data"   |
-| `encryption_secret`     | "encryption"    |
-| `exporter_secret`       | "exporter"      |
-| `authentication_secret` | "authentication"|
-| `external_secret`       | "external"      |
-| `confirmation_key`      | "confirm"       |
-| `membership_key`        | "membership"    |
-| `resumption_secret`     | "resumption"    |
+| Label            | Secret                | Purpose                                                     |
+|:-----------------|:----------------------|:------------------------------------------------------------|
+| "sender data"    | `sender_data_secret`  | Deriving keys to encrypt sender data                        |
+| "encryption"     | `encryption_secret`   | Deriving message encryption keys (via the secret tree)      |
+| "exporter"       | `exporter_secret`     | Deriving exported secrets                                   |
+| "external"       | `external_secret`     | Deriving the external init key                              |
+| "confirm"        | `confirmation_key`    | Computing the confirmation MAC for an epoch                 |
+| "membership"     | `membership_key`      | Computing the membership MAC for an MLSPlaintext            |
+| "resumption"     | `resumption_psk`      | Proving membership in this epoch (via a PSK injected later) |
+| "authentication" | `authentication_code` | Confirming that two clients have the same view of the group |
 {: title="Epoch-derived secrets" #epoch-derived-secrets}
 
-The "external secret" is used to derive an HPKE key pair whose private key is
+(In general, we use "secret" to refer to a value that is used derive further
+secret values, and "key" to refer to a value that is used with an algorithm such
+as HMAC or an AEAD algorithm.)
+
+The `external_secret` is used to derive an HPKE key pair whose private key is
 held by the entire group:
 
 ~~~ pseudocode
@@ -2682,7 +2686,7 @@ struct {
 On receiving a Commit with a `PreSharedKey` proposal or a GroupSecrets object
 with the `psks` field set, the receiving Client includes them in the key
 schedule in the order listed in the Commit, or in the `psks` field respectively.
-For resumption PSKs, the PSK is defined as the `resumption_secret` of the group and
+For resumption PSKs, the PSK is defined as the `resumption_psk` of the group and
 epoch specified in the `PreSharedKeyID` object. Specifically, `psk_secret` is
 computed as follows:
 
@@ -2754,25 +2758,25 @@ the group.
 It is RECOMMENDED for the application generating exported values
 to refresh those values after a Commit is processed.
 
-## Resumption Secret
+## Resumption PSK
 
-The main MLS key schedule provides a `resumption_secret` that is used as a PSK
+The main MLS key schedule provides a `resumption_psk` that is used as a PSK
 to inject entropy from one epoch into another.  This functionality is used in the
 reinitialization and branching processes described in {{reinitialization}} and
 {{sub-group-branching}}, but may be used by applications for other purposes.
 
 Some uses of resumption PSKs might call for the use of PSKs from historical
 epochs. The application SHOULD specify an upper limit on the number of past
-epochs for which the `resumption_secret` may be stored.
+epochs for which the `resumption_psk` may be stored.
 
-## State Authentication Keys
+## State Authentication Codes
 
-The main MLS key schedule provides a per-epoch `authentication_secret`.
+The main MLS key schedule provides a per-epoch `authentication_code`.
 If one of the parties is being actively impersonated by an attacker, their
-`authentication_secret` will differ from that of the other group members.
-Thus, members of a group MAY use their `authentication_secrets` within
-an out-of-band authentication protocol to ensure that they
-share the same view of the group.
+`authentication_code` will differ from that of the other group members.  Thus,
+members of a group MAY verify out of band that their `authentication_code`
+values are all the same, in order to ensure that they share the same view of the
+group.
 
 # Secret Tree {#secret-tree}
 
