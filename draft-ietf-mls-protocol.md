@@ -2468,7 +2468,7 @@ psk_secret (or 0) --> KDF.Extract
                     init_secret_[n]
 ~~~
 
-A number of secrets are derived from the epoch secret for different purposes:
+A number of values are derived from the epoch secret for different purposes:
 
 | Label            | Secret                | Purpose                                                     |
 |:-----------------|:----------------------|:------------------------------------------------------------|
@@ -2482,7 +2482,11 @@ A number of secrets are derived from the epoch secret for different purposes:
 | "authentication" | `authentication_code` | Confirming that two clients have the same view of the group |
 {: title="Epoch-derived secrets" #epoch-derived-secrets}
 
-The "external secret" is used to derive an HPKE key pair whose private key is
+(In general, we use "secret" to refer to a value that is used derive further
+secret values, and "key" to refer to a value that is used with an algorithm such
+as HMAC or an AEAD algorithm.)
+
+The `external_secret` is used to derive an HPKE key pair whose private key is
 held by the entire group:
 
 ~~~ pseudocode
