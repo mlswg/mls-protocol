@@ -2781,11 +2781,11 @@ by the other group members.
 This property can be used to construct defenses against impersonation attacks
 that are effective even if members' signature keys are compromised. As a trivial
 example, if the users of the clients in an MLS group were to meet in person and
-confirm that their epoch authenticator values were equal (using some suitable
-user interface), then each user would be assured that the others were not being
-impersonated in the current epoch. As soon as the epoch changed, though, they
-would need to re-do this confirmation. The state of the group would have
-changed, possibly introducing an attacker.
+reliably confirm that their epoch authenticator values were equal (using some
+suitable user interface), then each user would be assured that the others were
+not being impersonated in the current epoch. As soon as the epoch changed,
+though, they would need to re-do this confirmation. The state of the group would
+have changed, possibly introducing an attacker.
 
 More generally, in order for the members of an MLS group to obtain concrete
 authentication protections using the `epoch_authenticator`, they will need to
