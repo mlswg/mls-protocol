@@ -463,6 +463,12 @@ Application Message:
 Terminology specific to tree computations is described in
 {{ratchet-tree-terminology}}.
 
+In general, symmetric values are referred to as "keys" or "secrets"
+interchangeably.  Either term denotes a value that MUST be kept confidential to
+a Client.  When labelling individual values, we typically use "secret" to refer
+to a value that is used derive further secret values, and "key" to refer to a
+value that is used with an algorithm such as HMAC or an AEAD algorithm.
+
 ## Presentation Langauge
 
 We use the TLS presentation language {{!RFC8446}} to describe the structure of
@@ -2479,12 +2485,8 @@ A number of values are derived from the epoch secret for different purposes:
 | "confirm"        | `confirmation_key`    | Computing the confirmation MAC for an epoch                 |
 | "membership"     | `membership_key`      | Computing the membership MAC for an MLSPlaintext            |
 | "resumption"     | `resumption_psk`      | Proving membership in this epoch (via a PSK injected later) |
-| "authentication" | `authentication_code` | Confirming that two clients have the same view of the group |
+| "authentication" | `epoch_authenticator` | Confirming that two clients have the same view of the group |
 {: title="Epoch-derived secrets" #epoch-derived-secrets}
-
-(In general, we use "secret" to refer to a value that is used derive further
-secret values, and "key" to refer to a value that is used with an algorithm such
-as HMAC or an AEAD algorithm.)
 
 The `external_secret` is used to derive an HPKE key pair whose private key is
 held by the entire group:
@@ -2769,14 +2771,27 @@ Some uses of resumption PSKs might call for the use of PSKs from historical
 epochs. The application SHOULD specify an upper limit on the number of past
 epochs for which the `resumption_psk` may be stored.
 
-## State Authentication Codes
+## Epoch Authenticators
 
-The main MLS key schedule provides a per-epoch `authentication_code`.
-If one of the parties is being actively impersonated by an attacker, their
-`authentication_code` will differ from that of the other group members.  Thus,
-members of a group MAY verify out of band that their `authentication_code`
-values are all the same, in order to ensure that they share the same view of the
-group.
+The main MLS key schedule provides a per-epoch `epoch_authenticator`. If one
+member of the group is being impersonated by an active attacker, the
+`epoch_authenticator` computed by their client will differ from those computed
+by the other group members.
+
+This property can be used to construct defenses against impersonation attacks
+that are effective even if members' signature keys are compromised. As a
+trivial example, if the users of the clients in an MLS group were to meet in
+person and confirm that their epoch authenticator values were equal, then each
+user would be assured that the others were not being impersonated in the current
+epoch. As soon as the epoch changed, though, they would need to re-do this
+confirmation. The state of the group would have changed, possibly
+introducing an attacker.
+
+More generally, in order for the members of an MLS group to obtain concrete
+authentication protections using the `epoch_authenticator`, they will need to
+use it in some secondary protocol (such as the face-to-face protocol above).
+The details of that protocol will then determine the specific authentication
+protections provided to the MLS group.
 
 # Secret Tree {#secret-tree}
 
