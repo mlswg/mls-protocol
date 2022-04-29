@@ -1251,7 +1251,7 @@ uncompressed Elliptic-Curve-Point-to-Octet-String conversion according to
 {{SECG}}.
 
 A Credential can provide multiple identifiers for the client.  It is up to the
-applciation to decide which identifier or identifiers to use at the application
+application to decide which identifier or identifiers to use at the application
 level.  For example,
 a certificate in an X509Credential may attest to several domain names or email
 addresses in its subjectAltName extension.  An application may decide to
