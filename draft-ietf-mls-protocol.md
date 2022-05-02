@@ -4236,7 +4236,12 @@ extensible.  As discussed in {{commit}}, Proposals with a non-default proposal
 type MUST NOT be included in a commit unless the proposal type is supported by
 all the members of the group that will process the Commit.
 
-## Credentials
+## Credential Extensibility
+
+In order to ensure that MLS provides meaningful authentication it is important
+that each member is able to authenticate some identity information for each
+other member.  Identity information is encoded in Credentials, so this property
+is assured by ensuring that members use compatible credential types.
 
 The types of credential that may be used in a group is restricted to what all
 members of the group support, as specified by the `capabilities` field of each
@@ -4251,6 +4256,13 @@ supported by adding a `required_capabilities` extension to the group's
 GroupContext, which would prevent any member from being added to the group that
 doesn't support them.
 
+In future extensions to MLS, it may be useful to allow a member to present more
+than one credential.  For example, such credentials might present different
+attributes attested by different authorities.  To be consistent with the general
+principle stated at the beginning of this section, such an extension would need
+to ensure that each member can authenticate some identity for each other member.
+For each pair of members (Alice, Bob), Alice would need to present at least one
+credential of a type that Bob supports.
 ## Extensions
 
 This protocol includes a mechanism for negotiating extension parameters similar
