@@ -1764,6 +1764,7 @@ struct {
     CipherSuite ciphersuites<V>;
     ExtensionType extensions<V>;
     ProposalType proposals<V>;
+    CredentialType credentials<V>;
 } Capabilities;
 
 struct {
@@ -1839,10 +1840,13 @@ object, the issuer of the KeyPackage).  The `credential` contains authentication
 information for this member, as described in {{credentials}}.
 
 The `capabilities` field indicates what protocol versions, ciphersuites,
-protocol extensions, and non-default proposal types are supported by a client.
-Proposal types defined in this document are considered "default" and thus need
-not be listed.  Extensions that appear in the `extensions` field of a LeafNode
-MUST be included in the `extensions` field of the `capabilities` field.
+extensions, credential types, and non-default proposal types are supported by a client.
+Proposal and extension types defined in this document are considered "default" and thus need
+not be listed, while any credential types the application wishes to use MUST
+be listed. Extensions that appear in the `extensions` field of a LeafNode
+MUST be included in the `extensions` field of the `capabilities` field, and the
+credential type used in the LeafNode MUST be included in the `credentials` field
+of the `capabilities` field.
 
 The `leaf_node_source` field indicates how this LeafNode came to be added to the
 tree.  This signal tells other members of the group whether the leaf node is
@@ -1900,8 +1904,13 @@ The client verifies the validity of a LeafNode using the following steps:
 
 * Verify that the LeafNode is compatible with the group's parameters.  If the
   GroupContext has a `required_capabilities` extension, then the required
-  extensions and proposals MUST be listed in the LeafNode's `capabilities`
+  extensions, proposals, and credential types MUST be listed in the LeafNode's `capabilities`
   field.
+
+* Verify that the credential type is supported by all members of the group, as
+  specified by the `capabilities` field of each member's LeafNode, and that the
+  `capabilities` field of this LeafNode indicates support for all the credential
+  types currently in use by other members.
 
 * Verify the `lifetime` field:
   * When validating a LeafNode in a KeyPackage before sending an Add proposal,
@@ -2998,8 +3007,8 @@ provides an explicit signal of the intended version to the other members of
 group when they receive the KeyPackage in an Add proposal.
 
 The field `leaf_node.capabilities` indicates what protocol versions,
-ciphersuites, protocol extensions, and non-default proposal types are supported
-by the client.  (Proposal types defined in this document are considered
+ciphersuites, credential types, and non-default proposal/extension types are supported
+by the client.  (Proposal and extension types defined in this document are considered
 "default" and not listed.)  This information allows MLS session
 establishment to be safe from downgrade attacks on the parameters described (as
 discussed in {{group-creation}}), while still only advertising one version /
@@ -3105,10 +3114,11 @@ including a `required_capabilities` extension in the GroupContext.
 struct {
     ExtensionType extension_types<V>;
     ProposalType proposal_types<V>;
+    CredentialType credential_types<V>;
 } RequiredCapabilities;
 ~~~
 
-This extension lists the extensions and proposal types that must be supported by
+This extension lists the extensions, proposals, and credential types that must be supported by
 all members of the group. The "default" proposal and extension types defined in this
 document are assumed to be implemented by all clients, and need not be listed in
 RequiredCapabilities in order to be safely used.
@@ -4230,6 +4240,33 @@ extensible.  As discussed in {{commit}}, Proposals with a non-default proposal
 type MUST NOT be included in a commit unless the proposal type is supported by
 all the members of the group that will process the Commit.
 
+## Credential Extensibility
+
+In order to ensure that MLS provides meaningful authentication it is important
+that each member is able to authenticate some identity information for each
+other member.  Identity information is encoded in Credentials, so this property
+is assured by ensuring that members use compatible credential types.
+
+The types of credential that may be used in a group is restricted to what all
+members of the group support, as specified by the `capabilities` field of each
+LeafNode in the RatchetTree. An application can introduce new credential types
+by choosing an unallocated identifier from the registry in
+{{mls-credential-types}} and indicating support for the credential type in
+published LeafNodes, whether in Update proposals to existing groups or
+KeyPackages that are added to new groups. Once all members in a group indicate
+support for the credential type, members can start using LeafNodes with the new
+credential. Application may enforce that certain credential types always remain
+supported by adding a `required_capabilities` extension to the group's
+GroupContext, which would prevent any member from being added to the group that
+doesn't support them.
+
+In future extensions to MLS, it may be useful to allow a member to present more
+than one credential.  For example, such credentials might present different
+attributes attested by different authorities.  To be consistent with the general
+principle stated at the beginning of this section, such an extension would need
+to ensure that each member can authenticate some identity for each other member.
+For each pair of members (Alice, Bob), Alice would need to present at least one
+credential of a type that Bob supports.
 ## Extensions
 
 This protocol includes a mechanism for negotiating extension parameters similar
