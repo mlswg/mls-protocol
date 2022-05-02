@@ -1179,6 +1179,19 @@ the same as the signature algorithm specified in the credentials in the leaves
 of the tree (including the leaf node information in KeyPackages used to add new
 members).
 
+Like HPKE public keys, signature public keys are represented as opaque values in
+a format defined by the cipher suite's signature scheme.
+
+~~~ tls
+opaque SignaturePublicKey<V>;
+~~~
+
+For ciphersuites using Ed25519 or Ed448 signature schemes, the public key is in
+the format specified in {{?RFC8032}}.  For ciphersuites using ECDSA with the
+NIST curves (P-256, P-384, or P-521), the public key is the output of the
+uncompressed Elliptic-Curve-Point-to-Octet-String conversion according to
+{{SECG}}.
+
 To disambiguate different signatures used in MLS, each signed value is prefixed
 by a label as shown below:
 
@@ -1236,19 +1249,13 @@ ciphersuite.
 
 ## Credentials
 
-A member of a group authenticates the identities of other participants by means
-of credentials issued by some authentication system, like a PKI. Each type of
-credential MUST express the following data in the context of the group it is
-used with:
+Each member of a group presents a credential that associates an identity with
+the member's key material.  This information is verified according to the
+Authentication Service in use for a group.
 
-* The public key of a signature key pair matching the SignatureScheme specified
-  by the CipherSuite of the group
-* One or more identifiers of the holder of the private key
-
-Note that a Credential can provide multiple identifiers for the client.  If an
-application wishes to decided whether a credential represents the correct
-identifier for a participant in a given context, it is up to the application to
-decide what the correct value is and compare it to the credential.  For example,
+A Credential can provide multiple identifiers for the client.  It is up to the
+application to decide which identifier or identifiers to use at the application
+level.  For example,
 a certificate in an X509Credential may attest to several domain names or email
 addresses in its subjectAltName extension.  An application may decide to
 present all of these to a user, or if it knows a "desired" domain name or email
@@ -1258,23 +1265,12 @@ identifiers", and it is up to the application to supply a "reference identifier"
 for the authenticated client, if any.
 
 Credentials MAY also include information that allows a relying party
-to verify the identity / signing key binding.
-
-Additionally, Credentials SHOULD specify the signature scheme corresponding to
-each contained public key.
+to verify the identity / signing key binding, such as a signature from a trusted
+authority.
 
 ~~~ tls
-// See RFC 8446 and the IANA TLS SignatureScheme registry
-uint16 SignatureScheme;
-
 // See IANA registry for registered values
 uint16 CredentialType;
-
-struct {
-    opaque identity<V>;
-    SignatureScheme signature_scheme;
-    opaque signature_key<V>;
-} BasicCredential;
 
 struct {
     opaque cert_data<V>;
@@ -1282,9 +1278,9 @@ struct {
 
 struct {
     CredentialType credential_type;
-    select (Credential.credential_type) {
+    select (credential_type) {
         case basic:
-            BasicCredential;
+            opaque identity<V>;
 
         case x509:
             Certificate chain<V>;
@@ -1292,21 +1288,15 @@ struct {
 } Credential;
 ~~~
 
-A BasicCredential is a raw, unauthenticated assertion of an identity/key
-binding. The format of the key in the `public_key` field is defined by the
-relevant ciphersuite: the group ciphersuite for a credential in a leaf node of a
-ratchet tree or the KeyPackage ciphersuite for a credential in a KeyPackage
-object.  For ciphersuites using Ed25519 or Ed448 signature schemes, the public
-key is in the format specified in {{?RFC8032}}.  For ciphersuites using ECDSA with
-the NIST curves (P-256, P-384, or P-521), the public key is the output of the uncompressed
-Elliptic-Curve-Point-to-Octet-String conversion according to {{SECG}}.
+A BasicCredential is a bare assertion of an identity, without any additional
+information.  The format of the encoded identity is defined by the application.
 
 For an X.509 credential, each entry in the chain represents a single DER-encoded
-X.509 certificate. The chain is ordered such that the first entry (chain[0])
-is the end-entity certificate and each subsequent certificate in the chain
-MUST be the issuer of the previous certificate. The algorithm for the
-`public_key` in the end-entity certificate MUST match the relevant
-ciphersuite.
+X.509 certificate. The chain is ordered such that the first entry (chain[0]) is
+the end-entity certificate and each subsequent certificate in the chain MUST be
+the issuer of the previous certificate.  The public key encoded in the
+`subjectPublicKeyInfo` of the end-entity certificate MUST be identical to the
+`signature_key` in the LeafNode containing this credential.
 
 The signatures used in this document are encoded as specified in {{!RFC8446}}.
 In particular, ECDSA signatures are DER-encoded and EdDSA signatures are defined
@@ -1731,13 +1721,13 @@ subgroups of the group (for parent nodes).  Parent nodes are simpler:
 
 ~~~ tls
 struct {
-    HPKEPublicKey public_key;
+    HPKEPublicKey encryption_key;
     opaque parent_hash<V>;
     uint32 unmerged_leaves<V>;
 } ParentNode;
 ~~~
 
-The `public_key` field contains an HPKE public key whose private key is held only
+The `encryption_key` field contains an HPKE public key whose private key is held only
 by the members at the leaves among its descendants.  The `parent_hash` field
 contains a hash of this node's parent node, as described in {{parent-hash}}.
 The `unmerged_leaves` field lists the leaves under this parent node that are
@@ -1781,7 +1771,8 @@ struct {
 } Extension;
 
 struct {
-    HPKEPublicKey public_key;
+    HPKEPublicKey encryption_key;
+    SignaturePublicKey signature_key;
     Credential credential;
     Capabilities capabilities;
 
@@ -1803,7 +1794,8 @@ struct {
 } LeafNode;
 
 struct {
-    HPKEPublicKey public_key;
+    HPKEPublicKey encryption_key;
+    SignaturePublicKey signature_key;
     Credential credential;
     Capabilities capabilities;
 
@@ -1834,7 +1826,7 @@ struct {
 } LeafNodeTBS;
 ~~~
 
-The `public_key` field conains an HPKE public key whose private key is held only
+The `encryption_key` field conains an HPKE public key whose private key is held only
 by the member occupying this leaf (or in the case of a LeafNode in a KeyPackage
 object, the issuer of the KeyPackage).  The `credential` contains authentication
 information for this member, as described in {{credentials}}.
@@ -1931,8 +1923,8 @@ The client verifies the validity of a LeafNode using the following steps:
   members of the group (including any other members added in the same
   Commit):
 
-    * `public_key`
-    * `credential.signature_key`
+    * `encryption_key`
+    * `signature_key`
 
 * Verify that the extensions in the leaf node are supported.  The ID for each
   extension in the `extensions` field MUST be listed in the field
@@ -2230,13 +2222,13 @@ P). The new "Parent hash of P (with copath child S)" is obtained by hashing P's
 
 ~~~ tls
 struct {
-    HPKEPublicKey public_key;
+    HPKEPublicKey encryption_key;
     opaque parent_hash<V>;
     opaque original_sibling_tree_hash<V>;
 } ParentHashInput;
 ~~~
 
-The field `public_key` contains the HPKE public key of P. If P is the root,
+The field `encryption_key` contains the HPKE public key of P. If P is the root,
 then the `parent_hash` field is set to a zero-length octet string. Otherwise,
 `parent_hash` is the Parent Hash of the next node after P on the filtered
 direct path of U. This way, P's Parent Hash fixes
@@ -2369,7 +2361,7 @@ struct {
 } HPKECiphertext;
 
 struct {
-    HPKEPublicKey public_key;
+    HPKEPublicKey encryption_key;
     HPKECiphertext encrypted_path_secret<V>;
 } UpdatePathNode;
 
@@ -2972,9 +2964,10 @@ support multiple ciphersuites.
 The value for `init_key` MUST be a public key for the asymmetric encryption
 scheme defined by `cipher_suite`, and it MUST be unique among the set of
 KeyPackages created by this client.  Likewise, the `leaf_node` field MUST be
-valid for the ciphersuite, including both the `public_key` and `credential`
-fields.  The whole structure is signed using the client's signature key. A
-KeyPackage object with an invalid signature field MUST be considered malformed.
+valid for the ciphersuite, including both the `encryption_key` and
+`signature_key` fields.  The whole structure is signed using the client's
+signature key. A KeyPackage object with an invalid signature field MUST be
+considered malformed.
 
 The signature is computed by the function `SignWithLabel` with a label
 `KeyPackage` and a content comprising of all of the fields except for the
@@ -3039,7 +3032,7 @@ The client verifies the validity of a KeyPackage using the following steps:
 * Verify that the signature on the KeyPackage is valid using the public key
   in `leaf_node.credential`.
 
-* Verify that the value of `leaf_node.public_key` is different from the value of
+* Verify that the value of `leaf_node.encryption_key` is different from the value of
   the `init_key` field.
 
 ## KeyPackage Identifiers
@@ -3289,7 +3282,7 @@ A member of the group applies an Update message by taking the following steps:
 * Validate the LeafNode as specified in {{leaf-node-validation}}.  The
   `leaf_node_source` field MUST be set to `update`.
 
-* Verify that the `public_key` value in the LeafNode is different from the
+* Verify that the `encryption_key` value in the LeafNode is different from the
   corresponding field in the LeafNode being replaced.
 
 * Replace the sender's LeafNode with the one contained in the Update proposal
@@ -3560,7 +3553,7 @@ KeyPackages sharing the same Credential), the committer again chooses one to
 include and considers the rest invalid. The committer MUST consider invalid any
 Add or Update proposal if the Credential in the contained KeyPackage shares the
 same signature key with a Credential in any leaf of the group, or if the
-LeafNode in the KeyPackage shares the same `public_key` with another LeafNode in
+LeafNode in the KeyPackage shares the same `encryption_key` with another LeafNode in
 the group.
 
 The Commit MUST NOT combine proposals sent within different epochs. Due to the
@@ -3788,7 +3781,7 @@ A member of the group applies a Commit message by taking the following steps:
   * Validate the LeafNode as specified in {{leaf-node-validation}}.  The
     `leaf_node_source` field MUST be set to `commit`.
 
-  * Verify that the `public_key` value in the LeafNode is different from the
+  * Verify that the `encryption_key` value in the LeafNode is different from the
     committer's current leaf node.
 
   * Apply the UpdatePath to the tree, as described in
