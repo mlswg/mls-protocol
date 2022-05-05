@@ -566,6 +566,9 @@ ReadVarint(data):
   // first two bits of the first byte.
   v = data.next_byte()
   prefix = v >> 6
+  if prefix == 3:
+    raise Exception('invalid variable length integer prefix')
+
   length = 1 << prefix
 
   // Once the length is known, remove these bits and read any
@@ -573,11 +576,12 @@ ReadVarint(data):
   v = v & 0x3f
   repeat length-1 times:
     v = (v << 8) + data.next_byte()
-  return v
 
   // Check that the encoder used the minimum bits required
-  if length > 1 && v < (1 << (length - 1)):
-    raise an exception
+  if length > 1 && v < (1 << ((8*(length-1))-2)):
+    raise Exception('minimum encoding was not used')
+
+    return v
 ~~~
 
 The use of variable-size integers for vector lengths allows vectors to grow
