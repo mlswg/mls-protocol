@@ -432,7 +432,7 @@ Client:
   cryptographic keys it holds.
 
 Group:
-: A group represents a logical collection of clents that share a common
+: A group represents a logical collection of clients that share a common
   secret value at any given time.  Its state is represented as a linear
   sequence of epochs in which each epoch depends on its predecessor.
 
@@ -465,11 +465,11 @@ Terminology specific to tree computations is described in
 
 In general, symmetric values are referred to as "keys" or "secrets"
 interchangeably.  Either term denotes a value that MUST be kept confidential to
-a Client.  When labelling individual values, we typically use "secret" to refer
+a Client.  When labeling individual values, we typically use "secret" to refer
 to a value that is used derive further secret values, and "key" to refer to a
 value that is used with an algorithm such as HMAC or an AEAD algorithm.
 
-## Presentation Langauge
+## Presentation Language
 
 We use the TLS presentation language {{!RFC8446}} to describe the structure of
 protocol messages.  In addition to the base syntax, we add two additional
@@ -563,7 +563,7 @@ ReadVarint(data):
 The use of variable-size integers for vector lengths allows vectors to grow
 very large, up to 2^30 bytes.  Implementations should take care not to allow
 vectors to overflow available storage.  To facilitate debugging of potential
-interoperatbility problems, implementations should provide a clear error when
+interoperability problems, implementations should provide a clear error when
 such an overflow condition occurs.
 
 # Operating Context
@@ -1826,7 +1826,7 @@ struct {
 } LeafNodeTBS;
 ~~~
 
-The `encryption_key` field conains an HPKE public key whose private key is held only
+The `encryption_key` field contains an HPKE public key whose private key is held only
 by the member occupying this leaf (or in the case of a LeafNode in a KeyPackage
 object, the issuer of the KeyPackage).  The `credential` contains authentication
 information for this member, as described in {{credentials}}.
@@ -2282,7 +2282,7 @@ Note that no recomputation is needed if the tree hash of S is unchanged since
 the last time P was updated. This is the case for computing or processing a
 Commit whose UpdatePath traverses P, since the Commit itself resets P. (In
 other words, it is only necessary to recompute the original sibling tree hash
-when validating group's tree on joining.) More generally, if none of the entries
+when validating a group's tree on joining.) More generally, if none of the entries
 in `P.unmerged_leaves` is in the subtree under S (and thus no nodes were truncated),
 then the original tree hash at S is the tree hash of S in the current tree.
 
@@ -2609,7 +2609,7 @@ init_secret = context.export("MLS 1.0 external init secret", KDF.Nh)
 ~~~
 
 Members of the group receive the `kem_output` in an ExternalInit proposal and
-preform the corresponding calculation to retrieve the `init_secret` value.
+perform the corresponding calculation to retrieve the `init_secret` value.
 
 ~~~ pseudocode
 context = SetupBaseR(kem_output, external_priv, "")
@@ -2714,7 +2714,7 @@ psk_secret     = psk_secret_[n]
 Here `0` represents the all-zero vector of length `KDF.Nh`. The `index` field in
 `PSKLabel` corresponds to the index of the PSK in the `psk` array, while the
 `count` field contains the total number of PSKs.  In other words, the PSKs are
-chained together with KDF.Extract invocations (labelled "Extract" for brevity
+chained together with KDF.Extract invocations (labeled "Extract" for brevity
 in the diagram), as follows:
 
 ~~~ aasvg
@@ -2957,7 +2957,7 @@ provide some public information about a user. A KeyPackage object specifies:
    this client.
 
 KeyPackages are intended to be used only once and SHOULD NOT
-be reused except in case of last resort. (See {{keypackage-reuse}}).
+be reused except in the case of last resort. (See {{keypackage-reuse}}).
 Clients MAY generate and publish multiple KeyPackages to
 support multiple ciphersuites.
 
@@ -3675,7 +3675,7 @@ message at the same time, by taking the following steps:
   populated.  Otherwise, the sender MAY omit the `path` field at its discretion.
 
 * If populating the `path` field: Create an UpdatePath using the provisional
-  ratchet tree and GroupContext. Any new member (from an add proposal) MUST be
+  ratchet tree and GroupContext. Any new member (from an Add proposal) MUST be
   excluded from the resolution during the computation of the UpdatePath.  The
   `leaf_node` for this UpdatePath MUST have `leaf_node_source` set to `commit`.
   Note that the LeafNode in the `UpdatePath` effectively updates an existing
@@ -4116,7 +4116,7 @@ optional<Node> ratchet_tree<V>;
 ~~~
 
 The nodes are listed in the order specified by a left-to-right in-order
-traversal of the rachet tree. Each node is listed between its left subtree and
+traversal of the ratchet tree. Each node is listed between its left subtree and
 its right subtree.  (This is the same ordering as specified for the array-based
 trees outlined in {{array-based-trees}}.)
 
@@ -5172,7 +5172,7 @@ children.   (As opposed to the array-based representation suggested above, where
 these relationships are computed from relationships between nodes' indices in
 the array.)  Such an implementation needs to update these links to maintain the
 left-balanced structure of the tree as the tree is extended to add new members,
-or truncated when memebers are removed.
+or truncated when members are removed.
 
 The following code snippet shows how these algorithms could be implemented in
 Python.
