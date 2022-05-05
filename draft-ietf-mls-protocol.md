@@ -134,6 +134,26 @@ shared keys with costs that scale as the log of the group size.
 
 RFC EDITOR PLEASE DELETE THIS SECTION.
 
+draft-14
+
+- Ensure that a signature public key is always intelligible (\*)
+
+- Clean up terminology of derived secrets/keys
+
+- Fix parent hash (\*)
+
+- Specify compatibility behavior around new credentials
+
+- Add Path Required to Proposal Type template
+
+- Sub-group branching requires fresh key packages for each member
+
+- Use `aasvg` and typed code blocks
+
+- Require init key and leaf key to be different
+
+- Preconfigured senders extension and removal of signature key indirection
+
 draft-13
 
 - TLS syntax updates (including variable-header-length vectors) (\*)
