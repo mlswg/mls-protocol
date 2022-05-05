@@ -1548,13 +1548,13 @@ following value:
 
 ~~~ tls
 struct {
-  MLSMessageContentTBS content_tbs;
+  MLSMessageContent content;
   MLSMessageAuth auth;
-} MLSMessageContentTBM;
+} MLSPlaintextTBM;
 ~~~
 
 ~~~ pseudocode
-membership_tag = MAC(membership_key, MLSMessageContentTBM)
+membership_tag = MAC(membership_key, MLSPlaintextTBM)
 ~~~
 
 
