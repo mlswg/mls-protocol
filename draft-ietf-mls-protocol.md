@@ -624,7 +624,7 @@ secret_ that is known only to the members of the group in that epoch.  The set
 of members involved in the group can change from one epoch to the next, and MLS
 ensures that only the members in the current epoch have access to the epoch
 secret.  From the epoch secret, members derive further shared secrets for
-message encryption, group membership authentication, etc.
+message encryption, group membership authentication, and so on.
 
 The creator of an MLS group creates the group's first epoch unilaterally, with
 no protocol interactions.  Thereafter, the members of the group advance their
@@ -687,14 +687,14 @@ The cryptographic state at the core of MLS is divided into three areas of respon
   subsets of the group.  Each epoch has a distinct ratchet tree. It seeds the
   _key schedule_.
 * A _key schedule_ that describes the chain of key derivations used to progress from
-  epoch to epoch (mainly using the _init_secret_ and _epoch_secret_); and to derive
+  epoch to epoch (mainly using the _init_secret_ and _epoch_secret_) and which derives
   a variety of other secrets (see {{epoch-derived-secrets}}) used during the current
-  epoch. One of these (the _encryption_secret_) is the root of _secret_tree_.
+  epoch. One of these (the _encryption_secret_) is the root of the secret tree.
 * A _secret tree_ derived from the key schedule that represents shared secrets
-  used by the members of the group to provide confidentiality and forward
-  secrecy for MLS messages.  Each epoch has a distinct secret tree.
+  used by the members of the group for encrypting and authenticating messages.
+  Each epoch has a distinct secret tree.
 
-Each member of the group maintains a view of these facets of the group's
+Each member of the group maintains a partial view of these components of the group's
 state.  MLS messages are used to initialize these views and keep them in sync as
 the group transitions between epochs.
 
@@ -702,30 +702,15 @@ Each new epoch is initiated with a Commit message.  The Commit instructs
 existing members of the group to update their views of the ratchet tree by applying
 a set of Proposals, and uses the updated ratchet tree to distribute fresh
 entropy to the group.  This fresh entropy is provided only to members in the new
-epoch, not to members who have been removed, so it maintains the confidentiality
-of the epoch secret (in other words, it provides post-compromise security with
+epoch and not to members who have been removed, which maintains the confidentiality
+of the epoch secret (in other words, the protocol provides post-compromise security with
 respect to those members).
 
-For each Commit that adds member(s) to the group, there is a single corresponding
+For each Commit that adds one or more members to the group, there is a single corresponding
 Welcome message.  The Welcome message provides all the new members with the information
 they need to initialize their views of the key schedule and ratchet tree, so
-that these views are equivalent to the views held by other members of the group
+that these views align with the views held by other members of the group
 in this epoch.
-
-In addition to defining how one epoch secret leads to the next, the key schedule
-also defines a collection of secrets that are derived from the epoch secret.
-For example:
-
-* An _encryption secret_ that is used to initialize the secret tree for the
-  epoch.
-
-* A _confirmation key_ that is used to confirm that all members agree on the
-  shared state of the group.
-
-* A _resumption secret_ that members can use to prove their membership in the
-  group, e.g., in the case of branching a subgroup.
-
-Finally, an _init secret_ is derived that is used to initialize the next epoch.
 
 ## Example Protocol Execution
 
