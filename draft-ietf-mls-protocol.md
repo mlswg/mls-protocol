@@ -581,7 +581,7 @@ ReadVarint(data):
   if length > 1 && v < (1 << ((8*(length-1))-2)):
     raise Exception('minimum encoding was not used')
 
-    return v
+  return v
 ~~~
 
 The use of variable-size integers for vector lengths allows vectors to grow
@@ -818,10 +818,13 @@ A              B     ...      Z          Directory        Channel
 |              |              |              |              |
 |              | Update(B)    |              |              |
 |              +------------------------------------------->|
+|              |              |              | Update(B)    |
+|<----------------------------------------------------------+
+|              |<-------------------------------------------+
+|              |              |<----------------------------+
+|              |              |              |              |
 | Commit(Upd)  |              |              |              |
 +---------------------------------------------------------->|
-|              |              |              |              |
-|              |              |              | Update(B)    |
 |              |              |              | Commit(Upd)  |
 |<----------------------------------------------------------+
 |              |<-------------------------------------------+
@@ -836,7 +839,7 @@ Members are removed from the group in a similar way.
 Any member of the group can send a Remove proposal followed by a
 Commit message.  The Commit message provides new entropy to all members of the
 group except the removed member.  This new entropy is added to the epoch secret
-for the new epoch, so that it is not known to the removed member.
+for the new epoch so that it is not known to the removed member.
 Note that this does not necessarily imply that any member
 is actually allowed to evict other members; groups can
 enforce access control policies on top of these
@@ -861,7 +864,7 @@ A              B     ...      Z          Directory       Channel
 ## Relationships Between Epochs
 
 A group has a single linear sequence of epochs. Groups and epochs are generally
-independent of one-another. However, it can sometimes be useful to link epochs
+independent of one another. However, it can sometimes be useful to link epochs
 cryptographically, either within a group or across groups. MLS derives a
 resumption pre-shared key (PSK) from each epoch to allow entropy extracted from
 one epoch to be injected into a future epoch. This link guarantees that members
