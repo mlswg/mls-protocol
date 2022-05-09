@@ -1245,7 +1245,6 @@ to Proposals they cover.  These identifiers are computed as follows:
 opaque HashReference[16];
 
 HashReference KeyPackageRef;
-HashReference LeafNodeRef;
 HashReference ProposalRef;
 ~~~
 
@@ -1253,17 +1252,13 @@ HashReference ProposalRef;
 MakeKeyPackageRef(value) = KDF.expand(
   KDF.extract("", value), "MLS 1.0 KeyPackage Reference", 16)
 
-MakeLeafNodeRef(value) = KDF.expand(
-  KDF.extract("", value), "MLS 1.0 Leaf Node Reference", 16)
-
 MakeProposalRef(value) = KDF.expand(
   KDF.extract("", value), "MLS 1.0 Proposal Reference", 16)
 ~~~
 
 For a KeyPackageRef, the `value` input is the encoded KeyPackage, and the
 ciphersuite specified in the KeyPackage determines the KDF used.  For a
-LeafNodeRef, the `value` input is the LeafNode object for the leaf node in
-question.  For a ProposalRef, the `value` input is the MLSMessageContentAuth carrying the
+ProposalRef, the `value` input is the MLSMessageContentAuth carrying the
 proposal.  In the latter two cases, the KDF is determined by the group's
 ciphersuite.
 
@@ -1338,23 +1333,18 @@ protocol operations with regard to other clients (e.g., removing clients).  Such
 functions will need to refer to the other clients using some identifier.  MLS
 clients have a few types of identifiers, with different operational properties.
 
+Internally to the protocol, group members are uniquely identified by their leaf
+index. However, a leaf index is only valid for referring to members in a given
+epoch. The same leaf index may represent a different member, or no member at
+all, in a subsequent epoch.
+
 The Credentials presented by the clients in a group authenticate
-application-level identifiers for the clients.  These identifiers may not
+application-level identifiers for the clients.  However, these identifiers may not
 uniquely identify clients.  For example, if a user has multiple devices that are
 all present in an MLS group, then those devices' clients could all present the
 user's application-layer identifiers.
 
-Internally to the protocol, group members are uniquely identified by their
-leaves, expressed as LeafNodeRef objects.  These identifiers are unstable:
-They change whenever the member sends a Commit, or whenever an Update
-proposal from the member is committed.
-
-MLS provides two unique client identifiers that are stable across epochs:
-
-* The index of a client among the leaves of the tree
-* The `epoch_id` field in the key package
-
-The application may also provide application-specific unique identifiers in the
+If needed, applications may add application-specific unique identifiers to the
 `extensions` field of KeyPackage or LeafNode objects.
 
 # Message Framing
@@ -1406,7 +1396,7 @@ struct {
     SenderType sender_type;
     switch (sender_type) {
         case member:
-            LeafNodeRef member_ref;
+            uint32 leaf_index;
         case external:
             uint32 sender_index;
         case new_member:
@@ -1506,10 +1496,10 @@ current epoch, so that signatures are specific to a given group and epoch.
 The sender MUST use the private key corresponding to the following signature key
 depending on the sender's `sender_type`:
 
-* `member`: The signature key contained in the Credential at the leaf with the
-  sender's `LeafNodeRef`
+* `member`: The signature key contained in the Credential at the index
+  indicated by `leaf_index` in the ratchet tree.
 * `external`: The signature key contained in the Credential at the index
-  indicated by the `sender_index` in the `external_senders` group context
+  indicated by `sender_index` in the `external_senders` group context
   extension (see Section {{external-senders-extension}}).  In this case, the
   `content_type` of the message MUST NOT be `commit`, since only members
   of the group or new joiners can send Commit messages.
@@ -1682,15 +1672,15 @@ encrypted, the sender data is encoded as an object of the following form:
 
 ~~~ tls
 struct {
-    LeafNodeRef sender;
+    uint32 leaf_index;
     uint32 generation;
     opaque reuse_guard[4];
 } MLSSenderData;
 ~~~
 
-MLSSenderData.sender is assumed to be a `member` sender type.  When constructing
-an MLSSenderData from a Sender object, the sender MUST verify Sender.sender_type
-is `member` and use Sender.sender for MLSSenderData.sender.
+When constructing an MLSSenderData from a Sender object, the sender MUST verify
+Sender.sender_type is `member` and use Sender.leaf_index for
+MLSSenderData.leaf_index.
 
 The `reuse_guard` field contains a fresh random value used to avoid nonce reuse
 in the case of state loss or corruption, as described in {{content-encryption}}.
@@ -1721,8 +1711,8 @@ struct {
 ~~~
 
 When parsing a SenderData struct as part of message decryption, the recipient
-MUST verify that the LeafNodeRef indicated in the `sender` field identifies a
-member of the group.
+MUST verify that the leaf index indicated in the `leaf_index` field identifies a
+non-blank node.
 
 # Ratchet Tree Operations
 
@@ -3311,12 +3301,12 @@ A member of the group applies an Update message by taking the following steps:
 
 ### Remove
 
-A Remove proposal requests that the member with LeafNodeRef `removed` be removed
+A Remove proposal requests that the member with the leaf index `removed` be removed
 from the group.
 
 ~~~ tls
 struct {
-    LeafNodeRef removed;
+    uint32 removed;
 } Remove;
 ~~~
 
@@ -3401,7 +3391,7 @@ included in Commit messages.
 
 ~~~ tls
 struct {
-    LeafNodeRef sender;
+    uint32 sender;
     uint32 first_generation;
     uint32 last_generation;
 } MessageRange;
@@ -3856,14 +3846,14 @@ struct {
     Extension group_context_extensions<V>;
     Extension other_extensions<V>;
     MAC confirmation_tag;
-    LeafNodeRef signer;
+    uint32 signer;
     // SignWithLabel(., "GroupInfoTBS", GroupInfoTBS)
     opaque signature<V>;
 } GroupInfo;
 ~~~
 
 New members MUST verify the `signature` using the public key taken from the
-credential in the leaf node of the member with LeafNodeRef `signer`. The
+credential in the leaf node of the ratchet tree with leaf index `signer`. The
 signature covers the following structure, comprising all the fields in the
 GroupInfo above `signature`:
 
@@ -3877,7 +3867,7 @@ struct {
     Extension group_context_extensions<V>;
     Extension other_extensions<V>;
     MAC confirmation_tag;
-    LeafNodeRef signer;
+    uint32 signer;
 } GroupInfoTBS;
 ~~~
 
@@ -4047,7 +4037,7 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 * Verify the signature on the GroupInfo object. The signature input comprises
   all of the fields in the GroupInfo object except the signature field. The
   public key and algorithm are taken from the credential in the leaf node of the
-  member with LeafNodeRef `signer`. If there is no matching leaf node, or if
+  ratchet tree with leaf index `signer`. If the node is blank or if
   signature verification fails, return an error.
 
 * Verify the integrity of the ratchet tree.
@@ -4083,7 +4073,7 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 
     * If the `path_secret` value is set in the GroupSecrets object: Identify the
       lowest common ancestor of the leaf node `my_leaf` and of the node of
-      the member with LeafNodeRef `GroupInfo.signer`. Set the private key for
+      the member with leaf index `GroupInfo.signer`. Set the private key for
       this node to the private key derived from the `path_secret`.
 
     * For each parent of the common ancestor, up to the root of the tree, derive
