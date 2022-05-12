@@ -1212,6 +1212,10 @@ NIST curves (P-256, P-384, or P-521), the public key is the output of the
 uncompressed Elliptic-Curve-Point-to-Octet-String conversion according to
 {{SECG}}.
 
+The signatures used in this document are encoded as specified in {{!RFC8446}}.
+In particular, ECDSA signatures are DER-encoded and EdDSA signatures are defined
+as the concatenation of `r` and `s` as specified in {{?RFC8032}}.
+
 To disambiguate different signatures used in MLS, each signed value is prefixed
 by a label as shown below:
 
@@ -1318,18 +1322,10 @@ the issuer of the previous certificate.  The public key encoded in the
 `subjectPublicKeyInfo` of the end-entity certificate MUST be identical to the
 `signature_key` in the LeafNode containing this credential.
 
-The signatures used in this document are encoded as specified in {{!RFC8446}}.
-In particular, ECDSA signatures are DER-encoded and EdDSA signatures are defined
-as the concatenation of `r` and `s` as specified in {{?RFC8032}}.
-
 Each new credential that has not already been validated by the application MUST
 be validated against the Authentication Service.  Applications SHOULD require
 that a client present the same set of identifiers throughout its presence in
-the group, even if its Credential is changed in a Commit or Update.  If an
-application allows clients to change identifiers over time, then each time the
-client presents a new credential, the application MUST verify that the set
-of identifiers in the credential is acceptable to the application for this
-client.
+the group, even if its Credential is changed in a Commit or Update.
 
 ### Uniquely Identifying Clients
 
@@ -1906,10 +1902,9 @@ The client verifies the validity of a LeafNode using the following steps:
 * Verify that the credential in the LeafNode is valid according to the
   authentication service and the client's local policy. These actions MUST be
   the same regardless of at what point in the protocol the LeafNode is being
-  verified with the following exception: If the LeafNode is an update to
-  another LeafNode, the authentication service MUST additionally validate that
-  the set of identities attested by the credential in the new LeafNode is
-  acceptable relative to the identities attested by the old credential.
+  verified. If the LeafNode is an update to another LeafNode, the Authentication
+  Service SHOULD additionally validate that the set of identities attested by
+  the credential in the new LeafNode are the same as in the old credential.
 
 * Verify that the signature on the LeafNode is valid using the public key
   in the LeafNode's credential
