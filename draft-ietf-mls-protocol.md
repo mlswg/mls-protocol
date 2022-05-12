@@ -1502,8 +1502,20 @@ MLSMessageContent is authenticated using the MLSMessageAuth structure.
 
 ~~~ tls
 struct {
-    opaque mac_value<V>;
-} MAC;
+    ProtocolVersion version = mls10;
+    WireFormat wire_format;
+    MLSMessageContent content;
+    select (MLSMessageContentTBS.content.sender.sender_type) {
+        case member:
+        case new_member:
+            GroupContext context;
+
+        case external:
+            struct{};
+    }
+} MLSMessageContentTBS;
+
+opaque MAC<V>;
 
 struct {
     // SignWithLabel(., "MLSMessageContentTBS", MLSMessageContentTBS)
@@ -1523,49 +1535,28 @@ struct {
 The signature is computed using `SignWithLabel` with label
 `"MLSMessageContentTBS"` and with a content that covers the message content and
 the wire format that will be used for this message. If the sender's
-`sender_type` is `Member`, the content also covers the GroupContext for the
-current epoch, so that signatures are specific to a given group and epoch.
+`sender_type` is `member`, the content also covers the GroupContext for the
+current epoch so that signatures are specific to a given group and epoch.
 
 The sender MUST use the private key corresponding to the following signature key
 depending on the sender's `sender_type`:
 
-* `member`: The signature key contained in the Credential at the index
+* `member`: The signature key contained in the LeafNode at the index
   indicated by `leaf_index` in the ratchet tree.
-* `external`: The signature key contained in the Credential at the index
+* `external`: The signature key at the index
   indicated by `sender_index` in the `external_senders` group context
-  extension (see Section {{external-senders-extension}}).  In this case, the
-  `content_type` of the message MUST NOT be `commit`, since only members
-  of the group or new joiners can send Commit messages.
-* `new_member`: The signature key depends on the `content_type`:
-  * `proposal`: The signature key in the credential contained in KeyPackage in
-    the Add proposal (see Section {{external-proposals}}).
-  * `commit`: The signature key in the credential contained in the KeyPackage in
-    the Commit's path (see Section {{external-initialization}}).
-
-~~~ tls
-struct {
-    ProtocolVersion version = mls10;
-    WireFormat wire_format;
-    MLSMessageContent content;
-    select (MLSMessageContentTBS.content.sender.sender_type) {
-        case member:
-        case new_member:
-            GroupContext context;
-
-        case external:
-            struct{};
-    }
-} MLSMessageContentTBS;
-~~~
+  extension (see {{external-senders-extension}}). The
+  `content_type` of the message MUST be `proposal`.
+* `new_member`: The signature key in the LeafNode in
+    the Commit's path (see {{joining-via-external-commits}}). The
+    `content_type` of the message MUST be `commit`.
 
 Recipients of an MLSMessage MUST verify the signature with the key depending on
 the `sender_type` of the sender as described above.
 
 The confirmation tag value confirms that the members of the group have arrived
-at the same state of the group.
-
-A MLSMessageAuth is said to be valid when both the `signature` and
-`confirmation_tag` fields are valid.
+at the same state of the group. An MLSMessageAuth is said to be valid when both
+the `signature` and `confirmation_tag` fields are valid.
 
 ## Encoding and Decoding a Plaintext
 
@@ -3510,25 +3501,17 @@ group agree on the extensions in use.
 ### External Proposals
 
 Add and Remove proposals can be constructed and sent to the group by a party
-that is outside the group.  For example, a Delivery Service might propose to
+that is outside the group, indicated by an `external` SenderType.
+This is useful in cases where, for example, an automated service might propose to
 remove a member of a group who has been inactive for a long time, or propose adding
-a newly-hired staff member to a group representing a real-world team.  Proposals
-originating outside the group are identified by a `external` or
-`new_member` SenderType in MLSPlaintext.
+a newly-hired staff member to a group representing a real-world team.
 
 ReInit proposals can also be sent to the group by an `external` sender, for
 example to enforce a changed policy regarding MLS version or ciphersuite.
 
-The `new_member` SenderType is used for clients proposing that they themselves
-be added.  For this ID type the sender value MUST be zero and the Proposal type
-MUST be Add. The MLSPlaintext MUST be signed with the private key corresponding
-to the KeyPackage in the Add message.  Recipients MUST verify that the
-MLSPlaintext carrying the Proposal message is validly signed with this key.
-
-The `external` SenderType is reserved for signers that are pre-provisioned
-to the clients within a group. It can only be used if the
-`external_senders` extension is present in the group's group context
-extensions.
+The `external` SenderType requires that signers are pre-provisioned
+to the clients within a group and can only be used if the
+`external_senders` extension is present in the group's GroupContext.
 
 An external proposal MUST be sent as an MLSPlaintext object, since the sender
 will not have the keys necessary to construct an MLSCiphertext object.
