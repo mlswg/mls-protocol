@@ -1200,7 +1200,7 @@ of the tree (including the leaf node information in KeyPackages used to add new
 members).
 
 Like HPKE public keys, signature public keys are represented as opaque values in
-a format defined by the cipher suite's signature scheme.
+a format defined by the ciphersuite's signature scheme.
 
 ~~~ tls
 opaque SignaturePublicKey<V>;
@@ -1269,13 +1269,13 @@ ciphersuite.
 
 ## Credentials
 
-Each member of a group presents a credential that associates an identity with
-the member's key material.  This information is verified according to the
-Authentication Service in use for a group.
+Each member of a group presents a credential that provides one or more
+identities for the member, and associates them with the member's signing key.
+The identities and signing key are verified by the Authentication Service in use
+for a group.
 
-A Credential can provide multiple identifiers for the client.  It is up to the
-application to decide which identifier or identifiers to use at the application
-level.  For example,
+It is up to the application to decide which identifier or identifiers to use at
+the application level.  For example,
 a certificate in an X509Credential may attest to several domain names or email
 addresses in its subjectAltName extension.  An application may decide to
 present all of these to a user, or if it knows a "desired" domain name or email
@@ -1283,10 +1283,6 @@ address, it can check that the desired identifier is among those attested.
 Using the terminology from {{?RFC6125}}, a Credential provides "presented
 identifiers", and it is up to the application to supply a "reference identifier"
 for the authenticated client, if any.
-
-Credentials MAY also include information that allows a relying party
-to verify the identity / signing key binding, such as a signature from a trusted
-authority.
 
 ~~~ tls
 // See IANA registry for registered values
@@ -1298,7 +1294,7 @@ struct {
 
 struct {
     CredentialType credential_type;
-    select (credential_type) {
+    select (Credential.credential_type) {
         case basic:
             opaque identity<V>;
 
@@ -1361,7 +1357,7 @@ The application may also provide application-specific unique identifiers in the
 
 Handshake and application messages use a common framing structure.
 This framing provides encryption to ensure confidentiality within the
-group, as well as signing to authenticate the sender within the group.
+group, as well as signing to authenticate the sender.
 
 The main structure is MLSMessageContent, which contains the content of
 the message.  This structure is authenticated using MLSMessageAuth
@@ -1404,7 +1400,7 @@ enum {
 
 struct {
     SenderType sender_type;
-    switch (sender_type) {
+    select (Sender.sender_type) {
         case member:
             LeafNodeRef member_ref;
         case external:
@@ -1552,7 +1548,7 @@ Plaintexts are encoded using the MLSPlaintext structure.
 struct {
     MLSMessageContent content;
     MLSMessageAuth auth;
-    select(MLSPlaintext.content.sender.sender_type) {
+    select (MLSPlaintext.content.sender.sender_type) {
         case member:
             MAC membership_tag;
         case external:
@@ -1577,9 +1573,8 @@ struct {
 membership_tag = MAC(membership_key, MLSMessageContentTBM)
 ~~~
 
-
-When decoding a MLSPlaintext into a MLSMessageContentAuth,
-the application MUST check `membership_tag`, and MUST check that the
+When decoding an MLSPlaintext into an MLSMessageContentAuth,
+the application MUST check `membership_tag` and MUST check that the
 MLSMessageAuth is valid.
 
 ## Encoding and Decoding a Ciphertext
@@ -1637,7 +1632,7 @@ schedule it is; if this persistent state is lost or corrupted, a client might
 reuse a generation that has already been used, causing reuse of a key/nonce pair.
 
 To avoid this situation, the sender of a message MUST generate a fresh random
-4-byte "reuse guard" value and XOR it with the first four bytes of the nonce
+four byte "reuse guard" value and XOR it with the first four bytes of the nonce
 from the key schedule before using the nonce for encryption.  The sender MUST
 include the reuse guard in the `reuse_guard` field of the sender data object, so
 that the recipient of the message can use it to compute the nonce to be used for
@@ -1670,12 +1665,12 @@ struct {
 } MLSCiphertextContentAAD;
 ~~~
 
-When decoding a MLSCiphertextContent, the application MUST check that the
+When decoding an MLSCiphertextContent, the application MUST check that the
 MLSMessageAuth is valid.
 
 ### Sender Data Encryption
 
-The "sender data" used to look up the key for the content encryption is
+The "sender data" used to look up the key for content encryption is
 encrypted with the ciphersuite's AEAD with a key and nonce derived from both the
 `sender_data_secret` and a sample of the encrypted content. Before being
 encrypted, the sender data is encoded as an object of the following form:
@@ -1797,12 +1792,12 @@ struct {
     Capabilities capabilities;
 
     LeafNodeSource leaf_node_source;
-    select (leaf_node_source) {
+    select (LeafNode.leaf_node_source) {
         case key_package:
             Lifetime lifetime;
 
         case update:
-            struct {}
+            struct{};
 
         case commit:
             opaque parent_hash<V>;
@@ -1820,7 +1815,7 @@ struct {
     Capabilities capabilities;
 
     LeafNodeSource leaf_node_source;
-    select (leaf_node_source) {
+    select (LeafNodeTBS.leaf_node_source) {
         case key_package:
             Lifetime lifetime;
 
@@ -1833,7 +1828,7 @@ struct {
 
     Extension extensions<V>;
 
-    select (leaf_node_source) {
+    select (LeafNodeTBS.leaf_node_source) {
         case key_package:
             struct{};
 
@@ -1848,8 +1843,10 @@ struct {
 
 The `encryption_key` field contains an HPKE public key whose private key is held only
 by the member occupying this leaf (or in the case of a LeafNode in a KeyPackage
-object, the issuer of the KeyPackage).  The `credential` contains authentication
-information for this member, as described in {{credentials}}.
+object, the issuer of the KeyPackage). The `signature_key` field contains the
+member's public signing key. The `credential` field contains information
+authenticating both the member's identity and the provided signing key, as
+described in {{credentials}}.
 
 The `capabilities` field indicates what protocol versions, ciphersuites,
 extensions, credential types, and non-default proposal types are supported by a client.
@@ -1911,8 +1908,7 @@ The client verifies the validity of a LeafNode using the following steps:
   the set of identities attested by the credential in the new LeafNode is
   acceptable relative to the identities attested by the old credential.
 
-* Verify that the signature on the LeafNode is valid using the public key
-  in the LeafNode's credential
+* Verify that the signature on the LeafNode is valid using `signature_key`.
 
 * Verify that the LeafNode is compatible with the group's parameters.  If the
   GroupContext has a `required_capabilities` extension, then the required
@@ -1924,7 +1920,11 @@ The client verifies the validity of a LeafNode using the following steps:
   `capabilities` field of this LeafNode indicates support for all the credential
   types currently in use by other members.
 
-* Verify the `lifetime` field:
+* Verify that the `leaf_node_source` field has the appropriate value for the
+  context in which the LeafNode is being validated (as defined in
+  {{leaf-node-contents}}).
+
+* If applicable, verify the `lifetime` field:
   * When validating a LeafNode in a KeyPackage before sending an Add proposal,
     the current time MUST be within the `lifetime` range.  A KeyPackage
     containing a LeafNode that is expired or not yet valid MUST NOT be sent in
@@ -1935,9 +1935,8 @@ The client verifies the validity of a LeafNode using the following steps:
     leaf node was proposed for addition, even if it is expired at these later
     points in the protocol.
 
-* Verify that the `leaf_node_source` field has the appropriate value for the
-  context in which the LeafNode is being validated (as defined in
-  {{leaf-node-contents}}).
+* If applicable, verify the `parent_hash` as specified in
+  {{verifying-parent-hashes}}.
 
 * Verify that the following fields in the LeafNode are unique among the
   members of the group (including any other members added in the same
@@ -1946,9 +1945,9 @@ The client verifies the validity of a LeafNode using the following steps:
     * `encryption_key`
     * `signature_key`
 
-* Verify that the extensions in the leaf node are supported.  The ID for each
-  extension in the `extensions` field MUST be listed in the field
-  `capabilities.extensions` of the LeafNode.
+* Verify that the extensions in the LeafNode are supported by checking that the
+  ID for each extension in the `extensions` field is listed in the
+  `capabilities.extensions` field of the LeafNode.
 
 ## Ratchet Tree Evolution
 
@@ -1966,11 +1965,11 @@ Recall the definition of resolution from {{ratchet-tree-nodes}}.
 To begin with, the generator of the UpdatePath updates its leaf and its leaf's
 _filtered direct path_ with new key pairs. The filtered direct path of a node
 is obtained from the node's direct path by removing all nodes whose child on
-the nodes's copath has an empty resolution (any unmerged leaves of the copath
-child count towards its resolution). Such a removed node does not need a key
-pair, since after blanking it, its resolution consists of a single node on the
-filtered direct path. Using the key pair of the node in the resolution is
-equivalent to using the key pair of the removed node.
+the nodes' copath has an empty resolution (keeping in mind that any unmerged leaves of the copath
+child count towards its resolution). Such a removed node does not need its own key
+pair since, if the copath child's resolution is blank, then encrypting any data
+to the node's key pair would be equivalent to encrypting only to the
+non-copath child.
 
 * Blank all the nodes on the direct path from the leaf to the root.
 * Generate a fresh HPKE key pair for the leaf.
@@ -2125,11 +2124,11 @@ the following information for each node in the filtered direct path of the
 sender's leaf, including the root:
 
 * The public key for the node
-* Zero or more encrypted copies of the path secret corresponding to
+* One or more encrypted copies of the path secret corresponding to
   the node
 
-The path secret value for a given node is encrypted for the subtree
-corresponding to the parent's non-updated child, that is, the child
+The path secret value for a given node is encrypted to the subtree
+rooted at the parent's non-updated child. That is, the child
 on the copath of the sender's leaf node.
 There is one encryption of the path secret to each public key in the resolution
 of the non-updated child.
@@ -2157,10 +2156,10 @@ The recipient of an UpdatePath processes it with the following steps:
        each hash incorporates all the non-blank nodes above it. The root node
        always has a zero-length hash for this value.
    * For nodes where a path secret was recovered in step 1 ("Compute the
-     updated path secrets"), compute and store the node's updated private key.
+     updated path secrets"), store the node's updated private key.
 
 For example, in order to communicate the example update described in
-the previous section, the sender would transmit the following
+{{ratchet-tree-evolution}}, the sender would transmit the following
 values:
 
 | Public Key    | Ciphertext(s)                                           |
@@ -2366,13 +2365,11 @@ chain from the committer's leaf to the root.
 
 ## Update Paths
 
-As described in {{commit}}, each MLS Commit message may optionally
-transmit a LeafNode and parent node values along its direct path.
-The path contains a public key and encrypted secret value for all
-intermediate nodes in the filtered direct path from the leaf to the
-root. The path is ordered
-from the closest node to the leaf to the root; each node MUST be the
-parent of its predecessor.
+As described in {{commit}}, each Commit message may optionally contain an
+UpdatePath, with a new LeafNode and set of parent nodes for the sender's
+filtered direct path. For each intermediate node, the UpdatePath contains a new
+public key and encrypted path secret. The nodes are ordered such that each node
+is the ancestor of its predecessor.
 
 ~~~ tls
 struct {
@@ -2392,9 +2389,9 @@ struct {
 ~~~
 
 For each `UpdatePathNode`, the resolution of the corresponding copath node MUST
-be filtered by removing all new leaf nodes added as part of this MLS Commit
-message. The number of ciphertexts in the `encrypted_path_secret` vector MUST be
-equal to the length of the filtered resolution, with each ciphertext being the
+exclude all new leaf nodes added as part of the current Commit. The length of
+the `encrypted_path_secret` vector MUST be equal to the length of the resolution
+of the copath node (excluding new leaf nodes), with each ciphertext being the
 encryption to the respective resolution node.
 
 The HPKECiphertext values are computed as
