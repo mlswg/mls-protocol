@@ -3333,20 +3333,16 @@ struct {
 
 An Add proposal is invalid if any of the following is true:
 
-* The KeyPackage is invalid according to {{keypackage-validation}}.
+* The KeyPackage is invalid for an Add proposal according to {{keypackage-validation}}.
 
-* The `leaf_node_source` of the LeafNode in the KeyPackage is not set to
-  `key_package`.
-
-* The Credential in the LeafNode in the KeyPackage shares the same signature
-  key with a Credential in any leaf of the group.
+* The Credential in the LeafNode in the KeyPackage has the same signature
+  key as a Credential in any leaf of the group.
 
 * The LeafNode in the KeyPackage shares the same `encryption_key` with another
   LeafNode in the group.
 
 * The Credential in the KeyPackage represents a client already in the
-  group according to the application (for example, identical KeyPackages or
-  KeyPackages sharing the same Credential).
+  group according to the application.
 
 An Add is applied after being included in a Commit message.  The position of the
 Add in the list of proposals determines the leaf node where the new member will
@@ -3379,9 +3375,7 @@ struct {
 
 An Update proposal is invalid if any of the following is true:
 
-* The LeafNode is invalid according to {{leaf-node-validation}}.
-
-* The `leaf_node_source` of the LeafNode is not set to `update`.
+* The LeafNode is invalid for an Update proposal according to {{leaf-node-validation}}.
 
 * The Credential in the LeafNode shares the same signature key with a Credential
   in any leaf of the group.
@@ -3405,8 +3399,8 @@ struct {
 } Remove;
 ~~~
 
-A Remove proposal is invalid if the `removed` field does not identify any non-blank
-leaf node.
+A Remove proposal is invalid if the `removed` field does not identify a non-blank leaf
+node.
 
 A member of the group applies a Remove message by taking the following steps:
 
@@ -3435,14 +3429,15 @@ struct {
 
 A PreSharedKey proposal is invalid if any of the following is true:
 
-* The `psktype` of the pre-shared key is not set to `external`.
+* The `psktype` in the PreSharedKeyID struct is not set to `external`.
 
 * The `psk_nonce` is not of length `KDF.Nh`.
 
 The `psk_nonce` MUST be randomly sampled. When processing
-a Commit message that includes one or more PreSharedKey proposals, group members derive
-`psk_secret` as described in {{pre-shared-keys}}, where the order of the PSKs
-corresponds to the order of the `PreSharedKey` proposals in the Commit.
+a Commit message that includes one or more PreSharedKey proposals, group
+members derive `psk_secret` as described in {{pre-shared-keys}}, where the
+order of the PSKs corresponds to the order of the `PreSharedKey` proposals
+in the Commit.
 
 ### ReInit
 
@@ -3460,12 +3455,13 @@ struct {
 } ReInit;
 ~~~
 
+A ReInit proposal is invalid if the `version` field is less than the version
+for the current group.
+
 A member of the group applies a ReInit proposal by waiting for the committer to
 send the Welcome message that matches the ReInit, according to the criteria in
 {{reinitialization}}.
 
-A ReInit proposal is invalid if the `version` field if greater than the version
-for the current group.
 
 ### ExternalInit
 
