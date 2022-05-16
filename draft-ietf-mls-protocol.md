@@ -3576,7 +3576,7 @@ that any members whose removal was proposed during the epoch are actually
 removed before any application data is transmitted.
 
 A sender and a receiver of a Commit MUST verify that the committed list of
-proposals is valid as specified in {{validating proposals}}. A list is invalid if, for example,
+proposals is valid as specified in {{validating-proposals}}. A list is invalid if, for example,
 it includes a proposal with an invalid signature, a proposal sent within a different epoch.
 or an Add when the sender does not have the application-level permission to add new users.
 
