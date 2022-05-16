@@ -1922,16 +1922,8 @@ case of a newcomer joining the group.
 
 ## Leaf Node Validation
 
-The validity of a LeafNode needs to be verified at a few stages:
-
-* When a LeafNode is downloaded in a KeyPackage, before it is used
-  to add the client to the group
-* When a LeafNode is received by a group member in an Add, Update, or Commit
-  message
-* When a client joining a group receives LeafNode objects for the other members
-  of the group in the group's ratchet tree
-
-The client verifies the validity of a LeafNode using the following steps:
+To verify that a LeafNode is valid regardless of its use, the client starts
+with the following steps:
 
 * Verify that the credential in the LeafNode is valid according to the
   authentication service and the client's local policy. These actions MUST be
@@ -1945,39 +1937,34 @@ The client verifies the validity of a LeafNode using the following steps:
 
 * Verify that the LeafNode is compatible with the group's parameters.  If the
   GroupContext has a `required_capabilities` extension, then the required
-  extensions, proposals, and credential types MUST be listed in the LeafNode's `capabilities`
-  field.
+  extensions, proposals, and credential types MUST be listed in the LeafNode's
+  `capabilities` field.
 
 * Verify that the credential type is supported by all members of the group, as
   specified by the `capabilities` field of each member's LeafNode, and that the
   `capabilities` field of this LeafNode indicates support for all the credential
   types currently in use by other members.
 
-* Verify that the `leaf_node_source` field has the appropriate value for the
-  context in which the LeafNode is being validated (as defined in
-  {{leaf-node-contents}}).
+* Verify that the extensions in the leaf node are supported.  The ID for each
+  extension in the `extensions` field MUST be listed in the field
+  `capabilities.extensions` of the LeafNode.
 
-* If applicable, verify the `lifetime` field:
-  * When validating a LeafNode in a KeyPackage before sending an Add proposal,
-    the current time MUST be within the `lifetime` range.  A KeyPackage
-    containing a LeafNode that is expired or not yet valid MUST NOT be sent in
-    an Add proposal.
-  * When receiving an Add or validating a tree, checking the `lifetime` is
-    RECOMMENDED, if it is feasible in a given application context.  Because of
-    the asynchronous nature of MLS, the `lifetime` may have been valid when the
-    leaf node was proposed for addition, even if it is expired at these later
-    points in the protocol.
+* Verify the `lifetime` field:
+  * If the LeafNode appears in a message being sent by the client, e.g., a
+    proposal or a commit, then the client MUST verify that the current time is within
+    the range of the `lifetime` field.
+  * If instead the LeafNode appears in a message being received by the client, e.g.,
+    a proposal, a commit, or a ratchet tree of the group the client is joining, it is
+    RECOMMENDED that the client verifies that the current time is within the range
+    of the `lifetime` field.
 
-* Verify that the following fields in the LeafNode are unique among the
-  members of the group (including any other members added in the same
-  Commit):
-
-    * `encryption_key`
-    * `signature_key`
-
-* Verify that the extensions in the LeafNode are supported by checking that the
-  ID for each extension in the `extensions` field is listed in the
-  `capabilities.extensions` field of the LeafNode.
+* Verify the `leaf_node_source` field:
+  * If the LeafNode appears in a KeyPackage in an Add proposal, verify that
+    `leaf_node_source` is set to `key_package`.
+  * If the LeafNode appears in an Update proposal, verify that `leaf_node_source`
+    is set to `update`.
+  * If the LeafNode appears in the `leaf_node` value of the UpdatePath in
+    a Commit, verify that `leaf_node_source` is set to `commit`.
 
 ## Ratchet Tree Evolution
 
@@ -3113,8 +3100,8 @@ The client verifies the validity of a KeyPackage using the following steps:
 * Verify that the ciphersuite and protocol version of the KeyPackage match
   those in use in the group.
 
-* Verify the `leaf_node` field of the KeyPackage according to the process
-  defined in {{leaf-node-validation}}.
+* Verify the `leaf_node` of the KeyPackage is valid for an Add proposal
+  according to {{leaf-node-validation}}.
 
 * Verify that the signature on the KeyPackage is valid using the public key
   in `leaf_node.credential`.
@@ -3333,7 +3320,7 @@ struct {
 
 An Add proposal is invalid if any of the following is true:
 
-* The KeyPackage is invalid for an Add proposal according to {{keypackage-validation}}.
+* The KeyPackage is invalid according to {{keypackage-validation}}.
 
 * The Credential in the LeafNode in the KeyPackage has the same signature
   key as a Credential in any leaf of the group.
