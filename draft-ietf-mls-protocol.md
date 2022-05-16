@@ -4222,7 +4222,7 @@ A group member creating a commit and a group member processing a commit
 MUST verify that the list of committed proposals is valid using one of the following
 procedures, depending on whether the commit is external or not.
 
-For a regular, i.e. not external, commit the list is invalid if it contains any of the 
+For a regular, i.e. not external, commit the list is invalid if it contains any of the
 following:
 
 * An individual proposal that is invalid as specified in {{proposals}}.
