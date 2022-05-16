@@ -4216,7 +4216,7 @@ Regardless of how the client obtains the tree, the client MUST verify that the
 root hash of the ratchet tree matches the `tree_hash` of the GroupContext before
 using the tree for MLS operations.
 
-### Validating Proposals
+## Validating Proposals
 
 A group member creating a commit and a group member processing a commit
 MUST verify that the list of committed proposals is valid using one of the following
