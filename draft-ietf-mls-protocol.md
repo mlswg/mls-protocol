@@ -3249,9 +3249,10 @@ struct {
 ~~~
 
 On receiving an MLSMessageContent containing a Proposal, a client MUST verify the
-signature inside MLSMessageAuth.  If the signature verifies
-successfully, then the Proposal should be cached in such a way that it can be
-retrieved by hash (as a ProposalOrRef object) in a later Commit message.
+signature inside MLSMessageAuth and that the `epoch` field of the enclosing
+MLSMessageContent is equal to the `epoch` field of the current GroupContext object.
+If the verification is successful, then the Proposal should be cached in such a way
+that it can be retrieved by hash (as a ProposalOrRef object) in a later Commit message.
 
 ### Add
 
@@ -3683,6 +3684,9 @@ their associated GroupContexts are used:
 A member of the group creates a Commit message and the corresponding Welcome
 message at the same time, by taking the following steps:
 
+* Verify that the committed list of proposals is valid as specified in
+  {{validating-proposals}}.
+
 * Construct an initial Commit object with the `proposals`
   field populated from Proposals received during the current epoch, and an empty
   `path` field.
@@ -3787,8 +3791,9 @@ A member of the group applies a Commit message by taking the following steps:
 * Verify that the signature on the MLSMessageContent message as described in
   Section {{content-authentication}}.
 
-* Verify that all PreSharedKey proposals in the `proposals` vector have unique
-  PreSharedKeyIDs and are available.
+* Verify that the `proposals` vector is valid as specified in {{validating-proposals}}.
+
+* Verify that all PreSharedKey proposals in the `proposals` vector are available.
 
 * Generate the provisional ratchet tree and GroupContext by applying the proposals
   referenced in the initial Commit object, as described in {{proposals}}. Update
