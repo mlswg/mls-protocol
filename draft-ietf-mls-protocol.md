@@ -3332,7 +3332,7 @@ struct {
 
 An Add proposal is invalid if any of the following is true:
 
-* The KeyPackage is invalid according to {{key-package-validation}}.
+* The KeyPackage is invalid according to {{keypackage-validation}}.
 
 * The `leaf_node_source` of the LeafNode in the KeyPackage is not set to
   `key_package`.
