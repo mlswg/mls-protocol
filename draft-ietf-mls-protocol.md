@@ -687,7 +687,7 @@ The cryptographic state at the core of MLS is divided into three areas of respon
   subsets of the group.  Each epoch has a distinct ratchet tree. It seeds the
   _key schedule_.
 * A _key schedule_ that describes the chain of key derivations used to progress from
-  epoch to epoch (mainly using the _init_secret_ and _epoch_secret_) and which derives
+  epoch to epoch (mainly using the _init_secret_ and _epoch_secret_), as well as the derivation of
   a variety of other secrets (see {{epoch-derived-secrets}}) used during the current
   epoch. One of these (the _encryption_secret_) is the root of the secret tree.
 * A _secret tree_ derived from the key schedule that represents shared secrets
@@ -702,9 +702,8 @@ Each new epoch is initiated with a Commit message.  The Commit instructs
 existing members of the group to update their views of the ratchet tree by applying
 a set of Proposals, and uses the updated ratchet tree to distribute fresh
 entropy to the group.  This fresh entropy is provided only to members in the new
-epoch and not to members who have been removed, which maintains the confidentiality
-of the epoch secret (in other words, the protocol provides post-compromise security with
-respect to those members).
+epoch and not to members who have been removed. Commits thus maintain the property that the
+the epoch secret is confidential to the members in the current epoch.
 
 For each Commit that adds one or more members to the group, there is a single corresponding
 Welcome message.  The Welcome message provides all the new members with the information
