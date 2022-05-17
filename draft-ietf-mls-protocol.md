@@ -1922,6 +1922,15 @@ case of a newcomer joining the group.
 
 ## Leaf Node Validation
 
+The validity of a LeafNode needs to be verified at a few stages:
+
+* When a LeafNode is downloaded in a KeyPackage, before it is used
+  to add the client to the group
+* When a LeafNode is received by a group member in an Add, Update, or Commit
+  message
+* When a client joining a group receives LeafNode objects for the other members
+  of the group in the group's ratchet tree
+
 To verify that a LeafNode is valid regardless of its use, the client starts
 with the following steps:
 
@@ -1932,8 +1941,12 @@ with the following steps:
   another LeafNode, the authentication service MUST additionally validate that
   the set of identities attested by the credential in the new LeafNode is
   acceptable relative to the identities attested by the old credential.
+  E.g. sending an Update proposal updates the sender's old LeafNode to a new
+  one, or joining via external commit updates the joiner's old LeafNode
+  included in the committed Remove proposal to a new one.
 
-* Verify that the signature on the LeafNode is valid using `signature_key`.
+* Verify that the signature on the LeafNode is valid using the LeafNode's
+  `signature_key`.
 
 * Verify that the LeafNode is compatible with the group's parameters.  If the
   GroupContext has a `required_capabilities` extension, then the required
@@ -1945,10 +1958,6 @@ with the following steps:
   `capabilities` field of this LeafNode indicates support for all the credential
   types currently in use by other members.
 
-* Verify that the extensions in the leaf node are supported.  The ID for each
-  extension in the `extensions` field MUST be listed in the field
-  `capabilities.extensions` of the LeafNode.
-
 * Verify the `lifetime` field:
   * If the LeafNode appears in a message being sent by the client, e.g., a
     proposal or a commit, then the client MUST verify that the current time is within
@@ -1958,9 +1967,14 @@ with the following steps:
     RECOMMENDED that the client verifies that the current time is within the range
     of the `lifetime` field.
 
+* Verify that the extensions in the leaf node are supported.  The ID for each
+  extension in the `extensions` field MUST be listed in the field
+  `capabilities.extensions` of the LeafNode.
+
 * Verify the `leaf_node_source` field:
-  * If the LeafNode appears in a KeyPackage in an Add proposal, verify that
-    `leaf_node_source` is set to `key_package`.
+  * If the LeafNode appears in a KeyPackage in an Add proposal, or in a downloaded
+    KeyPackage used to create an Add proposal, verify that `leaf_node_source` is
+    set to `key_package`.
   * If the LeafNode appears in an Update proposal, verify that `leaf_node_source`
     is set to `update`.
   * If the LeafNode appears in the `leaf_node` value of the UpdatePath in
@@ -3100,7 +3114,7 @@ The client verifies the validity of a KeyPackage using the following steps:
 * Verify that the ciphersuite and protocol version of the KeyPackage match
   those in use in the group.
 
-* Verify the `leaf_node` of the KeyPackage is valid for an Add proposal
+* Verify that the `leaf_node` of the KeyPackage is valid for an Add proposal
   according to {{leaf-node-validation}}.
 
 * Verify that the signature on the KeyPackage is valid using the public key
@@ -3322,8 +3336,8 @@ An Add proposal is invalid if any of the following is true:
 
 * The KeyPackage is invalid according to {{keypackage-validation}}.
 
-* The Credential in the LeafNode in the KeyPackage has the same signature
-  key as a Credential in any leaf of the group.
+* The LeafNode in the KeyPackage shares the same `signature_key` with another
+  LeafNode in the group.
 
 * The LeafNode in the KeyPackage shares the same `encryption_key` with another
   LeafNode in the group.
@@ -3364,8 +3378,7 @@ An Update proposal is invalid if any of the following is true:
 
 * The LeafNode is invalid for an Update proposal according to {{leaf-node-validation}}.
 
-* The Credential in the LeafNode shares the same signature key with a Credential
-  in any leaf of the group.
+* The LeafNode shares the same `signature_key` with another LeafNode in the group.
 
 * The LeafNode shares the same `encryption_key` with another LeafNode in the group.
 
@@ -3386,8 +3399,8 @@ struct {
 } Remove;
 ~~~
 
-A Remove proposal is invalid if the `removed` field does not identify a non-blank leaf
-node.
+A Remove proposal is invalid if the `removed` field does not identify a non-blank
+leaf node.
 
 A member of the group applies a Remove message by taking the following steps:
 
@@ -3574,11 +3587,6 @@ that all valid proposals sent within the current epoch are referenced by the nex
 Commit. In the event that a valid proposal is omitted from the next Commit, and
 that proposal is still valid in the current epoch, the sender of the proposal
 MAY resend it after updating it to reflect the current epoch.
-
-Proposals with a non-default proposal type MUST NOT be included in a commit
-unless the proposal type is supported by all the members of the group that will
-process the Commit (i.e., not including any members being added or removed by
-the Commit).
 
 A member of the group MAY send a Commit that references no proposals at all,
 which would thus have an empty `proposals` vector.  Such
@@ -4234,6 +4242,10 @@ following:
   epoch.
 
 * An ExternalInit proposal.
+
+* A proposal with a non-default proposal type that is not supported by some
+  members of the group that will process the Commit (i.e., not including any
+  members being added or removed by the Commit).
 
 An application may extend the above procedure by additional rules, for example,
 requiring application-level permissions to add members, or rules concerning
