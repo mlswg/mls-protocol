@@ -1898,8 +1898,8 @@ The validity of a LeafNode needs to be verified at a few stages:
   to add the client to the group
 * When a LeafNode is received by a group member in an Add, Update, or Commit
   message
-* When a client joining a group receives LeafNode objects for the other members
-  of the group in the group's ratchet tree
+* When a client joining a group receives LeafNode objects for the leaves of
+  of the group's ratchet tree
 
 To verify that a LeafNode is valid regardless of its use, the client starts
 with the following steps:
@@ -4244,8 +4244,8 @@ following:
 * An ExternalInit proposal.
 
 * A proposal with a non-default proposal type that is not supported by some
-  members of the group that will process the Commit (i.e., not including any
-  members being added or removed by the Commit).
+  members of the group that will process the Commit (i.e., members being added
+  or removed by the Commit do not need to support the proposal type).
 
 An application may extend the above procedure by additional rules, for example,
 requiring application-level permissions to add members, or rules concerning
