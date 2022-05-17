@@ -688,8 +688,13 @@ The cryptographic state at the core of MLS is divided into three areas of respon
   _key schedule_.
 * A _key schedule_ that describes the chain of key derivations used to progress from
   epoch to epoch (mainly using the _init_secret_ and _epoch_secret_), as well as the derivation of
-  a variety of other secrets (see {{epoch-derived-secrets}}) used during the current
-  epoch. One of these (the _encryption_secret_) is the root of the secret tree.
+  a variety of other secrets (see {{epoch-derived-secrets}}), for example:
+  * An _encryption secret_ that is used to initialize the secret tree for the
+    epoch.
+  * An _exporter secret_ that allows other protocols to leverage MLS as a
+    generic authenticated group key exchange.
+  * A _resumption secret_ that members can use to prove their membership in the
+    group, e.g., in the case of branching a subgroup.
 * A _secret tree_ derived from the key schedule that represents shared secrets
   used by the members of the group for encrypting and authenticating messages.
   Each epoch has a distinct secret tree.
