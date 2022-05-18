@@ -1985,10 +1985,10 @@ The client verifies the validity of a LeafNode using the following steps:
 
 ## Ratchet Tree Evolution
 
-In order to provide forward secrecy and post-compromise security, whenever a
-member initiates an epoch change (i.e., commits; see {{commit}}), they refresh
-the key pairs of their leaf and of all nodes on their leaf's direct path (all
-nodes for which they know the secret key).
+Whenever a member initiates an epoch change (i.e., commits; see {{commit}}),
+they may need to refresh the key pairs of their leaf and of the nodes on their
+leaf's direct path in order to maintain forward secrecy and post-compromise
+security.
 
 The member initiating the epoch change generates the fresh key pairs using the
 following procedure. The procedure is designed in a way that allows group members to
@@ -3517,7 +3517,7 @@ a newly-hired staff member to a group representing a real-world team.  Proposals
 originating outside the group are identified by a `external` or
 `new_member` SenderType in MLSPlaintext.
 
-ReInit proposals can also be sent to the group by a `external` sender, for
+ReInit proposals can also be sent to the group by an `external` sender, for
 example to enforce a changed policy regarding MLS version or ciphersuite.
 
 The `new_member` SenderType is used for clients proposing that they themselves
