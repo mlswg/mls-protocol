@@ -1473,6 +1473,43 @@ struct {
 } MLSMessageContentAuth;
 ~~~
 
+The following figure illustrates how the various structures described in this
+section relate to each other, and the high-level operations used to produce and
+consume them:
+
+~~~ aasvg
+                              Proposal        Commit     Application Data
+                                 |              |              |
+                                 +--------------+--------------+
+                                                |
+                                                V
+                                         MLSMessageContent
+                                             |  |                -.
+                                             |  |                  |
+                                    +--------+  |                  |
+                                    |           |                  |
+                                    V           |                  +-- Asymmetric
+                              MLSMessageAuth    |                  |   Sign / Verify
+                                    |           |                  |
+                                    +--------+  |                  |
+                                             |  |                  |
+                                             V  V                -'
+                                       MLSMessageContentAuth
+                                                |                -.
+                                                |                  |
+                                                |                  |
+                                       +--------+--------+         +-- Symmetric
+                                       |                 |         |   Protect / Unprotect
+                                       V                 V         |
+Welcome  KeyPackage  GroupInfo   MLSPlaintext      MLSCiphertext -'
+   |          |          |             |                 |
+   |          |          |             |                 |
+   +----------+----------+----+--------+-----------------+
+                              |
+                              V
+                          MLSMessage
+~~~
+
 ## Content Authentication
 
 MLSMessageContent is authenticated using the MLSMessageAuth structure.
