@@ -1632,7 +1632,7 @@ schedule it is; if this persistent state is lost or corrupted, a client might
 reuse a generation that has already been used, causing reuse of a key/nonce pair.
 
 To avoid this situation, the sender of a message MUST generate a fresh random
-four byte "reuse guard" value and XOR it with the first four bytes of the nonce
+four-byte "reuse guard" value and XOR it with the first four bytes of the nonce
 from the key schedule before using the nonce for encryption.  The sender MUST
 include the reuse guard in the `reuse_guard` field of the sender data object, so
 that the recipient of the message can use it to compute the nonce to be used for
@@ -1935,9 +1935,6 @@ The client verifies the validity of a LeafNode using the following steps:
     leaf node was proposed for addition, even if it is expired at these later
     points in the protocol.
 
-* If applicable, verify the `parent_hash` as specified in
-  {{verifying-parent-hashes}}.
-
 * Verify that the following fields in the LeafNode are unique among the
   members of the group (including any other members added in the same
   Commit):
@@ -2128,7 +2125,7 @@ sender's leaf, including the root:
   the node
 
 The path secret value for a given node is encrypted to the subtree
-rooted at the parent's non-updated child. That is, the child
+rooted at the parent's non-updated child, i.e., the child
 on the copath of the sender's leaf node.
 There is one encryption of the path secret to each public key in the resolution
 of the non-updated child.
@@ -2156,7 +2153,7 @@ The recipient of an UpdatePath processes it with the following steps:
        each hash incorporates all the non-blank nodes above it. The root node
        always has a zero-length hash for this value.
    * For nodes where a path secret was recovered in step 1 ("Compute the
-     updated path secrets"), store the node's updated private key.
+     updated path secrets"), compute and store the node's updated private key.
 
 For example, in order to communicate the example update described in
 {{ratchet-tree-evolution}}, the sender would transmit the following
