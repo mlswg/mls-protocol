@@ -4459,7 +4459,7 @@ correlation between the question and the length.
 
 The length of the `padding` field in `MLSCiphertextContent` can be
 chosen at the time of message encryption by the sender. Senders may use padding
-to reduce the ability of attackers out side the group to infer the size of the
+to reduce the ability of attackers outside the group to infer the size of the
 encrypted content.
 
 ## Restrictions {#restrictions}
