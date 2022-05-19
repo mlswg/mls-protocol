@@ -1652,9 +1652,18 @@ struct {
     }
 
     MLSMessageAuth auth;
-    opaque padding<V>;
+    opaque padding[length_of_padding];
 } MLSCiphertextContent;
 ~~~
+
+The `padding` field is set by the sender, by first encoding the content (via the
+`select`) and the `auth` field, then appending the chosen number of zero bytes.
+A receiver identifies the padding field in a plaintext decoded from
+`MLSCiphertext.ciphertext` by first decoding the content and the `auth` field;
+then the `padding` field comprises any remaining octets of plaintext.  The
+`padding` field MUST be filled with all zero bytes.  A receiver MUST verify that
+there are no non-zero bytes in the `padding` field, and if this check fails, the
+enclosing MLSCiphertext MUST be rejected as malformed.
 
 In the MLS key schedule, the sender creates two distinct key ratchets for
 handshake and application messages for each member of the group. When encrypting
@@ -1730,8 +1739,8 @@ in the case of state loss or corruption, as described in {{content-encryption}}.
 
 The key and nonce provided to the AEAD are computed as the KDF of the first
 `KDF.Nh` bytes of the ciphertext generated in the previous section. If the
-length of the ciphertext is less than `KDF.Nh`, the whole ciphertext is used
-without padding. In pseudocode, the key and nonce are derived as:
+length of the ciphertext is less than `KDF.Nh`, the whole ciphertext is used.
+In pseudocode, the key and nonce are derived as:
 
 ~~~ pseudocode
 ciphertext_sample = ciphertext[0..KDF.Nh-1]
@@ -4501,10 +4510,10 @@ to an adversary by the ciphertext length. An attacker expecting Alice to
 answer Bob with a day of the week might find out the plaintext by
 correlation between the question and the length.
 
-The content and length of the `padding` field in `MLSCiphertextContent` can be
-chosen at the time of message encryption by the sender. It is recommended that
-padding data is comprised of zero-valued bytes and follows an established
-deterministic padding scheme.
+The length of the `padding` field in `MLSCiphertextContent` can be
+chosen at the time of message encryption by the sender. Senders may use padding
+to reduce the ability of attackers outside the group to infer the size of the
+encrypted content.
 
 ## Restrictions {#restrictions}
 
