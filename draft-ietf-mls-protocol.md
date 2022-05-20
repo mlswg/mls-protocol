@@ -2364,9 +2364,9 @@ chain from the committer's leaf to the root.
 
 As described in {{commit}}, each Commit message may optionally contain an
 UpdatePath, with a new LeafNode and set of parent nodes for the sender's
-filtered direct path. For each intermediate node, the UpdatePath contains a new
-public key and encrypted path secret. The nodes are ordered such that each node
-is the ancestor of its predecessor.
+filtered direct path. For each parent node, the UpdatePath contains a new
+public key and encrypted path secret. The parent nodes are kept in the same
+order as the filtered direct path.
 
 ~~~ tls
 struct {
