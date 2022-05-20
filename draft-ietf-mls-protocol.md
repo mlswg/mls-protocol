@@ -4508,7 +4508,7 @@ encrypted content.
 ## Restrictions {#restrictions}
 
 During each epoch senders MUST NOT encrypt more data than permitted by the
-security bounds of the AEAD scheme used.
+security bounds of the AEAD scheme used {{?I-D.irtf-cfrg-aead-limits}}.
 
 Note that each change to the Group through a Handshake message will also set a
 new `encryption_secret`. Hence this change MUST be applied before encrypting
