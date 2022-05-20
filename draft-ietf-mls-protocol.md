@@ -1911,9 +1911,9 @@ with the following steps:
   another LeafNode, the authentication service MUST additionally validate that
   the set of identities attested by the credential in the new LeafNode is
   acceptable relative to the identities attested by the old credential.
-  E.g. sending an Update proposal updates the sender's old LeafNode to a new
-  one, or joining via external commit updates the joiner's old LeafNode
-  included in the committed Remove proposal to a new one.
+  For example:
+    * An Update proposal updates the sender's old LeafNode to a new one
+    * A "resync" external commit removes the joiner's old LeafNode via a Remove proposal and replaces it with a new one
 
 * Verify that the signature on the LeafNode is valid using the LeafNode's
   `signature_key`.
