@@ -3536,11 +3536,16 @@ will not have the keys necessary to construct an MLSCiphertext object.
 #### External Senders Extension
 
 The `external_senders` extension is a group context extension that contains
-credentials of senders that are permitted to send external proposals to the
-group.
+the credentials and signature keys of senders that are permitted to send
+external proposals to the group.
 
 ~~~~~
-Credential external_senders<V>;
+struct {
+  SignaturePublicKey signature_key;
+  Credential credential;
+} ExternalSender;
+
+ExternalSender external_senders<V>;
 ~~~~~
 
 ## Commit
