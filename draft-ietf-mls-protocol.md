@@ -1931,8 +1931,7 @@ The validity of a LeafNode needs to be verified at a few stages:
 * When a client joining a group receives LeafNode objects for the leaves of
   of the group's ratchet tree
 
-To verify that a LeafNode is valid regardless of its use, the client starts
-with the following steps:
+The client verifies the validity of a LeafNode using the following steps:
 
 * Verify that the credential in the LeafNode is valid according to the
   authentication service and the client's local policy. These actions MUST be
@@ -3576,8 +3575,8 @@ removed before any application data is transmitted.
 
 A sender and a receiver of a Commit MUST verify that the committed list of
 proposals is valid as specified in {{validating-proposals}}. A list is invalid if, for example,
-it includes a proposal with an invalid signature, a proposal sent within a different epoch.
-or an Add when the sender does not have the application-level permission to add new users.
+it includes an Update and a Remove for the same member, or an Add when the sender does not have
+the application-level permission to add new users.
 
 The sender of a Commit SHOULD include all proposals that it has received
 during the current epoch, that are valid according to the rules for their
