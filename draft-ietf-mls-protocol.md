@@ -3579,8 +3579,10 @@ proposals is valid as specified in {{validating-proposals}}. A list is invalid i
 it includes a proposal with an invalid signature, a proposal sent within a different epoch.
 or an Add when the sender does not have the application-level permission to add new users.
 
-The sender of a Commit SHOULD include all valid proposals that it has received
-during the current epoch, as long as this does not make the proposal list invalid.
+The sender of a Commit SHOULD include all proposals that it has received
+during the current epoch, that are valid according to the rules for their
+proposal types and according to application policy, as long as this results in
+a valid proposal list.
 
 Due to the asynchronous nature of proposals, receivers of a Commit SHOULD NOT enforce
 that all valid proposals sent within the current epoch are referenced by the next
