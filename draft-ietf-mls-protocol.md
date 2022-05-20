@@ -470,6 +470,11 @@ Key Package:
   can be used to encrypt to that client, and which other clients can use to
   introduce the client to a new group.
 
+Group Context:
+: An object that summarizes the state of the group. The group context is signed
+  to bind a message to a particular group, and also provided to new members to
+  help them join a group.
+
 Signature Key:
 : A signing key pair used to authenticate the sender of a message.
 
