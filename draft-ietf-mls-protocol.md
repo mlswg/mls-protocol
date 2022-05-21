@@ -3172,6 +3172,13 @@ The creator of a group MUST take the following steps to initialize the group:
 
 * Transmit the Welcome message to the other new members
 
+Group IDs SHOULD be constructed in such a way that there's an overwhelmingly low
+probability of honest group creators generating the same group ID, even without
+assistance from the Delivery Service. For example, by making the group ID a
+freshly generated random value of size `KDF.Nh`. The Delivery Service MAY
+attempt to ensure that group IDs are globally unique by rejecting the creation
+of new groups with a previously used ID.
+
 The recipient of a Welcome message processes it as described in
 {{joining-via-welcome-message}}.  If application context informs the recipient that
 the Welcome should reflect the creation of a new group (for example, due to a
@@ -3863,8 +3870,11 @@ struct {
 } GroupInfo;
 ~~~
 
-New members MUST verify the `signature` using the public key taken from the
-credential in the leaf node of the ratchet tree with leaf index `signer`. The
+New members MUST verify that `group_id` is unique among the groups they're
+currently participating in.
+
+New members also MUST verify the `signature` using the public key taken from the
+leaf node of the ratchet tree with leaf index `signer`. The
 signature covers the following structure, comprising all the fields in the
 GroupInfo above `signature`:
 
@@ -4040,6 +4050,9 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
   public key and algorithm are taken from the credential in the leaf node of the
   ratchet tree with leaf index `signer`. If the node is blank or if
   signature verification fails, return an error.
+
+* Verify that the `group_id` is unique among the groups that the client is
+  currently participating in.
 
 * Verify the integrity of the ratchet tree.
 
