@@ -1981,20 +1981,39 @@ they may need to refresh the key pairs of their leaf and of the nodes on their
 leaf's direct path in order to maintain forward secrecy and post-compromise
 security.
 
-The member initiating the epoch change generates the fresh key pairs using the
-following procedure. The procedure is designed in a way that allows group members to
-efficiently communicate the fresh secret keys to other group members, as
-described in {{update-paths}}.
-
-Recall the definition of resolution from {{ratchet-tree-nodes}}.
-To begin with, the generator of the UpdatePath updates its leaf and its leaf's
-_filtered direct path_ with new key pairs. The filtered direct path of a node
+The set of nodes that needs to be updated with new key pairs is referred to as
+the _filtered direct path_. First, recall the definition of resolution from
+{{ratchet-tree-nodes}}. The filtered direct path of a node
 is obtained from the node's direct path by removing all nodes whose child on
 the nodes' copath has an empty resolution (keeping in mind that any unmerged leaves of the copath
 child count towards its resolution). Such a removed node does not need its own key
 pair since, if the copath child's resolution is blank, then encrypting any data
 to the node's key pair would be equivalent to encrypting only to the
 non-copath child.
+
+Consider the following tree with only the leftmost and rightmost nodes populated
+while all other nodes are blank:
+
+~~~ aasvg
+      _
+      |
+    .-+-.
+   /     \
+  _       _
+ / \     / \
+A   _   _   D
+~~~
+{: #mostly-empty-tree title="A mostly empty ratchet tree" }
+
+While the direct path of A consists of both its parent and the root, the
+filtered direct path consists only of the root. A's parent is filtered out
+because the resolution of A's sibling is empty. Therefore, a Commit from member
+A would only update A's leaf and the root.
+
+The member initiating the epoch change generates the fresh key pairs using the
+following procedure. The procedure is designed in a way that allows group members to
+efficiently communicate the fresh secret keys to other group members, as
+described in {{update-paths}}.
 
 * Blank all the nodes on the direct path from the leaf to the root.
 * Generate a fresh HPKE key pair for the leaf.
@@ -2873,6 +2892,30 @@ tree_node_[N]_secret
              = application_ratchet_secret_[N]_[0]
 ~~~
 
+The following figure illustrates an example secret tree with four leaf nodes
+where the hash ratchets for node D have been partially derived.
+
+~~~ aasvg
+       G
+       |
+     .-+-.
+    /     \
+   E       F
+  / \     / \
+ A   B   C   D
+            / \
+          HR0  AR0--+--K0
+                |   |
+                |   +--N0
+                |
+               AR1--+--K1
+                |   |
+                |   +--N1
+                |
+               AR2
+~~~
+{: #example-secret-tree title="An example secret tree" }
+
 ## Encryption Keys
 
 As described in {{message-framing}}, MLS encrypts three different
@@ -2956,30 +2999,8 @@ values have been consumed and MUST be deleted:
 * the first j secrets in the application data ratchet of node L and
 * `application_ratchet_nonce_[L]_[j]` and `application_ratchet_key_[L]_[j]`.
 
-Concretely, suppose we have the following Secret Tree and ratchet for
-participant D:
-
-~~~ aasvg
-       G
-       |
-     .-+-.
-    /     \
-   E       F
-  / \     / \
- A   B   C   D
-            / \
-          HR0  AR0--+--K0
-                |   |
-                |   +--N0
-                |
-               AR1--+--K1
-                |   |
-                |   +--N1
-                |
-               AR2
-~~~
-
-Then if a client uses key K1 and nonce N1 during epoch n then it must consume
+As an example, recall the example secret tree illustrated in {{example-secret-tree}}.
+If a client uses key K1 and nonce N1 during epoch n then it must consume
 (at least) values G, F, D, AR0, AR1, K1, N1 as well as the key schedule secrets
 used to derive G (the `encryption_secret`), namely `init_secret` of epoch n-1
 and `commit_secret`, `joiner_secret`, `epoch_secret` of epoch n. The client MAY
@@ -4935,6 +4956,11 @@ To construct the tree in {{resolution-tree}}:
   direct path)
 * A member outside this subtree removes B, blanking B's direct path
 * A adds a new member at C with a partial Commit, adding it as unmerged at Z
+
+To construct the tree in {{mostly-empty-tree}}:
+* A creates a group with B, C, D
+* A sends a Commit populating its full direct path
+* A removes B and C but has not yet sent a Commit
 
 To construct the tree in {{evolution-tree}}:
 
