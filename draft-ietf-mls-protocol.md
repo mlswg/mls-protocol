@@ -1243,18 +1243,24 @@ messages refer to KeyPackages for the members being welcomed, and Commits refer
 to Proposals they cover.  These identifiers are computed as follows:
 
 ~~~ tls
-opaque HashReference[16];
+opaque HashReference[Hash.length];
 
 HashReference KeyPackageRef;
 HashReference ProposalRef;
 ~~~
 
 ~~~ pseudocode
-MakeKeyPackageRef(value) = KDF.expand(
-  KDF.extract("", value), "MLS 1.0 KeyPackage Reference", 16)
+MakeKeyPackageRef(value) = RefHash("MLS 1.0 KeyPackage Reference", value)
+MakeProposalRef(value)   = RefHash("MLS 1.0 Proposal Reference", value)
 
-MakeProposalRef(value) = KDF.expand(
-  KDF.extract("", value), "MLS 1.0 Proposal Reference", 16)
+RefHash(label, value) = Hash(RefHashInput)
+
+Where RefHashInput is defined as:
+
+struct {
+  opaque label<V> = label;
+  opaque value<V> = value;
+} RefHashInput;
 ~~~
 
 For a KeyPackageRef, the `value` input is the encoded KeyPackage, and the
