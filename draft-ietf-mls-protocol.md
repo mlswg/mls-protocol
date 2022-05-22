@@ -2722,11 +2722,13 @@ struct {
   }
   opaque psk_nonce<V>;
 } PreSharedKeyID;
-
-struct {
-    PreSharedKeyID psks<V>;
-} PreSharedKeys;
 ~~~
+
+Each time a client injects a PSK into a group, the `psk_nonce` of its
+PreSharedKeyID MUST be set to a fresh random value of length `KDF.Nh`, where
+`KDF` is the KDF for the ciphersuite of the group into which the PSK is being
+injected. This ensures that even when a PSK is used multiple times, the value
+used as an input into the key schedule is different each time.
 
 On receiving a Commit with a `PreSharedKey` proposal or a GroupSecrets object
 with the `psks` field set, the receiving Client includes them in the key
@@ -3178,13 +3180,10 @@ The members of a group reinitialize it using the following steps:
     * The `group_id`, `version`, and `cipher_suite` fields in the Welcome
       message MUST be the same as the corresponding fields in the ReInit
       proposal.
-    * The `epoch` in the Welcome message MUST be 1
+    * The `epoch` in the Welcome message MUST be 1.
     * The Welcome MUST specify a PreSharedKey of type `resumption` with usage
       `reinit`.  The `group_id` must match the old group, and the `epoch` must
       indicate the epoch after the Commit covering the ReInit.
-    * The `psk_nonce` included in the `PreSharedKeyID` of the resumption PSK
-      MUST be a randomly sampled nonce of length `KDF.Nh`, for the KDF defined
-      by the new group's ciphersuite.
 
 Note that these three steps may be done by the same group member or different
 members.  For example, if a group member sends a commit with an inline ReInit
@@ -3215,13 +3214,11 @@ the referenced group.
 
 * The `version` and `ciphersuite` values in the Welcome MUST be the same as
   those used by the old group.
+* The `epoch` in the Welcome message MUST be 1.
 * Each LeafNode in a new subgroup MUST match some LeafNode in the original
   group. In this context, a pair of LeafNodes is said to "match" if the
   identifiers presented by their respective credentials are considered
   equivalent by the application.
-
-In addition, to avoid key re-use, the `psk_nonce` included in the
-`PreSharedKeyID` object MUST be a randomly sampled nonce of length `KDF.Nh`.
 
 Resumption PSKs with usage `branch` MUST NOT be used in other contexts.  A
 PreSharedKey proposal with type `resumption` and usage `branch` MUST be
@@ -3366,8 +3363,8 @@ struct {
 } PreSharedKey;
 ~~~
 
-The `psktype` of the pre-shared key MUST be `external` and the `psk_nonce` MUST
-be a randomly sampled nonce of length `KDF.Nh`. When processing a Commit message
+A PreSharedKey proposal MUST NOT contain a PSK of type `resumption` and usage
+`reinit` or `branch`. When processing a Commit message
 that includes one or more PreSharedKey proposals, group members derive
 `psk_secret` as described in {{pre-shared-keys}}, where the order of the PSKs
 corresponds to the order of the `PreSharedKey` proposals in the Commit.
@@ -3956,7 +3953,7 @@ struct {
 struct {
   opaque joiner_secret<V>;
   optional<PathSecret> path_secret;
-  PreSharedKeys psks;
+  PreSharedKeyID psks<V>
 } GroupSecrets;
 
 struct {
