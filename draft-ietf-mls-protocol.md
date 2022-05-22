@@ -1924,7 +1924,7 @@ The validity of a LeafNode needs to be verified at a few stages:
 * When a LeafNode is received by a group member in an Add, Update, or Commit
   message
 * When a client joining a group receives LeafNode objects for the leaves of
-  of the group's ratchet tree
+  the group's ratchet tree
 
 The client verifies the validity of a LeafNode using the following steps:
 
@@ -1951,12 +1951,12 @@ The client verifies the validity of a LeafNode using the following steps:
   `capabilities` field of this LeafNode indicates support for all the credential
   types currently in use by other members.
 
-* Verify the `lifetime` field:
-  * If the LeafNode appears in a message being sent by the client, e.g., a
-    proposal or a commit, then the client MUST verify that the current time is within
+* If applicable, verify the `lifetime` field:
+  * If the LeafNode appears in a message being sent by the client (e.g., a
+    proposal or a Commit), then the client MUST verify that the current time is within
     the range of the `lifetime` field.
-  * If instead the LeafNode appears in a message being received by the client, e.g.,
-    a proposal, a commit, or a ratchet tree of the group the client is joining, it is
+  * If instead the LeafNode appears in a message being received by the client (e.g.,
+    a proposal, a Commit, or a ratchet tree of the group the client is joining), it is
     RECOMMENDED that the client verifies that the current time is within the range
     of the `lifetime` field.
 
@@ -3268,11 +3268,9 @@ struct {
 } Proposal;
 ~~~
 
-On receiving an MLSMessageContent containing a Proposal, a client MUST verify the
-signature inside MLSMessageAuth and that the `epoch` field of the enclosing
-MLSMessageContent is equal to the `epoch` field of the current GroupContext object.
-If the verification is successful, then the Proposal should be cached in such a way
-that it can be retrieved by hash (as a ProposalOrRef object) in a later Commit message.
+Upon receiving an MLSMessageContent containing a Proposal which has been
+successfully decrypted and/or authenticated, the Proposal is cached in such a
+way that it can be easily referenced by a ProposalRef in a later Commit message.
 
 ### Add
 
@@ -3289,14 +3287,8 @@ An Add proposal is invalid if any of the following is true:
 
 * The KeyPackage is invalid according to {{keypackage-validation}}.
 
-* The LeafNode in the KeyPackage shares the same `signature_key` with another
-  LeafNode in the group.
-
-* The LeafNode in the KeyPackage shares the same `encryption_key` with another
-  LeafNode in the group.
-
-* The Credential in the KeyPackage represents a client already in the
-  group according to the application.
+* The LeafNode in the KeyPackage shares the same `signature_key` or
+  `encryption_key` with another LeafNode in the group.
 
 An Add is applied after being included in a Commit message.  The position of the
 Add in the list of proposals determines the leaf node where the new member will
@@ -3331,9 +3323,8 @@ An Update proposal is invalid if any of the following is true:
 
 * The LeafNode is invalid for an Update proposal according to {{leaf-node-validation}}.
 
-* The LeafNode shares the same `signature_key` with another LeafNode in the group.
-
-* The LeafNode shares the same `encryption_key` with another LeafNode in the group.
+* The LeafNode shares the same `signature_key` or `encryption_key` with another
+  LeafNode in the group.
 
 A member of the group applies an Update message by taking the following steps:
 
@@ -3444,18 +3435,16 @@ struct {
 
 A GroupContextExtensions proposal is invalid if it includes a
 `required_capabilities` extension and some members of the group do not support
-some of the required capabilities (including those added in the same commit,
+some of the required capabilities (including those added in the same Commit,
 and excluding those removed).
 
-A member of the group applies a GroupContextExtensions proposal with the
-following steps:
+A member of the group applies a GroupContextExtensions proposal by removing all
+of the existing extensions from the GroupContext object for the group and
+replacing them with the list of extensions in the proposal.  Note that this is a
+wholesale replacement and not a merge. An extension is only carried over if the
+sender of the proposal includes it in the new list.
 
-* Remove all of the existing extensions from the GroupContext object for the
-  group and replacing them with the list of extensions in the proposal.  (This
-  is a wholesale replacement, not a merge. An extension is only carried over if
-  the sender of the proposal includes it in the new list.)
-
-Note that once the GroupContext is updated, its inclusion in the
+Once the GroupContext is updated, its inclusion in the
 confirmation_tag by way of the key schedule will confirm that all members of the
 group agree on the extensions in use.
 
@@ -3538,10 +3527,10 @@ proposal types and according to application policy, as long as this results in
 a valid proposal list.
 
 Due to the asynchronous nature of proposals, receivers of a Commit SHOULD NOT enforce
-that all valid proposals sent within the current epoch are referenced by the next
-Commit. In the event that a valid proposal is omitted from the next Commit, and
-that proposal is still valid in the current epoch, the sender of the proposal
-MAY resend it after updating it to reflect the current epoch.
+that all proposals sent within the current epoch are referenced by the next
+Commit. In the event that a proposal is omitted from a Commit and
+that proposal is still applicable in the subsequent epoch, the sender of the proposal
+MAY resend it.
 
 A member of the group MAY send a Commit that references no proposals at all,
 which would thus have an empty `proposals` vector.  Such
@@ -3631,11 +3620,13 @@ their associated GroupContexts are used:
 A member of the group creates a Commit message and the corresponding Welcome
 message at the same time, by taking the following steps:
 
-* Verify that the committed list of proposals is valid as specified in
-  {{validating-proposals}}.
+* Decide on a list of proposals to include that would be valid according to the
+  rules specified in {{validating-proposals}}. If the committer has received a
+  proposal, it MUST include it in the list unless doing so would make the list
+  invalid.
 
 * Construct an initial Commit object with the `proposals`
-  field populated from Proposals received during the current epoch, and an empty
+  field populated from the chosen Proposals, and an empty
   `path` field.
 
 * Generate the provisional ratchet tree and GroupContext by applying the proposals
@@ -4168,11 +4159,11 @@ using the tree for MLS operations.
 
 ## Validating Proposals
 
-A group member creating a commit and a group member processing a commit
+A group member creating a Commit and a group member processing a Commit
 MUST verify that the list of committed proposals is valid using one of the following
 procedures, depending on whether the commit is external or not.
 
-For a regular, i.e. not external, commit the list is invalid if it contains any of the
+For a regular (not external) Commit, the list is invalid if it contains any of the
 following:
 
 * An individual proposal that is invalid as specified in {{proposals}}.
@@ -4184,10 +4175,6 @@ following:
 * Multiple Update and/or Remove proposals that apply to the same leaf. If the committer
   has received multiple such proposals they SHOULD prefer any Remove received, or
   the most recent Update if there are no Removes.
-
-* Multiple Add proposals that contain KeyPackages that represent the same client
-  according to the application (for example, identical KeyPackages or KeyPackages
-  sharing the same Credential).
 
 * Multiple PreSharedKey proposals that reference the same PreSharedKeyID.
 
@@ -4201,21 +4188,21 @@ following:
 * An ExternalInit proposal.
 
 * A proposal with a non-default proposal type that is not supported by some
-  members of the group that will process the Commit (i.e., members being added
-  or removed by the Commit do not need to support the proposal type).
+  members of the group that will process the Commit. Note that members being added
+  or removed by the Commit do not need to support the proposal type.
 
 An application may extend the above procedure by additional rules, for example,
 requiring application-level permissions to add members, or rules concerning
 non-default proposal types.
 
-For an external commit, the list is valid if:
+For an external Commit, the list is invalid if:
 
-* It contains only ExternalInit, Remove and PreSharedKey proposals.
+* It contains any proposal types other than ExternalInit, Remove, or PreSharedKey.
 
-* It contains exactly one ExternalInit proposal.
+* It doesn't contain exactly one ExternalInit proposal.
 
-* It contains at most one Remove proposal, with which the joiner removes an
-  old version of themselves. If a Remove proposal is present then, the LeafNode in the
+* It contains more than one Remove proposal.
+  If a Remove proposal is present, the LeafNode in the
   `path` field of the external commit MUST meet the same criteria as would the LeafNode
   in an Update for the removed leaf (see {{update}}). In particular, the `credential`
   in the LeafNode MUST present a set of identifiers that is acceptable to the
