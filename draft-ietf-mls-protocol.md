@@ -470,6 +470,11 @@ Key Package:
   can be used to encrypt to that client, and which other clients can use to
   introduce the client to a new group.
 
+Group Context:
+: An object that summarizes the state of the group. The group context is signed
+  to bind a message to a particular group, and also provided to new members to
+  help them join a group.
+
 Signature Key:
 : A signing key pair used to authenticate the sender of a message.
 
@@ -566,6 +571,9 @@ ReadVarint(data):
   // first two bits of the first byte.
   v = data.next_byte()
   prefix = v >> 6
+  if prefix == 3:
+    raise Exception('invalid variable length integer prefix')
+
   length = 1 << prefix
 
   // Once the length is known, remove these bits and read any
@@ -573,11 +581,12 @@ ReadVarint(data):
   v = v & 0x3f
   repeat length-1 times:
     v = (v << 8) + data.next_byte()
-  return v
 
   // Check that the encoder used the minimum bits required
-  if length > 1 && v < (1 << (length - 1)):
-    raise an exception
+  if prefix >= 1 && v < (1 << (8*(1 << (prefix-1))-2)):
+    raise Exception('minimum encoding was not used')
+
+  return v
 ~~~
 
 The use of variable-size integers for vector lengths allows vectors to grow
@@ -620,7 +629,7 @@ secret_ that is known only to the members of the group in that epoch.  The set
 of members involved in the group can change from one epoch to the next, and MLS
 ensures that only the members in the current epoch have access to the epoch
 secret.  From the epoch secret, members derive further shared secrets for
-message encryption, group membership authentication, etc.
+message encryption, group membership authentication, and so on.
 
 The creator of an MLS group creates the group's first epoch unilaterally, with
 no protocol interactions.  Thereafter, the members of the group advance their
@@ -683,14 +692,19 @@ The cryptographic state at the core of MLS is divided into three areas of respon
   subsets of the group.  Each epoch has a distinct ratchet tree. It seeds the
   _key schedule_.
 * A _key schedule_ that describes the chain of key derivations used to progress from
-  epoch to epoch (mainly using the _init_secret_ and _epoch_secret_); and to derive
-  a variety of other secrets (see {{epoch-derived-secrets}}) used during the current
-  epoch. One of these (the _encryption_secret_) is the root of _secret_tree_.
+  epoch to epoch (mainly using the _init_secret_ and _epoch_secret_), as well as the derivation of
+  a variety of other secrets (see {{epoch-derived-secrets}}), for example:
+  * An _encryption secret_ that is used to initialize the secret tree for the
+    epoch.
+  * An _exporter secret_ that allows other protocols to leverage MLS as a
+    generic authenticated group key exchange.
+  * A _resumption secret_ that members can use to prove their membership in the
+    group, e.g., in the case of branching a subgroup.
 * A _secret tree_ derived from the key schedule that represents shared secrets
-  used by the members of the group to provide confidentiality and forward
-  secrecy for MLS messages.  Each epoch has a distinct secret tree.
+  used by the members of the group for encrypting and authenticating messages.
+  Each epoch has a distinct secret tree.
 
-Each member of the group maintains a view of these facets of the group's
+Each member of the group maintains a partial view of these components of the group's
 state.  MLS messages are used to initialize these views and keep them in sync as
 the group transitions between epochs.
 
@@ -698,30 +712,14 @@ Each new epoch is initiated with a Commit message.  The Commit instructs
 existing members of the group to update their views of the ratchet tree by applying
 a set of Proposals, and uses the updated ratchet tree to distribute fresh
 entropy to the group.  This fresh entropy is provided only to members in the new
-epoch, not to members who have been removed, so it maintains the confidentiality
-of the epoch secret (in other words, it provides post-compromise security with
-respect to those members).
+epoch and not to members who have been removed. Commits thus maintain the property that the
+the epoch secret is confidential to the members in the current epoch.
 
-For each Commit that adds member(s) to the group, there is a single corresponding
+For each Commit that adds one or more members to the group, there is a single corresponding
 Welcome message.  The Welcome message provides all the new members with the information
 they need to initialize their views of the key schedule and ratchet tree, so
-that these views are equivalent to the views held by other members of the group
+that these views align with the views held by other members of the group
 in this epoch.
-
-In addition to defining how one epoch secret leads to the next, the key schedule
-also defines a collection of secrets that are derived from the epoch secret.
-For example:
-
-* An _encryption secret_ that is used to initialize the secret tree for the
-  epoch.
-
-* A _confirmation key_ that is used to confirm that all members agree on the
-  shared state of the group.
-
-* A _resumption secret_ that members can use to prove their membership in the
-  group, e.g., in the case of branching a subgroup.
-
-Finally, an _init secret_ is derived that is used to initialize the next epoch.
 
 ## Example Protocol Execution
 
@@ -829,10 +827,13 @@ A              B     ...      Z          Directory        Channel
 |              |              |              |              |
 |              | Update(B)    |              |              |
 |              +------------------------------------------->|
+|              |              |              | Update(B)    |
+|<----------------------------------------------------------+
+|              |<-------------------------------------------+
+|              |              |<----------------------------+
+|              |              |              |              |
 | Commit(Upd)  |              |              |              |
 +---------------------------------------------------------->|
-|              |              |              |              |
-|              |              |              | Update(B)    |
 |              |              |              | Commit(Upd)  |
 |<----------------------------------------------------------+
 |              |<-------------------------------------------+
@@ -847,7 +848,7 @@ Members are removed from the group in a similar way.
 Any member of the group can send a Remove proposal followed by a
 Commit message.  The Commit message provides new entropy to all members of the
 group except the removed member.  This new entropy is added to the epoch secret
-for the new epoch, so that it is not known to the removed member.
+for the new epoch so that it is not known to the removed member.
 Note that this does not necessarily imply that any member
 is actually allowed to evict other members; groups can
 enforce access control policies on top of these
@@ -872,7 +873,7 @@ A              B     ...      Z          Directory       Channel
 ## Relationships Between Epochs
 
 A group has a single linear sequence of epochs. Groups and epochs are generally
-independent of one-another. However, it can sometimes be useful to link epochs
+independent of one another. However, it can sometimes be useful to link epochs
 cryptographically, either within a group or across groups. MLS derives a
 resumption pre-shared key (PSK) from each epoch to allow entropy extracted from
 one epoch to be injected into a future epoch. This link guarantees that members
@@ -1200,7 +1201,7 @@ of the tree (including the leaf node information in KeyPackages used to add new
 members).
 
 Like HPKE public keys, signature public keys are represented as opaque values in
-a format defined by the cipher suite's signature scheme.
+a format defined by the ciphersuite's signature scheme.
 
 ~~~ tls
 opaque SignaturePublicKey<V>;
@@ -1245,7 +1246,6 @@ to Proposals they cover.  These identifiers are computed as follows:
 opaque HashReference[16];
 
 HashReference KeyPackageRef;
-HashReference LeafNodeRef;
 HashReference ProposalRef;
 ~~~
 
@@ -1253,29 +1253,25 @@ HashReference ProposalRef;
 MakeKeyPackageRef(value) = KDF.expand(
   KDF.extract("", value), "MLS 1.0 KeyPackage Reference", 16)
 
-MakeLeafNodeRef(value) = KDF.expand(
-  KDF.extract("", value), "MLS 1.0 Leaf Node Reference", 16)
-
 MakeProposalRef(value) = KDF.expand(
   KDF.extract("", value), "MLS 1.0 Proposal Reference", 16)
 ~~~
 
 For a KeyPackageRef, the `value` input is the encoded KeyPackage, and the
 ciphersuite specified in the KeyPackage determines the KDF used.  For a
-LeafNodeRef, the `value` input is the LeafNode object for the leaf node in
-question.  For a ProposalRef, the `value` input is the MLSMessageContentAuth carrying the
+ProposalRef, the `value` input is the MLSMessageContentAuth carrying the
 proposal.  In the latter two cases, the KDF is determined by the group's
 ciphersuite.
 
 ## Credentials
 
-Each member of a group presents a credential that associates an identity with
-the member's key material.  This information is verified according to the
-Authentication Service in use for a group.
+Each member of a group presents a credential that provides one or more
+identities for the member, and associates them with the member's signing key.
+The identities and signing key are verified by the Authentication Service in use
+for a group.
 
-A Credential can provide multiple identifiers for the client.  It is up to the
-application to decide which identifier or identifiers to use at the application
-level.  For example,
+It is up to the application to decide which identifier or identifiers to use at
+the application level.  For example,
 a certificate in an X509Credential may attest to several domain names or email
 addresses in its subjectAltName extension.  An application may decide to
 present all of these to a user, or if it knows a "desired" domain name or email
@@ -1283,10 +1279,6 @@ address, it can check that the desired identifier is among those attested.
 Using the terminology from {{?RFC6125}}, a Credential provides "presented
 identifiers", and it is up to the application to supply a "reference identifier"
 for the authenticated client, if any.
-
-Credentials MAY also include information that allows a relying party
-to verify the identity / signing key binding, such as a signature from a trusted
-authority.
 
 ~~~ tls
 // See IANA registry for registered values
@@ -1298,7 +1290,7 @@ struct {
 
 struct {
     CredentialType credential_type;
-    select (credential_type) {
+    select (Credential.credential_type) {
         case basic:
             opaque identity<V>;
 
@@ -1338,30 +1330,25 @@ protocol operations with regard to other clients (e.g., removing clients).  Such
 functions will need to refer to the other clients using some identifier.  MLS
 clients have a few types of identifiers, with different operational properties.
 
+Internally to the protocol, group members are uniquely identified by their leaf
+index. However, a leaf index is only valid for referring to members in a given
+epoch. The same leaf index may represent a different member, or no member at
+all, in a subsequent epoch.
+
 The Credentials presented by the clients in a group authenticate
-application-level identifiers for the clients.  These identifiers may not
+application-level identifiers for the clients.  However, these identifiers may not
 uniquely identify clients.  For example, if a user has multiple devices that are
 all present in an MLS group, then those devices' clients could all present the
 user's application-layer identifiers.
 
-Internally to the protocol, group members are uniquely identified by their
-leaves, expressed as LeafNodeRef objects.  These identifiers are unstable:
-They change whenever the member sends a Commit, or whenever an Update
-proposal from the member is committed.
-
-MLS provides two unique client identifiers that are stable across epochs:
-
-* The index of a client among the leaves of the tree
-* The `epoch_id` field in the key package
-
-The application may also provide application-specific unique identifiers in the
+If needed, applications may add application-specific unique identifiers to the
 `extensions` field of KeyPackage or LeafNode objects.
 
 # Message Framing
 
 Handshake and application messages use a common framing structure.
 This framing provides encryption to ensure confidentiality within the
-group, as well as signing to authenticate the sender within the group.
+group, as well as signing to authenticate the sender.
 
 The main structure is MLSMessageContent, which contains the content of
 the message.  This structure is authenticated using MLSMessageAuth
@@ -1404,9 +1391,9 @@ enum {
 
 struct {
     SenderType sender_type;
-    switch (sender_type) {
+    select (Sender.sender_type) {
         case member:
-            LeafNodeRef member_ref;
+            uint32 leaf_index;
         case external:
             uint32 sender_index;
         case new_member:
@@ -1473,14 +1460,63 @@ struct {
 } MLSMessageContentAuth;
 ~~~
 
+The following figure illustrates how the various structures described in this
+section relate to each other, and the high-level operations used to produce and
+consume them:
+
+~~~ aasvg
+                              Proposal        Commit     Application Data
+                                 |              |              |
+                                 +--------------+--------------+
+                                                |
+                                                V
+                                         MLSMessageContent
+                                             |  |                -.
+                                             |  |                  |
+                                    +--------+  |                  |
+                                    |           |                  |
+                                    V           |                  +-- Asymmetric
+                              MLSMessageAuth    |                  |   Sign / Verify
+                                    |           |                  |
+                                    +--------+  |                  |
+                                             |  |                  |
+                                             V  V                -'
+                                       MLSMessageContentAuth
+                                                |                -.
+                                                |                  |
+                                                |                  |
+                                       +--------+--------+         +-- Symmetric
+                                       |                 |         |   Protect / Unprotect
+                                       V                 V         |
+Welcome  KeyPackage  GroupInfo   MLSPlaintext      MLSCiphertext -'
+   |          |          |             |                 |
+   |          |          |             |                 |
+   +----------+----------+----+--------+-----------------+
+                              |
+                              V
+                          MLSMessage
+~~~
+
 ## Content Authentication
 
 MLSMessageContent is authenticated using the MLSMessageAuth structure.
 
 ~~~ tls
 struct {
-    opaque mac_value<V>;
-} MAC;
+    ProtocolVersion version = mls10;
+    WireFormat wire_format;
+    MLSMessageContent content;
+    select (MLSMessageContentTBS.content.sender.sender_type) {
+        case member:
+        case new_member:
+            GroupContext context;
+
+        case external:
+            struct{};
+    }
+} MLSMessageContentTBS;
+
+opaque MAC<V>;
 
 struct {
     // SignWithLabel(., "MLSMessageContentTBS", MLSMessageContentTBS)
@@ -1500,49 +1536,28 @@ struct {
 The signature is computed using `SignWithLabel` with label
 `"MLSMessageContentTBS"` and with a content that covers the message content and
 the wire format that will be used for this message. If the sender's
-`sender_type` is `Member`, the content also covers the GroupContext for the
-current epoch, so that signatures are specific to a given group and epoch.
+`sender_type` is `member`, the content also covers the GroupContext for the
+current epoch so that signatures are specific to a given group and epoch.
 
 The sender MUST use the private key corresponding to the following signature key
 depending on the sender's `sender_type`:
 
-* `member`: The signature key contained in the Credential at the leaf with the
-  sender's `LeafNodeRef`
-* `external`: The signature key contained in the Credential at the index
-  indicated by the `sender_index` in the `external_senders` group context
-  extension (see Section {{external-senders-extension}}).  In this case, the
-  `content_type` of the message MUST NOT be `commit`, since only members
-  of the group or new joiners can send Commit messages.
-* `new_member`: The signature key depends on the `content_type`:
-  * `proposal`: The signature key in the credential contained in KeyPackage in
-    the Add proposal (see Section {{external-proposals}}).
-  * `commit`: The signature key in the credential contained in the KeyPackage in
-    the Commit's path (see Section {{external-initialization}}).
-
-~~~ tls
-struct {
-    ProtocolVersion version = mls10;
-    WireFormat wire_format;
-    MLSMessageContent content;
-    select (MLSMessageContentTBS.content.sender.sender_type) {
-        case member:
-        case new_member:
-            GroupContext context;
-
-        case external:
-            struct{};
-    }
-} MLSMessageContentTBS;
-~~~
+* `member`: The signature key contained in the LeafNode at the index
+  indicated by `leaf_index` in the ratchet tree.
+* `external`: The signature key at the index
+  indicated by `sender_index` in the `external_senders` group context
+  extension (see {{external-senders-extension}}). The
+  `content_type` of the message MUST be `proposal`.
+* `new_member`: The signature key in the LeafNode in
+    the Commit's path (see {{joining-via-external-commits}}). The
+    `content_type` of the message MUST be `commit`.
 
 Recipients of an MLSMessage MUST verify the signature with the key depending on
 the `sender_type` of the sender as described above.
 
 The confirmation tag value confirms that the members of the group have arrived
-at the same state of the group.
-
-A MLSMessageAuth is said to be valid when both the `signature` and
-`confirmation_tag` fields are valid.
+at the same state of the group. An MLSMessageAuth is said to be valid when both
+the `signature` and `confirmation_tag` fields are valid.
 
 ## Encoding and Decoding a Plaintext
 
@@ -1552,7 +1567,7 @@ Plaintexts are encoded using the MLSPlaintext structure.
 struct {
     MLSMessageContent content;
     MLSMessageAuth auth;
-    select(MLSPlaintext.content.sender.sender_type) {
+    select (MLSPlaintext.content.sender.sender_type) {
         case member:
             MAC membership_tag;
         case external:
@@ -1577,9 +1592,8 @@ struct {
 membership_tag = MAC(membership_key, MLSMessageContentTBM)
 ~~~
 
-
-When decoding a MLSPlaintext into a MLSMessageContentAuth,
-the application MUST check `membership_tag`, and MUST check that the
+When decoding an MLSPlaintext into an MLSMessageContentAuth,
+the application MUST check `membership_tag` and MUST check that the
 MLSMessageAuth is valid.
 
 ## Encoding and Decoding a Ciphertext
@@ -1619,9 +1633,18 @@ struct {
     }
 
     MLSMessageAuth auth;
-    opaque padding<V>;
+    opaque padding[length_of_padding];
 } MLSCiphertextContent;
 ~~~
+
+The `padding` field is set by the sender, by first encoding the content (via the
+`select`) and the `auth` field, then appending the chosen number of zero bytes.
+A receiver identifies the padding field in a plaintext decoded from
+`MLSCiphertext.ciphertext` by first decoding the content and the `auth` field;
+then the `padding` field comprises any remaining octets of plaintext.  The
+`padding` field MUST be filled with all zero bytes.  A receiver MUST verify that
+there are no non-zero bytes in the `padding` field, and if this check fails, the
+enclosing MLSCiphertext MUST be rejected as malformed.
 
 In the MLS key schedule, the sender creates two distinct key ratchets for
 handshake and application messages for each member of the group. When encrypting
@@ -1637,7 +1660,7 @@ schedule it is; if this persistent state is lost or corrupted, a client might
 reuse a generation that has already been used, causing reuse of a key/nonce pair.
 
 To avoid this situation, the sender of a message MUST generate a fresh random
-4-byte "reuse guard" value and XOR it with the first four bytes of the nonce
+four-byte "reuse guard" value and XOR it with the first four bytes of the nonce
 from the key schedule before using the nonce for encryption.  The sender MUST
 include the reuse guard in the `reuse_guard` field of the sender data object, so
 that the recipient of the message can use it to compute the nonce to be used for
@@ -1670,35 +1693,35 @@ struct {
 } MLSCiphertextContentAAD;
 ~~~
 
-When decoding a MLSCiphertextContent, the application MUST check that the
+When decoding an MLSCiphertextContent, the application MUST check that the
 MLSMessageAuth is valid.
 
 ### Sender Data Encryption
 
-The "sender data" used to look up the key for the content encryption is
+The "sender data" used to look up the key for content encryption is
 encrypted with the ciphersuite's AEAD with a key and nonce derived from both the
 `sender_data_secret` and a sample of the encrypted content. Before being
 encrypted, the sender data is encoded as an object of the following form:
 
 ~~~ tls
 struct {
-    LeafNodeRef sender;
+    uint32 leaf_index;
     uint32 generation;
     opaque reuse_guard[4];
 } MLSSenderData;
 ~~~
 
-MLSSenderData.sender is assumed to be a `member` sender type.  When constructing
-an MLSSenderData from a Sender object, the sender MUST verify Sender.sender_type
-is `member` and use Sender.sender for MLSSenderData.sender.
+When constructing an MLSSenderData from a Sender object, the sender MUST verify
+Sender.sender_type is `member` and use Sender.leaf_index for
+MLSSenderData.leaf_index.
 
 The `reuse_guard` field contains a fresh random value used to avoid nonce reuse
 in the case of state loss or corruption, as described in {{content-encryption}}.
 
 The key and nonce provided to the AEAD are computed as the KDF of the first
 `KDF.Nh` bytes of the ciphertext generated in the previous section. If the
-length of the ciphertext is less than `KDF.Nh`, the whole ciphertext is used
-without padding. In pseudocode, the key and nonce are derived as:
+length of the ciphertext is less than `KDF.Nh`, the whole ciphertext is used.
+In pseudocode, the key and nonce are derived as:
 
 ~~~ pseudocode
 ciphertext_sample = ciphertext[0..KDF.Nh-1]
@@ -1721,8 +1744,8 @@ struct {
 ~~~
 
 When parsing a SenderData struct as part of message decryption, the recipient
-MUST verify that the LeafNodeRef indicated in the `sender` field identifies a
-member of the group.
+MUST verify that the leaf index indicated in the `leaf_index` field identifies a
+non-blank node.
 
 # Ratchet Tree Operations
 
@@ -1797,12 +1820,12 @@ struct {
     Capabilities capabilities;
 
     LeafNodeSource leaf_node_source;
-    select (leaf_node_source) {
+    select (LeafNode.leaf_node_source) {
         case key_package:
             Lifetime lifetime;
 
         case update:
-            struct {}
+            struct{};
 
         case commit:
             opaque parent_hash<V>;
@@ -1820,7 +1843,7 @@ struct {
     Capabilities capabilities;
 
     LeafNodeSource leaf_node_source;
-    select (leaf_node_source) {
+    select (LeafNodeTBS.leaf_node_source) {
         case key_package:
             Lifetime lifetime;
 
@@ -1833,7 +1856,7 @@ struct {
 
     Extension extensions<V>;
 
-    select (leaf_node_source) {
+    select (LeafNodeTBS.leaf_node_source) {
         case key_package:
             struct{};
 
@@ -1848,8 +1871,10 @@ struct {
 
 The `encryption_key` field contains an HPKE public key whose private key is held only
 by the member occupying this leaf (or in the case of a LeafNode in a KeyPackage
-object, the issuer of the KeyPackage).  The `credential` contains authentication
-information for this member, as described in {{credentials}}.
+object, the issuer of the KeyPackage). The `signature_key` field contains the
+member's public signing key. The `credential` field contains information
+authenticating both the member's identity and the provided signing key, as
+described in {{credentials}}.
 
 The `capabilities` field indicates what protocol versions, ciphersuites,
 extensions, credential types, and non-default proposal types are supported by a client.
@@ -1914,8 +1939,7 @@ The client verifies the validity of a LeafNode using the following steps:
     * An Update proposal updates the sender's old LeafNode to a new one
     * A "resync" external commit removes the joiner's old LeafNode via a Remove proposal and replaces it with a new one
 
-* Verify that the signature on the LeafNode is valid using the LeafNode's
-  `signature_key`.
+* Verify that the signature on the LeafNode is valid using `signature_key`.
 
 * Verify that the LeafNode is compatible with the group's parameters.  If the
   GroupContext has a `required_capabilities` extension, then the required
@@ -1936,9 +1960,9 @@ The client verifies the validity of a LeafNode using the following steps:
     RECOMMENDED that the client verifies that the current time is within the range
     of the `lifetime` field.
 
-* Verify that the extensions in the leaf node are supported.  The ID for each
-  extension in the `extensions` field MUST be listed in the field
-  `capabilities.extensions` of the LeafNode.
+* Verify that the extensions in the LeafNode are supported by checking that the
+  ID for each extension in the `extensions` field is listed in the
+  `capabilities.extensions` field of the LeafNode.
 
 * Verify the `leaf_node_source` field:
   * If the LeafNode appears in a KeyPackage in an Add proposal, or in a downloaded
@@ -1951,10 +1975,10 @@ The client verifies the validity of a LeafNode using the following steps:
 
 ## Ratchet Tree Evolution
 
-In order to provide forward secrecy and post-compromise security, whenever a
-member initiates an epoch change (i.e., commits; see {{commit}}), they refresh
-the key pairs of their leaf and of all nodes on their leaf's direct path (all
-nodes for which they know the secret key).
+Whenever a member initiates an epoch change (i.e., commits; see {{commit}}),
+they may need to refresh the key pairs of their leaf and of the nodes on their
+leaf's direct path in order to maintain forward secrecy and post-compromise
+security.
 
 The member initiating the epoch change generates the fresh key pairs using the
 following procedure. The procedure is designed in a way that allows group members to
@@ -1965,11 +1989,11 @@ Recall the definition of resolution from {{ratchet-tree-nodes}}.
 To begin with, the generator of the UpdatePath updates its leaf and its leaf's
 _filtered direct path_ with new key pairs. The filtered direct path of a node
 is obtained from the node's direct path by removing all nodes whose child on
-the nodes's copath has an empty resolution (any unmerged leaves of the copath
-child count towards its resolution). Such a removed node does not need a key
-pair, since after blanking it, its resolution consists of a single node on the
-filtered direct path. Using the key pair of the node in the resolution is
-equivalent to using the key pair of the removed node.
+the nodes' copath has an empty resolution (keeping in mind that any unmerged leaves of the copath
+child count towards its resolution). Such a removed node does not need its own key
+pair since, if the copath child's resolution is blank, then encrypting any data
+to the node's key pair would be equivalent to encrypting only to the
+non-copath child.
 
 * Blank all the nodes on the direct path from the leaf to the root.
 * Generate a fresh HPKE key pair for the leaf.
@@ -2124,11 +2148,11 @@ the following information for each node in the filtered direct path of the
 sender's leaf, including the root:
 
 * The public key for the node
-* Zero or more encrypted copies of the path secret corresponding to
+* One or more encrypted copies of the path secret corresponding to
   the node
 
-The path secret value for a given node is encrypted for the subtree
-corresponding to the parent's non-updated child, that is, the child
+The path secret value for a given node is encrypted to the subtree
+rooted at the parent's non-updated child, i.e., the child
 on the copath of the sender's leaf node.
 There is one encryption of the path secret to each public key in the resolution
 of the non-updated child.
@@ -2159,7 +2183,7 @@ The recipient of an UpdatePath processes it with the following steps:
      updated path secrets"), compute and store the node's updated private key.
 
 For example, in order to communicate the example update described in
-the previous section, the sender would transmit the following
+{{ratchet-tree-evolution}}, the sender would transmit the following
 values:
 
 | Public Key    | Ciphertext(s)                                           |
@@ -2365,13 +2389,11 @@ chain from the committer's leaf to the root.
 
 ## Update Paths
 
-As described in {{commit}}, each MLS Commit message may optionally
-transmit a LeafNode and parent node values along its direct path.
-The path contains a public key and encrypted secret value for all
-intermediate nodes in the filtered direct path from the leaf to the
-root. The path is ordered
-from the closest node to the leaf to the root; each node MUST be the
-parent of its predecessor.
+As described in {{commit}}, each Commit message may optionally contain an
+UpdatePath, with a new LeafNode and set of parent nodes for the sender's
+filtered direct path. For each parent node, the UpdatePath contains a new
+public key and encrypted path secret. The parent nodes are kept in the same
+order as the filtered direct path.
 
 ~~~ tls
 struct {
@@ -2391,9 +2413,9 @@ struct {
 ~~~
 
 For each `UpdatePathNode`, the resolution of the corresponding copath node MUST
-be filtered by removing all new leaf nodes added as part of this MLS Commit
-message. The number of ciphertexts in the `encrypted_path_secret` vector MUST be
-equal to the length of the filtered resolution, with each ciphertext being the
+exclude all new leaf nodes added as part of the current Commit. The length of
+the `encrypted_path_secret` vector MUST be equal to the length of the resolution
+of the copath node (excluding new leaf nodes), with each ciphertext being the
 encryption to the respective resolution node.
 
 The HPKECiphertext values are computed as
@@ -3241,7 +3263,6 @@ struct {
         case psk:                      PreSharedKey;
         case reinit:                   ReInit;
         case external_init:            ExternalInit;
-        case app_ack:                  AppAck;
         case group_context_extensions: GroupContextExtensions;
     };
 } Proposal;
@@ -3322,12 +3343,12 @@ A member of the group applies an Update message by taking the following steps:
 
 ### Remove
 
-A Remove proposal requests that the member with LeafNodeRef `removed` be removed
+A Remove proposal requests that the member with the leaf index `removed` be removed
 from the group.
 
 ~~~ tls
 struct {
-    LeafNodeRef removed;
+    uint32 removed;
 } Remove;
 ~~~
 
@@ -3410,62 +3431,6 @@ A member of the group applies an ExternalInit message by initializing the next
 epoch using an init secret computed as described in {{external-initialization}}.
 The `kem_output` field contains the required KEM output.
 
-### AppAck
-
-An AppAck proposal is used to acknowledge receipt of application messages.
-Though this information implies no change to the group, it is structured as a
-Proposal message so that it is included in the group's transcript by being
-included in Commit messages.
-
-~~~ tls
-struct {
-    LeafNodeRef sender;
-    uint32 first_generation;
-    uint32 last_generation;
-} MessageRange;
-
-struct {
-    MessageRange received_ranges<V>;
-} AppAck;
-~~~
-
-An AppAck proposal represents a set of messages received by the sender in the
-current epoch.  Messages are represented by the `sender` and `generation` values
-in the MLSCiphertext for the message.  Each MessageRange represents receipt of a
-span of messages whose `generation` values form a continuous range from
-`first_generation` to `last_generation`, inclusive.
-
-AppAck proposals are sent as a guard against the Delivery Service dropping
-application messages.  The sequential nature of the `generation` field provides
-a degree of loss detection, since gaps in the `generation` sequence indicate
-dropped messages.  AppAck completes this story by addressing the scenario where
-the Delivery Service drops all messages after a certain point, so that a later
-generation is never observed.  Obviously, there is a risk that AppAck messages
-could be suppressed as well, but their inclusion in the transcript means that if
-they are suppressed then the group cannot advance at all.
-
-The schedule on which sending AppAck proposals are sent is up to the application,
-and determines which cases of loss/suppression are detected.  For example:
-
-* The application might have the committer include an AppAck proposal whenever a
-  Commit is sent, so that other members could know when one of their messages
-  did not reach the committer.
-
-* The application could have a client send an AppAck whenever an application
-  message is sent, covering all messages received since its last AppAck.  This
-  would provide a complete view of any losses experienced by active members.
-
-* The application could simply have clients send AppAck proposals on a timer, so
-  that all participants' state would be known.
-
-An application using AppAck proposals to guard against loss/suppression of
-application messages also needs to ensure that AppAck messages and the Commits
-that reference them are not dropped.  One way to do this is to always encrypt
-Proposal and Commit messages, to make it more difficult for the Delivery Service
-to recognize which messages contain AppAcks.  The application can also have
-clients enforce an AppAck schedule, reporting loss if an AppAck is not received
-at the expected time.
-
 ### GroupContextExtensions
 
 A GroupContextExtensions proposal is used to update the list of extensions in
@@ -3497,25 +3462,17 @@ group agree on the extensions in use.
 ### External Proposals
 
 Add and Remove proposals can be constructed and sent to the group by a party
-that is outside the group.  For example, a Delivery Service might propose to
+that is outside the group, indicated by an `external` SenderType.
+This is useful in cases where, for example, an automated service might propose to
 remove a member of a group who has been inactive for a long time, or propose adding
-a newly-hired staff member to a group representing a real-world team.  Proposals
-originating outside the group are identified by a `external` or
-`new_member` SenderType in MLSPlaintext.
+a newly-hired staff member to a group representing a real-world team.
 
-ReInit proposals can also be sent to the group by a `external` sender, for
+ReInit proposals can also be sent to the group by an `external` sender, for
 example to enforce a changed policy regarding MLS version or ciphersuite.
 
-The `new_member` SenderType is used for clients proposing that they themselves
-be added.  For this ID type the sender value MUST be zero and the Proposal type
-MUST be Add. The MLSPlaintext MUST be signed with the private key corresponding
-to the KeyPackage in the Add message.  Recipients MUST verify that the
-MLSPlaintext carrying the Proposal message is validly signed with this key.
-
-The `external` SenderType is reserved for signers that are pre-provisioned
-to the clients within a group. It can only be used if the
-`external_senders` extension is present in the group's group context
-extensions.
+The `external` SenderType requires that signers are pre-provisioned
+to the clients within a group and can only be used if the
+`external_senders` extension is present in the group's GroupContext.
 
 An external proposal MUST be sent as an MLSPlaintext object, since the sender
 will not have the keys necessary to construct an MLSCiphertext object.
@@ -3602,7 +3559,6 @@ The only proposal types defined in this document that do not require a path are:
 
 * `add`
 * `psk`
-* `app_ack`
 * `reinit`
 
 New proposal types MUST state whether they require a path. If any instance of a
@@ -3863,14 +3819,14 @@ struct {
     Extension group_context_extensions<V>;
     Extension other_extensions<V>;
     MAC confirmation_tag;
-    LeafNodeRef signer;
+    uint32 signer;
     // SignWithLabel(., "GroupInfoTBS", GroupInfoTBS)
     opaque signature<V>;
 } GroupInfo;
 ~~~
 
 New members MUST verify the `signature` using the public key taken from the
-credential in the leaf node of the member with LeafNodeRef `signer`. The
+credential in the leaf node of the ratchet tree with leaf index `signer`. The
 signature covers the following structure, comprising all the fields in the
 GroupInfo above `signature`:
 
@@ -3884,7 +3840,7 @@ struct {
     Extension group_context_extensions<V>;
     Extension other_extensions<V>;
     MAC confirmation_tag;
-    LeafNodeRef signer;
+    uint32 signer;
 } GroupInfoTBS;
 ~~~
 
@@ -4044,7 +4000,7 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 * Verify the signature on the GroupInfo object. The signature input comprises
   all of the fields in the GroupInfo object except the signature field. The
   public key and algorithm are taken from the credential in the leaf node of the
-  member with LeafNodeRef `signer`. If there is no matching leaf node, or if
+  ratchet tree with leaf index `signer`. If the node is blank or if
   signature verification fails, return an error.
 
 * Verify the integrity of the ratchet tree.
@@ -4080,7 +4036,7 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 
     * If the `path_secret` value is set in the GroupSecrets object: Identify the
       lowest common ancestor of the leaf node `my_leaf` and of the node of
-      the member with LeafNodeRef `GroupInfo.signer`. Set the private key for
+      the member with leaf index `GroupInfo.signer`. Set the private key for
       this node to the private key derived from the `path_secret`.
 
     * For each parent of the common ancestor, up to the root of the tree, derive
@@ -4520,15 +4476,15 @@ to an adversary by the ciphertext length. An attacker expecting Alice to
 answer Bob with a day of the week might find out the plaintext by
 correlation between the question and the length.
 
-The content and length of the `padding` field in `MLSCiphertextContent` can be
-chosen at the time of message encryption by the sender. It is recommended that
-padding data is comprised of zero-valued bytes and follows an established
-deterministic padding scheme.
+The length of the `padding` field in `MLSCiphertextContent` can be
+chosen at the time of message encryption by the sender. Senders may use padding
+to reduce the ability of attackers outside the group to infer the size of the
+encrypted content.
 
 ## Restrictions {#restrictions}
 
 During each epoch senders MUST NOT encrypt more data than permitted by the
-security bounds of the AEAD scheme used.
+security bounds of the AEAD scheme used {{?I-D.irtf-cfrg-aead-limits}}.
 
 Note that each change to the Group through a Handshake message will also set a
 new `encryption_secret`. Hence this change MUST be applied before encrypting
@@ -4856,8 +4812,7 @@ Initial contents:
 | 0x0004           | psk                      | Y           | N             | RFC XXXX  |
 | 0x0005           | reinit                   | Y           | N             | RFC XXXX  |
 | 0x0006           | external_init            | Y           | Y             | RFC XXXX  |
-| 0x0007           | app_ack                  | Y           | N             | RFC XXXX  |
-| 0x0008           | group_context_extensions | Y           | Y             | RFC XXXX  |
+| 0x0007           | group_context_extensions | Y           | Y             | RFC XXXX  |
 | 0xff00  - 0xffff | Reserved for Private Use | N/A         | N/A           | RFC XXXX  |
 
 ## MLS Credential Types
