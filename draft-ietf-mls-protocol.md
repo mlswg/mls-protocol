@@ -2916,6 +2916,31 @@ For handshake and application messages, a sequence of keys is derived via a
 "sender ratchet".  Each sender has their own sender ratchet, and each step along
 the ratchet is called a "generation".
 
+The following figure shows a secret tree for a four-member group, with the
+handshake and application ratchets that member D will use for sending and the
+first two application keys and nonces.
+
+~~~ aasvg
+       G
+       |
+     .-+-.
+    /     \
+   E       F
+  / \     / \
+ A   B   C   D
+            / \
+          HR0  AR0--+--K0
+                |   |
+                |   +--N0
+                |
+               AR1--+--K1
+                |   |
+                |   +--N1
+                |
+               AR2
+~~~
+{: title="Secret tree for a four-member group" #secret-tree-example}
+
 A sender ratchet starts from a per-sender base secret derived from a Secret
 Tree, as described in {{secret-tree}}. The base secret initiates a symmetric
 hash ratchet which generates a sequence of keys and nonces. The sender uses the
@@ -2982,35 +3007,25 @@ values have been consumed and MUST be deleted:
 * the first j secrets in the application data ratchet of node L and
 * `application_ratchet_nonce_[L]_[j]` and `application_ratchet_key_[L]_[j]`.
 
-Concretely, suppose we have the following Secret Tree and ratchet for
-participant D:
+Concretely, consider the Secret Tree shown in {{secret-tree-example}}.  Client
+A, B, or C would generate the illustrated values on receiving a message from D
+with generation equal to 1, having not received a message with generation 0
+(e.g., due to out-of-order delivery).  In such a case, the following values
+would be consumed:
 
-~~~ aasvg
-       G
-       |
-     .-+-.
-    /     \
-   E       F
-  / \     / \
- A   B   C   D
-            / \
-          HR0  AR0--+--K0
-                |   |
-                |   +--N0
-                |
-               AR1--+--K1
-                |   |
-                |   +--N1
-                |
-               AR2
-~~~
+* The key K1 and nonce N1 used to decrypt the message
+* The application ratchet secrets AR1 and AR0
+* The tree secrets D, F, G (recall that G is the `encryption_secret` for the
+  epoch)
+* The `epoch_secret`, `commit_secret`, `psk_secret`, and `joiner_secret` for the
+  current epoch
 
-Then if a client uses key K1 and nonce N1 during epoch n then it must consume
-(at least) values G, F, D, AR0, AR1, K1, N1 as well as the key schedule secrets
-used to derive G (the `encryption_secret`), namely `init_secret` of epoch n-1
-and `commit_secret`, `joiner_secret`, `epoch_secret` of epoch n. The client MAY
-retain (not consume) the values K0 and N0 to allow for out-of-order delivery,
-and SHOULD retain AR2 for processing future messages.
+Other values may be retained (not consumed):
+
+* K0 and N0 for decryption of an out-of-order message with generation 0
+* AR2 for derivation of further message decryption keys and nonces
+* HR0 for protection of handshake messages from D
+* E and C for deriving secrets used by senders A, B, and C
 
 # Key Packages
 
