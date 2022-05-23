@@ -3363,7 +3363,7 @@ struct {
 } PreSharedKey;
 ~~~
 
-A PreSharedKey proposal MUST NOT contain a PSK of type `resumption` and usage
+A PreSharedKey proposal MUST NOT contain a PSK of type `resumption` that has usage
 `reinit` or `branch`. When processing a Commit message
 that includes one or more PreSharedKey proposals, group members derive
 `psk_secret` as described in {{pre-shared-keys}}, where the order of the PSKs
