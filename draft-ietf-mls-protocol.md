@@ -1028,7 +1028,6 @@ in {{tree-hashes}}.
 
 The _resolution_ of a node is an ordered list of non-blank nodes
 that collectively cover all non-blank descendants of the node.  The resolution
-of a non-blank node with no unmerged leaves is just the node itself. More generally, the resolution
 of a node is effectively a depth-first, left-first enumeration of the nearest
 non-blank nodes below the node:
 
@@ -1108,7 +1107,7 @@ nodes are as follows:
 | B    | U, V, X     | A, W, Z  | U, X                 |
 | E    | Y, Z, X     | F, G, V  | Y, Z, X              |
 | F    | Y, Z, X     | E, G, V  | Y, Z, X              |
-| G    | U, V, X     | B, W, Z  | U, X                 |
+| G    | Z, X        | Y, V     | Z, X                 |
 
 ## Views of a Ratchet Tree {#views}
 
