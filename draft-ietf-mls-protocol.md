@@ -1243,7 +1243,7 @@ messages refer to KeyPackages for the members being welcomed, and Commits refer
 to Proposals they cover.  These identifiers are computed as follows:
 
 ~~~ tls
-opaque HashReference[Hash.length];
+opaque HashReference<V>;
 
 HashReference KeyPackageRef;
 HashReference ProposalRef;
