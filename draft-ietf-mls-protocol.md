@@ -2596,19 +2596,33 @@ included directly. Proposal messages are indirectly included via the Commit that
 applied them. Both types of message are included by hashing the MLSPlaintext
 in which they were sent.
 
-The `confirmed_transcript_hash` is updated with an MLSMessageContent and
-MLSMessageAuth containing a Commit in two steps:
+The transcript hash comprises two individual hashes:
+
+* A `confirmed_transcript_hash` that represents a transcript over the whole
+  history of Commit messages, up to and including the signature of the most
+  recent Commit.
+* An `interim_transcript_hash` that covers the confirmed transcript hash plus
+  the `confirmation_tag` of the most recent Commit.
+
+New members compute the interim transcript hash using the `confirmation_tag`
+field of the GroupInfo struct, while existing members can compute it directly.
+
+Each Commit message updates these hashes by way of its enclosing
+MLSMessageContentAuth.  The MLSMessageContentAuth struct is split into
+ConfirmedTranscriptHashInput and InterimTranscriptHashInput. The former is used to
+update the confirmed transcript hash and the latter to update the interim
+transcript hash.
 
 ~~~ tls
 struct {
     WireFormat wire_format;
     MLSMessageContent content; //with content.content_type == commit
     opaque signature<V>;
-} MLSMessageCommitContent;
+} ConfirmedTranscriptHashInput;
 
 struct {
     MAC confirmation_tag;
-} MLSMessageCommitAuthData;
+} InterimTranscriptHashInput;
 ~~~
 
 ~~~ pseudocode
@@ -2616,22 +2630,12 @@ interim_transcript_hash_[0] = ""; // zero-length octet string
 
 confirmed_transcript_hash_[n] =
     Hash(interim_transcript_hash_[n] ||
-        MLSMessageCommitContent_[n]);
+        ConfirmedTranscriptHashInput_[n]);
 
 interim_transcript_hash_[n+1] =
     Hash(confirmed_transcript_hash_[n] ||
-        MLSMessageCommitAuthData_[n]);
+        InterimTranscriptHashInput_[n]);
 ~~~
-
-Thus the `confirmed_transcript_hash` field in a GroupContext object represents a
-transcript over the whole history of MLSMessage Commit messages, up to the
-confirmation_tag field of the most recent Commit.  The confirmation
-tag is then included in the transcript for the next epoch.  The interim
-transcript hash is computed by new members using the confirmation_tag of the
-GroupInfo struct, while existing members can compute it directly.
-
-As shown above, when a new group is created, the `interim_transcript_hash` field
-is set to the zero-length octet string.
 
 ## External Initialization
 
