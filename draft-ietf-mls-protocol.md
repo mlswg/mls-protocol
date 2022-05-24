@@ -3180,7 +3180,6 @@ The members of a group reinitialize it using the following steps:
     * The `group_id`, `version`, and `cipher_suite` fields in the Welcome
       message MUST be the same as the corresponding fields in the ReInit
       proposal.
-    * The `epoch` in the Welcome message MUST be 1.
     * The Welcome MUST specify a PreSharedKey of type `resumption` with usage
       `reinit`.  The `group_id` must match the old group, and the `epoch` must
       indicate the epoch after the Commit covering the ReInit.
