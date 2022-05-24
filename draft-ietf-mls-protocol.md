@@ -995,43 +995,6 @@ binary tree structure with these elements as leaves.
 used for the Merkle trees in the Certificate Transparency protocol
 {{?I-D.ietf-trans-rfc6962-bis}}.)
 
-The _direct path_ of a root is the empty list, and of any other node
-is the concatenation of that node's parent along with the parent's direct path.
-The _copath_ of a node is the node's sibling concatenated with the list of
-siblings of all the nodes in its direct path, excluding the root.
-
-For example, in the below tree:
-
-* The direct path of C is (W, V, X)
-* The copath of C is (D, U, Z)
-
-~~~ aasvg
-              X = root
-              |
-        .-----+-----.
-       /             \
-      V               Z
-      |               |
-    .-+-.           .-+
-   /     \         /   \
-  U       W       Y     +
- / \     / \     / \    |
-A   B   C   D   E   F   G
-
-0   1   2   3   4   5   6
-~~~
-{: #full-tree title="A complete tree with seven members" }
-
-A tree with `n` leaves has `2*n - 1` nodes.  For example, the above tree has 7
-leaves (A, B, C, D, E, F, G) and 13 nodes.
-
-Each leaf is given an _index_ (or _leaf index_), starting at `0` from the left to
-`n-1` at the right.
-
-Finally, a node in the tree may also be _blank_, indicating that no value
-is present at that node (i.e. no keying material). This is often the case
-when a leaf was recently removed from the tree.
-
 There are multiple ways that an implementation might represent a ratchet tree in
 memory.  For example, left-balanced binary trees can be represented as an array
 of nodes, with node relationships computed based on nodes' indices in the array.
@@ -1041,6 +1004,110 @@ implement the tree operations required for MLS in these representations.
 MLS places no requirements on implementations' internal representations
 of ratchet trees.  An implementation MAY use any tree representation and
 associated algorithms, as long as they produce correct protocol messages.
+
+### Ratchet Tree Nodes
+
+Each leaf node in a ratchet tree is given an _index_ (or _leaf index_), starting
+at `0` from the left to `n-1` at the right (for a tree with `n` leaves). A tree
+with `n` leaves has `2*n - 1` nodes, including parent nodes.
+
+Each node in a ratchet tree is either _blank_ (containing no value) or it holds
+an asymmetric key pair with some associated data:
+
+* A public key (for the HPKE scheme in use, see {{ciphersuites}})
+* A private key (only within the member's direct path, see {{views}})
+* A credential (only for leaf nodes)
+* An ordered list of "unmerged" leaves (see {{views}})
+* A hash of certain information about the node's parent, as of the last time the
+  node was changed (see {{parent-hash}}).
+
+Every node, regardless of whether the node is blank or populated, has
+a corresponding _hash_ that summarizes the contents of the subtree
+below that node.  The rules for computing these hashes are described
+in {{tree-hashes}}.
+
+The _resolution_ of a node is an ordered list of non-blank nodes
+that collectively cover all non-blank descendants of the node.  The resolution
+of a node is effectively a depth-first, left-first enumeration of the nearest
+non-blank nodes below the node:
+
+* The resolution of a non-blank node comprises the node itself,
+  followed by its list of unmerged leaves, if any
+* The resolution of a blank leaf node is the empty list
+* The resolution of a blank intermediate node is the result of
+  concatenating the resolution of its left child with the resolution
+  of its right child, in that order
+
+For example, consider the following subtree, where the `_` character
+represents a blank node and unmerged leaves are indicated in square
+brackets:
+
+~~~ ascii-art
+       ...
+       /
+      _
+      |
+    .-+-.
+   /     \
+  _       Z[C]
+ / \     / \
+A   _   C   D
+
+0   1   2   3
+~~~
+{: #resolution-tree title="A tree with blanks and unmerged leaves" }
+
+In this tree, we can see all of the above rules in play:
+
+* The resolution of node Z is the list \[Z, C\]
+* The resolution of leaf 1 is the empty list \[\]
+* The resolution of top node is the list \[A, Z, C\]
+
+### Paths through a Ratchet Tree
+
+The _direct path_ of a root is the empty list, and of any other node
+is the concatenation of that node's parent along with the parent's direct path.
+
+The _copath_ of a node is the node's sibling concatenated with the list of
+siblings of all the nodes in its direct path, excluding the root.
+
+The _filtered direct path_ of a leaf node L is the node's direct path, with any
+node removed whose child on the copath of L has an empty resolution (keeping in
+mind that any unmerged leaves of the copath child count toward its resolution).
+The removed nodes do not need their own key pairs because encrypting to the
+nodes key pair would be equivalent to encrypting to its non-copath child.
+
+For example, consider the following tree (where blank nodes are indicated with
+`_`, but also assigned a label for reference):
+
+~~~ aasvg
+              X = root
+              |
+        .-----+-----.
+       /             \
+      _=V             Z
+      |               |
+    .-+-.           .-+
+   /     \         /   \
+  U       _=W     Y     +
+ / \     / \     / \    |
+A   B   _   _   E   F   G
+
+0   1   2   3   4   5   6
+~~~
+{: #full-tree title="A complete tree with seven members, with labels for blank
+parent nodes" }
+
+In this tree, the direct paths, copaths, and filtered direct paths for the leaf
+nodes are as follows:
+
+| Node | Direct path | Copath   | Filtered Direct Path |
+|:=====|:============|:=========|:=====================|
+| A    | U, V, X     | B, W, Z  | U, X                 |
+| B    | U, V, X     | A, W, Z  | U, X                 |
+| E    | Y, Z, X     | F, G, V  | Y, Z, X              |
+| F    | Y, Z, X     | E, G, V  | Y, Z, X              |
+| G    | Z, X        | Y, V     | Z, X                 |
 
 ## Views of a Ratchet Tree {#views}
 
@@ -1101,68 +1168,6 @@ A   ?   ?   ?     ?   B   ?   ?     ?   ?   C   ?     ?   ?   ?   D
 
 Note how the tree invariant applies: Each member knows only their own leaf, and
 the private key AB is known only to A and B.
-
-## Ratchet Tree Nodes
-
-A particular instance of a ratchet tree includes the same parameters that
-define an instance of HPKE, namely:
-
-* A Key Encapsulation Mechanism (KEM), including a `DeriveKeyPair` function that
-  creates a key pair for the KEM from a symmetric secret
-* A Key Derivation Function (KDF), including `Extract` and `Expand` functions
-* An AEAD encryption scheme
-
-Each non-blank node in a ratchet tree contains up to five values:
-
-* A public key
-* A private key (only within the member's direct path, see below)
-* A credential (only for leaf nodes)
-* An ordered list of "unmerged" leaves (see {{views}})
-* A hash of certain information about the node's parent, as of the last time the
-  node was changed (see {{parent-hash}}).
-
-The _resolution_ of a node is an ordered list of non-blank nodes
-that collectively cover all non-blank descendants of the node.  The resolution
-of a non-blank node with no unmerged leaves is just the node itself. More generally, the resolution
-of a node is effectively a depth-first, left-first enumeration of the nearest
-non-blank nodes below the node:
-
-* The resolution of a non-blank node comprises the node itself,
-  followed by its list of unmerged leaves, if any
-* The resolution of a blank leaf node is the empty list
-* The resolution of a blank intermediate node is the result of
-  concatenating the resolution of its left child with the resolution
-  of its right child, in that order
-
-For example, consider the following subtree, where the `_` character
-represents a blank node and unmerged leaves are indicated in square
-brackets:
-
-~~~ ascii-art
-       ...
-       /
-      _
-      |
-    .-+-.
-   /     \
-  _       Z[C]
- / \     / \
-A   _   C   D
-
-0   1   2   3
-~~~
-{: #resolution-tree title="A tree with blanks and unmerged leaves" }
-
-In this tree, we can see all of the above rules in play:
-
-* The resolution of node Z is the list \[Z, C\]
-* The resolution of leaf 1 is the empty list \[\]
-* The resolution of top node is the list \[A, Z, C\]
-
-Every node, regardless of whether the node is blank or populated, has
-a corresponding _hash_ that summarizes the contents of the subtree
-below that node.  The rules for computing these hashes are described
-in {{tree-hashes}}.
 
 # Cryptographic Objects
 
@@ -1986,15 +1991,7 @@ following procedure. The procedure is designed in a way that allows group member
 efficiently communicate the fresh secret keys to other group members, as
 described in {{update-paths}}.
 
-Recall the definition of resolution from {{ratchet-tree-nodes}}.
-To begin with, the generator of the UpdatePath updates its leaf and its leaf's
-_filtered direct path_ with new key pairs. The filtered direct path of a node
-is obtained from the node's direct path by removing all nodes whose child on
-the nodes' copath has an empty resolution (keeping in mind that any unmerged leaves of the copath
-child count towards its resolution). Such a removed node does not need its own key
-pair since, if the copath child's resolution is blank, then encrypting any data
-to the node's key pair would be equivalent to encrypting only to the
-non-copath child.
+A member updates the nodes along its direct path as follows:
 
 * Blank all the nodes on the direct path from the leaf to the root.
 * Generate a fresh HPKE key pair for the leaf.
@@ -2387,6 +2384,35 @@ recompute the expected value of `parent_hash` for the committer's new leaf and
 verify that it matches the `parent_hash` value in the supplied `leaf_node`.
 After being merged into the tree, the nodes in the UpdatePath form a parent-hash
 chain from the committer's leaf to the root.
+
+For example, nodes the tree in {{full-tree}} might have been populated by full
+Commits from A, E, F, G, and B (in that order).  These Commits would create the
+following parent-hash validity relationship (where the value for a node is reset
+each time it is listed):
+
+1. Commit from A: A -- U -- X
+2. Commit from E: E -- Y -- Z -- X
+3. Commit from F: F -- Y -- Z -- X
+4. Commit from G: G -- Z -- X
+5. Commit from B: B -- U -- X
+
+After these commits, the tree will have the following parent-hash chains:
+
+* A
+* B -- U -- X
+* E
+* F -- Y
+* G -- Z
+
+Since these chains collectively cover all non-blank parent nodes in the tree,
+the tree is parent-hash valid.
+
+Note that this tree, though valid, contains invalid parent-hash links. If a
+client were checking parent hashes top-down from X, for example, they would find
+that Z has an invalid parent hash relative to X, but that U has valid parent
+hash.  Likewise, if the client were checking bottom-up, they would find that the
+chain from F ends in an invalid link from Y to Z.  These invalid links are the
+natural result of multiple clients having committed.
 
 ## Update Paths
 
@@ -2890,6 +2916,31 @@ For handshake and application messages, a sequence of keys is derived via a
 "sender ratchet".  Each sender has their own sender ratchet, and each step along
 the ratchet is called a "generation".
 
+The following figure shows a secret tree for a four-member group, with the
+handshake and application ratchets that member D will use for sending and the
+first two application keys and nonces.
+
+~~~ aasvg
+       G
+       |
+     .-+-.
+    /     \
+   E       F
+  / \     / \
+ A   B   C   D
+            / \
+          HR0  AR0--+--K0
+                |   |
+                |   +--N0
+                |
+               AR1--+--K1
+                |   |
+                |   +--N1
+                |
+               AR2
+~~~
+{: title="Secret tree for a four-member group" #secret-tree-example}
+
 A sender ratchet starts from a per-sender base secret derived from a Secret
 Tree, as described in {{secret-tree}}. The base secret initiates a symmetric
 hash ratchet which generates a sequence of keys and nonces. The sender uses the
@@ -2956,35 +3007,25 @@ values have been consumed and MUST be deleted:
 * the first j secrets in the application data ratchet of node L and
 * `application_ratchet_nonce_[L]_[j]` and `application_ratchet_key_[L]_[j]`.
 
-Concretely, suppose we have the following Secret Tree and ratchet for
-participant D:
+Concretely, consider the Secret Tree shown in {{secret-tree-example}}.  Client
+A, B, or C would generate the illustrated values on receiving a message from D
+with generation equal to 1, having not received a message with generation 0
+(e.g., due to out-of-order delivery).  In such a case, the following values
+would be consumed:
 
-~~~ aasvg
-       G
-       |
-     .-+-.
-    /     \
-   E       F
-  / \     / \
- A   B   C   D
-            / \
-          HR0  AR0--+--K0
-                |   |
-                |   +--N0
-                |
-               AR1--+--K1
-                |   |
-                |   +--N1
-                |
-               AR2
-~~~
+* The key K1 and nonce N1 used to decrypt the message
+* The application ratchet secrets AR1 and AR0
+* The tree secrets D, F, G (recall that G is the `encryption_secret` for the
+  epoch)
+* The `epoch_secret`, `commit_secret`, `psk_secret`, and `joiner_secret` for the
+  current epoch
 
-Then if a client uses key K1 and nonce N1 during epoch n then it must consume
-(at least) values G, F, D, AR0, AR1, K1, N1 as well as the key schedule secrets
-used to derive G (the `encryption_secret`), namely `init_secret` of epoch n-1
-and `commit_secret`, `joiner_secret`, `epoch_secret` of epoch n. The client MAY
-retain (not consume) the values K0 and N0 to allow for out-of-order delivery,
-and SHOULD retain AR2 for processing future messages.
+Other values may be retained (not consumed):
+
+* K0 and N0 for decryption of an out-of-order message with generation 0
+* AR2 for derivation of further message decryption keys and nonces
+* HR0 for protection of handshake messages from D
+* E and C for deriving secrets used by senders A, B, and C
 
 # Key Packages
 
@@ -4926,7 +4967,9 @@ in this document.
 To construct the tree in {{full-tree}}:
 
 * A creates a group with B, ..., G
-* Each member sends an empty Commit setting its direct path
+* F sends an empty Commit, setting Y, Z, X
+* G removes C and D, blanking W, V, and setting Z, X
+* B sends an empty Commit, setting U and X
 
 To construct the tree in {{resolution-tree}}:
 
