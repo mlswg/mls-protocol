@@ -4352,71 +4352,75 @@ current state of the group.  In practice, however, there is a risk
 that two members will generate Commit messages simultaneously,
 based on the same state.
 
-When this happens, there is a need for the members of the group to
-deconflict the simultaneous Commit messages.  There are two
-general approaches:
+The extent to which this is a problem, and the appropriate solution, depends on
+the design of the Delivery Service. Per the CAP theorem, there are two general
+classes of distributed system:
 
-* Have the Delivery Service enforce a total order
-* Have a signal in the message that clients can use to break ties
+* Consistent and Partition-tolerant, or CP, systems can provide a globally
+  consistent view of data but may stop working if there are network issues.
+* Available and Partition-tolerant, or AP, systems continue working despite
+  network issues but may return different views of data to different users.
 
-As long as Commit messages cannot be merged, there is a risk of
-starvation.  In a sufficiently busy group, a given member may never
-be able to send a Commit message, because he always loses to other
-members.  The degree to which this is a practical problem will depend
+Strategies for sequencing messages in CP and AP systems are described in the
+next two sections. Implementations MUST only update their cryptographic state
+when they have a reasonable degree of certainty that their Commit was accepted.
+The generation of Commit messages MUST NOT modify a client's state, since the
+client doesn't know at that time whether the changes implied by the Commit
+message will conflict with another Commit or not. Similarly, a client MUST NOT
+send Welcome messages corresponding to a Commit until it's clear that the Commit
+has been accepted.
+
+Regardless of how messages are kept in sequence, there is a risk that
+in a sufficiently busy group, a given member may never
+be able to send a Commit message because they always lose to other
+members. The degree to which this is a practical problem will depend
 on the dynamics of the application.
 
-It might be possible, because of the non-contributivity of intermediate
-nodes, that Commit messages could be applied one after the other
-without the Delivery Service having to reject any Commit message,
-which would make MLS more resilient regarding the concurrency of
-Commit messages.
-The Messaging system can decide to choose the order for applying
-the state changes. Note that there are certain cases (if no total
-ordering is applied by the Delivery Service) where the ordering is
-important for security, ie. all updates must be executed before
-removes.
-
-Regardless of how messages are kept in sequence, implementations
-MUST only update their cryptographic state when valid Commit
-messages are received.
-Generation of Commit messages MUST NOT modify a client's state, since the
-endpoint doesn't know at that time whether the changes implied by
-the Commit message will succeed or not.
-
-## Server-Enforced Ordering
+## CP Ordering
 
 With this approach, the Delivery Service ensures that incoming
-messages are added to an ordered queue and outgoing messages are
-dispatched in the same order. The server is trusted to break ties
+messages have a linear order and all members agree on that order.
+The Delivery Service is trusted to break ties
 when two members send a Commit message at the same time.
 
-Messages should have a counter field sent in clear-text that can
-be checked by the server and used for tie-breaking. The counter
-starts at 0 and is incremented for every new incoming message.
-If two group members send a message with the same counter, the
-first message to arrive will be accepted by the server and the
-second one will be rejected. The rejected message needs to be sent
-again with the correct counter number.
+The Delivery Service can either rely on the `epoch` field of an MLSMessage, or
+messages can have an additional counter field sent in cleartext that's checked
+by the Delivery Service and used for tie-breaking. The counter would start at 0
+and be incremented for each subsequent message. If two group members send a
+message with the same counter, or two Commits with the same `epoch`, the first
+one to arrive would be accepted and the second one would be rejected. The
+rejected message would either be dropped by the client or resent later.
 
-To prevent counter manipulation by the server, the counter's
-integrity can be ensured by including the counter in a signed
-message envelope.
+The counter approach would be done to apply ordering to all messages, while the
+`epoch` approach would be done to only ensure an order on Commits.
 
-This applies to all messages, not only state changing messages.
+## AP Ordering
 
-## Client-Enforced Ordering
+With this approach, the Delivery Service is built in a way that may be
+significantly more available or performant than a CP system, but offers weaker
+consistency guarantees. Messages may arrive to different clients in different
+orders and with varying amounts of latency, which means clients are responsible
+for reconciliation.
 
-Order enforcement can be implemented on the client as well,
-one way to achieve it is to use a two step update protocol: the
-first client sends a proposal to update and the proposal is
-accepted when it gets 50%+ approval from the rest of the group,
-then it sends the approved update. Clients which didn't get
-their proposal accepted, will wait for the winner to send their
-update before retrying new proposals.
+Upon receiving a Commit from the Delivery Service, clients can either:
 
-While this seems safer as it doesn't rely on the server, it is
-more complex and harder to implement. It also could cause starvation
-for some clients if they keep failing to get their proposal accepted.
+1. Pause sending new messages for a short amount of time to account for a
+   reasonable degree of network latency and see if any other Commits are
+   received for the same epoch. If multiple Commits are received, the clients
+   can use a deterministic tie-breaking policy to decide which to accept, and
+   then resume sending messages as normal.
+2. Accept the Commit immediately but keep a copy of the previous group state for
+   a short period of time. If another Commit for a past epoch is received,
+   clients use a deterministic tie-breaking policy to decide if they should
+   continue using the Commit they originally accepted or revert and use the
+   later one. Note that any copies of previous or forked group states MUST be
+   deleted within a reasonable amount of time to ensure the protocol provides
+   forward-secrecy.
+
+In the event of a network partition, a subset of members may be isolated from
+the rest of the group long enough that the mechanisms above no longer work. This
+can only be solved by sending a ReInit proposal to both groups, possibly with an
+external sender type, and recreating the group to contain all members again.
 
 # Application Messages
 
