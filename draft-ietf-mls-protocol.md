@@ -4420,54 +4420,37 @@ for some clients if they keep failing to get their proposal accepted.
 
 # Application Messages
 
-The primary purpose of the Handshake protocol is to provide an
-authenticated group key exchange to clients. In order to protect
-Application messages sent among the members of a group, the Application
-secret provided by the Handshake key schedule is used to derive nonces
-and encryption keys for the Message Protection Layer according to
-the Application Key Schedule. That is, each epoch is equipped with
-a fresh Application Key Schedule which consist of a tree of Application
-Secrets as well as one symmetric ratchet per group member.
+The primary purpose of handshake messages are to provide an authenticated group
+key exchange to clients. In order to protect application messages sent among the
+members of a group, the `encryption_secret` provided by the key schedule is used
+to derive a sequence of nonces and keys for message encryption. Every epoch
+moves the key schedule forward which triggers the creation of a new secret
+tree, as described in {{secret-tree}}, along with a new set of symmetric
+ratchets of nonces and keys for each member.
 
-Each client maintains their own local copy of the Application Key
-Schedule for each epoch during which they are a group member. They
-derive new keys, nonces and secrets as needed while deleting old
+Each client maintains their own local copy of the key
+schedule for each epoch during which they are a group member. They
+derive new keys, nonces, and secrets as needed while deleting old
 ones as soon as they have been used.
 
-Application messages MUST be protected with the Authenticated-Encryption
-with Associated-Data (AEAD) encryption scheme associated with the
-MLS ciphersuite using the common framing mechanism.
-Note that "Authenticated" in this context does not mean messages are
-known to be sent by a specific client but only from a legitimate
-member of the group.
-To authenticate a message from a particular member, signatures are
-required. Handshake messages MUST use asymmetric signatures to strongly
-authenticate the sender of a message.
-
-## Message Encryption and Decryption
-
-The group members MUST use the AEAD algorithm associated with
-the negotiated MLS ciphersuite to AEAD encrypt and decrypt their
-Application messages according to the Message Framing section.
-
 The group identifier and epoch allow a recipient to know which group secrets
-should be used and from which Epoch secret to start computing other secrets
-and keys. The sender identifier is used to identify the member's
-symmetric ratchet from the initial group Application secret. The application
-generation field is used to determine how far into the ratchet to iterate in
-order to reproduce the required AEAD keys and nonce for performing decryption.
+should be used and from which `epoch_secret` to start computing other secrets.
+The sender identifier and content type is used to identify which
+symmetric ratchet to use from the secret tree. The
+`generation` counter determines how far into the ratchet to iterate in
+order to produce the required nonce and key for encryption or decryption.
 
-Application messages SHOULD be padded to provide some resistance
-against traffic analysis techniques over encrypted traffic.
+## Padding
+
+Application messages MAY be padded to provide some resistance
+against traffic analysis techniques over encrypted traffic
 {{?CLINIC=DOI.10.1007/978-3-319-08506-7_8}}
-{{?HCJ16=DOI.10.1186/s13635-016-0030-7}}
+{{?HCJ16=DOI.10.1186/s13635-016-0030-7}}.
 While MLS might deliver the same payload less frequently across
 a lot of ciphertexts than traditional web servers, it might still provide
-the attacker enough information to mount an attack. If Alice asks Bob:
-"When are we going to the movie ?" the answer "Wednesday" might be leaked
-to an adversary by the ciphertext length. An attacker expecting Alice to
-answer Bob with a day of the week might find out the plaintext by
-correlation between the question and the length.
+the attacker enough information to mount an attack. If Alice asks Bob
+"When are we going to the movie?", then the answer "Wednesday" could be leaked
+to an adversary solely by the ciphertext length.
 
 The length of the `padding` field in `MLSCiphertextContent` can be
 chosen at the time of message encryption by the sender. Senders may use padding
@@ -4476,10 +4459,10 @@ encrypted content.
 
 ## Restrictions {#restrictions}
 
-During each epoch senders MUST NOT encrypt more data than permitted by the
+During each epoch, senders MUST NOT encrypt more data than permitted by the
 security bounds of the AEAD scheme used {{?I-D.irtf-cfrg-aead-limits}}.
 
-Note that each change to the Group through a Handshake message will also set a
+Note that each change to the group through a handshake message will also set a
 new `encryption_secret`. Hence this change MUST be applied before encrypting
 any new application message. This is required both to ensure that any users
 removed from the group can no longer receive messages and to (potentially)
@@ -4488,16 +4471,20 @@ state compromise.
 
 ## Delayed and Reordered Application messages
 
-Since each Application message contains the group identifier, the epoch and a
-message counter, a client can receive messages out of order.
-If they are able to retrieve or recompute the correct AEAD decryption key
-from currently stored cryptographic material clients can decrypt
-these messages.
+Since each application message contains the group identifier, the epoch, and a
+generation counter, a client can receive messages out of order. When messages
+are received out of order, the client moves the sender ratchet forward to match
+the received generation counter. Any unused nonce and key pairs from the ratchet
+are potentially stored so that they can be used to decrypt the messages which
+were delayed or reordered.
 
-For usability, MLS clients might be required to keep the AEAD key
-and nonce for a certain amount of time to retain the ability to decrypt
-delayed or out of order messages, possibly still in transit while a
-decryption is being done.
+Applications SHOULD define a policy on how long to keep unused nonce and key
+pairs for a sender, and the maximum number to keep. This is in addition to
+ensuring that these nonce and key pairs are promptly deleted when the epoch
+ends. Applications SHOULD also define a policy limiting the maximum number of
+steps that clients will move the ratchet forward in one step. Messages received
+with an unusually high generation counter would then be rejected to avoid
+causing a denial-of-service attack.
 
 # Security Considerations
 
