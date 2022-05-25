@@ -1944,8 +1944,7 @@ The client verifies the validity of a LeafNode using the following steps:
     * An Update proposal updates the sender's old LeafNode to a new one
     * A "resync" external commit removes the joiner's old LeafNode via a Remove proposal and replaces it with a new one
 
-* Verify that the signature on the LeafNode is valid using the LeafNode's
-  `signature_key`.
+* Verify that the signature on the LeafNode is valid using the `signature_key`.
 
 * Verify that the LeafNode is compatible with the group's parameters.  If the
   GroupContext has a `required_capabilities` extension, then the required
@@ -1966,9 +1965,9 @@ The client verifies the validity of a LeafNode using the following steps:
     RECOMMENDED that the client verifies that the current time is within the range
     of the `lifetime` field.
 
-* Verify that the extensions in the leaf node are supported.  The ID for each
-  extension in the `extensions` field MUST be listed in the field
-  `capabilities.extensions` of the LeafNode.
+* Verify that the extensions in the LeafNode are supported by checking that the
+  ID for each extension in the `extensions` field is listed in the
+  `capabilities.extensions` field of the LeafNode.
 
 * Verify the `leaf_node_source` field:
   * If the LeafNode appears in a KeyPackage in an Add proposal, or in a downloaded
