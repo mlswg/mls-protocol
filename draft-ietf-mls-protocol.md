@@ -1970,8 +1970,7 @@ The client verifies the validity of a LeafNode using the following steps:
   `capabilities.extensions` field of the LeafNode.
 
 * Verify the `leaf_node_source` field:
-  * If the LeafNode appears in a KeyPackage in an Add proposal, or in a downloaded
-    KeyPackage used to create an Add proposal, verify that `leaf_node_source` is
+  * If the LeafNode appears in a KeyPackage, verify that `leaf_node_source` is
     set to `key_package`.
   * If the LeafNode appears in an Update proposal, verify that `leaf_node_source`
     is set to `update`.
@@ -3116,7 +3115,7 @@ The client verifies the validity of a KeyPackage using the following steps:
 * Verify that the ciphersuite and protocol version of the KeyPackage match
   those in use in the group.
 
-* Verify that the `leaf_node` of the KeyPackage is valid for an Add proposal
+* Verify that the `leaf_node` of the KeyPackage is valid for a KeyPackage
   according to {{leaf-node-validation}}.
 
 * Verify that the signature on the KeyPackage is valid using the public key
@@ -3370,9 +3369,9 @@ struct {
 } Update;
 ~~~
 
-An Update proposal is invalid if any of the following is true:
+An Update proposal is invalid if the LeafNode is invalid for an Update
+proposal according to {{leaf-node-validation}}.
 
-* The LeafNode is invalid for an Update proposal according to {{leaf-node-validation}}.
 
 A member of the group applies an Update message by taking the following steps:
 
@@ -3670,7 +3669,7 @@ their associated GroupContexts are used:
 A member of the group creates a Commit message and the corresponding Welcome
 message at the same time, by taking the following steps:
 
-* Verify that the committed list of proposals is valid as specified in
+* Verify that the list of proposals to be committed is valid as specified in
   {{proposal-list-validation}}.
 
 * Construct an initial Commit object with the `proposals`
@@ -4205,7 +4204,7 @@ Regardless of how the client obtains the tree, the client MUST verify that the
 root hash of the ratchet tree matches the `tree_hash` of the GroupContext before
 using the tree for MLS operations.
 
-## Proposal-List Validation
+## Proposal List Validation
 
 A group member creating a commit and a group member processing a commit
 MUST verify that the list of committed proposals is valid using one of the following
