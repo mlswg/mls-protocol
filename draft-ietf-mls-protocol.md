@@ -3567,7 +3567,7 @@ that any members whose removal was proposed during the epoch are actually
 removed before any application data is transmitted.
 
 A sender and a receiver of a Commit MUST verify that the committed list of
-proposals is valid as specified in {{validating-proposals}}. A list is invalid if, for example,
+proposals is valid as specified in {{proposal-list-validation}}. A list is invalid if, for example,
 it includes an Update and a Remove for the same member, or an Add when the sender does not have
 the application-level permission to add new users.
 
@@ -3671,7 +3671,7 @@ A member of the group creates a Commit message and the corresponding Welcome
 message at the same time, by taking the following steps:
 
 * Verify that the committed list of proposals is valid as specified in
-  {{validating-proposals}}.
+  {{proposal-list-validation}}.
 
 * Construct an initial Commit object with the `proposals`
   field populated from Proposals received during the current epoch, and an empty
@@ -3777,7 +3777,7 @@ A member of the group applies a Commit message by taking the following steps:
 * Verify that the signature on the MLSMessageContent message as described in
   Section {{content-authentication}}.
 
-* Verify that the `proposals` vector is valid as specified in {{validating-proposals}}.
+* Verify that the `proposals` vector is valid as specified in {{proposal-list-validation}}.
 
 * Verify that all PreSharedKey proposals in the `proposals` vector are available.
 
