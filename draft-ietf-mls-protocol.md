@@ -1928,8 +1928,8 @@ The validity of a LeafNode needs to be verified at a few stages:
   to add the client to the group
 * When a LeafNode is received by a group member in an Add, Update, or Commit
   message
-* When a client joining a group receives LeafNode objects for the other members
-  of the group in the group's ratchet tree
+* When a client validates a ratchet tree, e.g., when joining a group or after
+  processing a commit
 
 The client verifies the validity of a LeafNode using the following steps:
 
@@ -1940,44 +1940,46 @@ The client verifies the validity of a LeafNode using the following steps:
   another LeafNode, the authentication service MUST additionally validate that
   the set of identities attested by the credential in the new LeafNode is
   acceptable relative to the identities attested by the old credential.
+  For example:
+    * An Update proposal updates the sender's old LeafNode to a new one
+    * A "resync" external commit removes the joiner's old LeafNode via a Remove proposal and replaces it with a new one
 
 * Verify that the signature on the LeafNode is valid using `signature_key`.
 
 * Verify that the LeafNode is compatible with the group's parameters.  If the
   GroupContext has a `required_capabilities` extension, then the required
-  extensions, proposals, and credential types MUST be listed in the LeafNode's `capabilities`
-  field.
+  extensions, proposals, and credential types MUST be listed in the LeafNode's
+  `capabilities` field.
 
 * Verify that the credential type is supported by all members of the group, as
   specified by the `capabilities` field of each member's LeafNode, and that the
   `capabilities` field of this LeafNode indicates support for all the credential
   types currently in use by other members.
 
-* Verify that the `leaf_node_source` field has the appropriate value for the
-  context in which the LeafNode is being validated (as defined in
-  {{leaf-node-contents}}).
-
-* If applicable, verify the `lifetime` field:
-  * When validating a LeafNode in a KeyPackage before sending an Add proposal,
-    the current time MUST be within the `lifetime` range.  A KeyPackage
-    containing a LeafNode that is expired or not yet valid MUST NOT be sent in
-    an Add proposal.
-  * When receiving an Add or validating a tree, checking the `lifetime` is
-    RECOMMENDED, if it is feasible in a given application context.  Because of
-    the asynchronous nature of MLS, the `lifetime` may have been valid when the
-    leaf node was proposed for addition, even if it is expired at these later
-    points in the protocol.
-
-* Verify that the following fields in the LeafNode are unique among the
-  members of the group (including any other members added in the same
-  Commit):
-
-    * `encryption_key`
-    * `signature_key`
+* Verify the `lifetime` field:
+  * If the LeafNode appears in a message being sent by the client, e.g., a
+    proposal or a commit, then the client MUST verify that the current time is within
+    the range of the `lifetime` field.
+  * If instead the LeafNode appears in a message being received by the client, e.g.,
+    a proposal, a commit, or a ratchet tree of the group the client is joining, it is
+    RECOMMENDED that the client verifies that the current time is within the range
+    of the `lifetime` field.
 
 * Verify that the extensions in the LeafNode are supported by checking that the
   ID for each extension in the `extensions` field is listed in the
   `capabilities.extensions` field of the LeafNode.
+
+* Verify the `leaf_node_source` field:
+  * If the LeafNode appears in a KeyPackage, verify that `leaf_node_source` is
+    set to `key_package`.
+  * If the LeafNode appears in an Update proposal, verify that `leaf_node_source`
+    is set to `update`.
+  * If the LeafNode appears in the `leaf_node` value of the UpdatePath in
+    a Commit, verify that `leaf_node_source` is set to `commit`.
+
+* Verify that the following fields are unique among the members of the group:
+    * `signature_key`
+    * `encryption_key`
 
 ## Ratchet Tree Evolution
 
@@ -3113,8 +3115,8 @@ The client verifies the validity of a KeyPackage using the following steps:
 * Verify that the ciphersuite and protocol version of the KeyPackage match
   those in use in the group.
 
-* Verify the `leaf_node` field of the KeyPackage according to the process
-  defined in {{leaf-node-validation}}.
+* Verify that the `leaf_node` of the KeyPackage is valid for a KeyPackage
+  according to {{leaf-node-validation}}.
 
 * Verify that the signature on the KeyPackage is valid using the public key
   in `leaf_node.credential`.
@@ -3315,15 +3317,15 @@ struct {
 ~~~
 
 On receiving an MLSMessageContent containing a Proposal, a client MUST verify the
-signature inside MLSMessageAuth.  If the signature verifies
-successfully, then the Proposal should be cached in such a way that it can be
-retrieved by hash (as a ProposalOrRef object) in a later Commit message.
+signature inside MLSMessageAuth and that the `epoch` field of the enclosing
+MLSMessageContent is equal to the `epoch` field of the current GroupContext object.
+If the verification is successful, then the Proposal should be cached in such a way
+that it can be retrieved by hash (as a ProposalOrRef object) in a later Commit message.
 
 ### Add
 
 An Add proposal requests that a client with a specified KeyPackage be added
-to the group.  The proposer of the Add MUST verify the validity of the
-KeyPackage, as specified in {{keypackage-validation}}.
+to the group.
 
 ~~~ tls
 struct {
@@ -3331,15 +3333,19 @@ struct {
 } Add;
 ~~~
 
+An Add proposal is invalid if any of the following is true:
+
+* The KeyPackage is invalid according to {{keypackage-validation}}.
+
+* The Credential in the KeyPackage represents a client already in the
+  group according to the application.
+
 An Add is applied after being included in a Commit message.  The position of the
 Add in the list of proposals determines the leaf node where the new member will
 be added.  For the first Add in the Commit, the corresponding new member will be
 placed in the leftmost empty leaf in the tree, for the second Add, the next
 empty leaf to the right, etc. If no empty leaf exists, the tree is extended to
 the right.
-
-* Validate the KeyPackage as specified in {{keypackage-validation}}.  The
-  `leaf_node_source` field in the LeafNode MUST be set to `key_package`.
 
 * Identify the leaf L for the new member: if there are empty leaves in the tree,
   L is the leftmost empty leaf.  Otherwise, the tree is extended to the right
@@ -3363,13 +3369,11 @@ struct {
 } Update;
 ~~~
 
+An Update proposal is invalid if the LeafNode is invalid for an Update
+proposal according to {{leaf-node-validation}}.
+
+
 A member of the group applies an Update message by taking the following steps:
-
-* Validate the LeafNode as specified in {{leaf-node-validation}}.  The
-  `leaf_node_source` field MUST be set to `update`.
-
-* Verify that the `encryption_key` value in the LeafNode is different from the
-  corresponding field in the LeafNode being replaced.
 
 * Replace the sender's LeafNode with the one contained in the Update proposal
 
@@ -3385,6 +3389,9 @@ struct {
     uint32 removed;
 } Remove;
 ~~~
+
+A Remove proposal is invalid if the `removed` field does not identify a non-blank
+leaf node.
 
 A member of the group applies a Remove message by taking the following steps:
 
@@ -3411,11 +3418,17 @@ struct {
 } PreSharedKey;
 ~~~
 
-The `psktype` of the pre-shared key MUST be `external` and the `psk_nonce` MUST
-be a randomly sampled nonce of length `KDF.Nh`. When processing a Commit message
-that includes one or more PreSharedKey proposals, group members derive
-`psk_secret` as described in {{pre-shared-keys}}, where the order of the PSKs
-corresponds to the order of the `PreSharedKey` proposals in the Commit.
+A PreSharedKey proposal is invalid if any of the following is true:
+
+* The `psktype` in the PreSharedKeyID struct is not set to `external`.
+
+* The `psk_nonce` is not of length `KDF.Nh`.
+
+The `psk_nonce` MUST be randomly sampled. When processing
+a Commit message that includes one or more PreSharedKey proposals, group
+members derive `psk_secret` as described in {{pre-shared-keys}}, where the
+order of the PSKs corresponds to the order of the `PreSharedKey` proposals
+in the Commit.
 
 ### ReInit
 
@@ -3433,15 +3446,13 @@ struct {
 } ReInit;
 ~~~
 
+A ReInit proposal is invalid if the `version` field is less than the version
+for the current group.
+
 A member of the group applies a ReInit proposal by waiting for the committer to
 send the Welcome message that matches the ReInit, according to the criteria in
 {{reinitialization}}.
 
-If a ReInit proposal is included in a Commit, it MUST be the only proposal
-referenced by the Commit. If other non-ReInit proposals have been sent during
-the epoch, the committer SHOULD prefer them over the ReInit proposal, allowing
-the ReInit to be resent and applied in a subsequent epoch. The `version` field
-in the ReInit proposal MUST be no less than the version for the current group.
 
 ### ExternalInit
 
@@ -3469,16 +3480,17 @@ struct {
 } GroupContextExtensions;
 ```
 
+A GroupContextExtensions proposal is invalid if it includes a
+`required_capabilities` extension and some members of the group do not support
+some of the required capabilities (including those added in the same commit,
+and excluding those removed).
+
 A member of the group applies a GroupContextExtensions proposal with the
 following steps:
 
-* If the new extensions include a `required_capabilities` extension, verify that
-  all members of the group support the required capabilities (including those
-  added in the same commit, and excluding those removed).
-
 * Remove all of the existing extensions from the GroupContext object for the
   group and replacing them with the list of extensions in the proposal.  (This
-  is a wholesale replacement, not a merge.  An extension is only carried over if
+  is a wholesale replacement, not a merge. An extension is only carried over if
   the sender of the proposal includes it in the new list.)
 
 Note that once the GroupContext is updated, its inclusion in the
@@ -3553,34 +3565,18 @@ a Commit message before sending application data. This ensures, for example,
 that any members whose removal was proposed during the epoch are actually
 removed before any application data is transmitted.
 
-The sender of a Commit MUST include all valid proposals that it has received
-during the current epoch. Invalid proposals include, for example, proposals with
-an invalid signature or proposals that are semantically invalid, such as an Add
-when the sender does not have the application-level permission to add new users.
-Proposals with a non-default proposal type MUST NOT be included in a commit
-unless the proposal type is supported by all the members of the group that will
-process the Commit (i.e., not including any members being added or removed by
-the Commit).
+A sender and a receiver of a Commit MUST verify that the committed list of
+proposals is valid as specified in {{proposal-list-validation}}. A list is invalid if, for example,
+it includes an Update and a Remove for the same member, or an Add when the sender does not have
+the application-level permission to add new users.
 
-If there are multiple proposals that apply to the same leaf, or multiple
-PreSharedKey proposals that reference the same PreSharedKeyID, the committer
-MUST choose one and include only that one in the Commit, considering the rest
-invalid. The committer MUST NOT include any Update proposals generated by the
-committer, since they would be duplicative with the `path` field in the Commit.
-The committer MUST prefer any Remove received, or the most recent Update for
-the leaf if there are no Removes. If there are multiple Add proposals
-containing KeyPackages that the committer considers to represent the same
-client or a client already in the group (for example, identical KeyPackages or
-KeyPackages sharing the same Credential), the committer again chooses one to
-include and considers the rest invalid. The committer MUST consider invalid any
-Add or Update proposal if the Credential in the contained KeyPackage shares the
-same signature key with a Credential in any leaf of the group, or if the
-LeafNode in the KeyPackage shares the same `encryption_key` with another LeafNode in
-the group.
+The sender of a Commit SHOULD include all proposals that it has received
+during the current epoch, that are valid according to the rules for their
+proposal types and according to application policy, as long as this results in
+a valid proposal list.
 
-The Commit MUST NOT combine proposals sent within different epochs. Due to the
-asynchronous nature of proposals, receivers of a Commit SHOULD NOT enforce that
-all valid proposals sent within the current epoch are referenced by the next
+Due to the asynchronous nature of proposals, receivers of a Commit SHOULD NOT enforce
+that all valid proposals sent within the current epoch are referenced by the next
 Commit. In the event that a valid proposal is omitted from the next Commit, and
 that proposal is still valid in the current epoch, the sender of the proposal
 MAY resend it after updating it to reflect the current epoch.
@@ -3672,6 +3668,9 @@ their associated GroupContexts are used:
 
 A member of the group creates a Commit message and the corresponding Welcome
 message at the same time, by taking the following steps:
+
+* Verify that the list of proposals to be committed is valid as specified in
+  {{proposal-list-validation}}.
 
 * Construct an initial Commit object with the `proposals`
   field populated from Proposals received during the current epoch, and an empty
@@ -3777,8 +3776,9 @@ A member of the group applies a Commit message by taking the following steps:
 * Verify that the signature on the MLSMessageContent message as described in
   Section {{content-authentication}}.
 
-* Verify that all PreSharedKey proposals in the `proposals` vector have unique
-  PreSharedKeyIDs and are available.
+* Verify that the `proposals` vector is valid as specified in {{proposal-list-validation}}.
+
+* Verify that all PreSharedKey proposals in the `proposals` vector are available.
 
 * Generate the provisional ratchet tree and GroupContext by applying the proposals
   referenced in the initial Commit object, as described in {{proposals}}. Update
@@ -3936,16 +3936,6 @@ has to meet a specific set of requirements:
   leaf node.
 * The Commit MUST NOT include any proposals by reference, since an external
   joiner cannot determine the validity of proposals sent within the group
-* The proposals included by value in an External Commit MUST meet the following
-  conditions:
-  * There MUST be a single ExternalInit proposal.
-  * There MAY be a single Remove proposal, where the LeafNode in the `path`
-    field MUST meet the same criteria as the LeafNode in an Update for the
-    removed leaf (see {{update}}). In particular, the `credential` in the
-    LeafNode MUST present a set of identifiers that is acceptable to the
-    application for the removed participant.
-  * There MAY be one or more PreSharedKey proposals.
-  * There MUST NOT be any other proposals.
 * External Commits MUST be signed by the new member.  In particular, the
   signature on the enclosing MLSPlaintext MUST verify using the public key for
   the credential in the `leaf_node` of the `path` field.
@@ -4213,6 +4203,67 @@ using a key exchanged over the MLS channel.
 Regardless of how the client obtains the tree, the client MUST verify that the
 root hash of the ratchet tree matches the `tree_hash` of the GroupContext before
 using the tree for MLS operations.
+
+## Proposal List Validation
+
+A group member creating a commit and a group member processing a commit
+MUST verify that the list of committed proposals is valid using one of the following
+procedures, depending on whether the commit is external or not.
+
+For a regular, i.e. not external, commit the list is invalid if any of the following
+occurs:
+
+* It contains an individual proposal that is invalid as specified in {{proposals}}.
+
+* It contains an Update proposal generated by the committer.
+
+* It contains a Remove proposal that removes the committer.
+
+* It contains multiple Update and/or Remove proposals that apply to the same leaf.
+  If the committer has received multiple such proposals they SHOULD prefer any Remove
+  received, or the most recent Update if there are no Removes.
+
+* It contains multiple Add proposals that contain KeyPackages that represent the same
+  client according to the application (for example, identical KeyPackages or KeyPackages
+  sharing the same Credential).
+
+* It contains multiple PreSharedKey proposals that reference the same PreSharedKeyID.
+
+* It contains multiple GroupContextExtensions proposals.
+
+* It contains a ReInit proposal together with any other proposal. If the committer has
+  received other proposals during the epoch, they SHOULD prefer them over the
+  ReInit proposal, allowing the ReInit to be resent and applied in a subsequent
+  epoch.
+
+* It contains an ExternalInit proposal.
+
+* It contains a proposal with a non-default proposal type that is not supported by some
+  members of the group that will process the Commit (i.e., members being added
+  or removed by the Commit do not need to support the proposal type).
+
+* After processing the commit the ratchet tree is invalid, in particular, if it
+  contains any leaf node that is invalid according to {{leaf-node-validation}}.
+
+An application may extend the above procedure by additional rules, for example,
+requiring application-level permissions to add members, or rules concerning
+non-default proposal types.
+
+For an external commit, the list is valid if it contains only the following proposals
+(not necessarily in this order):
+
+* Exactly one ExternalInit
+
+* At most one Remove proposal, with which the joiner removes an
+  old version of themselves. If a Remove proposal is present, then the LeafNode in the
+  `path` field of the external commit MUST meet the same criteria as would the LeafNode
+  in an Update for the removed leaf (see {{update}}). In particular, the `credential`
+  in the LeafNode MUST present a set of identifiers that is acceptable to the
+  application for the removed participant.
+
+* Zero or more PreSharedKey proposals.
+
+* No other proposals.
 
 # Extensibility
 
