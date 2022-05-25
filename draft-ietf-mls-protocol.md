@@ -1944,7 +1944,7 @@ The client verifies the validity of a LeafNode using the following steps:
     * An Update proposal updates the sender's old LeafNode to a new one
     * A "resync" external commit removes the joiner's old LeafNode via a Remove proposal and replaces it with a new one
 
-* Verify that the signature on the LeafNode is valid using the `signature_key`.
+* Verify that the signature on the LeafNode is valid using `signature_key`.
 
 * Verify that the LeafNode is compatible with the group's parameters.  If the
   GroupContext has a `required_capabilities` extension, then the required
