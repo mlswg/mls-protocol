@@ -4482,9 +4482,12 @@ Applications SHOULD define a policy on how long to keep unused nonce and key
 pairs for a sender, and the maximum number to keep. This is in addition to
 ensuring that these nonce and key pairs are promptly deleted when the epoch
 ends. Applications SHOULD also define a policy limiting the maximum number of
-steps that clients will move the ratchet forward in one step. Messages received
+steps that clients will move the ratchet forward in response to a new message. Messages received
 with an unusually high generation counter would then be rejected to avoid
-causing a denial-of-service attack.
+causing a denial-of-service attack by requiring the recipient to perform an
+excessive number of key derivations.  For example, a malicious group member
+could send a message with `generation = 0xffffffff` at the beginning of a new 
+epoch, forcing recipients to perform billions of key derivations.
 
 # Security Considerations
 
