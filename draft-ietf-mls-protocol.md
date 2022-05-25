@@ -4486,7 +4486,7 @@ steps that clients will move the ratchet forward in response to a new message. M
 with an unusually high generation counter would then be rejected to avoid
 causing a denial-of-service attack by requiring the recipient to perform an
 excessive number of key derivations.  For example, a malicious group member
-could send a message with `generation = 0xffffffff` at the beginning of a new 
+could send a message with `generation = 0xffffffff` at the beginning of a new
 epoch, forcing recipients to perform billions of key derivations.
 
 # Security Considerations
