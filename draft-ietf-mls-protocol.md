@@ -1346,8 +1346,16 @@ uniquely identify clients.  For example, if a user has multiple devices that are
 all present in an MLS group, then those devices' clients could all present the
 user's application-layer identifiers.
 
-If needed, applications may add application-specific unique identifiers to the
-`extensions` field of KeyPackage or LeafNode objects.
+If needed, applications may add application-specific identifiers to the
+`extensions` field of a LeafNode object with the `external_id` extension.
+
+~~~ tls
+opaque external_id<V>;
+~~~
+
+However, applications SHOULD NOT rely on the data in an `external_id` extension
+as if it were authenticated by the Authentication Service, and SHOULD gracefully
+handle cases where the identifier presented is not unique.
 
 # Message Framing
 
@@ -3124,16 +3132,6 @@ The client verifies the validity of a KeyPackage using the following steps:
 * Verify that the value of `leaf_node.encryption_key` is different from the value of
   the `init_key` field.
 
-## KeyPackage Identifiers
-
-Within MLS, a KeyPackage is identified by its hash (see, e.g.,
-{{joining-via-welcome-message}}).  The `external_key_id` extension allows
-applications to add an explicit, application-defined identifier to a KeyPackage.
-
-~~~ tls
-opaque external_key_id<V>;
-~~~
-
 # Group Creation
 
 A group is always created with a single member, the "creator".  The other
@@ -4816,7 +4814,7 @@ Initial contents:
 | Value            | Name                     | Message(s) | Recommended | Reference |
 |:-----------------|:-------------------------|:-----------|:------------|:----------|
 | 0x0000           | RESERVED                 | N/A        | N/A         | RFC XXXX  |
-| 0x0001           | external_key_id          | KP         | Y           | RFC XXXX  |
+| 0x0001           | external_id              | LN         | Y           | RFC XXXX  |
 | 0x0002           | ratchet_tree             | GI         | Y           | RFC XXXX  |
 | 0x0003           | required_capabilities    | GC         | Y           | RFC XXXX  |
 | 0x0004           | external_pub             | GI         | Y           | RFC XXXX  |
