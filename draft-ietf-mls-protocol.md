@@ -2461,12 +2461,17 @@ ciphertext = context.Seal("", path_secret)
 ~~~
 
 where `node_public_key` is the public key of the node that the path
-secret is being encrypted for, group_context is the current GroupContext object
+secret is being encrypted for, group_context is the provisional GroupContext object
 for the group, and the functions `SetupBaseS` and
 `Seal` are defined according to {{!RFC9180}}.
 
 Decryption is performed in the corresponding way, using the private
 key of the resolution node.
+
+~~~ pseudocode
+context = SetupBaseR(kem_output, node_private_key, group_context)
+path_secret = context.Open("", ciphertext)
+~~~
 
 # Key Schedule
 
@@ -3659,23 +3664,12 @@ uses:
 
 ### Creating a Commit
 
-When creating or processing a Commit, three different ratchet trees and
-their associated GroupContexts are used:
-
-1. "Old" refers to the ratchet tree and GroupContext for the epoch before the
-   commit.  The old GroupContext is used when signing the MLSPlainText so that
-   existing group members can verify the signature before processing the
-   commit.
-2. "Provisional" refers to the ratchet tree and GroupContext constructed after
-   applying the proposals that are referenced by the Commit.  The provisional
-   GroupContext uses the epoch number for the new epoch, and the old confirmed
-   transcript hash.  This is used when creating the UpdatePath, if the
-   UpdatePath is needed.
-3. "New" refers to the ratchet tree and GroupContext constructed after applying
-   the proposals and the UpdatePath (if any).  The new GroupContext uses the
-   epoch number for the new epoch, and the new confirmed transcript hash.  This
-   is used when deriving the new epoch secrets, and is the only GroupContext
-   that newly-added members will have.
+When creating or processing a Commit, a client updates the ratchet tree and
+GroupContext for the group.  These values advance from an "old" state reflecting
+the current epoch to a "new" state reflecting the new epoch initiated by the
+Commit.  When the Commit includes an UpdatePath, a "provisional" group context
+is constructed that reflects changes due to the proposals and UpdatePath, but
+with the old confirmed transcript hash.
 
 A member of the group creates a Commit message and the corresponding Welcome
 message at the same time, by taking the following steps:
@@ -3687,7 +3681,7 @@ message at the same time, by taking the following steps:
   field populated from Proposals received during the current epoch, and an empty
   `path` field.
 
-* Generate the provisional ratchet tree and GroupContext by applying the proposals
+* Initialize the new ratchet tree and GroupContext by applying the proposals
   referenced in the initial Commit object, as described in {{proposals}}. Update
   proposals are applied first, followed by Remove proposals, and then finally
   Add proposals. Add proposals are applied in the order listed in the
@@ -3705,25 +3699,49 @@ message at the same time, by taking the following steps:
   based on the proposals that are in the commit (see above), then it MUST be
   populated.  Otherwise, the sender MAY omit the `path` field at its discretion.
 
-* If populating the `path` field: Create an UpdatePath using the provisional
-  ratchet tree and GroupContext. Any new member (from an Add proposal) MUST be
-  excluded from the resolution during the computation of the UpdatePath.  The
-  `leaf_node` for this UpdatePath MUST have `leaf_node_source` set to `commit`.
-  Note that the LeafNode in the `UpdatePath` effectively updates an existing
-  LeafNode in the group and thus MUST adhere to the same restrictions as
-  LeafNodes used in `Update` proposals (aside from `leaf_node_source`).
+* If populating the `path` field:
 
-   * Assign this UpdatePath to the `path` field in the Commit.
+  * If this is an external commit, assign the sender the leftmost blank leaf
+    node in the new ratchet tree.  If there are no blank leaf nodes in the new
+    ratchet tree, add a blank leaf to the right side of the new ratchet tree and
+    assign it to the sender.
 
-   * Apply the UpdatePath to the tree, as described in
-     {{synchronizing-views-of-the-tree}}, creating the new ratchet tree. Define
-     `commit_secret` as the value `path_secret[n+1]` derived from the
-     `path_secret[n]` value assigned to the root node.
+  * Generate path secrets for the parent nodes along the sender's filtered
+    direct path, as described in {{synchronizing-views-of-the-tree}}.  Define
+    `commit_secret` as the value `path_secret[n+1]` derived from the
+    `path_secret[n]` value assigned to the root node.
+
+  * Update the new ratchet tree by setting the parent nodes on the sender's
+    filtered direct path based on the path secrets. Compute parent hashes for
+    these nodes.  Set the sender's leaf node in the new tree to a new leaf node
+    including the resulting parent hash for its nearest ancestor.
+
+    * The new leaf node MUST have `leaf_node_source` set to `commit`.
+    * Since the new leaf node effectively updates an existing leaf node in the
+      group, it MUST adhere to the same restrictions as LeafNodes used in
+      `Update` proposals (aside from `leaf_node_source`).
+    * The application MAY specify other changes to the leaf node, e.g.,
+      providing a new signature key, updated capabilities, or different
+      extensions.
+
+  * Construct a provisional GroupContext object containing the following values:
+    * `group_id`: Same as the old GroupContext
+    * `epoch`: The epoch number for the new epoch
+    * `tree_hash`: The tree hash of the new ratchet tree
+    * `confirmed_transcript_hash`: Same as the old GroupContext
+    * `extensions`: The new GroupContext extensions (possibly updated by a
+      GroupContextExtensions proposal)
+
+  * Create an UpdatePath that encrypts the path secrets for the nodes along the
+    sender's filtered direct path to the new ratchet tree, using the provisional
+    GroupContext as context. Any new member (from an Add proposal) MUST be
+    excluded from the resolution during the computation of the UpdatePath.
+
+  * Assign this UpdatePath to the `path` field in the Commit.
 
 * If not populating the `path` field: Set the `path` field in the Commit to the
   null optional.  Define `commit_secret` as the all-zero vector of length
-  `KDF.Nh` (the same length as a `path_secret` value would be).  In this case,
-  the new ratchet tree is the same as the provisional ratchet tree.
+  `KDF.Nh` (the same length as a `path_secret` value would be).
 
 * Derive the `psk_secret` as specified in {{pre-shared-keys}}, where the order
   of PSKs in the derivation corresponds to the order of PreSharedKey proposals
@@ -3731,7 +3749,7 @@ message at the same time, by taking the following steps:
 
 * Construct an MLSMessageContent object containing the Commit object. Sign the
   MLSMessageContent using the old GroupContext as context.
-  * Use the MLSMessageContent to update the confirmed transcript hash and generate
+  * Use the MLSMessageContent to update the confirmed transcript hash and update
     the new GroupContext.
   * Use the `init_secret` from the previous epoch, the `commit_secret` and the
     `psk_secret` as defined in the previous steps, and the new GroupContext to
@@ -3791,7 +3809,7 @@ A member of the group applies a Commit message by taking the following steps:
 
 * Verify that all PreSharedKey proposals in the `proposals` vector are available.
 
-* Generate the provisional ratchet tree and GroupContext by applying the proposals
+* Initialize the new ratchet tree and GroupContext by applying the proposals
   referenced in the initial Commit object, as described in {{proposals}}. Update
   proposals are applied first, followed by Remove proposals, and then finally
   Add proposals. Add proposals are applied in the order listed in the
@@ -3806,9 +3824,12 @@ A member of the group applies a Commit message by taking the following steps:
   any Update or Remove proposals, or if it's empty. Otherwise, the `path` value
   MAY be omitted.
 
-* If the `path` value is populated: Process the `path` value using the
-  provisional ratchet tree and GroupContext, to generate the new ratchet tree
-  and the `commit_secret`:
+* If the `path` value is populated, validate it and apply it to the tree:
+
+  * If this is an external commit, assign the sender the leftmost blank leaf
+    node in the new ratchet tree.  If there are no blank leaf nodes in the new
+    ratchet tree, add a blank leaf to the right side of the new ratchet tree and
+    assign it to the sender.
 
   * Validate the LeafNode as specified in {{leaf-node-validation}}.  The
     `leaf_node_source` field MUST be set to `commit`.
@@ -3816,12 +3837,21 @@ A member of the group applies a Commit message by taking the following steps:
   * Verify that the `encryption_key` value in the LeafNode is different from the
     committer's current leaf node.
 
-  * Apply the UpdatePath to the tree, as described in
-    {{synchronizing-views-of-the-tree}}, and store `leaf_node` at the
-    committer's leaf.
+  * Compute parent hashes for the parent nodes in the UpdatePath (relative to
+    the new ratchet tree) and verify that the `parent_hash` field of the leaf
+    node matches the parent hash for the first node its filtered direct path.
 
-  * Verify that the LeafNode has a `parent_hash` field and that its value
-    matches the new parent of the sender's leaf node.
+  * Construct a provisional GroupContext object containing the following values:
+    * `group_id`: Same as the old GroupContext
+    * `epoch`: The epoch number for the new epoch
+    * `tree_hash`: The tree hash of the new ratchet tree
+    * `confirmed_transcript_hash`: Same as the old GroupContext
+    * `extensions`: The new GroupContext extensions (possibly updated by a
+      GroupContextExtensions proposal)
+
+  * Apply the UpdatePath to the tree, as described in
+    {{synchronizing-views-of-the-tree}}, using the provisional GroupContext when
+    decrypting the path secret and storing `leaf_node` at the committer's leaf.
 
   * Define `commit_secret` as the value `path_secret[n+1]` derived from the
     `path_secret[n]` value assigned to the root node.
