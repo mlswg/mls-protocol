@@ -5031,7 +5031,7 @@ Since node relationships are implicit, the algorithms for adding and removing
 nodes at the right edge of the tree are quite simple.  If there are `N` nodes in
 the array:
 
-* Add: Append `N - 1` blank values to the end of the array.
+* Add: Append `N + 1` blank values to the end of the array.
 * Remove: Truncate the array to its first `(N-1) / 2` entries.
 
 The following python code demonstrates the tree computations necessary to use an
