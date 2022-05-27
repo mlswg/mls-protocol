@@ -995,43 +995,6 @@ binary tree structure with these elements as leaves.
 used for the Merkle trees in the Certificate Transparency protocol
 {{?I-D.ietf-trans-rfc6962-bis}}.)
 
-The _direct path_ of a root is the empty list, and of any other node
-is the concatenation of that node's parent along with the parent's direct path.
-The _copath_ of a node is the node's sibling concatenated with the list of
-siblings of all the nodes in its direct path, excluding the root.
-
-For example, in the below tree:
-
-* The direct path of C is (W, V, X)
-* The copath of C is (D, U, Z)
-
-~~~ aasvg
-              X = root
-              |
-        .-----+-----.
-       /             \
-      V               Z
-      |               |
-    .-+-.           .-+
-   /     \         /   \
-  U       W       Y     +
- / \     / \     / \    |
-A   B   C   D   E   F   G
-
-0   1   2   3   4   5   6
-~~~
-{: #full-tree title="A complete tree with seven members" }
-
-A tree with `n` leaves has `2*n - 1` nodes.  For example, the above tree has 7
-leaves (A, B, C, D, E, F, G) and 13 nodes.
-
-Each leaf is given an _index_ (or _leaf index_), starting at `0` from the left to
-`n-1` at the right.
-
-Finally, a node in the tree may also be _blank_, indicating that no value
-is present at that node (i.e. no keying material). This is often the case
-when a leaf was recently removed from the tree.
-
 There are multiple ways that an implementation might represent a ratchet tree in
 memory.  For example, left-balanced binary trees can be represented as an array
 of nodes, with node relationships computed based on nodes' indices in the array.
@@ -1041,6 +1004,110 @@ implement the tree operations required for MLS in these representations.
 MLS places no requirements on implementations' internal representations
 of ratchet trees.  An implementation MAY use any tree representation and
 associated algorithms, as long as they produce correct protocol messages.
+
+### Ratchet Tree Nodes
+
+Each leaf node in a ratchet tree is given an _index_ (or _leaf index_), starting
+at `0` from the left to `n-1` at the right (for a tree with `n` leaves). A tree
+with `n` leaves has `2*n - 1` nodes, including parent nodes.
+
+Each node in a ratchet tree is either _blank_ (containing no value) or it holds
+an asymmetric key pair with some associated data:
+
+* A public key (for the HPKE scheme in use, see {{ciphersuites}})
+* A private key (only within the member's direct path, see {{views}})
+* A credential (only for leaf nodes)
+* An ordered list of "unmerged" leaves (see {{views}})
+* A hash of certain information about the node's parent, as of the last time the
+  node was changed (see {{parent-hash}}).
+
+Every node, regardless of whether the node is blank or populated, has
+a corresponding _hash_ that summarizes the contents of the subtree
+below that node.  The rules for computing these hashes are described
+in {{tree-hashes}}.
+
+The _resolution_ of a node is an ordered list of non-blank nodes
+that collectively cover all non-blank descendants of the node.  The resolution
+of a node is effectively a depth-first, left-first enumeration of the nearest
+non-blank nodes below the node:
+
+* The resolution of a non-blank node comprises the node itself,
+  followed by its list of unmerged leaves, if any
+* The resolution of a blank leaf node is the empty list
+* The resolution of a blank intermediate node is the result of
+  concatenating the resolution of its left child with the resolution
+  of its right child, in that order
+
+For example, consider the following subtree, where the `_` character
+represents a blank node and unmerged leaves are indicated in square
+brackets:
+
+~~~ ascii-art
+       ...
+       /
+      _
+      |
+    .-+-.
+   /     \
+  _       Z[C]
+ / \     / \
+A   _   C   D
+
+0   1   2   3
+~~~
+{: #resolution-tree title="A tree with blanks and unmerged leaves" }
+
+In this tree, we can see all of the above rules in play:
+
+* The resolution of node Z is the list \[Z, C\]
+* The resolution of leaf 1 is the empty list \[\]
+* The resolution of top node is the list \[A, Z, C\]
+
+### Paths through a Ratchet Tree
+
+The _direct path_ of a root is the empty list, and of any other node
+is the concatenation of that node's parent along with the parent's direct path.
+
+The _copath_ of a node is the node's sibling concatenated with the list of
+siblings of all the nodes in its direct path, excluding the root.
+
+The _filtered direct path_ of a leaf node L is the node's direct path, with any
+node removed whose child on the copath of L has an empty resolution (keeping in
+mind that any unmerged leaves of the copath child count toward its resolution).
+The removed nodes do not need their own key pairs because encrypting to the
+nodes key pair would be equivalent to encrypting to its non-copath child.
+
+For example, consider the following tree (where blank nodes are indicated with
+`_`, but also assigned a label for reference):
+
+~~~ aasvg
+              X = root
+              |
+        .-----+-----.
+       /             \
+      _=V             Z
+      |               |
+    .-+-.           .-+
+   /     \         /   \
+  U       _=W     Y     +
+ / \     / \     / \    |
+A   B   _   _   E   F   G
+
+0   1   2   3   4   5   6
+~~~
+{: #full-tree title="A complete tree with seven members, with labels for blank
+parent nodes" }
+
+In this tree, the direct paths, copaths, and filtered direct paths for the leaf
+nodes are as follows:
+
+| Node | Direct path | Copath   | Filtered Direct Path |
+|:=====|:============|:=========|:=====================|
+| A    | U, V, X     | B, W, Z  | U, X                 |
+| B    | U, V, X     | A, W, Z  | U, X                 |
+| E    | Y, Z, X     | F, G, V  | Y, Z, X              |
+| F    | Y, Z, X     | E, G, V  | Y, Z, X              |
+| G    | Z, X        | Y, V     | Z, X                 |
 
 ## Views of a Ratchet Tree {#views}
 
@@ -1101,68 +1168,6 @@ A   ?   ?   ?     ?   B   ?   ?     ?   ?   C   ?     ?   ?   ?   D
 
 Note how the tree invariant applies: Each member knows only their own leaf, and
 the private key AB is known only to A and B.
-
-## Ratchet Tree Nodes
-
-A particular instance of a ratchet tree includes the same parameters that
-define an instance of HPKE, namely:
-
-* A Key Encapsulation Mechanism (KEM), including a `DeriveKeyPair` function that
-  creates a key pair for the KEM from a symmetric secret
-* A Key Derivation Function (KDF), including `Extract` and `Expand` functions
-* An AEAD encryption scheme
-
-Each non-blank node in a ratchet tree contains up to five values:
-
-* A public key
-* A private key (only within the member's direct path, see below)
-* A credential (only for leaf nodes)
-* An ordered list of "unmerged" leaves (see {{views}})
-* A hash of certain information about the node's parent, as of the last time the
-  node was changed (see {{parent-hash}}).
-
-The _resolution_ of a node is an ordered list of non-blank nodes
-that collectively cover all non-blank descendants of the node.  The resolution
-of a non-blank node with no unmerged leaves is just the node itself. More generally, the resolution
-of a node is effectively a depth-first, left-first enumeration of the nearest
-non-blank nodes below the node:
-
-* The resolution of a non-blank node comprises the node itself,
-  followed by its list of unmerged leaves, if any
-* The resolution of a blank leaf node is the empty list
-* The resolution of a blank intermediate node is the result of
-  concatenating the resolution of its left child with the resolution
-  of its right child, in that order
-
-For example, consider the following subtree, where the `_` character
-represents a blank node and unmerged leaves are indicated in square
-brackets:
-
-~~~ ascii-art
-       ...
-       /
-      _
-      |
-    .-+-.
-   /     \
-  _       Z[C]
- / \     / \
-A   _   C   D
-
-0   1   2   3
-~~~
-{: #resolution-tree title="A tree with blanks and unmerged leaves" }
-
-In this tree, we can see all of the above rules in play:
-
-* The resolution of node Z is the list \[Z, C\]
-* The resolution of leaf 1 is the empty list \[\]
-* The resolution of top node is the list \[A, Z, C\]
-
-Every node, regardless of whether the node is blank or populated, has
-a corresponding _hash_ that summarizes the contents of the subtree
-below that node.  The rules for computing these hashes are described
-in {{tree-hashes}}.
 
 # Cryptographic Objects
 
@@ -1243,18 +1248,24 @@ messages refer to KeyPackages for the members being welcomed, and Commits refer
 to Proposals they cover.  These identifiers are computed as follows:
 
 ~~~ tls
-opaque HashReference[16];
+opaque HashReference<V>;
 
 HashReference KeyPackageRef;
 HashReference ProposalRef;
 ~~~
 
 ~~~ pseudocode
-MakeKeyPackageRef(value) = KDF.expand(
-  KDF.extract("", value), "MLS 1.0 KeyPackage Reference", 16)
+MakeKeyPackageRef(value) = RefHash("MLS 1.0 KeyPackage Reference", value)
+MakeProposalRef(value)   = RefHash("MLS 1.0 Proposal Reference", value)
 
-MakeProposalRef(value) = KDF.expand(
-  KDF.extract("", value), "MLS 1.0 Proposal Reference", 16)
+RefHash(label, value) = Hash(RefHashInput)
+
+Where RefHashInput is defined as:
+
+struct {
+  opaque label<V> = label;
+  opaque value<V> = value;
+} RefHashInput;
 ~~~
 
 For a KeyPackageRef, the `value` input is the encoded KeyPackage, and the
@@ -1923,8 +1934,8 @@ The validity of a LeafNode needs to be verified at a few stages:
   to add the client to the group
 * When a LeafNode is received by a group member in an Add, Update, or Commit
   message
-* When a client joining a group receives LeafNode objects for the other members
-  of the group in the group's ratchet tree
+* When a client validates a ratchet tree, e.g., when joining a group or after
+  processing a commit
 
 The client verifies the validity of a LeafNode using the following steps:
 
@@ -1935,44 +1946,46 @@ The client verifies the validity of a LeafNode using the following steps:
   another LeafNode, the authentication service MUST additionally validate that
   the set of identities attested by the credential in the new LeafNode is
   acceptable relative to the identities attested by the old credential.
+  For example:
+    * An Update proposal updates the sender's old LeafNode to a new one
+    * A "resync" external commit removes the joiner's old LeafNode via a Remove proposal and replaces it with a new one
 
 * Verify that the signature on the LeafNode is valid using `signature_key`.
 
 * Verify that the LeafNode is compatible with the group's parameters.  If the
   GroupContext has a `required_capabilities` extension, then the required
-  extensions, proposals, and credential types MUST be listed in the LeafNode's `capabilities`
-  field.
+  extensions, proposals, and credential types MUST be listed in the LeafNode's
+  `capabilities` field.
 
 * Verify that the credential type is supported by all members of the group, as
   specified by the `capabilities` field of each member's LeafNode, and that the
   `capabilities` field of this LeafNode indicates support for all the credential
   types currently in use by other members.
 
-* Verify that the `leaf_node_source` field has the appropriate value for the
-  context in which the LeafNode is being validated (as defined in
-  {{leaf-node-contents}}).
-
-* If applicable, verify the `lifetime` field:
-  * When validating a LeafNode in a KeyPackage before sending an Add proposal,
-    the current time MUST be within the `lifetime` range.  A KeyPackage
-    containing a LeafNode that is expired or not yet valid MUST NOT be sent in
-    an Add proposal.
-  * When receiving an Add or validating a tree, checking the `lifetime` is
-    RECOMMENDED, if it is feasible in a given application context.  Because of
-    the asynchronous nature of MLS, the `lifetime` may have been valid when the
-    leaf node was proposed for addition, even if it is expired at these later
-    points in the protocol.
-
-* Verify that the following fields in the LeafNode are unique among the
-  members of the group (including any other members added in the same
-  Commit):
-
-    * `encryption_key`
-    * `signature_key`
+* Verify the `lifetime` field:
+  * If the LeafNode appears in a message being sent by the client, e.g., a
+    proposal or a commit, then the client MUST verify that the current time is within
+    the range of the `lifetime` field.
+  * If instead the LeafNode appears in a message being received by the client, e.g.,
+    a proposal, a commit, or a ratchet tree of the group the client is joining, it is
+    RECOMMENDED that the client verifies that the current time is within the range
+    of the `lifetime` field.
 
 * Verify that the extensions in the LeafNode are supported by checking that the
   ID for each extension in the `extensions` field is listed in the
   `capabilities.extensions` field of the LeafNode.
+
+* Verify the `leaf_node_source` field:
+  * If the LeafNode appears in a KeyPackage, verify that `leaf_node_source` is
+    set to `key_package`.
+  * If the LeafNode appears in an Update proposal, verify that `leaf_node_source`
+    is set to `update`.
+  * If the LeafNode appears in the `leaf_node` value of the UpdatePath in
+    a Commit, verify that `leaf_node_source` is set to `commit`.
+
+* Verify that the following fields are unique among the members of the group:
+    * `signature_key`
+    * `encryption_key`
 
 ## Ratchet Tree Evolution
 
@@ -1986,15 +1999,7 @@ following procedure. The procedure is designed in a way that allows group member
 efficiently communicate the fresh secret keys to other group members, as
 described in {{update-paths}}.
 
-Recall the definition of resolution from {{ratchet-tree-nodes}}.
-To begin with, the generator of the UpdatePath updates its leaf and its leaf's
-_filtered direct path_ with new key pairs. The filtered direct path of a node
-is obtained from the node's direct path by removing all nodes whose child on
-the nodes' copath has an empty resolution (keeping in mind that any unmerged leaves of the copath
-child count towards its resolution). Such a removed node does not need its own key
-pair since, if the copath child's resolution is blank, then encrypting any data
-to the node's key pair would be equivalent to encrypting only to the
-non-copath child.
+A member updates the nodes along its direct path as follows:
 
 * Blank all the nodes on the direct path from the leaf to the root.
 * Generate a fresh HPKE key pair for the leaf.
@@ -2388,6 +2393,35 @@ verify that it matches the `parent_hash` value in the supplied `leaf_node`.
 After being merged into the tree, the nodes in the UpdatePath form a parent-hash
 chain from the committer's leaf to the root.
 
+For example, nodes the tree in {{full-tree}} might have been populated by full
+Commits from A, E, F, G, and B (in that order).  These Commits would create the
+following parent-hash validity relationship (where the value for a node is reset
+each time it is listed):
+
+1. Commit from A: A -- U -- X
+2. Commit from E: E -- Y -- Z -- X
+3. Commit from F: F -- Y -- Z -- X
+4. Commit from G: G -- Z -- X
+5. Commit from B: B -- U -- X
+
+After these commits, the tree will have the following parent-hash chains:
+
+* A
+* B -- U -- X
+* E
+* F -- Y
+* G -- Z
+
+Since these chains collectively cover all non-blank parent nodes in the tree,
+the tree is parent-hash valid.
+
+Note that this tree, though valid, contains invalid parent-hash links. If a
+client were checking parent hashes top-down from X, for example, they would find
+that Z has an invalid parent hash relative to X, but that U has valid parent
+hash.  Likewise, if the client were checking bottom-up, they would find that the
+chain from F ends in an invalid link from Y to Z.  These invalid links are the
+natural result of multiple clients having committed.
+
 ## Update Paths
 
 As described in {{commit}}, each Commit message may optionally contain an
@@ -2427,12 +2461,17 @@ ciphertext = context.Seal("", path_secret)
 ~~~
 
 where `node_public_key` is the public key of the node that the path
-secret is being encrypted for, group_context is the current GroupContext object
+secret is being encrypted for, group_context is the provisional GroupContext object
 for the group, and the functions `SetupBaseS` and
 `Seal` are defined according to {{!RFC9180}}.
 
 Decryption is performed in the corresponding way, using the private
 key of the resolution node.
+
+~~~ pseudocode
+context = SetupBaseR(kem_output, node_private_key, group_context)
+path_secret = context.Open("", ciphertext)
+~~~
 
 # Key Schedule
 
@@ -2596,19 +2635,33 @@ included directly. Proposal messages are indirectly included via the Commit that
 applied them. Both types of message are included by hashing the MLSPlaintext
 in which they were sent.
 
-The `confirmed_transcript_hash` is updated with an MLSMessageContent and
-MLSMessageAuth containing a Commit in two steps:
+The transcript hash comprises two individual hashes:
+
+* A `confirmed_transcript_hash` that represents a transcript over the whole
+  history of Commit messages, up to and including the signature of the most
+  recent Commit.
+* An `interim_transcript_hash` that covers the confirmed transcript hash plus
+  the `confirmation_tag` of the most recent Commit.
+
+New members compute the interim transcript hash using the `confirmation_tag`
+field of the GroupInfo struct, while existing members can compute it directly.
+
+Each Commit message updates these hashes by way of its enclosing
+MLSMessageContentAuth.  The MLSMessageContentAuth struct is split into
+ConfirmedTranscriptHashInput and InterimTranscriptHashInput. The former is used to
+update the confirmed transcript hash and the latter to update the interim
+transcript hash.
 
 ~~~ tls
 struct {
     WireFormat wire_format;
     MLSMessageContent content; //with content.content_type == commit
     opaque signature<V>;
-} MLSMessageCommitContent;
+} ConfirmedTranscriptHashInput;
 
 struct {
     MAC confirmation_tag;
-} MLSMessageCommitAuthData;
+} InterimTranscriptHashInput;
 ~~~
 
 ~~~ pseudocode
@@ -2616,22 +2669,12 @@ interim_transcript_hash_[0] = ""; // zero-length octet string
 
 confirmed_transcript_hash_[n] =
     Hash(interim_transcript_hash_[n] ||
-        MLSMessageCommitContent_[n]);
+        ConfirmedTranscriptHashInput_[n]);
 
 interim_transcript_hash_[n+1] =
     Hash(confirmed_transcript_hash_[n] ||
-        MLSMessageCommitAuthData_[n]);
+        InterimTranscriptHashInput_[n]);
 ~~~
-
-Thus the `confirmed_transcript_hash` field in a GroupContext object represents a
-transcript over the whole history of MLSMessage Commit messages, up to the
-confirmation_tag field of the most recent Commit.  The confirmation
-tag is then included in the transcript for the next epoch.  The interim
-transcript hash is computed by new members using the confirmation_tag of the
-GroupInfo struct, while existing members can compute it directly.
-
-As shown above, when a new group is created, the `interim_transcript_hash` field
-is set to the zero-length octet string.
 
 ## External Initialization
 
@@ -2892,6 +2935,31 @@ For handshake and application messages, a sequence of keys is derived via a
 "sender ratchet".  Each sender has their own sender ratchet, and each step along
 the ratchet is called a "generation".
 
+The following figure shows a secret tree for a four-member group, with the
+handshake and application ratchets that member D will use for sending and the
+first two application keys and nonces.
+
+~~~ aasvg
+       G
+       |
+     .-+-.
+    /     \
+   E       F
+  / \     / \
+ A   B   C   D
+            / \
+          HR0  AR0--+--K0
+                |   |
+                |   +--N0
+                |
+               AR1--+--K1
+                |   |
+                |   +--N1
+                |
+               AR2
+~~~
+{: title="Secret tree for a four-member group" #secret-tree-example}
+
 A sender ratchet starts from a per-sender base secret derived from a Secret
 Tree, as described in {{secret-tree}}. The base secret initiates a symmetric
 hash ratchet which generates a sequence of keys and nonces. The sender uses the
@@ -2958,35 +3026,25 @@ values have been consumed and MUST be deleted:
 * the first j secrets in the application data ratchet of node L and
 * `application_ratchet_nonce_[L]_[j]` and `application_ratchet_key_[L]_[j]`.
 
-Concretely, suppose we have the following Secret Tree and ratchet for
-participant D:
+Concretely, consider the Secret Tree shown in {{secret-tree-example}}.  Client
+A, B, or C would generate the illustrated values on receiving a message from D
+with generation equal to 1, having not received a message with generation 0
+(e.g., due to out-of-order delivery).  In such a case, the following values
+would be consumed:
 
-~~~ aasvg
-       G
-       |
-     .-+-.
-    /     \
-   E       F
-  / \     / \
- A   B   C   D
-            / \
-          HR0  AR0--+--K0
-                |   |
-                |   +--N0
-                |
-               AR1--+--K1
-                |   |
-                |   +--N1
-                |
-               AR2
-~~~
+* The key K1 and nonce N1 used to decrypt the message
+* The application ratchet secrets AR1 and AR0
+* The tree secrets D, F, G (recall that G is the `encryption_secret` for the
+  epoch)
+* The `epoch_secret`, `commit_secret`, `psk_secret`, and `joiner_secret` for the
+  current epoch
 
-Then if a client uses key K1 and nonce N1 during epoch n then it must consume
-(at least) values G, F, D, AR0, AR1, K1, N1 as well as the key schedule secrets
-used to derive G (the `encryption_secret`), namely `init_secret` of epoch n-1
-and `commit_secret`, `joiner_secret`, `epoch_secret` of epoch n. The client MAY
-retain (not consume) the values K0 and N0 to allow for out-of-order delivery,
-and SHOULD retain AR2 for processing future messages.
+Other values may be retained (not consumed):
+
+* K0 and N0 for decryption of an out-of-order message with generation 0
+* AR2 for derivation of further message decryption keys and nonces
+* HR0 for protection of handshake messages from D
+* E and C for deriving secrets used by senders A, B, and C
 
 # Key Packages
 
@@ -3070,8 +3128,8 @@ The client verifies the validity of a KeyPackage using the following steps:
 * Verify that the ciphersuite and protocol version of the KeyPackage match
   those in use in the group.
 
-* Verify the `leaf_node` field of the KeyPackage according to the process
-  defined in {{leaf-node-validation}}.
+* Verify that the `leaf_node` of the KeyPackage is valid for a KeyPackage
+  according to {{leaf-node-validation}}.
 
 * Verify that the signature on the KeyPackage is valid using the public key
   in `leaf_node.credential`.
@@ -3266,15 +3324,15 @@ struct {
 ~~~
 
 On receiving an MLSMessageContent containing a Proposal, a client MUST verify the
-signature inside MLSMessageAuth.  If the signature verifies
-successfully, then the Proposal should be cached in such a way that it can be
-retrieved by hash (as a ProposalOrRef object) in a later Commit message.
+signature inside MLSMessageAuth and that the `epoch` field of the enclosing
+MLSMessageContent is equal to the `epoch` field of the current GroupContext object.
+If the verification is successful, then the Proposal should be cached in such a way
+that it can be retrieved by hash (as a ProposalOrRef object) in a later Commit message.
 
 ### Add
 
 An Add proposal requests that a client with a specified KeyPackage be added
-to the group.  The proposer of the Add MUST verify the validity of the
-KeyPackage, as specified in {{keypackage-validation}}.
+to the group.
 
 ~~~ tls
 struct {
@@ -3282,15 +3340,19 @@ struct {
 } Add;
 ~~~
 
+An Add proposal is invalid if any of the following is true:
+
+* The KeyPackage is invalid according to {{keypackage-validation}}.
+
+* The Credential in the KeyPackage represents a client already in the
+  group according to the application.
+
 An Add is applied after being included in a Commit message.  The position of the
 Add in the list of proposals determines the leaf node where the new member will
 be added.  For the first Add in the Commit, the corresponding new member will be
 placed in the leftmost empty leaf in the tree, for the second Add, the next
 empty leaf to the right, etc. If no empty leaf exists, the tree is extended to
 the right.
-
-* Validate the KeyPackage as specified in {{keypackage-validation}}.  The
-  `leaf_node_source` field in the LeafNode MUST be set to `key_package`.
 
 * Identify the leaf L for the new member: if there are empty leaves in the tree,
   L is the leftmost empty leaf.  Otherwise, the tree is extended to the right
@@ -3314,13 +3376,11 @@ struct {
 } Update;
 ~~~
 
+An Update proposal is invalid if the LeafNode is invalid for an Update
+proposal according to {{leaf-node-validation}}.
+
+
 A member of the group applies an Update message by taking the following steps:
-
-* Validate the LeafNode as specified in {{leaf-node-validation}}.  The
-  `leaf_node_source` field MUST be set to `update`.
-
-* Verify that the `encryption_key` value in the LeafNode is different from the
-  corresponding field in the LeafNode being replaced.
 
 * Replace the sender's LeafNode with the one contained in the Update proposal
 
@@ -3336,6 +3396,9 @@ struct {
     uint32 removed;
 } Remove;
 ~~~
+
+A Remove proposal is invalid if the `removed` field does not identify a non-blank
+leaf node.
 
 A member of the group applies a Remove message by taking the following steps:
 
@@ -3362,11 +3425,18 @@ struct {
 } PreSharedKey;
 ~~~
 
-A PreSharedKey proposal MUST NOT contain a PSK of type `resumption` that has usage
-`reinit` or `branch`. When processing a Commit message
-that includes one or more PreSharedKey proposals, group members derive
-`psk_secret` as described in {{pre-shared-keys}}, where the order of the PSKs
-corresponds to the order of the `PreSharedKey` proposals in the Commit.
+A PreSharedKey proposal is invalid if any of the following is true:
+
+* The `psktype` in the PreSharedKeyID struct is not set to `resumption` and
+  the `usage` is `reinit` or `branch`.
+
+* The `psk_nonce` is not of length `KDF.Nh`.
+
+The `psk_nonce` MUST be randomly sampled. When processing
+a Commit message that includes one or more PreSharedKey proposals, group
+members derive `psk_secret` as described in {{pre-shared-keys}}, where the
+order of the PSKs corresponds to the order of the `PreSharedKey` proposals
+in the Commit.
 
 ### ReInit
 
@@ -3384,15 +3454,13 @@ struct {
 } ReInit;
 ~~~
 
+A ReInit proposal is invalid if the `version` field is less than the version
+for the current group.
+
 A member of the group applies a ReInit proposal by waiting for the committer to
 send the Welcome message that matches the ReInit, according to the criteria in
 {{reinitialization}}.
 
-If a ReInit proposal is included in a Commit, it MUST be the only proposal
-referenced by the Commit. If other non-ReInit proposals have been sent during
-the epoch, the committer SHOULD prefer them over the ReInit proposal, allowing
-the ReInit to be resent and applied in a subsequent epoch. The `version` field
-in the ReInit proposal MUST be no less than the version for the current group.
 
 ### ExternalInit
 
@@ -3420,16 +3488,17 @@ struct {
 } GroupContextExtensions;
 ```
 
+A GroupContextExtensions proposal is invalid if it includes a
+`required_capabilities` extension and some members of the group do not support
+some of the required capabilities (including those added in the same commit,
+and excluding those removed).
+
 A member of the group applies a GroupContextExtensions proposal with the
 following steps:
 
-* If the new extensions include a `required_capabilities` extension, verify that
-  all members of the group support the required capabilities (including those
-  added in the same commit, and excluding those removed).
-
 * Remove all of the existing extensions from the GroupContext object for the
   group and replacing them with the list of extensions in the proposal.  (This
-  is a wholesale replacement, not a merge.  An extension is only carried over if
+  is a wholesale replacement, not a merge. An extension is only carried over if
   the sender of the proposal includes it in the new list.)
 
 Note that once the GroupContext is updated, its inclusion in the
@@ -3457,11 +3526,16 @@ will not have the keys necessary to construct an MLSCiphertext object.
 #### External Senders Extension
 
 The `external_senders` extension is a group context extension that contains
-credentials of senders that are permitted to send external proposals to the
-group.
+the credentials and signature keys of senders that are permitted to send
+external proposals to the group.
 
 ~~~~~
-Credential external_senders<V>;
+struct {
+  SignaturePublicKey signature_key;
+  Credential credential;
+} ExternalSender;
+
+ExternalSender external_senders<V>;
 ~~~~~
 
 ## Commit
@@ -3504,34 +3578,18 @@ a Commit message before sending application data. This ensures, for example,
 that any members whose removal was proposed during the epoch are actually
 removed before any application data is transmitted.
 
-The sender of a Commit MUST include all valid proposals that it has received
-during the current epoch. Invalid proposals include, for example, proposals with
-an invalid signature or proposals that are semantically invalid, such as an Add
-when the sender does not have the application-level permission to add new users.
-Proposals with a non-default proposal type MUST NOT be included in a commit
-unless the proposal type is supported by all the members of the group that will
-process the Commit (i.e., not including any members being added or removed by
-the Commit).
+A sender and a receiver of a Commit MUST verify that the committed list of
+proposals is valid as specified in {{proposal-list-validation}}. A list is invalid if, for example,
+it includes an Update and a Remove for the same member, or an Add when the sender does not have
+the application-level permission to add new users.
 
-If there are multiple proposals that apply to the same leaf, or multiple
-PreSharedKey proposals that reference the same PreSharedKeyID, the committer
-MUST choose one and include only that one in the Commit, considering the rest
-invalid. The committer MUST NOT include any Update proposals generated by the
-committer, since they would be duplicative with the `path` field in the Commit.
-The committer MUST prefer any Remove received, or the most recent Update for
-the leaf if there are no Removes. If there are multiple Add proposals
-containing KeyPackages that the committer considers to represent the same
-client or a client already in the group (for example, identical KeyPackages or
-KeyPackages sharing the same Credential), the committer again chooses one to
-include and considers the rest invalid. The committer MUST consider invalid any
-Add or Update proposal if the Credential in the contained KeyPackage shares the
-same signature key with a Credential in any leaf of the group, or if the
-LeafNode in the KeyPackage shares the same `encryption_key` with another LeafNode in
-the group.
+The sender of a Commit SHOULD include all proposals that it has received
+during the current epoch, that are valid according to the rules for their
+proposal types and according to application policy, as long as this results in
+a valid proposal list.
 
-The Commit MUST NOT combine proposals sent within different epochs. Due to the
-asynchronous nature of proposals, receivers of a Commit SHOULD NOT enforce that
-all valid proposals sent within the current epoch are referenced by the next
+Due to the asynchronous nature of proposals, receivers of a Commit SHOULD NOT enforce
+that all valid proposals sent within the current epoch are referenced by the next
 Commit. In the event that a valid proposal is omitted from the next Commit, and
 that proposal is still valid in the current epoch, the sender of the proposal
 MAY resend it after updating it to reflect the current epoch.
@@ -3603,32 +3661,24 @@ uses:
 
 ### Creating a Commit
 
-When creating or processing a Commit, three different ratchet trees and
-their associated GroupContexts are used:
-
-1. "Old" refers to the ratchet tree and GroupContext for the epoch before the
-   commit.  The old GroupContext is used when signing the MLSPlainText so that
-   existing group members can verify the signature before processing the
-   commit.
-2. "Provisional" refers to the ratchet tree and GroupContext constructed after
-   applying the proposals that are referenced by the Commit.  The provisional
-   GroupContext uses the epoch number for the new epoch, and the old confirmed
-   transcript hash.  This is used when creating the UpdatePath, if the
-   UpdatePath is needed.
-3. "New" refers to the ratchet tree and GroupContext constructed after applying
-   the proposals and the UpdatePath (if any).  The new GroupContext uses the
-   epoch number for the new epoch, and the new confirmed transcript hash.  This
-   is used when deriving the new epoch secrets, and is the only GroupContext
-   that newly-added members will have.
+When creating or processing a Commit, a client updates the ratchet tree and
+GroupContext for the group.  These values advance from an "old" state reflecting
+the current epoch to a "new" state reflecting the new epoch initiated by the
+Commit.  When the Commit includes an UpdatePath, a "provisional" group context
+is constructed that reflects changes due to the proposals and UpdatePath, but
+with the old confirmed transcript hash.
 
 A member of the group creates a Commit message and the corresponding Welcome
 message at the same time, by taking the following steps:
+
+* Verify that the list of proposals to be committed is valid as specified in
+  {{proposal-list-validation}}.
 
 * Construct an initial Commit object with the `proposals`
   field populated from Proposals received during the current epoch, and an empty
   `path` field.
 
-* Generate the provisional ratchet tree and GroupContext by applying the proposals
+* Initialize the new ratchet tree and GroupContext by applying the proposals
   referenced in the initial Commit object, as described in {{proposals}}. Update
   proposals are applied first, followed by Remove proposals, and then finally
   Add proposals. Add proposals are applied in the order listed in the
@@ -3646,25 +3696,49 @@ message at the same time, by taking the following steps:
   based on the proposals that are in the commit (see above), then it MUST be
   populated.  Otherwise, the sender MAY omit the `path` field at its discretion.
 
-* If populating the `path` field: Create an UpdatePath using the provisional
-  ratchet tree and GroupContext. Any new member (from an Add proposal) MUST be
-  excluded from the resolution during the computation of the UpdatePath.  The
-  `leaf_node` for this UpdatePath MUST have `leaf_node_source` set to `commit`.
-  Note that the LeafNode in the `UpdatePath` effectively updates an existing
-  LeafNode in the group and thus MUST adhere to the same restrictions as
-  LeafNodes used in `Update` proposals (aside from `leaf_node_source`).
+* If populating the `path` field:
 
-   * Assign this UpdatePath to the `path` field in the Commit.
+  * If this is an external commit, assign the sender the leftmost blank leaf
+    node in the new ratchet tree.  If there are no blank leaf nodes in the new
+    ratchet tree, add a blank leaf to the right side of the new ratchet tree and
+    assign it to the sender.
 
-   * Apply the UpdatePath to the tree, as described in
-     {{synchronizing-views-of-the-tree}}, creating the new ratchet tree. Define
-     `commit_secret` as the value `path_secret[n+1]` derived from the
-     `path_secret[n]` value assigned to the root node.
+  * Generate path secrets for the parent nodes along the sender's filtered
+    direct path, as described in {{synchronizing-views-of-the-tree}}.  Define
+    `commit_secret` as the value `path_secret[n+1]` derived from the
+    `path_secret[n]` value assigned to the root node.
+
+  * Update the new ratchet tree by setting the parent nodes on the sender's
+    filtered direct path based on the path secrets. Compute parent hashes for
+    these nodes.  Set the sender's leaf node in the new tree to a new leaf node
+    including the resulting parent hash for its nearest ancestor.
+
+    * The new leaf node MUST have `leaf_node_source` set to `commit`.
+    * Since the new leaf node effectively updates an existing leaf node in the
+      group, it MUST adhere to the same restrictions as LeafNodes used in
+      `Update` proposals (aside from `leaf_node_source`).
+    * The application MAY specify other changes to the leaf node, e.g.,
+      providing a new signature key, updated capabilities, or different
+      extensions.
+
+  * Construct a provisional GroupContext object containing the following values:
+    * `group_id`: Same as the old GroupContext
+    * `epoch`: The epoch number for the new epoch
+    * `tree_hash`: The tree hash of the new ratchet tree
+    * `confirmed_transcript_hash`: Same as the old GroupContext
+    * `extensions`: The new GroupContext extensions (possibly updated by a
+      GroupContextExtensions proposal)
+
+  * Create an UpdatePath that encrypts the path secrets for the nodes along the
+    sender's filtered direct path to the new ratchet tree, using the provisional
+    GroupContext as context. Any new member (from an Add proposal) MUST be
+    excluded from the resolution during the computation of the UpdatePath.
+
+  * Assign this UpdatePath to the `path` field in the Commit.
 
 * If not populating the `path` field: Set the `path` field in the Commit to the
   null optional.  Define `commit_secret` as the all-zero vector of length
-  `KDF.Nh` (the same length as a `path_secret` value would be).  In this case,
-  the new ratchet tree is the same as the provisional ratchet tree.
+  `KDF.Nh` (the same length as a `path_secret` value would be).
 
 * Derive the `psk_secret` as specified in {{pre-shared-keys}}, where the order
   of PSKs in the derivation corresponds to the order of PreSharedKey proposals
@@ -3672,7 +3746,7 @@ message at the same time, by taking the following steps:
 
 * Construct an MLSMessageContent object containing the Commit object. Sign the
   MLSMessageContent using the old GroupContext as context.
-  * Use the MLSMessageContent to update the confirmed transcript hash and generate
+  * Use the MLSMessageContent to update the confirmed transcript hash and update
     the new GroupContext.
   * Use the `init_secret` from the previous epoch, the `commit_secret` and the
     `psk_secret` as defined in the previous steps, and the new GroupContext to
@@ -3728,10 +3802,11 @@ A member of the group applies a Commit message by taking the following steps:
 * Verify that the signature on the MLSMessageContent message as described in
   Section {{content-authentication}}.
 
-* Verify that all PreSharedKey proposals in the `proposals` vector have unique
-  PreSharedKeyIDs and are available.
+* Verify that the `proposals` vector is valid as specified in {{proposal-list-validation}}.
 
-* Generate the provisional ratchet tree and GroupContext by applying the proposals
+* Verify that all PreSharedKey proposals in the `proposals` vector are available.
+
+* Initialize the new ratchet tree and GroupContext by applying the proposals
   referenced in the initial Commit object, as described in {{proposals}}. Update
   proposals are applied first, followed by Remove proposals, and then finally
   Add proposals. Add proposals are applied in the order listed in the
@@ -3746,9 +3821,12 @@ A member of the group applies a Commit message by taking the following steps:
   any Update or Remove proposals, or if it's empty. Otherwise, the `path` value
   MAY be omitted.
 
-* If the `path` value is populated: Process the `path` value using the
-  provisional ratchet tree and GroupContext, to generate the new ratchet tree
-  and the `commit_secret`:
+* If the `path` value is populated, validate it and apply it to the tree:
+
+  * If this is an external commit, assign the sender the leftmost blank leaf
+    node in the new ratchet tree.  If there are no blank leaf nodes in the new
+    ratchet tree, add a blank leaf to the right side of the new ratchet tree and
+    assign it to the sender.
 
   * Validate the LeafNode as specified in {{leaf-node-validation}}.  The
     `leaf_node_source` field MUST be set to `commit`.
@@ -3756,12 +3834,21 @@ A member of the group applies a Commit message by taking the following steps:
   * Verify that the `encryption_key` value in the LeafNode is different from the
     committer's current leaf node.
 
-  * Apply the UpdatePath to the tree, as described in
-    {{synchronizing-views-of-the-tree}}, and store `leaf_node` at the
-    committer's leaf.
+  * Compute parent hashes for the parent nodes in the UpdatePath (relative to
+    the new ratchet tree) and verify that the `parent_hash` field of the leaf
+    node matches the parent hash for the first node its filtered direct path.
 
-  * Verify that the LeafNode has a `parent_hash` field and that its value
-    matches the new parent of the sender's leaf node.
+  * Construct a provisional GroupContext object containing the following values:
+    * `group_id`: Same as the old GroupContext
+    * `epoch`: The epoch number for the new epoch
+    * `tree_hash`: The tree hash of the new ratchet tree
+    * `confirmed_transcript_hash`: Same as the old GroupContext
+    * `extensions`: The new GroupContext extensions (possibly updated by a
+      GroupContextExtensions proposal)
+
+  * Apply the UpdatePath to the tree, as described in
+    {{synchronizing-views-of-the-tree}}, using the provisional GroupContext when
+    decrypting the path secret and storing `leaf_node` at the committer's leaf.
 
   * Define `commit_secret` as the value `path_secret[n+1]` derived from the
     `path_secret[n]` value assigned to the root node.
@@ -3887,16 +3974,6 @@ has to meet a specific set of requirements:
   leaf node.
 * The Commit MUST NOT include any proposals by reference, since an external
   joiner cannot determine the validity of proposals sent within the group
-* The proposals included by value in an External Commit MUST meet the following
-  conditions:
-  * There MUST be a single ExternalInit proposal.
-  * There MAY be a single Remove proposal, where the LeafNode in the `path`
-    field MUST meet the same criteria as the LeafNode in an Update for the
-    removed leaf (see {{update}}). In particular, the `credential` in the
-    LeafNode MUST present a set of identifiers that is acceptable to the
-    application for the removed participant.
-  * There MAY be one or more PreSharedKey proposals.
-  * There MUST NOT be any other proposals.
 * External Commits MUST be signed by the new member.  In particular, the
   signature on the enclosing MLSPlaintext MUST verify using the public key for
   the credential in the `leaf_node` of the `path` field.
@@ -4164,6 +4241,67 @@ using a key exchanged over the MLS channel.
 Regardless of how the client obtains the tree, the client MUST verify that the
 root hash of the ratchet tree matches the `tree_hash` of the GroupContext before
 using the tree for MLS operations.
+
+## Proposal List Validation
+
+A group member creating a commit and a group member processing a commit
+MUST verify that the list of committed proposals is valid using one of the following
+procedures, depending on whether the commit is external or not.
+
+For a regular, i.e. not external, commit the list is invalid if any of the following
+occurs:
+
+* It contains an individual proposal that is invalid as specified in {{proposals}}.
+
+* It contains an Update proposal generated by the committer.
+
+* It contains a Remove proposal that removes the committer.
+
+* It contains multiple Update and/or Remove proposals that apply to the same leaf.
+  If the committer has received multiple such proposals they SHOULD prefer any Remove
+  received, or the most recent Update if there are no Removes.
+
+* It contains multiple Add proposals that contain KeyPackages that represent the same
+  client according to the application (for example, identical KeyPackages or KeyPackages
+  sharing the same Credential).
+
+* It contains multiple PreSharedKey proposals that reference the same PreSharedKeyID.
+
+* It contains multiple GroupContextExtensions proposals.
+
+* It contains a ReInit proposal together with any other proposal. If the committer has
+  received other proposals during the epoch, they SHOULD prefer them over the
+  ReInit proposal, allowing the ReInit to be resent and applied in a subsequent
+  epoch.
+
+* It contains an ExternalInit proposal.
+
+* It contains a proposal with a non-default proposal type that is not supported by some
+  members of the group that will process the Commit (i.e., members being added
+  or removed by the Commit do not need to support the proposal type).
+
+* After processing the commit the ratchet tree is invalid, in particular, if it
+  contains any leaf node that is invalid according to {{leaf-node-validation}}.
+
+An application may extend the above procedure by additional rules, for example,
+requiring application-level permissions to add members, or rules concerning
+non-default proposal types.
+
+For an external commit, the list is valid if it contains only the following proposals
+(not necessarily in this order):
+
+* Exactly one ExternalInit
+
+* At most one Remove proposal, with which the joiner removes an
+  old version of themselves. If a Remove proposal is present, then the LeafNode in the
+  `path` field of the external commit MUST meet the same criteria as would the LeafNode
+  in an Update for the removed leaf (see {{update}}). In particular, the `credential`
+  in the LeafNode MUST present a set of identifiers that is acceptable to the
+  application for the removed participant.
+
+* Zero or more PreSharedKey proposals.
+
+* No other proposals.
 
 # Extensibility
 
@@ -4922,7 +5060,9 @@ in this document.
 To construct the tree in {{full-tree}}:
 
 * A creates a group with B, ..., G
-* Each member sends an empty Commit setting its direct path
+* F sends an empty Commit, setting Y, Z, X
+* G removes C and D, blanking W, V, and setting Z, X
+* B sends an empty Commit, setting U and X
 
 To construct the tree in {{resolution-tree}}:
 
