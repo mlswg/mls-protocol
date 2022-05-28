@@ -4702,6 +4702,13 @@ the first commit, and thus be unable to catch up with the group. These members
 will either need to add themselves back with an external Commit, or reinitialize
 the group from scratch.
 
+Applications can address this risk by requiring certain members of the group to
+acknowledge successful processing of a Commit before the group regards the
+Commit as accepted.  The minimum set of acknowledgements necessary to verify
+that a Commit is well-formed comprises an acknowledgement from one member per
+node in the UpdatePath, that is, one member from each subtree rooted in the
+copath node corresponding to the node in the UpdatePath.
+
 # IANA Considerations
 
 This document requests the creation of the following new IANA registries:
