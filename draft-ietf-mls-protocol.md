@@ -2218,6 +2218,13 @@ objects contain the `ParentNode` (if any) and the tree hash of the node's left
 and right children.
 
 ~~~ tls
+enum {
+    reserved(0),
+    leaf(1),
+    parent(2),
+    (255)
+} NodeType;
+
 struct {
   NodeType node_type;
   select (TreeHashInput.node_type) {
@@ -4113,13 +4120,6 @@ the whole public state of the ratchet tree can be provided in an extension of
 type `ratchet_tree`, containing a `ratchet_tree` object of the following form:
 
 ~~~ tls
-enum {
-    reserved(0),
-    leaf(1),
-    parent(2),
-    (255)
-} NodeType;
-
 struct {
     NodeType node_type;
     select (Node.node_type) {
