@@ -5037,8 +5037,7 @@ Security considerations:
   tomleavy@amazon.com
 
 * Brendan McMillion \\
-  Cloudflare \\
-  brendan@cloudflare.com
+brendanmcmillion@gmail.com
 
 * Marta Mularczyk \\
   Amazon \\
