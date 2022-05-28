@@ -5037,7 +5037,7 @@ Security considerations:
   tomleavy@amazon.com
 
 * Brendan McMillion \\
-brendanmcmillion@gmail.com
+  brendanmcmillion@gmail.com
 
 * Marta Mularczyk \\
   Amazon \\
