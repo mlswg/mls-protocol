@@ -2214,24 +2214,36 @@ specifically:
 To allow group members to verify that they agree on the public cryptographic state
 of the group, this section defines a scheme for generating a hash value (called
 the "tree hash") that represents the contents of the group's ratchet tree and the
-members' leaf nodes. The tree hash of a tree is the tree hash of its root node,
-which we define recursively, starting with the leaves.
+members' leaf nodes.
 
-The tree hash of a leaf node is the hash of leaf's `LeafNodeHashInput` object which
-might include a `LeafNode` object depending on whether or not it is blank.
+The tree hash of an individual node is the hash of the node's `TreeHashInput`
+object, which may contain either a `LeafNodeHashInput` or a
+`ParentNodeHashInput` depending on the type of node. `LeafNodeHashInput` objects
+contain the `leaf_index` and the `LeafNode` (if any). `ParentNodeHashInput`
+objects contain the `ParentNode` (if any) and the tree hash of the node's left
+and right children.
 
 ~~~ tls
+enum {
+    reserved(0),
+    leaf(1),
+    parent(2),
+    (255)
+} NodeType;
+
+struct {
+  NodeType node_type;
+  select (TreeHashInput.node_type) {
+    case leaf:   LeafNodeHashInput leaf_node;
+    case parent: ParentNodeHashInput parent_node;
+  }
+} TreeHashInput;
+
 struct {
     uint32 leaf_index;
     optional<LeafNode> leaf_node;
 } LeafNodeHashInput;
-~~~
 
-Now the tree hash of any non-leaf node is recursively defined to be the hash of
-its `ParentNodeHashInput`. This includes an optional `ParentNode`
-object depending on whether the node is blank or not.
-
-~~~ tls
 struct {
     optional<ParentNode> parent_node;
     opaque left_hash<V>;
@@ -2239,8 +2251,8 @@ struct {
 } ParentNodeHashInput;
 ~~~
 
-The `left_hash` and `right_hash` fields hold the tree hashes of the node's
-left and right children, respectively.
+The tree hash of an entire tree corresponds to the tree hash of the root node,
+which is computed recursively by starting at the leaf nodes and building up.
 
 ## Parent Hash
 
@@ -4159,13 +4171,6 @@ the whole public state of the ratchet tree can be provided in an extension of
 type `ratchet_tree`, containing a `ratchet_tree` object of the following form:
 
 ~~~ tls
-enum {
-    reserved(0),
-    leaf(1),
-    parent(2),
-    (255)
-} NodeType;
-
 struct {
     NodeType node_type;
     select (Node.node_type) {
