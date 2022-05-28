@@ -2219,12 +2219,10 @@ and right children.
 
 ~~~ tls
 struct {
-  uint8 leaf_or_parent_marker;
-  select (TreeHashInput.leaf_or_parent_marker) {
-    case 0:
-      LeafNodeHashInput hash_input;
-    case 1:
-      ParentNodeHashInput hash_input;
+  NodeType node_type;
+  select (TreeHashInput.node_type) {
+    case leaf:   LeafNodeHashInput leaf_node;
+    case parent: ParentNodeHashInput parent_node;
   }
 } TreeHashInput;
 
