@@ -1200,7 +1200,7 @@ opaque HPKEPublicKey<V>;
 ~~~
 
 The signature algorithm specified in the ciphersuite is the mandatory algorithm
-to be used for signatures in MLSMessageAuth and the tree signatures.  It MUST be
+to be used for signatures in ContentAuthData and the tree signatures.  It MUST be
 the same as the signature algorithm specified in the credentials in the leaves
 of the tree (including the leaf node information in KeyPackages used to add new
 members).
@@ -1369,12 +1369,16 @@ Handshake and application messages use a common framing structure.
 This framing provides encryption to ensure confidentiality within the
 group, as well as signing to authenticate the sender.
 
-The main structure is MessageContent, which contains the content of
-the message.  This structure is authenticated using MLSMessageAuth
-(see {{content-authentication}}).
-The two structures are combined in AuthenticatedContent, which can then be
-encoded/decoded from/to MLSPlaintext or MLSCiphertext, which are then included
-in the MLSMessage structure.
+In most of the protocol, messages are handled in the form of
+AuthenticatedContent objects.  These structures contain the content of the
+message itself as well as information to authenticate the sender (see
+{{content-authentication}}).  The additional protections required to transmit
+these messages over an untrusted channel (group membership authentication or
+AEAD encryption) are added by encoding the AuthenticatedContent as an
+MLSPlaintext or MLSCiphertext message, which can then be sent as an MLSMessage.
+Likewise, these protections are enforced (via membership verification or AEAD
+decryption) when decoding an MLSPlaintext or MLSCiphertext into an
+AuthenticatedContent object.
 
 MLSCiphertext represents a signed and encrypted message, with
 protections for both the content of the message and related
@@ -1465,8 +1469,8 @@ struct {
 } MLSMessage;
 ~~~
 
-External sender types are sent as MLSPlaintext, see {{external-proposals}}
-for their use.
+Proposals from senders external to the group are sent as MLSPlaintext. See
+{{external-proposals}} for more details.
 
 The following structure is used to fully describe the data transmitted in
 plaintexts or ciphertexts.
@@ -1475,7 +1479,7 @@ plaintexts or ciphertexts.
 struct {
     WireFormat wire_format;
     MessageContent content;
-    MLSMessageAuth auth;
+    ContentAuthData auth;
 } AuthenticatedContent;
 ~~~
 
@@ -1489,13 +1493,13 @@ consume them:
                                  +--------------+--------------+
                                                 |
                                                 V
-                                         MessageContent
+                                        MessageContent
                                              |  |                -.
                                              |  |                  |
                                     +--------+  |                  |
                                     |           |                  |
                                     V           |                  +-- Asymmetric
-                              MLSMessageAuth    |                  |   Sign / Verify
+                              ContentAuthData   |                  |   Sign / Verify
                                     |           |                  |
                                     +--------+  |                  |
                                              |  |                  |
@@ -1518,7 +1522,7 @@ Welcome  KeyPackage  GroupInfo   MLSPlaintext      MLSCiphertext -'
 
 ## Content Authentication
 
-MessageContent is authenticated using the MLSMessageAuth structure.
+MessageContent is authenticated using the ContentAuthData structure.
 
 ~~~ tls
 struct {
@@ -1549,7 +1553,7 @@ struct {
         case proposal:
             struct{};
     }
-} MLSMessageAuth;
+} ContentAuthData;
 ~~~
 
 The signature is computed using `SignWithLabel` with label
@@ -1575,7 +1579,7 @@ Recipients of an MLSMessage MUST verify the signature with the key depending on
 the `sender_type` of the sender as described above.
 
 The confirmation tag value confirms that the members of the group have arrived
-at the same state of the group. An MLSMessageAuth is said to be valid when both
+at the same state of the group. An ContentAuthData is said to be valid when both
 the `signature` and `confirmation_tag` fields are valid.
 
 ## Encoding and Decoding a Plaintext
@@ -1585,7 +1589,7 @@ Plaintexts are encoded using the MLSPlaintext structure.
 ~~~ tls
 struct {
     MessageContent content;
-    MLSMessageAuth auth;
+    ContentAuthData auth;
     select (MLSPlaintext.content.sender.sender_type) {
         case member:
             MAC membership_tag;
@@ -1603,7 +1607,7 @@ following value:
 ~~~ tls
 struct {
   MessageContentTBS content_tbs;
-  MLSMessageAuth auth;
+  ContentAuthData auth;
 } MessageContentTBM;
 ~~~
 
@@ -1613,7 +1617,7 @@ membership_tag = MAC(membership_key, MessageContentTBM)
 
 When decoding an MLSPlaintext into an AuthenticatedContent,
 the application MUST check `membership_tag` and MUST check that the
-MLSMessageAuth is valid.
+ContentAuthData is valid.
 
 ## Encoding and Decoding a Ciphertext
 
@@ -1651,7 +1655,7 @@ struct {
           Commit commit;
     }
 
-    MLSMessageAuth auth;
+    ContentAuthData auth;
     opaque padding[length_of_padding];
 } MLSCiphertextContent;
 ~~~
@@ -1713,7 +1717,7 @@ struct {
 ~~~
 
 When decoding an MLSCiphertextContent, the application MUST check that the
-MLSMessageAuth is valid.
+ContentAuthData is valid.
 
 ### Sender Data Encryption
 
@@ -2643,7 +2647,7 @@ The following general rules apply:
 * The `tree_hash` is updated to represent the current tree and
   credentials.
 * The `confirmed_transcript_hash` field is updated with the data for an
-  MLSPlaintext message encoding a Commit message as described below.
+  AuthenticatedContent encoding a Commit message as described below.
 * The `extensions` field changes when a GroupContextExtensions proposal is
   committed.
 
@@ -2652,8 +2656,8 @@ The following general rules apply:
 The transcript hashes computed in MLS represent a running hash over all Proposal
 and Commit messages that have ever been sent in a group.  Commit messages are
 included directly. Proposal messages are indirectly included via the Commit that
-applied them. Both types of message are included by hashing the MLSPlaintext
-in which they were sent.
+applied them. Both types of message are included by hashing the AuthenticatedContent
+object in which they were sent.
 
 The transcript hash comprises two individual hashes:
 
@@ -2675,7 +2679,7 @@ transcript hash.
 ~~~ tls
 struct {
     WireFormat wire_format;
-    MessageContent content; //with content.content_type == commit
+    MessageContent content; // with content.content_type == commit
     opaque signature<V>;
 } ConfirmedTranscriptHashInput;
 
@@ -3339,7 +3343,7 @@ struct {
 ~~~
 
 On receiving an MessageContent containing a Proposal, a client MUST verify the
-signature inside MLSMessageAuth and that the `epoch` field of the enclosing
+signature inside ContentAuthData and that the `epoch` field of the enclosing
 MessageContent is equal to the `epoch` field of the current GroupContext object.
 If the verification is successful, then the Proposal should be cached in such a way
 that it can be retrieved by hash (as a ProposalOrRef object) in a later Commit message.
@@ -3564,7 +3568,7 @@ identifies the proposal to be applied by value or by reference.  Commits that
 refer to new Proposals from the committer can be included by value. Commits
 for previously sent proposals from anyone (including the committer) can be sent
 by reference.  Proposals sent by reference are specified by including the hash of
-the MLSPlaintext in which the proposal was sent (see {{hash-based-identifiers}}).
+the AuthenticatedContent object in which the proposal was sent (see {{hash-based-identifiers}}).
 
 ~~~ tls
 enum {
@@ -3768,15 +3772,21 @@ message at the same time, by taking the following steps:
     compute the new `joiner_secret`, `welcome_secret`, `epoch_secret`, and
     derived secrets for the new epoch.
   * Use the `confirmation_key` for the new epoch to compute the
-    `confirmation_tag` value, and the `membership_key` for the old epoch to
-    compute the `membership_tag` value in the MLSPlaintext.
+    `confirmation_tag` value.
   * Calculate the interim transcript hash using the new confirmed transcript
-    hash and the `confirmation_tag` from the MLSMessageAuth.
+    hash and the `confirmation_tag` from the ContentAuthData.
+
+* Protect the AuthenticatedContent object using keys from the old epoch:
+  * If encoding as MLSPlaintext, compute the `membership_tag` value using the
+    `membership_key`.
+  * If encoding as an MLSCiphertext, encrypt the message using the
+    `sender_data_secret` and the next (key, nonce) pair from the sender's
+    handshake ratchet.
 
 * Construct a GroupInfo reflecting the new state:
   * Group ID, epoch, tree, confirmed transcript hash, interim transcript
     hash, and group context extensions from the new state
-  * The confirmation_tag from the MLSMessageAuth object
+  * The confirmation_tag from the ContentAuthData object
   * Other extensions as defined by the application
   * Optionally derive an external keypair as described in {{key-schedule}}
     (required for External Commits, see {{joining-via-external-commits}})
@@ -3813,6 +3823,13 @@ A member of the group applies a Commit message by taking the following steps:
 
 * Verify that the `epoch` field of the enclosing MessageContent is equal
   to the `epoch` field of the current GroupContext object
+
+* Unprotect the Commit using the keys from the current epoch:
+  * If the message is encoded as MLSPlaintext, verify the membership MAC using
+    the `membership_key`
+  * If the message is encoded as MLSCiphertext, decrypt the message using the
+    `sender_data_secret` and the (key, nonce) pair from the step on the sender's
+    hash ratchet indicated by the `generation` field.
 
 * Verify that the signature on the MessageContent message as described in
   Section {{content-authentication}}.
@@ -3885,7 +3902,7 @@ A member of the group applies a Commit message by taking the following steps:
 
 * Use the `confirmation_key` for the new epoch to compute the confirmation tag
   for this message, as described below, and verify that it is the same as the
-  `confirmation_tag` field in the MLSMessageAuth object.
+  `confirmation_tag` field in the ContentAuthData object.
 
 * If the above checks are successful, consider the new GroupContext object
   as the current state of the group.
@@ -3989,11 +4006,11 @@ has to meet a specific set of requirements:
 * The Commit MUST NOT include any proposals by reference, since an external
   joiner cannot determine the validity of proposals sent within the group
 * External Commits MUST be signed by the new member.  In particular, the
-  signature on the enclosing MLSPlaintext MUST verify using the public key for
+  signature on the enclosing AuthenticatedContent MUST verify using the public key for
   the credential in the `leaf_node` of the `path` field.
 * When processing a Commit, both existing and new members MUST use the external
   init secret as described in {{external-initialization}}.
-* The sender type for the MLSPlaintext encapsulating the External Commit MUST be
+* The sender type for the AuthenticatedContent encapsulating the External Commit MUST be
   `new_member`
 
 External Commits come in two "flavors" -- a "join" commit that
