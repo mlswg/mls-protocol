@@ -870,6 +870,36 @@ A              B     ...      Z          Directory       Channel
 ~~~
 {: title="Client Z removes client B from the group"}
 
+## Requesting to Join
+
+In addition to the directory-based distribution of KeyPackages illustrated
+above, applications may allow a prospective joiner to provide a KeyPackage
+directly to a member of the group, as a way of asking to be added to the group.
+
+~~~ aasvg
+                                                          Group
+A              B     ...      Z          Directory       Channel
+|  KeyPackageB |              |              |              |
+|<-------------+              |              |              |
+|              |              |              |              |
+| Welcome(B)   |              |              |              |
++------------->|              |              |              |
+|              |              |              |              |
+| Add(B)       |              |              |              |
+| Commit(Add)  |              |              |              |
++---------------------------------------------------------->|
+|              |              |              |              |
+|              |              |              | Add(B)       |
+|              |              |              | Commit(Add)  |
+|<----------------------------------------------------------+
+|              |              |<----------------------------+
+|              |              |              |              |
+~~~
+
+For applications that allow both directory-based KeyPackage distribution and
+requests to join, some additional security considerations are discussed in
+{{directed-keypackages}}.
+
 ## Relationships Between Epochs
 
 A group has a single linear sequence of epochs. Groups and epochs are generally
@@ -3133,6 +3163,31 @@ set to `key_package`.
 Extension included in the `extensions` or `leaf_node.extensions` fields MUST be
 included in the `leaf_node.capabilities` field.
 
+## Directed KeyPackages
+
+Before a new member can be added to the group, the member that proposes their
+addition needs to get a KeyPackage for the new member. As discussed in
+{{protocol-overview}}, this can be done either by pre-publishing KeyPackages
+to a directory or by having the joining member send them proactively.
+
+In the latter case, the sender of the KeyPackage can limit the scope of the
+KeyPackage by including an extension of type `target_group_id`, of the following
+form:
+
+```
+opaque group_id<V>;
+```
+
+As defined in {{keypackage-validation}}, when this extension is present, the
+members of the group will verify that the KeyPackage is intended for the group.
+
+In applications where both pre-published and directed KeyPackage distribution
+are supported, the application SHOULD require that this extension be present in
+a KeyPackage sent proactively by a joiner, and absent in pre-published
+KeyPackages. This prevents pre-published KeyPackages from being fetched by a
+third party and used to request membership in a group (since the pre-published
+KeyPackages will not have this extension).
+
 ## KeyPackage Validation
 
 The validity of a KeyPackage needs to be verified at a few stages:
@@ -3154,6 +3209,10 @@ The client verifies the validity of a KeyPackage using the following steps:
 
 * Verify that the value of `leaf_node.encryption_key` is different from the value of
   the `init_key` field.
+
+* If the `extensions` field contains an extension of type `target_group_id`,
+  verify that the `group_id` value in the extension is identical to the
+  `group_id` for this group.
 
 # Group Creation
 
