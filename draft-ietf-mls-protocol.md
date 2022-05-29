@@ -1274,7 +1274,7 @@ struct {
 
 For a KeyPackageRef, the `value` input is the encoded KeyPackage, and the
 ciphersuite specified in the KeyPackage determines the KDF used.  For a
-ProposalRef, the `value` input is the MLSMessageContentAuth carrying the
+ProposalRef, the `value` input is the AuthenticatedContent carrying the
 proposal.  In the latter two cases, the KDF is determined by the group's
 ciphersuite.
 
@@ -1369,10 +1369,10 @@ Handshake and application messages use a common framing structure.
 This framing provides encryption to ensure confidentiality within the
 group, as well as signing to authenticate the sender.
 
-The main structure is MLSMessageContent, which contains the content of
+The main structure is MessageContent, which contains the content of
 the message.  This structure is authenticated using MLSMessageAuth
 (see {{content-authentication}}).
-The two structures are combined in MLSMessageContentAuth, which can then be
+The two structures are combined in AuthenticatedContent, which can then be
 encoded/decoded from/to MLSPlaintext or MLSCiphertext, which are then included
 in the MLSMessage structure.
 
@@ -1437,7 +1437,7 @@ struct {
     opaque authenticated_data<V>;
 
     ContentType content_type;
-    select (MLSMessageContent.content_type) {
+    select (MessageContent.content_type) {
         case application:
           opaque application_data<V>;
         case proposal:
@@ -1445,7 +1445,7 @@ struct {
         case commit:
           Commit commit;
     }
-} MLSMessageContent;
+} MessageContent;
 
 struct {
     ProtocolVersion version = mls10;
@@ -1474,9 +1474,9 @@ plaintexts or ciphertexts.
 ~~~ tls
 struct {
     WireFormat wire_format;
-    MLSMessageContent content;
+    MessageContent content;
     MLSMessageAuth auth;
-} MLSMessageContentAuth;
+} AuthenticatedContent;
 ~~~
 
 The following figure illustrates how the various structures described in this
@@ -1489,7 +1489,7 @@ consume them:
                                  +--------------+--------------+
                                                 |
                                                 V
-                                         MLSMessageContent
+                                         MessageContent
                                              |  |                -.
                                              |  |                  |
                                     +--------+  |                  |
@@ -1500,7 +1500,7 @@ consume them:
                                     +--------+  |                  |
                                              |  |                  |
                                              V  V                -'
-                                       MLSMessageContentAuth
+                                       AuthenticatedContent
                                                 |                -.
                                                 |                  |
                                                 |                  |
@@ -1518,14 +1518,14 @@ Welcome  KeyPackage  GroupInfo   MLSPlaintext      MLSCiphertext -'
 
 ## Content Authentication
 
-MLSMessageContent is authenticated using the MLSMessageAuth structure.
+MessageContent is authenticated using the MLSMessageAuth structure.
 
 ~~~ tls
 struct {
     ProtocolVersion version = mls10;
     WireFormat wire_format;
-    MLSMessageContent content;
-    select (MLSMessageContentTBS.content.sender.sender_type) {
+    MessageContent content;
+    select (MessageContentTBS.content.sender.sender_type) {
         case member:
         case new_member:
             GroupContext context;
@@ -1533,14 +1533,14 @@ struct {
         case external:
             struct{};
     }
-} MLSMessageContentTBS;
+} MessageContentTBS;
 
 opaque MAC<V>;
 
 struct {
-    // SignWithLabel(., "MLSMessageContentTBS", MLSMessageContentTBS)
+    // SignWithLabel(., "MessageContentTBS", MessageContentTBS)
     opaque signature<V>;
-    select (MLSMessageContent.content_type) {
+    select (MessageContent.content_type) {
         case commit:
             // MAC(confirmation_key,
             //     GroupContext.confirmed_transcript_hash)
@@ -1553,7 +1553,7 @@ struct {
 ~~~
 
 The signature is computed using `SignWithLabel` with label
-`"MLSMessageContentTBS"` and with a content that covers the message content and
+`"MessageContentTBS"` and with a content that covers the message content and
 the wire format that will be used for this message. If the sender's
 `sender_type` is `member`, the content also covers the GroupContext for the
 current epoch so that signatures are specific to a given group and epoch.
@@ -1584,7 +1584,7 @@ Plaintexts are encoded using the MLSPlaintext structure.
 
 ~~~ tls
 struct {
-    MLSMessageContent content;
+    MessageContent content;
     MLSMessageAuth auth;
     select (MLSPlaintext.content.sender.sender_type) {
         case member:
@@ -1602,16 +1602,16 @@ following value:
 
 ~~~ tls
 struct {
-  MLSMessageContentTBS content_tbs;
+  MessageContentTBS content_tbs;
   MLSMessageAuth auth;
-} MLSMessageContentTBM;
+} MessageContentTBM;
 ~~~
 
 ~~~ pseudocode
-membership_tag = MAC(membership_key, MLSMessageContentTBM)
+membership_tag = MAC(membership_key, MessageContentTBM)
 ~~~
 
-When decoding an MLSPlaintext into an MLSMessageContentAuth,
+When decoding an MLSPlaintext into an AuthenticatedContent,
 the application MUST check `membership_tag` and MUST check that the
 MLSMessageAuth is valid.
 
@@ -2667,7 +2667,7 @@ New members compute the interim transcript hash using the `confirmation_tag`
 field of the GroupInfo struct, while existing members can compute it directly.
 
 Each Commit message updates these hashes by way of its enclosing
-MLSMessageContentAuth.  The MLSMessageContentAuth struct is split into
+AuthenticatedContent.  The AuthenticatedContent struct is split into
 ConfirmedTranscriptHashInput and InterimTranscriptHashInput. The former is used to
 update the confirmed transcript hash and the latter to update the interim
 transcript hash.
@@ -2675,7 +2675,7 @@ transcript hash.
 ~~~ tls
 struct {
     WireFormat wire_format;
-    MLSMessageContent content; //with content.content_type == commit
+    MessageContent content; //with content.content_type == commit
     opaque signature<V>;
 } ConfirmedTranscriptHashInput;
 
@@ -3317,7 +3317,7 @@ a state transition occurs, the epoch number is incremented by one.
 
 ## Proposals
 
-Proposals are included in an MLSMessageContent by way of a Proposal structure
+Proposals are included in an MessageContent by way of a Proposal structure
 that indicates their type:
 
 ~~~ tls
@@ -3338,9 +3338,9 @@ struct {
 } Proposal;
 ~~~
 
-On receiving an MLSMessageContent containing a Proposal, a client MUST verify the
+On receiving an MessageContent containing a Proposal, a client MUST verify the
 signature inside MLSMessageAuth and that the `epoch` field of the enclosing
-MLSMessageContent is equal to the `epoch` field of the current GroupContext object.
+MessageContent is equal to the `epoch` field of the current GroupContext object.
 If the verification is successful, then the Proposal should be cached in such a way
 that it can be retrieved by hash (as a ProposalOrRef object) in a later Commit message.
 
@@ -3759,9 +3759,9 @@ message at the same time, by taking the following steps:
   of PSKs in the derivation corresponds to the order of PreSharedKey proposals
   in the `proposals` vector.
 
-* Construct an MLSMessageContent object containing the Commit object. Sign the
-  MLSMessageContent using the old GroupContext as context.
-  * Use the MLSMessageContent to update the confirmed transcript hash and update
+* Construct an MessageContent object containing the Commit object. Sign the
+  MessageContent using the old GroupContext as context.
+  * Use the MessageContent to update the confirmed transcript hash and update
     the new GroupContext.
   * Use the `init_secret` from the previous epoch, the `commit_secret` and the
     `psk_secret` as defined in the previous steps, and the new GroupContext to
@@ -3811,10 +3811,10 @@ message at the same time, by taking the following steps:
 
 A member of the group applies a Commit message by taking the following steps:
 
-* Verify that the `epoch` field of the enclosing MLSMessageContent is equal
+* Verify that the `epoch` field of the enclosing MessageContent is equal
   to the `epoch` field of the current GroupContext object
 
-* Verify that the signature on the MLSMessageContent message as described in
+* Verify that the signature on the MessageContent message as described in
   Section {{content-authentication}}.
 
 * Verify that the `proposals` vector is valid as specified in {{proposal-list-validation}}.
@@ -4442,7 +4442,7 @@ described in {{reinitialization}}.
 # Sequencing of State Changes {#sequencing}
 
 Each Commit message is premised on a given starting state,
-indicated by the `epoch` field of the enclosing MLSMessageContent.
+indicated by the `epoch` field of the enclosing MessageContent.
 If the changes implied by a Commit message are made
 starting from a different state, the results will be incorrect.
 
