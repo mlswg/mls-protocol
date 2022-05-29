@@ -3903,11 +3903,7 @@ new members need information to bootstrap their local group state.
 ~~~ tls
 struct {
     CipherSuite cipher_suite;
-    opaque group_id<V>;
-    uint64 epoch;
-    opaque tree_hash<V>;
-    opaque confirmed_transcript_hash<V>;
-    Extension group_context_extensions<V>;
+    GroupContext group_context;
     Extension other_extensions<V>;
     MAC confirmation_tag;
     uint32 signer;
