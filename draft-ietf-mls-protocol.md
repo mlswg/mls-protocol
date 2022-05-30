@@ -3559,7 +3559,7 @@ A group member creating a commit and a group member processing a commit
 MUST verify that the list of committed proposals is valid using one of the following
 procedures, depending on whether the commit is external or not.
 
-For a regular, i.e. not external, commit the list is invalid if any of the following
+For a regular commit (not an external commit) the list is invalid if any of the following
 occurs:
 
 * It contains an individual proposal that is invalid as specified in {{proposals}}.
@@ -3614,6 +3614,37 @@ For an external commit, the list is valid if it contains only the following prop
 
 * No other proposals.
 
+Proposal type defined in the future may make updates to the above validation
+logic to incorporate considerations related to proposals of the new type.
+
+## Applying a Proposal List
+
+The sections above defining each proposal type describe how each individual
+proposals are applied.  When creating or processing a Commit, a client applies a
+list of proposals to the ratchet tree and GroupContext. The client MUST apply
+the proposals in the list in the following order:
+
+* If there is a GroupContextExtensions proposal, replace the `extensions` field
+  of the GroupContext for the group with the contents of the extension.
+
+* Apply any Update proposals to the ratchet tree, in any order.
+
+* Apply any Remove proposals to the ratceht tree, in any order.
+
+* Apply any Add proposals to the ratchet tree, in the order they appear in the list.
+
+* Look up the PSK secrets for any PreSharedKey proposals, in the order they
+  appear in the list.  These secrets are then used to advance the key schedule
+  later in Commit processing.
+
+* If there is an ExternalInit proposal, use it to derive the `init_secret` for
+  usee later in Commit processing.
+
+* If there is a ReInit proposal, note its parameters for application later in
+  Commit processing.
+
+Proposal types defined in the future MUST specify how the above steps are to be
+adjusted to accommodate the application of proposals of the new type.
 
 ## Commit
 
@@ -3755,19 +3786,9 @@ message at the same time, by taking the following steps:
   field populated from Proposals received during the current epoch, and an empty
   `path` field.
 
-* Initialize the new ratchet tree and GroupContext by applying the proposals
-  referenced in the initial Commit object, as described in {{proposals}}. Update
-  proposals are applied first, followed by Remove proposals, and then finally
-  Add proposals. Add proposals are applied in the order listed in the
-  `proposals` vector, and always to the leftmost unoccupied leaf in the tree, or
-  the right edge of the tree if all leaves are occupied.
-
-  * Note that the order in which different types of proposals are applied should
-    be updated by the implementation to include any new proposals added by
-    negotiated group extensions.
-
-  * PreSharedKey proposals are processed later when deriving the `psk_secret` for the Key
-    Schedule.
+* Create the new ratchet tree and GroupContext by applying the list of proposals
+  to the old ratchet tree and GroupContext, as defined in
+  {{applying-a-proposal-list}}
 
 * Decide whether to populate the `path` field: If the `path` field is required
   based on the proposals that are in the commit (see above), then it MUST be
@@ -3883,16 +3904,9 @@ A member of the group applies a Commit message by taking the following steps:
 
 * Verify that all PreSharedKey proposals in the `proposals` vector are available.
 
-* Initialize the new ratchet tree and GroupContext by applying the proposals
-  referenced in the initial Commit object, as described in {{proposals}}. Update
-  proposals are applied first, followed by Remove proposals, and then finally
-  Add proposals. Add proposals are applied in the order listed in the
-  `proposals` vector, and always to the leftmost unoccupied leaf in the tree, or
-  the right edge of the tree if all leaves are occupied.
-
-  * Note that the order in which different types of proposals are applied should
-    be updated by the implementation to include any new proposals added by
-    negotiated group extensions.
+* Create the new ratchet tree and GroupContext by applying the list of proposals
+  to the old ratchet tree and GroupContext, as defined in
+  {{applying-a-proposal-list}}
 
 * Verify that the `path` value is populated if the `proposals` vector contains
   any Update or Remove proposals, or if it's empty. Otherwise, the `path` value
