@@ -5017,15 +5017,15 @@ Security considerations:
 # Contributors
 
 * Joel Alwen \\
-  Wickr \\
-  joel.alwen@wickr.com
+  Amazon \\
+  alwenjo@amazon.com
 
 * Karthikeyan Bhargavan \\
-  INRIA \\
+  Inria \\
   karthikeyan.bhargavan@inria.fr
 
 * Cas Cremers \\
-  University of Oxford \\
+  CISPA \\
   cremers@cispa.de
 
 * Alan Duric \\
@@ -5048,9 +5048,16 @@ Security considerations:
   MIT \\
   kwonal@mit.edu
 
+* Tom Leavy \\
+  Amazon \\
+  tomleavy@amazon.com
+
 * Brendan McMillion \\
-  Cloudflare \\
-  brendan@cloudflare.com
+  brendanmcmillion@gmail.com
+
+* Marta Mularczyk \\
+  Amazon \\
+  mulmarta@amazon.com
 
 * Eric Rescorla \\
   Mozilla \\
@@ -5059,6 +5066,10 @@ Security considerations:
 * Michael Rosenberg \\
   Trail of Bits \\
   michael.rosenberg@trailofbits.com
+
+* Théophile Wallez \\
+  Inria \\
+  theophile.wallez@inria.fr
 
 * Thyla van der Merwe \\
   Royal Holloway, University of London \\
