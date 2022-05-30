@@ -4261,8 +4261,8 @@ occurs:
   client according to the application (for example, identical signature keys).
 
 * It contains an Add proposal with a KeyPackage that represents a client already
-  in the group according to the application, which isn't being removed by
-  another proposal in the same Commit.
+  in the group according to the application, unless there is a Remove proposal
+  in the list removing the matching client from the group.
 
 * It contains multiple PreSharedKey proposals that reference the same PreSharedKeyID.
 
