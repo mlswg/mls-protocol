@@ -1354,6 +1354,8 @@ the AS.  In particular, at the following events in the protocol:
   for the member.
 * When a member receives a Commit with an UpdatePath whose LeafNode has a new
   credential for the committer.
+* When an `external_senders` extension is added to the group, or an existing
+  `external_senders` extension is updated.
 
 In cases where a member's credential is being replaced, such as Update and
 Commit cases above, the AS MUST also verify that the set of presented
