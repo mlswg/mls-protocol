@@ -1331,7 +1331,7 @@ The application using MLS is responsible for specifying which identifiers it
 finds acceptable for each member in a group.  In other words, following the
 model that {{?RFC6125}} describes for TLS, the application maintains a list of
 "reference identifiers" for the members of a group, and the credentials provide
-"presented identifiers".  A member of a group are authenticated by first
+"presented identifiers".  A member of a group is authenticated by first
 validating that the member's credential legitimately represents some presented
 identifiers, and then ensuring that the reference identifiers for the member are
 authenticated by those presented identifiers.
@@ -1348,7 +1348,7 @@ the AS.  In particular, at the following events in the protocol:
 * When a member receives a KeyPackage that it will use in an Add proposal to add
   a new member to the group.
 * When a member receives a GroupInfo object that it will use to join a group,
-  either via a Welcome or via an external Commit
+  either via a Welcome or via an External Commit
 * When a member receives an Add proposal adding a member to the group.
 * When a member receives an Update proposal whose LeafNode has a new credential
   for the member.
