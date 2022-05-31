@@ -3248,12 +3248,12 @@ The members of a group reinitialize it using the following steps:
 2. A member of the old group sends a Commit covering the ReInit proposal
 3. A member of the old group creates an initial Commit setting up a new group
    that matches the ReInit and sends a Welcome message
-    * The `group_id`, `version`, and `cipher_suite` fields in the Welcome
+    * The `group_id`, `version`, `cipher_suite`, and `extensions` fields in the Welcome
       message MUST be the same as the corresponding fields in the ReInit
-      proposal.
-    * The Welcome MUST specify a PreSharedKey of type `resumption` with usage
-      `reinit`.  The `group_id` MUST match the old group, and the `epoch` MUST
-      indicate the epoch after the Commit covering the ReInit.
+      proposal. The `epoch` in the Welcome message MUST be 1.
+    * The Welcome MUST specify a PreSharedKeyID of type `resumption` with usage
+      `reinit`, where the `group_id` field matches the old group and the `epoch`
+      field indicates the epoch after the Commit covering the ReInit.
 
 Note that these three steps may be done by the same group member or different
 members.  For example, if a group member sends a Commit with an inline ReInit
@@ -3442,7 +3442,7 @@ struct {
 
 A PreSharedKey proposal is invalid if any of the following is true:
 
-* The `psktype` in the PreSharedKeyID struct is not set to `resumption` and
+* The `psktype` in the PreSharedKeyID struct is set to `resumption` and
   the `usage` is `reinit` or `branch`.
 
 * The `psk_nonce` is not of length `KDF.Nh`.
@@ -4020,7 +4020,7 @@ continuing, non-resynchronizing members have the required PSK.
 
 The sender of a Commit message is responsible for sending a single Welcome message to
 all the new members added via Add proposals.  The Welcome message provides the new
-members with the current state of the group, after the application of the Commit
+members with the current state of the group after the application of the Commit
 message.  The new members will not be able to decrypt or verify the Commit
 message, but will have the secrets they need to participate in the epoch
 initiated by the Commit message.
@@ -4081,7 +4081,9 @@ On receiving a Welcome message, a client processes it using the following steps:
   referenced KeyPackage.
 
 * If a `PreSharedKeyID` is part of the GroupSecrets and the client is not in
-  possession of the corresponding PSK, return an error.
+  possession of the corresponding PSK, return an error. Additionally, if a
+  `PreSharedKeyID` has type `resumption` with usage `reinit` or `branch`, verify
+  that it is the only such PSK.
 
 * From the `joiner_secret` in the decrypted GroupSecrets object and the PSKs
   specified in the `GroupSecrets`, derive the `welcome_secret` and using that
@@ -4154,6 +4156,20 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 
 * Use the confirmed transcript hash and confirmation tag to compute the interim
   transcript hash in the new state.
+
+* If a `PreSharedKeyID` was used that has type `resumption` with usage `reinit`
+  or `branch`, verify that the `epoch` field in the GroupInfo is equal to 1.
+
+  * For usage `reinit`, verify that the last Commit to the referenced group
+    contains a ReInit proposal and that the `group_id`, `version`,
+    `cipher_suite`, and `group_context.extensions` fields of the GroupInfo match
+    the ReInit proposal. Additionally, verify that all the members of the old
+    group are also members of the new group, according to the application.
+
+  * For usage `branch`, verify that the `version` and `cipher_suite` of the new
+    group match those of the old group, and that the members of the new group
+    compose a subset of the members of the old group, according to the
+    application.
 
 ## Ratchet Tree Extension
 
