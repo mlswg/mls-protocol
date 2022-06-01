@@ -1793,7 +1793,8 @@ The `encryption_key` field contains an HPKE public key whose private key is held
 by the members at the leaves among its descendants.  The `parent_hash` field
 contains a hash of this node's parent node, as described in {{parent-hash}}.
 The `unmerged_leaves` field lists the leaves under this parent node that are
-unmerged, according to their indices among all the leaves in the tree.
+unmerged, according to their indices among all the leaves in the tree.  The
+entries in the `unmerged_leaves` vector MUST be sorted in increasing order.
 
 ## Leaf Node Contents
 
