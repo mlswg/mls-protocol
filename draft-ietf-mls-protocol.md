@@ -2393,8 +2393,8 @@ following criteria hold:
 * The nodes between U and P in the tree are all blank
 * The `parent_hash` field of U is equal to the parent hash of P with copath
   child S, where S is the child of P that is not on the path from U to P
-* The sibling of every node between U (included) and P (excluded) with a blank
-  parent has an empty resolution
+* The sibling of every node with a blank parent between U (included) and P
+  (excluded) has an empty resolution
 * `U.unmerged_leaves` is equal to the intersection between `P.unmerged_leaves`
   and the leaves under U.
 
