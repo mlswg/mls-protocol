@@ -2392,7 +2392,11 @@ following criteria hold:
 * U is a descendant of P in the tree
 * The nodes between U and P in the tree are all blank
 * The `parent_hash` field of U is equal to the parent hash of P with copath
-  child S, where S is the child of P that is not on the path from U to P.
+  child S, where S is the child of P that is not on the path from U to P
+* The sibling of every node between U (included) and P (excluded) with a blank
+  parent has an empty resolution
+* `U.unmerged_leaves` is equal to the intersection between `P.unmerged_leaves`
+  and the leaves under U.
 
 A parent node P is "parent-hash valid" if it can be chained back to a leaf node
 in this way.  That is, if there is leaf node L and a sequence of parent nodes
