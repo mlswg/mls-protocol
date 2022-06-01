@@ -2195,8 +2195,9 @@ the "tree hash") that represents the contents of the group's ratchet tree and th
 members' leaf nodes. The tree hash of a tree is the tree hash of its root node,
 which we define recursively, starting with the leaves.
 
-The tree hash of a leaf node is the hash of leaf's `LeafNodeHashInput` object which
-might include a `LeafNode` object depending on whether or not it is blank.
+The tree hash of a leaf node is the hash of leaf's LeafNodeHashInput object.
+The `leaf_node` field MUST be populated if and only if the leaf node contains a
+value (i.e., it is not blank).
 
 ~~~ tls
 struct {
@@ -2206,8 +2207,8 @@ struct {
 ~~~
 
 Now the tree hash of any non-leaf node is recursively defined to be the hash of
-its `ParentNodeHashInput`. This includes an optional `ParentNode`
-object depending on whether the node is blank or not.
+its ParentNodeHashInput.  The `parent_node` field MUST be populated if and only
+if the parent node contains a value (i.e., it is not blank).
 
 ~~~ tls
 struct {
@@ -2228,7 +2229,8 @@ so that the signature on a leaf node, by covering the leaf node's parent hash,
 indirectly includes information about the structure of the tree at the time the
 leaf node was last updated.
 
-Consider a ratchet tree with a non-blank parent node P and children V and S.
+Consider a ratchet tree with a non-blank parent node P and children D and S (for
+"parent", "direct path", and "sibling"):
 
 ~~~ ascii-art
         ...
@@ -2236,14 +2238,14 @@ Consider a ratchet tree with a non-blank parent node P and children V and S.
        P
      __|__
     /     \
-   V       S
+   D       S
   / \     / \
 ... ... ... ...
 ~~~
 
 
 The parent hash of P changes whenever an `UpdatePath` object is applied to
-the ratchet tree along a path from a leaf U traversing node V (and hence also
+the ratchet tree along a path from a leaf L traversing node D (and hence also
 P). The new "Parent hash of P (with copath child S)" is obtained by hashing P's
 `ParentHashInput` struct.
 
@@ -2258,8 +2260,8 @@ struct {
 The field `encryption_key` contains the HPKE public key of P. If P is the root,
 then the `parent_hash` field is set to a zero-length octet string. Otherwise,
 `parent_hash` is the Parent Hash of the next node after P on the filtered
-direct path of U. This way, P's Parent Hash fixes
-the new HPKE public key of each node V on the path from P to the root. Note
+direct path of the leaf L. This way, P's Parent Hash fixes
+the new HPKE public key of each non-blank node on the path from P to the root. Note
 that the path from P to the root may contain some blank nodes that are not
 fixed by P's Parent Hash. However, for each node that has an HPKE key, this key
 is fixed by P's Parent Hash.
@@ -2270,6 +2272,12 @@ it from the `unmerged_leaves` sets of all parent nodes.
 
 Observe that `original_sibling_tree_hash` does not change between updates of P.
 This property is crucial for the correctness of the protocol.
+
+Note that `original_sibling_tree_hash` is the tree hash of S, not the parent
+hash.  The `parent_hash` field in ParentHashInput captures information about the
+nodes above P. the `original_sibling_tree_hash` captures information about the
+subtree under S that is not being updated (and thus the subtree to which a path
+secret for P would be encrypted according to {{synchronizing-views-of-the-tree}}).
 
 For example, in the following tree:
 
@@ -2325,7 +2333,7 @@ path of U. (The `ParentNode` struct is used to encapsulate all public
 information about that node that must be conveyed to a new
 member joining the group as well as to define its Tree Hash.)
 
-If, on the other hand, V is the leaf U and its LeafNode has `leaf_node_source` set to `commit`,
+If, on the other hand, V is the leaf L and its LeafNode has `leaf_node_source` set to `commit`,
 then the Parent Hash of P (with V's sibling as copath child) is stored in
 the `parent_hash` field.  This is true in particular of the LeafNode object sent
 in the `leaf_node` field of an UpdatePath. The signature of such a LeafNode thus also
@@ -2340,13 +2348,13 @@ at V. Indeed, such a ratchet tree would violate the tree invariant.
 Parent hashes are verified at two points in the protocol: When joining a group
 and when processing a Commit.
 
-The parent hash in a node U is valid with respect to a parent node P if the
+The parent hash in a node D is valid with respect to a parent node P if the
 following criteria hold:
 
-* U is a descendant of P in the tree
-* The nodes between U and P in the tree are all blank
-* The `parent_hash` field of U is equal to the parent hash of P with copath
-  child S, where S is the child of P that is not on the path from U to P.
+* D is a descendant of P in the tree
+* The nodes between D and P in the tree are all blank
+* The `parent_hash` field of D is equal to the parent hash of P with copath
+  child S, where S is the child of P that is not on the path from D to P.
 
 A parent node P is "parent-hash valid" if it can be chained back to a leaf node
 in this way.  That is, if there is leaf node L and a sequence of parent nodes
@@ -2367,34 +2375,7 @@ verify that it matches the `parent_hash` value in the supplied `leaf_node`.
 After being merged into the tree, the nodes in the UpdatePath form a parent-hash
 chain from the committer's leaf to the root.
 
-For example, nodes the tree in {{full-tree}} might have been populated by full
-Commits from A, E, F, G, and B (in that order).  These Commits would create the
-following parent-hash validity relationship (where the value for a node is reset
-each time it is listed):
-
-1. Commit from A: A -- U -- X
-2. Commit from E: E -- Y -- Z -- X
-3. Commit from F: F -- Y -- Z -- X
-4. Commit from G: G -- Z -- X
-5. Commit from B: B -- U -- X
-
-After these commits, the tree will have the following parent-hash chains:
-
-* A
-* B -- U -- X
-* E
-* F -- Y
-* G -- Z
-
-Since these chains collectively cover all non-blank parent nodes in the tree,
-the tree is parent-hash valid.
-
-Note that this tree, though valid, contains invalid parent-hash links. If a
-client were checking parent hashes top-down from X, for example, they would find
-that Z has an invalid parent hash relative to X, but that U has valid parent
-hash.  Likewise, if the client were checking bottom-up, they would find that the
-chain from F ends in an invalid link from Y to Z.  These invalid links are the
-natural result of multiple clients having committed.
+For a detailed example of how this process works, see {{th-ph-interaction}}.
 
 ## Update Paths
 
@@ -4990,6 +4971,89 @@ To construct the tree in {{parent-hash-tree}}:
 * A removes F in a full Commit, setting T, U, and W
 * E sends an empty Commit, setting Y and W
 * A adds a new member at F in a partial Commit, adding F as unmerged at Y and W
+
+# Interaction of Tree Hashes and Parent Hashes {#th-ph-interaction}
+
+Recall the example tree from {{full-tree}}:
+
+~~~ aasvg
+              W = root
+              |
+        .-----+-----.
+       /             \
+      _=U             Y
+      |               |
+    .-+-.           .-+-.
+   /     \         /     \
+  T       _=V     X       _=Z
+ / \     / \     / \     / \
+A   B   _   _   E   F   G   _=H
+
+0   1   2   3   4   5   6   7
+~~~
+
+The nodes this tree might have been populated by full Commits from A, E, F, G,
+and B (in that order).  These Commits would send UpdatePaths updating the
+following nodes (where the value for a node is reset each time it is listed and
+the leaves are presumed to start at A1, ..., G1):
+
+1. Commit from A: A2 -- T1 -- W1
+2. Commit from E: E2 -- X1 -- Y1 -- W2
+3. Commit from F: F2 -- X2 -- Y2 -- W3
+4. Commit from G: G2 -- Y3 -- W4
+5. Commit from B: B2 -- T2 -- W5
+
+After these comits, the following parent-hash values would exist in the
+tree (as shown via their inputs):
+
+| `D` | `encryption_key` | `parent_hash`     | `original_sibling_tree_hash`          | Valid? |
+|:====|:=================|:==================|:======================================|:=======|
+| A2  | T1               | `parent_hash(W1)` | `tree_hash(B1)`                       | No     |
+| B2  | T2               | `parent_hash(W5)` | `tree_hash(A2)`                       | Yes    |
+| E2  | X1               | `parent_hash(Y1)` | `tree_hash(F1)`                       | No     |
+| F2  | X2               | `parent_hash(Y2)` | `tree_hash(E2)`                       | Yes    |
+| G2  | Y3               | `parent_hash(W4)` | `tree_hash(E2, X2, F2)`               | Yes    |
+|-----|------------------|-------------------|---------------------------------------|--------|
+| T2  | W5               | `""`              | `tree_hash(E2, X2, F2, Y3, G2, _, _)` | Yes    |
+| X2  | Y2               | `parent_hash(W3)` | `tree_hash(G1, _, _)`                 | No     |
+| Y3  | W4               | `""`              | `tree_hash(A2, T1, B1, _, _, _, _)`   | No     |
+
+(Here `tree_hash(N)` represents the tree hash of the subtree comprised of the
+indicated nodes.)
+
+For the valid links, the inputs match the values still in the tree.  For the
+invalid links, some of the values have been overwritten.  The important thing is
+that all the non-blank parent nodes in the tree are covered as the targets of
+these links, through the following chains:
+
+* B2 -- T2 -- W5
+* G2 -- Y3
+* F2 -- X2
+
+Since these chains collectively cover all non-blank parent nodes in the tree,
+the tree is parent-hash valid.
+
+Note that this tree, though valid, contains invalid parent-hash links. If a
+client were checking parent hashes top-down from X, for example, they would find
+that Z has an invalid parent hash relative to X, but that U has valid parent
+hash.  Likewise, if the client were checking bottom-up, they would find that the
+chain from F ends in an invalid link from Y to Z.  These invalid links are the
+natural result of multiple clients having committed.
+
+Note also the way the tree hash and the parent hash interact.  The parent hash
+of node F2 includes the tree hash of node E2.  The parent hash of node G2
+includes the tree hash of X2, which covers nodes E2 and F2 (include the parent
+hash of F2).  Although the tree hash and the parent hash depend on each other,
+the dependency relationships are structured so that they don't conflict.
+
+In the particular case where a new member first receives the tree for a group
+(e.g., in a ratchet tree GroupInfo extension {{ratchet-tree-extension}}), the
+parent hashes will be expressed in the tree representation, but the tree hash
+need not be.  Instead, the new member will recompute the tree hashes for all the
+nodes in the tree, verifying that this matches the tree hash in the GroupInfo
+object.  Then, if the tree is valid, then the subtree hashes computed in this
+way will align with the inputs needed for parent hash validation (except where
+recomputation is needed to account for unmerged leaves).
 
 # Array-Based Trees
 
