@@ -3376,12 +3376,8 @@ struct {
 } Add;
 ~~~
 
-An Add proposal is invalid if any of the following is true:
-
-* The KeyPackage is invalid according to {{keypackage-validation}}.
-
-* The Credential in the KeyPackage represents a client already in the
-  group according to the application.
+An Add proposal is invalid if the KeyPackage is invalid according to
+{{keypackage-validation}}.
 
 An Add is applied after being included in a Commit message.  The position of the
 Add in the list of proposals determines the leaf node where the new member will
@@ -4299,8 +4295,11 @@ occurs:
   received, or the most recent Update if there are no Removes.
 
 * It contains multiple Add proposals that contain KeyPackages that represent the same
-  client according to the application (for example, identical KeyPackages or KeyPackages
-  sharing the same Credential).
+  client according to the application (for example, identical signature keys).
+
+* It contains an Add proposal with a KeyPackage that represents a client already
+  in the group according to the application, unless there is a Remove proposal
+  in the list removing the matching client from the group.
 
 * It contains multiple PreSharedKey proposals that reference the same PreSharedKeyID.
 
