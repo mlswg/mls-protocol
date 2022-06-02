@@ -986,8 +986,8 @@ structure is unique for a given depth `d`.
 There are multiple ways that an implementation might represent a ratchet tree in
 memory.  A convenient property of the complete trees used here is that they can
 be represented as an array of nodes, with node relationships computed based on
-the nodes indices in the array.  A more traditional representation based on
-linked node object may also be used.  {{array-based-trees}} and
+the nodes' indices in the array.  A more traditional representation based on
+linked node objects may also be used.  {{array-based-trees}} and
 {{link-based-trees}} provide some details on how to implement the tree
 operations required for MLS in these representations.  MLS places no
 requirements on implementations' internal representations
@@ -997,8 +997,8 @@ associated algorithms, as long as they produce correct protocol messages.
 ### Ratchet Tree Nodes
 
 Each leaf node in a ratchet tree is given an _index_ (or _leaf index_), starting
-at `0` from the left to `n-1` at the right (for a tree with `n` leaves). A tree
-with `n` leaves has `2*n - 1` nodes, including parent nodes.
+at `0` from the left to `2^d - 1` at the right (for a tree with `2^d` leaves). A tree
+with `2^d` leaves has `2^(d+1) - 1` nodes, including parent nodes.
 
 Each node in a ratchet tree is either _blank_ (containing no value) or it holds
 an asymmetric key pair with some associated data:
@@ -1064,7 +1064,7 @@ The _filtered direct path_ of a leaf node L is the node's direct path, with any
 node removed whose child on the copath of L has an empty resolution (keeping in
 mind that any unmerged leaves of the copath child count toward its resolution).
 The removed nodes do not need their own key pairs because encrypting to the
-nodes key pair would be equivalent to encrypting to its non-copath child.
+node's key pair would be equivalent to encrypting to its non-copath child.
 
 For example, consider the following tree (where blank nodes are indicated with
 `_`, but also assigned a label for reference):
@@ -4963,9 +4963,9 @@ in this document.
 To construct the tree in {{full-tree}}:
 
 * A creates a group with B, ..., G
-* F sends an empty Commit, setting Y, Z, X
-* G removes C and D, blanking W, V, and setting Z, X
-* B sends an empty Commit, setting U and X
+* F sends an empty Commit, setting X, Y, W
+* G removes C and D, blanking V, U, and setting Y, W
+* B sends an empty Commit, setting T and W
 
 To construct the tree in {{resolution-tree}}:
 
