@@ -4451,9 +4451,9 @@ forward secrecy.
 
 The generation of Commit messages MUST NOT modify a client's state, since the
 client doesn't know at that time whether the changes implied by the Commit
-message will conflict with another Commit or not. Similarly, a client MUST NOT
-send Welcome messages corresponding to a Commit until it's clear that the Commit
-has been accepted.
+message will conflict with another Commit or not. Similarly, the Welcome
+message corresponding to a Commit MUST NOT be delivered to a new
+joiner until it's clear that the Commit has been accepted.
 
 Regardless of how messages are kept in sequence, there is a risk that
 in a sufficiently busy group, a given member may never
