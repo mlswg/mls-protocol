@@ -2244,7 +2244,8 @@ object, which may contain either a `LeafNodeHashInput` or a
 `ParentNodeHashInput` depending on the type of node. `LeafNodeHashInput` objects
 contain the `leaf_index` and the `LeafNode` (if any). `ParentNodeHashInput`
 objects contain the `ParentNode` (if any) and the tree hash of the node's left
-and right children.
+and right children.  For both parent and leaf nodes, the optional node value
+MUST be absent if the node is blank and present if the node contains a value.
 
 ~~~ tls
 enum {
