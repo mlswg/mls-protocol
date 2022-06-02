@@ -979,37 +979,26 @@ number of leaf nodes it contains.  For a given parent node, its _left
 subtree_ is the subtree with its left child as head (respectively
 _right subtree_).
 
-All trees used in this protocol are left-balanced binary trees. A
-binary tree is _full_ (and _balanced_) if its size is a power of
-two and for any parent node in the tree, its left and right subtrees
-have the same size.
-
-A binary tree is _left-balanced_ if for every
-parent, either the parent is balanced, or the left subtree of that
-parent is the largest full subtree that could be constructed from
-the leaves present in the parent's own subtree.
-Given a list of `n` items, there is a unique left-balanced
-binary tree structure with these elements as leaves.
-
-(Note that left-balanced binary trees are the same structure that is
-used for the Merkle trees in the Certificate Transparency protocol
-{{?I-D.ietf-trans-rfc6962-bis}}.)
+Every tree used in this protocol is a perfect binary tree, that is, a complete
+balanced binary tree with `2^d` leaves all at the same depth `d`.  This
+structure is unique for a given depth `d`.
 
 There are multiple ways that an implementation might represent a ratchet tree in
-memory.  For example, left-balanced binary trees can be represented as an array
-of nodes, with node relationships computed based on nodes' indices in the array.
-Or a more traditional representation of linked node objects may be used.
+memory.  A convenient property of left-balanced binary trees (including the
+complete trees used here) is that they can be represented as an array of nodes,
+with node relationships computed based on the nodes' indices in the array.  A
+more traditional representation based on linked node objects may also be used.
 {{array-based-trees}} and {{link-based-trees}} provide some details on how to
-implement the tree operations required for MLS in these representations.
-MLS places no requirements on implementations' internal representations
-of ratchet trees.  An implementation MAY use any tree representation and
-associated algorithms, as long as they produce correct protocol messages.
+implement the tree operations required for MLS in these representations.  MLS
+places no requirements on implementations' internal representations of ratchet
+trees.  An implementation MAY use any tree representation and associated
+algorithms, as long as they produce correct protocol messages.
 
 ### Ratchet Tree Nodes
 
 Each leaf node in a ratchet tree is given an _index_ (or _leaf index_), starting
-at `0` from the left to `n-1` at the right (for a tree with `n` leaves). A tree
-with `n` leaves has `2*n - 1` nodes, including parent nodes.
+at `0` from the left to `2^d - 1` at the right (for a tree with `2^d` leaves). A tree
+with `2^d` leaves has `2^(d+1) - 1` nodes, including parent nodes.
 
 Each node in a ratchet tree is either _blank_ (containing no value) or it holds
 an asymmetric key pair with some associated data:
@@ -1075,25 +1064,25 @@ The _filtered direct path_ of a leaf node L is the node's direct path, with any
 node removed whose child on the copath of L has an empty resolution (keeping in
 mind that any unmerged leaves of the copath child count toward its resolution).
 The removed nodes do not need their own key pairs because encrypting to the
-nodes key pair would be equivalent to encrypting to its non-copath child.
+node's key pair would be equivalent to encrypting to its non-copath child.
 
 For example, consider the following tree (where blank nodes are indicated with
 `_`, but also assigned a label for reference):
 
 ~~~ aasvg
-              X = root
+              W = root
               |
         .-----+-----.
        /             \
-      _=V             Z
+      _=U             Y
       |               |
-    .-+-.           .-+
-   /     \         /   \
-  U       _=W     Y     +
- / \     / \     / \    |
-A   B   _   _   E   F   G
+    .-+-.           .-+-.
+   /     \         /     \
+  T       _=V     X       _=Z
+ / \     / \     / \     / \
+A   B   _   _   E   F   G   _=H
 
-0   1   2   3   4   5   6
+0   1   2   3   4   5   6   7
 ~~~
 {: #full-tree title="A complete tree with seven members, with labels for blank
 parent nodes" }
@@ -1103,11 +1092,11 @@ nodes are as follows:
 
 | Node | Direct path | Copath   | Filtered Direct Path |
 |:=====|:============|:=========|:=====================|
-| A    | U, V, X     | B, W, Z  | U, X                 |
-| B    | U, V, X     | A, W, Z  | U, X                 |
-| E    | Y, Z, X     | F, G, V  | Y, Z, X              |
-| F    | Y, Z, X     | E, G, V  | Y, Z, X              |
-| G    | Z, X        | Y, V     | Z, X                 |
+| A    | T, U, W     | B, V, Y  | T, W                 |
+| B    | T, U, W     | A, V, Y  | T, W                 |
+| E    | X, Y, W     | F, Z, U  | X, Y, W              |
+| F    | X, Y, W     | E, Z, U  | X, Y, W              |
+| G    | Z, Y, W     | H, X, U  | Y, W                 |
 
 ## Views of a Ratchet Tree {#views}
 
@@ -1325,14 +1314,43 @@ the issuer of the previous certificate.  The public key encoded in the
 `subjectPublicKeyInfo` of the end-entity certificate MUST be identical to the
 `signature_key` in the LeafNode containing this credential.
 
-Each new credential that has not already been validated by the application MUST
-be validated against the Authentication Service.  Applications SHOULD require
-that a client present the same set of identifiers throughout its presence in
-the group, even if its Credential is changed in a Commit or Update.  If an
-application allows clients to change identifiers over time, then each time the
-client presents a new credential, the application MUST verify that the set
-of identifiers in the credential is acceptable to the application for this
-client.
+### Credential Validation
+
+The application using MLS is responsible for specifying which identifiers it
+finds acceptable for each member in a group.  In other words, following the
+model that {{?RFC6125}} describes for TLS, the application maintains a list of
+"reference identifiers" for the members of a group, and the credentials provide
+"presented identifiers".  A member of a group is authenticated by first
+validating that the member's credential legitimately represents some presented
+identifiers, and then ensuring that the reference identifiers for the member are
+authenticated by those presented identifiers.
+
+The parts of the system that perform these functions are collectively referred
+to as the Authentication Service (AS) {{?I-D.ietf-mls-architecture}}.  A
+member's credential is said to be _validated with the AS_ when the AS verifies
+the credential's presented identifiers, and verifies that those identifiers
+match the reference identifiers for the member.
+
+Whenever a new credential is introduced in the group, it MUST be validated with
+the AS.  In particular, at the following events in the protocol:
+
+* When a member receives a KeyPackage that it will use in an Add proposal to add
+  a new member to the group.
+* When a member receives a GroupInfo object that it will use to join a group,
+  either via a Welcome or via an External Commit
+* When a member receives an Add proposal adding a member to the group.
+* When a member receives an Update proposal whose LeafNode has a new credential
+  for the member.
+* When a member receives a Commit with an UpdatePath whose LeafNode has a new
+  credential for the committer.
+* When an `external_senders` extension is added to the group, or an existing
+  `external_senders` extension is updated.
+
+In cases where a member's credential is being replaced, such as Update and
+Commit cases above, the AS MUST also verify that the set of presented
+identifiers in the new credential is valid as a successor to the set of
+presented identifiers in the old credential, according to the application's
+policy.
 
 ### Uniquely Identifying Clients
 
@@ -1404,7 +1422,8 @@ enum {
     reserved(0),
     member(1),
     external(2),
-    new_member(3),
+    new_member_proposal(3),
+    new_member_commit(4),
     (255)
 } SenderType;
 
@@ -1415,7 +1434,8 @@ struct {
             uint32 leaf_index;
         case external:
             uint32 sender_index;
-        case new_member:
+        case new_member_commit:
+        case new_member_proposal:
             struct{};
     }
 } Sender;
@@ -1527,10 +1547,10 @@ struct {
     MLSMessageContent content;
     select (MLSMessageContentTBS.content.sender.sender_type) {
         case member:
-        case new_member:
+        case new_member_commit:
             GroupContext context;
-
         case external:
+        case new_member_proposal:
             struct{};
     }
 } MLSMessageContentTBS;
@@ -1567,9 +1587,13 @@ depending on the sender's `sender_type`:
   indicated by `sender_index` in the `external_senders` group context
   extension (see {{external-senders-extension}}). The
   `content_type` of the message MUST be `proposal`.
-* `new_member`: The signature key in the LeafNode in
+* `new_member_commit`: The signature key in the LeafNode in
     the Commit's path (see {{joining-via-external-commits}}). The
     `content_type` of the message MUST be `commit`.
+* `new_member_proposal`: The signature key in the LeafNode in
+    the KeyPackage embedded in an External Add Proposal. The
+    `content_type` of the message MUST be `proposal`and the
+    `proposal_type` of the Proposal MUST be `add`.
 
 Recipients of an MLSMessage MUST verify the signature with the key depending on
 the `sender_type` of the sender as described above.
@@ -1590,7 +1614,8 @@ struct {
         case member:
             MAC membership_tag;
         case external:
-        case new_member:
+        case new_member_commit:
+        case new_member_proposal:
             struct{};
     }
 } MLSPlaintext;
@@ -1793,7 +1818,8 @@ The `encryption_key` field contains an HPKE public key whose private key is held
 by the members at the leaves among its descendants.  The `parent_hash` field
 contains a hash of this node's parent node, as described in {{parent-hash}}.
 The `unmerged_leaves` field lists the leaves under this parent node that are
-unmerged, according to their indices among all the leaves in the tree.
+unmerged, according to their indices among all the leaves in the tree.  The
+entries in the `unmerged_leaves` vector MUST be sorted in increasing order.
 
 ## Leaf Node Contents
 
@@ -1947,16 +1973,8 @@ The validity of a LeafNode needs to be verified at a few stages:
 
 The client verifies the validity of a LeafNode using the following steps:
 
-* Verify that the credential in the LeafNode is valid according to the
-  authentication service and the client's local policy. These actions MUST be
-  the same regardless of at what point in the protocol the LeafNode is being
-  verified with the following exception: If the LeafNode is an update to
-  another LeafNode, the authentication service MUST additionally validate that
-  the set of identities attested by the credential in the new LeafNode is
-  acceptable relative to the identities attested by the old credential.
-  For example:
-    * An Update proposal updates the sender's old LeafNode to a new one
-    * A "resync" external commit removes the joiner's old LeafNode via a Remove proposal and replaces it with a new one
+* Verify that the credential in the LeafNode is valid as described in
+  {{credential-validation}}.
 
 * Verify that the signature on the LeafNode is valid using `signature_key`.
 
@@ -2090,52 +2108,49 @@ leaf_priv -----------+
 ## Adding and Removing Leaves
 
 In addition to the path-based updates to the tree described above, it is also
-necessary to add and remove leaves of the tree in order to reflect changes to the
-membership of the group (see {{add}} and {{remove}}).  Leaves are always added and removed at the
-right edge of the tree: Either a new rightmost leaf is added, or the rightmost
-leaf is removed.  Nodes' parent/child node relationships are then updated to
-maintain the tree's left-balanced structure.  These operations are also known as
-_extending_ and _truncating_ the tree.
+necessary to add and remove leaves of the tree in order to reflect changes to
+the membership of the group (see {{add}} and {{remove}}).  Since the tree is
+always full, adding or removing leaves corresponds to increasing or decreasing
+the depth of the tree, resulting in the number of leaves being doubled or
+halved. These operations are also known as _extending_ and _truncating_ the
+tree.
 
-To add a new leaf: Add leaf L as the new rightmost leaf of the tree.  Add
-a blank parent node P whose right child is L.  P is attached to the
-tree as the right child of the only appropriate node to make the updated tree
-left-balanced (or set it as a new root).  The former right child of P's
-parent becomes P's left child (or the old root becomes P's left child if
-P is the new root).
+Leaves are always added and removed at the right edge of the tree.  When the
+size of the tree needs to be increased, a new blank root node is added, whose
+left subtree is the existing tree and right subtree is a new all-blank subtree.
+This operation is typically done when adding a member to the group.
 
 ~~~ ascii-art
-                   _ <-- new parent              _
-                 __|_                          __|__
-                /    \                        /     \
-  X    ===>    X     |               ===>    X       _ <-- new parent
- / \          / \    |                      / \     / \
-A   B        A   B   C <-- new leaf        A   B   C   D <-- new leaf
+                  _ <-- new blank root                    _
+                __|__                                   __|__
+               /     \                                 /     \
+  X    ===>   X       _ <-- new blank subtree ===>    X       _
+ / \         / \     / \                             / \     / \
+A   B       A   B   _   _                           A   B   C   _
+                                                            ^
+                                                            |
+                                                            +-- new member
 ~~~
+{: title="Extending the tree to make room for a third member"}
 
-To remove the rightmost leaf: Remove the rightmost leaf node L and its parent
-node P.  If P was the root of the tree, P's left child
-is now the root of the tree.  Otherwise, set the right child of P's parent
-to be P's left child.
+When the right subtree of the tree no longer has any non-blank nodes, it can be
+safely removed.  The root of the tree and the right subtree are discarded
+(whether or not the root node is blank). The left child of the root becomes the
+new root node, and the left subtree becomes the new tree.  This operation is
+typically done after removing a member from the group.
 
 ~~~ ascii-art
-      Y                                    Y
-    __|__                                __|_
-   /     \                              /    \
-  X       Z <-- remove parent  ===>    X     | <-- reassign child
- / \     / \                          / \    |
-A   B   C   D <-- remove leaf        A   B   C
-
-
-      Y <-- remove parent
-    __|_
-   /    \
-  X     |                  ===>    X <-- reassign root
- / \    |                         / \
-A   B   C <-- remove leaf        A   B
+               Y                  Y
+             __|__              __|__
+            /     \            /     \
+           X       _   ===>   X       _   ==>   X <-- new root
+          / \     / \        / \     / \       / \
+         A   B   C   _      A   B   _   _     A   B
+                 ^
+                 |
+removed member --+
 ~~~
-
-Note that in the rest of the protocol, the rightmost leaf will only be removed when it is blank.
+{: title="Cleaning up after removing the third member"}
 
 Concrete algorithms for these operations on array-based and link-based trees are
 provided in {{array-based-trees}} and {{link-based-trees}}.  The concrete
@@ -2307,12 +2322,8 @@ fixed by P's Parent Hash. However, for each node that has an HPKE key, this key
 is fixed by P's Parent Hash.
 
 Finally, `original_sibling_tree_hash` is the tree hash of S in the ratchet tree
-modified as follows:
-
-* Extend the subtree of S by adding blank leaves until it is full, i.e., until
-its number of leaves is a power of 2 (see {{adding-and-removing-leaves}}).
-* For each leaf L in `P.unmerged_leaves`, blank L and remove it from the
-`unmerged_leaves` sets of all parent nodes.
+modified as follows: For each leaf L in `P.unmerged_leaves`, blank L and remove
+it from the `unmerged_leaves` sets of all parent nodes.
 
 Observe that `original_sibling_tree_hash` does not change between updates of P.
 This property is crucial for the correctness of the protocol.
@@ -2326,9 +2337,9 @@ For example, in the following tree:
       U               Y [F]
     __|__           __|__
    /     \         /     \
-  T       _       _      |
- / \     / \     / \     |
-A   B   C   D   E   F    G
+  T       _       _       _
+ / \     / \     / \     / \
+A   B   C   D   E   F   G   _
 ~~~
 {: #parent-hash-tree title="A tree illustrating parent hash computations." }
 
@@ -2352,7 +2363,7 @@ the last time P was updated. This is the case for computing or processing a
 Commit whose UpdatePath traverses P, since the Commit itself resets P. (In
 other words, it is only necessary to recompute the original sibling tree hash
 when validating a group's tree on joining.) More generally, if none of the entries
-in `P.unmerged_leaves` is in the subtree under S (and thus no nodes were truncated),
+in `P.unmerged_leaves` is in the subtree under S (and thus no leaves were blanked),
 then the original tree hash at S is the tree hash of S in the current tree.
 
 If it is necessary to recompute the original tree hash of a node, the efficiency
@@ -3248,12 +3259,12 @@ The members of a group reinitialize it using the following steps:
 2. A member of the old group sends a Commit covering the ReInit proposal
 3. A member of the old group creates an initial Commit setting up a new group
    that matches the ReInit and sends a Welcome message
-    * The `group_id`, `version`, and `cipher_suite` fields in the Welcome
+    * The `group_id`, `version`, `cipher_suite`, and `extensions` fields in the Welcome
       message MUST be the same as the corresponding fields in the ReInit
-      proposal.
-    * The Welcome MUST specify a PreSharedKey of type `resumption` with usage
-      `reinit`.  The `group_id` MUST match the old group, and the `epoch` MUST
-      indicate the epoch after the Commit covering the ReInit.
+      proposal. The `epoch` in the Welcome message MUST be 1.
+    * The Welcome MUST specify a PreSharedKeyID of type `resumption` with usage
+      `reinit`, where the `group_id` field matches the old group and the `epoch`
+      field indicates the epoch after the Commit covering the ReInit.
 
 Note that these three steps may be done by the same group member or different
 members.  For example, if a group member sends a Commit with an inline ReInit
@@ -3355,12 +3366,8 @@ struct {
 } Add;
 ~~~
 
-An Add proposal is invalid if any of the following is true:
-
-* The KeyPackage is invalid according to {{keypackage-validation}}.
-
-* The Credential in the KeyPackage represents a client already in the
-  group according to the application.
+An Add proposal is invalid if the KeyPackage is invalid according to
+{{keypackage-validation}}.
 
 An Add is applied after being included in a Commit message.  The position of the
 Add in the list of proposals determines the leaf node where the new member will
@@ -3426,8 +3433,10 @@ A member of the group applies a Remove message by taking the following steps:
 
 * Blank the intermediate nodes along the path from L to the root
 
-* Truncate the tree by removing leaves from the right side of the tree until the
-  rightmost leaf node is not blank.
+* Truncate the tree by removing the right subtree until there is at least one
+  non-blank leaf node in the right subtree.  If the rightmost non-blank leaf has
+  index L, then this will result in the tree having `2^d` leaves, where `d` is
+  the smallest value such that `2^d > L`.
 
 ### PreSharedKey
 
@@ -3442,7 +3451,7 @@ struct {
 
 A PreSharedKey proposal is invalid if any of the following is true:
 
-* The `psktype` in the PreSharedKeyID struct is not set to `resumption` and
+* The `psktype` in the PreSharedKeyID struct is set to `resumption` and
   the `usage` is `reinit` or `branch`.
 
 * The `psk_nonce` is not of length `KDF.Nh`.
@@ -3523,8 +3532,8 @@ group agree on the extensions in use.
 ### External Proposals
 
 Add and Remove proposals can be constructed and sent to the group by a party
-that is outside the group, indicated by an `external` SenderType.
-This is useful in cases where, for example, an automated service might propose to
+that is outside the group in two cases. One case, indicated by an `external` SenderType
+is useful in cases where, for example, an automated service might propose to
 remove a member of a group who has been inactive for a long time, or propose adding
 a newly-hired staff member to a group representing a real-world team.
 
@@ -3534,6 +3543,11 @@ example to enforce a changed policy regarding MLS version or ciphersuite.
 The `external` SenderType requires that signers are pre-provisioned
 to the clients within a group and can only be used if the
 `external_senders` extension is present in the group's GroupContext.
+
+The other case, indicated by a `new_member_proposal` SenderType is useful when
+existing members of the group can independently authorize the addition of an
+MLS client proposing it be added to the group. External proposals which are not
+authorized are considered invalid.
 
 An external proposal MUST be sent as an MLSPlaintext object, since the sender
 will not have the keys necessary to construct an MLSCiphertext object.
@@ -3559,7 +3573,7 @@ A group member creating a commit and a group member processing a commit
 MUST verify that the list of committed proposals is valid using one of the following
 procedures, depending on whether the commit is external or not.
 
-For a regular commit (not an external commit) the list is invalid if any of the following
+For a regular, i.e. not external, commit the list is invalid if any of the following
 occurs:
 
 * It contains an individual proposal that is invalid as specified in {{proposals}}.
@@ -3569,30 +3583,33 @@ occurs:
 * It contains a Remove proposal that removes the committer.
 
 * It contains multiple Update and/or Remove proposals that apply to the same leaf.
-  If the committer has received multiple such proposals they SHOULD prefer any Remove
-  received, or the most recent Update if there are no Removes.
+If the committer has received multiple such proposals they SHOULD prefer any Remove
+received, or the most recent Update if there are no Removes.
 
 * It contains multiple Add proposals that contain KeyPackages that represent the same
-  client according to the application (for example, identical KeyPackages or KeyPackages
-  sharing the same Credential).
+client according to the application (for example, identical signature keys).
+
+* It contains an Add proposal with a KeyPackage that represents a client already
+in the group according to the application, unless there is a Remove proposal
+in the list removing the matching client from the group.
 
 * It contains multiple PreSharedKey proposals that reference the same PreSharedKeyID.
 
 * It contains multiple GroupContextExtensions proposals.
 
 * It contains a ReInit proposal together with any other proposal. If the committer has
-  received other proposals during the epoch, they SHOULD prefer them over the
-  ReInit proposal, allowing the ReInit to be resent and applied in a subsequent
-  epoch.
+received other proposals during the epoch, they SHOULD prefer them over the
+ReInit proposal, allowing the ReInit to be resent and applied in a subsequent
+epoch.
 
 * It contains an ExternalInit proposal.
 
 * It contains a proposal with a non-default proposal type that is not supported by some
-  members of the group that will process the Commit (i.e., members being added
-  or removed by the Commit do not need to support the proposal type).
+members of the group that will process the Commit (i.e., members being added
+or removed by the Commit do not need to support the proposal type).
 
 * After processing the commit the ratchet tree is invalid, in particular, if it
-  contains any leaf node that is invalid according to {{leaf-node-validation}}.
+contains any leaf node that is invalid according to {{leaf-node-validation}}.
 
 An application may extend the above procedure by additional rules, for example,
 requiring application-level permissions to add members, or rules concerning
@@ -3604,18 +3621,15 @@ For an external commit, the list is valid if it contains only the following prop
 * Exactly one ExternalInit
 
 * At most one Remove proposal, with which the joiner removes an
-  old version of themselves. If a Remove proposal is present, then the LeafNode in the
-  `path` field of the external commit MUST meet the same criteria as would the LeafNode
-  in an Update for the removed leaf (see {{update}}). In particular, the `credential`
-  in the LeafNode MUST present a set of identifiers that is acceptable to the
-  application for the removed participant.
+old version of themselves. If a Remove proposal is present, then the LeafNode in the
+`path` field of the external commit MUST meet the same criteria as would the LeafNode
+in an Update for the removed leaf (see {{update}}). In particular, the `credential`
+in the LeafNode MUST present a set of identifiers that is acceptable to the
+application for the removed participant.
 
 * Zero or more PreSharedKey proposals.
 
 * No other proposals.
-
-Proposal type defined in the future may make updates to the above validation
-logic to incorporate considerations related to proposals of the new type.
 
 ## Applying a Proposal List
 
@@ -3804,7 +3818,7 @@ message at the same time, by taking the following steps:
   * Generate path secrets for the parent nodes along the sender's filtered
     direct path, as described in {{synchronizing-views-of-the-tree}}.  Define
     `commit_secret` as the value `path_secret[n+1]` derived from the
-    `path_secret[n]` value assigned to the root node.
+    last path secret value (`path_secret[n]`) derived for the UpdatePath.
 
   * Update the new ratchet tree by setting the parent nodes on the sender's
     filtered direct path based on the path secrets. Compute parent hashes for
@@ -3942,7 +3956,7 @@ A member of the group applies a Commit message by taking the following steps:
     decrypting the path secret and storing `leaf_node` at the committer's leaf.
 
   * Define `commit_secret` as the value `path_secret[n+1]` derived from the
-    `path_secret[n]` value assigned to the root node.
+    last path secret value (`path_secret[n]`) derived for the UpdatePath.
 
 * If the `path` value is not populated: Define `commit_secret` as the all-zero
   vector of length `KDF.Nh` (the same length as a `path_secret` value would be).
@@ -4074,7 +4088,7 @@ has to meet a specific set of requirements:
 * When processing a Commit, both existing and new members MUST use the external
   init secret as described in {{external-initialization}}.
 * The sender type for the MLSPlaintext encapsulating the External Commit MUST be
-  `new_member`
+  `new_member_commit`
 
 External Commits come in two "flavors" -- a "join" commit that
 adds the sender to the group or a "resync" commit that replaces a member's prior
@@ -4096,7 +4110,7 @@ continuing, non-resynchronizing members have the required PSK.
 
 The sender of a Commit message is responsible for sending a single Welcome message to
 all the new members added via Add proposals.  The Welcome message provides the new
-members with the current state of the group, after the application of the Commit
+members with the current state of the group after the application of the Commit
 message.  The new members will not be able to decrypt or verify the Commit
 message, but will have the secrets they need to participate in the epoch
 initiated by the Commit message.
@@ -4157,7 +4171,9 @@ On receiving a Welcome message, a client processes it using the following steps:
   referenced KeyPackage.
 
 * If a `PreSharedKeyID` is part of the GroupSecrets and the client is not in
-  possession of the corresponding PSK, return an error.
+  possession of the corresponding PSK, return an error. Additionally, if a
+  `PreSharedKeyID` has type `resumption` with usage `reinit` or `branch`, verify
+  that it is the only such PSK.
 
 * From the `joiner_secret` in the decrypted GroupSecrets object and the PSKs
   specified in the `GroupSecrets`, derive the `welcome_secret` and using that
@@ -4231,6 +4247,20 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 * Use the confirmed transcript hash and confirmation tag to compute the interim
   transcript hash in the new state.
 
+* If a `PreSharedKeyID` was used that has type `resumption` with usage `reinit`
+  or `branch`, verify that the `epoch` field in the GroupInfo is equal to 1.
+
+  * For usage `reinit`, verify that the last Commit to the referenced group
+    contains a ReInit proposal and that the `group_id`, `version`,
+    `cipher_suite`, and `group_context.extensions` fields of the GroupInfo match
+    the ReInit proposal. Additionally, verify that all the members of the old
+    group are also members of the new group, according to the application.
+
+  * For usage `branch`, verify that the `version` and `cipher_suite` of the new
+    group match those of the old group, and that the members of the new group
+    compose a subset of the members of the old group, according to the
+    application.
+
 ## Ratchet Tree Extension
 
 By default, a GroupInfo message only provides the joiner with a hash of
@@ -4256,17 +4286,28 @@ struct {
 optional<Node> ratchet_tree<V>;
 ~~~
 
+Each entry in the `ratchet_tree` vector provides the value for a node in the
+tree, or the null optional for a blank node.
+
 The nodes are listed in the order specified by a left-to-right in-order
 traversal of the ratchet tree. Each node is listed between its left subtree and
 its right subtree.  (This is the same ordering as specified for the array-based
 trees outlined in {{array-based-trees}}.)
 
-The leaves of the tree are stored in even-numbered entries in
-the array (the leaf with index L in array position 2*L). The root node of the
-tree is at position 2^k - 1 of the array, where k is the largest number such
-that 2^k is smaller than the length of the array. Intermediate parent nodes can
-be identified by performing the same calculation to the subarrays to the left
-and right of the root, following something like the following algorithm:
+If the tree has `2^d` leaves, then it has `2^(d+1) - 1` nodes.  The
+`ratchet_tree` vector logically has this number of entries, but the sender
+SHOULD NOT include blank nodes after the last non-blank node.  If a receiver
+encounters a vector whose length `L` is not of the form `2^(d+1) - 1`, then the
+receiver MUST extend it to the right with blank values until it has such a
+length, adding the minimum number of blank values possible.  (Obviously, this
+may be done "virtually", by synthesizing blank nodes when required, as opposed
+to actually changing the structure in memory.)
+
+The leaves of the tree are stored in even-numbered entries in the array (the
+leaf with index `L` in array position `2*L`). The root node of the tree is at
+position `2^d - 1` of the array. Intermediate parent nodes can be identified by
+performing the same calculation to the subarrays to the left and right of the
+root, following something like the following algorithm:
 
 ~~~ python
 # Assuming a class Node that has left and right members
@@ -4280,10 +4321,10 @@ def subtree_root(nodes):
         raise Exception("Malformed node array {}", len(nodes))
 
     # Identify the root of the subtree
-    k = 0
-    while (2**(k+1)) < len(nodes):
-       k += 1
-    R = 2**k - 1
+    d = 0
+    while (2**(d+1)) < len(nodes):
+       d += 1
+    R = 2**d - 1
     root = Node(nodes[R])
     root.left = subtree_root(nodes[:R])
     root.right = subtree_root(nodes[(R+1):])
@@ -4294,28 +4335,29 @@ def subtree_root(nodes):
 described in {{array-based-trees}}.  The algorithms in that section may be used to
 simplify decoding this extension into other representations.)
 
-The example tree in {{ratchet-tree-terminology}} would be represented as an
-array of nodes in the following form, where R represents the "subtree root" for
-a given subarray of the node array:
+For example, the following tree with six non-blank leaves would be represented
+as an array of eleven elements, `[A, W, B, X, C, _, D, Y, E, Z, F]`.  The above
+decoding procedure would identify the subtree roots as follows (using R to
+represent a subtree root):
 
 ~~~ aasvg
-              P
+              Y
               |
         .-----+-----.
        /             \
-      N               R
+      X               _
       |               |
-    .-+-.           .-+
-   /     \         /   \
-  M       O       Q     |
- / \     / \     / \    |
-A   B   C   D   E   F   G
+    .-+-.           .-+-.
+   /     \         /     \
+  W       _       Z       _
+ / \     / \     / \     / \
+A   B   C   D   E   F   _   _
 
-                    1 1 1
-0 1 2 3 4 5 6 7 8 9 0 1 2
-<-----------> R <------->
-<---> R <--->   <---> R -
-- R -   - R -   - R -
+                    1
+0 1 2 3 4 5 6 7 8 9 0
+<-----------> R <----------->
+<---> R <--->   <---> R <--->
+- R -   - R -   - R -   - R -
 ~~~
 
 The presence of a `ratchet_tree` extension in a GroupInfo message does not
@@ -4538,54 +4580,37 @@ for some clients if they keep failing to get their proposal accepted.
 
 # Application Messages
 
-The primary purpose of the Handshake protocol is to provide an
-authenticated group key exchange to clients. In order to protect
-Application messages sent among the members of a group, the Application
-secret provided by the Handshake key schedule is used to derive nonces
-and encryption keys for the Message Protection Layer according to
-the Application Key Schedule. That is, each epoch is equipped with
-a fresh Application Key Schedule which consist of a tree of Application
-Secrets as well as one symmetric ratchet per group member.
+The primary purpose of handshake messages are to provide an authenticated group
+key exchange to clients. In order to protect application messages sent among the
+members of a group, the `encryption_secret` provided by the key schedule is used
+to derive a sequence of nonces and keys for message encryption. Every epoch
+moves the key schedule forward which triggers the creation of a new secret
+tree, as described in {{secret-tree}}, along with a new set of symmetric
+ratchets of nonces and keys for each member.
 
-Each client maintains their own local copy of the Application Key
-Schedule for each epoch during which they are a group member. They
-derive new keys, nonces and secrets as needed while deleting old
+Each client maintains their own local copy of the key
+schedule for each epoch during which they are a group member. They
+derive new keys, nonces, and secrets as needed while deleting old
 ones as soon as they have been used.
 
-Application messages MUST be protected with the Authenticated-Encryption
-with Associated-Data (AEAD) encryption scheme associated with the
-MLS ciphersuite using the common framing mechanism.
-Note that "Authenticated" in this context does not mean messages are
-known to be sent by a specific client but only from a legitimate
-member of the group.
-To authenticate a message from a particular member, signatures are
-required. Handshake messages MUST use asymmetric signatures to strongly
-authenticate the sender of a message.
-
-## Message Encryption and Decryption
-
-The group members MUST use the AEAD algorithm associated with
-the negotiated MLS ciphersuite to AEAD encrypt and decrypt their
-Application messages according to the Message Framing section.
-
 The group identifier and epoch allow a recipient to know which group secrets
-should be used and from which Epoch secret to start computing other secrets
-and keys. The sender identifier is used to identify the member's
-symmetric ratchet from the initial group Application secret. The application
-generation field is used to determine how far into the ratchet to iterate in
-order to reproduce the required AEAD keys and nonce for performing decryption.
+should be used and from which `epoch_secret` to start computing other secrets.
+The sender identifier and content type is used to identify which
+symmetric ratchet to use from the secret tree. The
+`generation` counter determines how far into the ratchet to iterate in
+order to produce the required nonce and key for encryption or decryption.
 
-Application messages SHOULD be padded to provide some resistance
-against traffic analysis techniques over encrypted traffic.
+## Padding
+
+Application messages MAY be padded to provide some resistance
+against traffic analysis techniques over encrypted traffic
 {{?CLINIC=DOI.10.1007/978-3-319-08506-7_8}}
-{{?HCJ16=DOI.10.1186/s13635-016-0030-7}}
+{{?HCJ16=DOI.10.1186/s13635-016-0030-7}}.
 While MLS might deliver the same payload less frequently across
 a lot of ciphertexts than traditional web servers, it might still provide
-the attacker enough information to mount an attack. If Alice asks Bob:
-"When are we going to the movie ?" the answer "Wednesday" might be leaked
-to an adversary by the ciphertext length. An attacker expecting Alice to
-answer Bob with a day of the week might find out the plaintext by
-correlation between the question and the length.
+the attacker enough information to mount an attack. If Alice asks Bob
+"When are we going to the movie?", then the answer "Wednesday" could be leaked
+to an adversary solely by the ciphertext length.
 
 The length of the `padding` field in `MLSCiphertextContent` can be
 chosen at the time of message encryption by the sender. Senders may use padding
@@ -4594,10 +4619,10 @@ encrypted content.
 
 ## Restrictions {#restrictions}
 
-During each epoch senders MUST NOT encrypt more data than permitted by the
+During each epoch, senders MUST NOT encrypt more data than permitted by the
 security bounds of the AEAD scheme used {{?I-D.irtf-cfrg-aead-limits}}.
 
-Note that each change to the Group through a Handshake message will also set a
+Note that each change to the group through a handshake message will also set a
 new `encryption_secret`. Hence this change MUST be applied before encrypting
 any new application message. This is required both to ensure that any users
 removed from the group can no longer receive messages and to (potentially)
@@ -4606,16 +4631,24 @@ state compromise.
 
 ## Delayed and Reordered Application messages
 
-Since each Application message contains the group identifier, the epoch and a
-message counter, a client can receive messages out of order.
-If they are able to retrieve or recompute the correct AEAD decryption key
-from currently stored cryptographic material clients can decrypt
-these messages.
+Since each application message contains the group identifier, the epoch, and a
+generation counter, a client can receive messages out of order. When messages
+are received out of order, the client moves the sender ratchet forward to match
+the received generation counter. Any unused nonce and key pairs from the ratchet
+are potentially stored so that they can be used to decrypt the messages which
+were delayed or reordered.
 
-For usability, MLS clients might be required to keep the AEAD key
-and nonce for a certain amount of time to retain the ability to decrypt
-delayed or out of order messages, possibly still in transit while a
-decryption is being done.
+Applications SHOULD define a policy on how long to keep unused nonce and key
+pairs for a sender, and the maximum number to keep. This is in addition to
+ensuring that these nonce and key pairs are promptly deleted when the epoch
+ends. Applications SHOULD also define a policy limiting the maximum number of
+steps that clients will move the ratchet forward in response to a new message.
+Messages received with a generation counter that's too much higher than the last
+message received would then be rejected. This avoids causing a denial-of-service
+attack by requiring the recipient to perform an excessive number of key
+derivations. For example, a malicious group member could send a message with
+`generation = 0xffffffff` at the beginning of a new epoch, forcing recipients to
+perform billions of key derivations.
 
 # Security Considerations
 
@@ -5031,15 +5064,15 @@ Security considerations:
 # Contributors
 
 * Joel Alwen \\
-  Wickr \\
-  joel.alwen@wickr.com
+  Amazon \\
+  alwenjo@amazon.com
 
 * Karthikeyan Bhargavan \\
-  INRIA \\
+  Inria \\
   karthikeyan.bhargavan@inria.fr
 
 * Cas Cremers \\
-  University of Oxford \\
+  CISPA \\
   cremers@cispa.de
 
 * Alan Duric \\
@@ -5062,9 +5095,16 @@ Security considerations:
   MIT \\
   kwonal@mit.edu
 
+* Tom Leavy \\
+  Amazon \\
+  tomleavy@amazon.com
+
 * Brendan McMillion \\
-  Cloudflare \\
-  brendan@cloudflare.com
+  brendanmcmillion@gmail.com
+
+* Marta Mularczyk \\
+  Amazon \\
+  mulmarta@amazon.com
 
 * Eric Rescorla \\
   Mozilla \\
@@ -5073,6 +5113,10 @@ Security considerations:
 * Michael Rosenberg \\
   Trail of Bits \\
   michael.rosenberg@trailofbits.com
+
+* Théophile Wallez \\
+  Inria \\
+  theophile.wallez@inria.fr
 
 * Thyla van der Merwe \\
   Royal Holloway, University of London \\
@@ -5090,9 +5134,9 @@ in this document.
 To construct the tree in {{full-tree}}:
 
 * A creates a group with B, ..., G
-* F sends an empty Commit, setting Y, Z, X
-* G removes C and D, blanking W, V, and setting Z, X
-* B sends an empty Commit, setting U and X
+* F sends an empty Commit, setting X, Y, W
+* G removes C and D, blanking V, U, and setting Y, W
+* B sends an empty Commit, setting T and W
 
 To construct the tree in {{resolution-tree}}:
 
@@ -5120,33 +5164,29 @@ To construct the tree in {{parent-hash-tree}}:
 
 # Array-Based Trees
 
-One benefit of using left-balanced trees is that they admit a simple
+One benefit of using complete balanced trees is that they admit a simple
 flat array representation.  In this representation, leaf nodes are
-even-numbered nodes, with the n-th leaf at 2\*n.  Intermediate nodes
-are held in odd-numbered nodes.  For example, tree with 11 leaves has
+even-numbered nodes, with the `n`-th leaf at `2*n`.  Intermediate nodes
+are held in odd-numbered nodes.  For example, the tree with 8 leaves has
 the following structure:
 
 ~~~ aasvg
-                                                   X
-                                                   |
-                             .---------------------+---------.
-                            /                                 \
-                           X                                   |
-                           |                                   |
-                 .---------+---------.                         |
-                /                     \                        |
-               X                       X                       X
-               |                       |                       |
-           .---+---.               .---+---.               .---+.
-          /         \             /         \             /      \
-         X           X           X           X           X        |
-        / \         / \         / \         / \         / \       |
-       /   \       /   \       /   \       /   \       /   \      |
-      X     X     X     X     X     X     X     X     X     X     X
+                           X
+                           |
+                 .---------+---------.
+                /                     \
+               X                       X
+               |                       |
+           .---+---.               .---+---.
+          /         \             /         \
+         X           X           X           X
+        / \         / \         / \         / \
+       /   \       /   \       /   \       /   \
+      X     X     X     X     X     X     X     X
 
-Node: 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20
+Node: 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14
 
-Leaf: 0     1     2     3     4     5     6     7     8     9    10
+Leaf: 0     1     2     3     4     5     6     7
 ~~~
 
 This allows us to compute relationships between tree nodes simply by
@@ -5159,11 +5199,11 @@ parent=01x => left=00x, right=10x
 ~~~
 
 Since node relationships are implicit, the algorithms for adding and removing
-nodes at the right edge of the tree are quite simple:
+nodes at the right edge of the tree are quite simple.  If there are `N` nodes in
+the array:
 
-* Add: Append a blank parent node to the array of nodes, then append the new
-  leaf node
-* Remove: Remove the rightmost two nodes from the array of nodes
+* Add: Append `N + 1` blank values to the end of the array.
+* Remove: Truncate the array to its first `(N-1) / 2` entries.
 
 The following python code demonstrates the tree computations necessary to use an
 array-based tree for MLS.
@@ -5204,8 +5244,7 @@ def root(n):
     w = node_width(n)
     return (1 << log2(w)) - 1
 
-# The left child of an intermediate node. Note that because the tree
-# is left-balanced, there is no dependency on the size of the tree.
+# The left child of an intermediate node.
 def left(x):
     k = level(x)
     if k == 0:
@@ -5213,42 +5252,28 @@ def left(x):
 
     return x ^ (0x01 << (k - 1))
 
-# The right child of an intermediate node. Depends on the number of
-# leaves because the straightforward calculation can take you beyond
-# the edge of the tree.
-def right(x, n):
+# The right child of an intermediate node.
+def right(x):
     k = level(x)
     if k == 0:
         raise Exception('leaf node has no children')
 
-    r = x ^ (0x03 << (k - 1))
-    while r >= node_width(n):
-        r = left(r)
-    return r
+    return x ^ (0x03 << (k - 1))
 
-# The immediate parent of a node. May be beyond the right edge of the
-# tree.
-def parent_step(x):
-    k = level(x)
-    b = (x >> (k + 1)) & 0x01
-    return (x | (1 << k)) ^ (b << (k + 1))
-
-# The parent of a node. As with the right child calculation, we have
-# to walk back until the parent is within the range of the tree.
+# The parent of a node.
 def parent(x, n):
     if x == root(n):
         raise Exception('root node has no parent')
 
-    p = parent_step(x)
-    while p >= node_width(n):
-        p = parent_step(p)
-    return p
+    k = level(x)
+    b = (x >> (k + 1)) & 0x01
+    return (x | (1 << k)) ^ (b << (k + 1))
 
 # The other child of the node's parent.
 def sibling(x, n):
     p = parent(x, n)
     if x < p:
-        return right(p, n)
+        return right(p)
     else:
         return left(p)
 
@@ -5312,7 +5337,7 @@ representation, where each node stores references to its parents and/or
 children.   (As opposed to the array-based representation suggested above, where
 these relationships are computed from relationships between nodes' indices in
 the array.)  Such an implementation needs to update these links to maintain the
-left-balanced structure of the tree as the tree is extended to add new members,
+balanced structure of the tree as the tree is extended to add new members,
 or truncated when members are removed.
 
 The following code snippet shows how these algorithms could be implemented in
@@ -5320,77 +5345,49 @@ Python.
 
 ~~~ python
 class Node:
-    def __init__(self, value, parent=None, left=None, right=None):
+    def __init__(self, value, left=None, right=None):
         self.value = value    # Value of the node
-        self.parent = parent  # Parent node
         self.left = left      # Left child node
         self.right = right    # Right child node
 
-    def leaf(self):
-        return self.left == None and self.right == None
+    @staticmethod
+    def blank_subtree(depth):
+        if depth == 1:
+            return Node(None)
 
-    def span(self):
-        if self.leaf():
-            return 1
-        return self.left.span() + self.right.span()
+        L = Node.blank_subtree(depth-1)
+        R = Node.blank_subtree(depth-1)
+        return Node(None, left=L, right=R)
 
-    def full(self):
-        span = self.span()
-        while span % 2 == 0:
-            span >>= 1
-        return span == 1
-
-    def rightmost_leaf(self):
-        X = self
-        while X.right != None:
-            X = X.right
-        return X
+    def empty(self):
+        L_empty = (self.left == None) or self.left.empty()
+        R_empty = (self.left == None) or self.left.empty()
+        return (self.value == None) and L_empty and R_empty
 
 class Tree:
     def __init__(self):
+        self.depth = 0    # Depth of the tree
         self.root = None  # Root node of the tree, initially empty
 
-    def extend(self, N):
-        if self.root == None:
-            self.root = N
-            return
+    # Add a blank subtree to the right
+    def extend(self):
+        if self.depth == 0:
+            self.depth = 1
+            self.root = Node(None)
 
-        # Identify the proper point to insert the new parent node
-        X = self.root.rightmost_leaf()
-        while X.full() and X != self.root:
-            X = X.parent
+        L = self.root
+        R = Node.blank_subtree(self.depth)
+        self.root = Node(None, left=self.root, right=R)
+        self.depth += 1
 
-        # If X is not full, insert the new parent under X
-        P = Node("_", right=N)
-        N.parent = P
-        if not X.full():
-            P.parent = X
-            P.left = X.right
-            X.right.parent = P
-            X.right = P
-            return
-
-        # If X is full, then X is the root, so P replaces the root
-        P.left = self.root
-        self.root.parent = P
-        self.root = P
-        return
-
+    # Truncate the right subtree
     def truncate(self):
-        X = self.root.rightmost_leaf()
-        if X == self.root:
-            self.root = None
-            return
+        if self.root == None or self.root.right == None:
+            raise Exception("Cannot truncate a tree with 0 or 1 nodes")
 
-        # If X's parent is the root, then shift the root to the left
-        if X.parent == self.root:
-            self.root = self.root.left
-            self.root.parent = None
-            return
+        if not self.root.right.empty():
+            raise Exception("Cannot truncate non-blank subtree")
 
-        # Otherwise, reassign the right child of the parent's parent
-        Q = X.parent.parent
-        Q.right = X.parent.left
-        Q.right.parent = Q
-        return
+        self.depth -= 1
+        self.root = self.root.left
 ~~~
