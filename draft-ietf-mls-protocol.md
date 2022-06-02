@@ -3738,7 +3738,7 @@ message at the same time, by taking the following steps:
   * Generate path secrets for the parent nodes along the sender's filtered
     direct path, as described in {{synchronizing-views-of-the-tree}}.  Define
     `commit_secret` as the value `path_secret[n+1]` derived from the
-    `path_secret[n]` value assigned to the root node.
+    last path secret value (`path_secret[n]`) derived for the UpdatePath.
 
   * Update the new ratchet tree by setting the parent nodes on the sender's
     filtered direct path based on the path secrets. Compute parent hashes for
@@ -3883,7 +3883,7 @@ A member of the group applies a Commit message by taking the following steps:
     decrypting the path secret and storing `leaf_node` at the committer's leaf.
 
   * Define `commit_secret` as the value `path_secret[n+1]` derived from the
-    `path_secret[n]` value assigned to the root node.
+    last path secret value (`path_secret[n]`) derived for the UpdatePath.
 
 * If the `path` value is not populated: Define `commit_secret` as the all-zero
   vector of length `KDF.Nh` (the same length as a `path_secret` value would be).
