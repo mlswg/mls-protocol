@@ -984,15 +984,15 @@ balanced binary tree with `2^d` leaves all at the same depth `d`.  This
 structure is unique for a given depth `d`.
 
 There are multiple ways that an implementation might represent a ratchet tree in
-memory.  A convenient property of the complete trees used here is that they can
-be represented as an array of nodes, with node relationships computed based on
-the nodes' indices in the array.  A more traditional representation based on
-linked node objects may also be used.  {{array-based-trees}} and
-{{link-based-trees}} provide some details on how to implement the tree
-operations required for MLS in these representations.  MLS places no
-requirements on implementations' internal representations
-of ratchet trees.  An implementation MAY use any tree representation and
-associated algorithms, as long as they produce correct protocol messages.
+memory.  A convenient property of left-balanced binary trees (including the
+complete trees used here) is that they can be represented as an array of nodes,
+with node relationships computed based on the nodes' indices in the array.  A
+more traditional representation based on linked node objects may also be used.
+{{array-based-trees}} and {{link-based-trees}} provide some details on how to
+implement the tree operations required for MLS in these representations.  MLS
+places no requirements on implementations' internal representations of ratchet
+trees.  An implementation MAY use any tree representation and associated
+algorithms, as long as they produce correct protocol messages.
 
 ### Ratchet Tree Nodes
 
@@ -4218,10 +4218,10 @@ traversal of the ratchet tree. Each node is listed between its left subtree and
 its right subtree.  (This is the same ordering as specified for the array-based
 trees outlined in {{array-based-trees}}.)
 
-If the tree has `2^d` leaves, then it has `2^{d+1} - 1` nodes.  The
+If the tree has `2^d` leaves, then it has `2^(d+1) - 1` nodes.  The
 `ratchet_tree` vector logically has this number of entries, but the sender
 SHOULD NOT include blank nodes after the last non-blank node.  If a receiver
-encounters a vector whose length `L` is not of the form `2^{d+1} - 1`, then the
+encounters a vector whose length `L` is not of the form `2^(d+1) - 1`, then the
 receiver MUST extend it to the right with blank values until it has such a
 length, adding the minimum number of blank values possible.  (Obviously, this
 may be done "virtually", by synthesizing blank nodes when required, as opposed
