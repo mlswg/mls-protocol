@@ -1325,14 +1325,43 @@ the issuer of the previous certificate.  The public key encoded in the
 `subjectPublicKeyInfo` of the end-entity certificate MUST be identical to the
 `signature_key` in the LeafNode containing this credential.
 
-Each new credential that has not already been validated by the application MUST
-be validated against the Authentication Service.  Applications SHOULD require
-that a client present the same set of identifiers throughout its presence in
-the group, even if its Credential is changed in a Commit or Update.  If an
-application allows clients to change identifiers over time, then each time the
-client presents a new credential, the application MUST verify that the set
-of identifiers in the credential is acceptable to the application for this
-client.
+### Credential Validation
+
+The application using MLS is responsible for specifying which identifiers it
+finds acceptable for each member in a group.  In other words, following the
+model that {{?RFC6125}} describes for TLS, the application maintains a list of
+"reference identifiers" for the members of a group, and the credentials provide
+"presented identifiers".  A member of a group is authenticated by first
+validating that the member's credential legitimately represents some presented
+identifiers, and then ensuring that the reference identifiers for the member are
+authenticated by those presented identifiers.
+
+The parts of the system that perform these functions are collectively referred
+to as the Authentication Service (AS) {{?I-D.ietf-mls-architecture}}.  A
+member's credential is said to be _validated with the AS_ when the AS verifies
+the credential's presented identifiers, and verifies that those identifiers
+match the reference identifiers for the member.
+
+Whenever a new credential is introduced in the group, it MUST be validated with
+the AS.  In particular, at the following events in the protocol:
+
+* When a member receives a KeyPackage that it will use in an Add proposal to add
+  a new member to the group.
+* When a member receives a GroupInfo object that it will use to join a group,
+  either via a Welcome or via an External Commit
+* When a member receives an Add proposal adding a member to the group.
+* When a member receives an Update proposal whose LeafNode has a new credential
+  for the member.
+* When a member receives a Commit with an UpdatePath whose LeafNode has a new
+  credential for the committer.
+* When an `external_senders` extension is added to the group, or an existing
+  `external_senders` extension is updated.
+
+In cases where a member's credential is being replaced, such as Update and
+Commit cases above, the AS MUST also verify that the set of presented
+identifiers in the new credential is valid as a successor to the set of
+presented identifiers in the old credential, according to the application's
+policy.
 
 ### Uniquely Identifying Clients
 
@@ -1947,16 +1976,8 @@ The validity of a LeafNode needs to be verified at a few stages:
 
 The client verifies the validity of a LeafNode using the following steps:
 
-* Verify that the credential in the LeafNode is valid according to the
-  authentication service and the client's local policy. These actions MUST be
-  the same regardless of at what point in the protocol the LeafNode is being
-  verified with the following exception: If the LeafNode is an update to
-  another LeafNode, the authentication service MUST additionally validate that
-  the set of identities attested by the credential in the new LeafNode is
-  acceptable relative to the identities attested by the old credential.
-  For example:
-    * An Update proposal updates the sender's old LeafNode to a new one
-    * A "resync" external commit removes the joiner's old LeafNode via a Remove proposal and replaces it with a new one
+* Verify that the credential in the LeafNode is valid as described in
+  {{credential-validation}}.
 
 * Verify that the signature on the LeafNode is valid using `signature_key`.
 
