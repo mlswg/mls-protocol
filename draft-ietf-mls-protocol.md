@@ -2287,17 +2287,20 @@ indirectly includes information about the structure of the tree at the time the
 leaf node was last updated.
 
 Consider a ratchet tree with a non-blank parent node P and children D and S (for
-"parent", "direct path", and "sibling"):
+"parent", "direct path", and "sibling"), with D and P in the direct path of a
+leaf node L (for "leaf"):
 
 ~~~ ascii-art
-        ...
-        /
-       P
-     __|__
-    /     \
-   D       S
-  / \     / \
-... ... ... ...
+         ...
+         /
+        P
+      __|__
+     /     \
+    D       S
+   / \     / \
+ ... ... ... ...
+ /
+L
 ~~~
 
 
