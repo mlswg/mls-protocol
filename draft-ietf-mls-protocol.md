@@ -1433,8 +1433,8 @@ enum {
     reserved(0),
     member(1),
     external(2),
-    new_proposal_member(3),
-    new_commit_member(4),
+    new_member_proposal(3),
+    new_member_commit(4),
     (255)
 } SenderType;
 
@@ -1445,8 +1445,8 @@ struct {
             uint32 leaf_index;
         case external:
             uint32 sender_index;
-        case new_commit_member:
-        case new_proposal_member:
+        case new_member_commit:
+        case new_member_proposal:
             struct{};
     }
 } Sender;
@@ -1558,10 +1558,10 @@ struct {
     MLSMessageContent content;
     select (MLSMessageContentTBS.content.sender.sender_type) {
         case member:
-        case new_commit_member:
+        case new_member_commit:
             GroupContext context;
         case external:
-        case new_proposal_member:
+        case new_member_proposal:
             struct{};
     }
 } MLSMessageContentTBS;
@@ -1598,12 +1598,13 @@ depending on the sender's `sender_type`:
   indicated by `sender_index` in the `external_senders` group context
   extension (see {{external-senders-extension}}). The
   `content_type` of the message MUST be `proposal`.
-* `new_commit_member`: The signature key in the LeafNode in
+* `new_member_commit`: The signature key in the LeafNode in
     the Commit's path (see {{joining-via-external-commits}}). The
     `content_type` of the message MUST be `commit`.
-* `new_proposal_member`: The signature key in the LeafNode in
+* `new_member_proposal`: The signature key in the LeafNode in
     the KeyPackage embedded in an External Add Proposal. The
-    `content_type` of the message MUST be `proposal`.
+    `content_type` of the message MUST be `proposal`and the
+    `proposal_type` of the Proposal MUST be `add`.
 
 Recipients of an MLSMessage MUST verify the signature with the key depending on
 the `sender_type` of the sender as described above.
@@ -1624,8 +1625,8 @@ struct {
         case member:
             MAC membership_tag;
         case external:
-        case new_commit_member:
-        case new_proposal_member:
+        case new_member_commit:
+        case new_member_proposal:
             struct{};
     }
 } MLSPlaintext;
@@ -3558,7 +3559,7 @@ The `external` SenderType requires that signers are pre-provisioned
 to the clients within a group and can only be used if the
 `external_senders` extension is present in the group's GroupContext.
 
-The other case, indicated by a `new_proposal_member` SenderType is useful when
+The other case, indicated by a `new_member_proposal` SenderType is useful when
 existing members of the group can independently authorize the addition of an
 MLS client proposing it be added to the group. External proposals which are not
 authorized are considered invalid.
@@ -4026,7 +4027,7 @@ has to meet a specific set of requirements:
 * When processing a Commit, both existing and new members MUST use the external
   init secret as described in {{external-initialization}}.
 * The sender type for the MLSPlaintext encapsulating the External Commit MUST be
-  `new_commit_member`
+  `new_member_commit`
 
 External Commits come in two "flavors" -- a "join" commit that
 adds the sender to the group or a "resync" commit that replaces a member's prior
