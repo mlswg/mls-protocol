@@ -3631,19 +3631,26 @@ application for the removed participant.
 
 * No other proposals.
 
+Proposal types defined in the future may make updates to the above validation
+logic to incorporate considerations related to proposals of the new type.
+
 ## Applying a Proposal List
 
 The sections above defining each proposal type describe how each individual
-proposals are applied.  When creating or processing a Commit, a client applies a
+proposals is applied.  When creating or processing a Commit, a client applies a
 list of proposals to the ratchet tree and GroupContext. The client MUST apply
 the proposals in the list in the following order:
 
 * If there is a GroupContextExtensions proposal, replace the `extensions` field
-  of the GroupContext for the group with the contents of the extension.
+  of the GroupContext for the group with the contents of the proposal.  The
+  new `extensions` MUST be used for evaluating other proposals in this list. For
+  example, if a GroupContextExtensions proposal adds a `required_capabilities`
+  extension, then any Add proposals need to indicate support for those
+  capabilities.
 
 * Apply any Update proposals to the ratchet tree, in any order.
 
-* Apply any Remove proposals to the ratceht tree, in any order.
+* Apply any Remove proposals to the ratchet tree, in any order.
 
 * Apply any Add proposals to the ratchet tree, in the order they appear in the list.
 
@@ -3652,7 +3659,7 @@ the proposals in the list in the following order:
   later in Commit processing.
 
 * If there is an ExternalInit proposal, use it to derive the `init_secret` for
-  usee later in Commit processing.
+  use later in Commit processing.
 
 * If there is a ReInit proposal, note its parameters for application later in
   Commit processing.
