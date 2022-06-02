@@ -1433,8 +1433,8 @@ enum {
     reserved(0),
     member(1),
     external(2),
-    new_commit_member(3),
-    new_proposal_member(4),
+    new_proposal_member(3),
+    new_commit_member(4),
     (255)
 } SenderType;
 
@@ -1446,9 +1446,8 @@ struct {
         case external:
             uint32 sender_index;
         case new_commit_member:
-            struct{};
         case new_proposal_member:
-            KeyPackageID proposed_member;
+            struct{};
     }
 } Sender;
 
@@ -1562,10 +1561,8 @@ struct {
         case new_commit_member:
             GroupContext context;
         case external:
-            struct{};
         case new_proposal_member:
-            // The KeyPackage included in embedded Add proposal
-            KeyPackage key_package;
+            struct{};
     }
 } MLSMessageContentTBS;
 
@@ -1606,7 +1603,7 @@ depending on the sender's `sender_type`:
     `content_type` of the message MUST be `commit`.
 * `new_proposal_member`: The signature key in the LeafNode in
     the KeyPackage embedded in an External Add Proposal. The
-    `content_type` of the message MUST be `proposal`. 
+    `content_type` of the message MUST be `proposal`.
 
 Recipients of an MLSMessage MUST verify the signature with the key depending on
 the `sender_type` of the sender as described above.
