@@ -4519,71 +4519,25 @@ current state of the group.  In practice, however, there is a risk
 that two members will generate Commit messages simultaneously
 based on the same state.
 
-When this happens, there is a need for the members of the group to
-deconflict the simultaneous Commit messages.  There are two
-general approaches:
+Applications MUST have an established way to resolve conflicting Commit messages
+for the same epoch. They can do this either by preventing conflicting messages
+from occurring in the first place, or by developing rules for deciding which
+Commit out of several sent in an epoch will be canonical. The approach chosen
+MUST minimize the amount of time that forked or previous group states are kept
+in memory, and promptly delete them once they're no longer necessary to ensure
+forward secrecy.
 
-* Have the Delivery Service enforce a total order
-* Have a signal in the message that clients can use to break ties
+The generation of Commit messages MUST NOT modify a client's state, since the
+client doesn't know at that time whether the changes implied by the Commit
+message will conflict with another Commit or not. Similarly, the Welcome
+message corresponding to a Commit MUST NOT be delivered to a new
+joiner until it's clear that the Commit has been accepted.
 
-As long as Commit messages cannot be merged, there is a risk of
-starvation.  In a sufficiently busy group, a given member may never
-be able to send a Commit message, because he always loses to other
-members.  The degree to which this is a practical problem will depend
+Regardless of how messages are kept in sequence, there is a risk that
+in a sufficiently busy group, a given member may never
+be able to send a Commit message because they always lose to other
+members. The degree to which this is a practical problem will depend
 on the dynamics of the application.
-
-It might be possible, because of the non-contributivity of intermediate
-nodes, that Commit messages could be applied one after the other
-without the Delivery Service having to reject any Commit message,
-which would make MLS more resilient regarding the concurrency of
-Commit messages.
-The Messaging system can decide to choose the order for applying
-the state changes. Note that there are certain cases (if no total
-ordering is applied by the Delivery Service) where the ordering is
-important for security, ie. all updates must be executed before
-removes.
-
-Regardless of how messages are kept in sequence, implementations
-MUST only update their cryptographic state when valid Commit
-messages are received.
-Generation of Commit messages MUST NOT modify a client's state, since the
-endpoint doesn't know at that time whether the changes implied by
-the Commit message will succeed or not.
-
-## Server-Enforced Ordering
-
-With this approach, the Delivery Service ensures that incoming
-messages are added to an ordered queue and outgoing messages are
-dispatched in the same order. The server is trusted to break ties
-when two members send a Commit message at the same time.
-
-Messages should have a counter field sent in clear-text that can
-be checked by the server and used for tie-breaking. The counter
-starts at 0 and is incremented for every new incoming message.
-If two group members send a message with the same counter, the
-first message to arrive will be accepted by the server and the
-second one will be rejected. The rejected message needs to be sent
-again with the correct counter number.
-
-To prevent counter manipulation by the server, the counter's
-integrity can be ensured by including the counter in a signed
-message envelope.
-
-This applies to all messages, not only state changing messages.
-
-## Client-Enforced Ordering
-
-Order enforcement can be implemented on the client as well,
-one way to achieve it is to use a two step update protocol: the
-first client sends a proposal to update and the proposal is
-accepted when it gets 50%+ approval from the rest of the group,
-then it sends the approved update. Clients which didn't get
-their proposal accepted, will wait for the winner to send their
-update before retrying new proposals.
-
-While this seems safer as it doesn't rely on the server, it is
-more complex and harder to implement. It also could cause starvation
-for some clients if they keep failing to get their proposal accepted.
 
 # Application Messages
 
