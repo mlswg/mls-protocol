@@ -1469,8 +1469,8 @@ struct {
 } MLSMessage;
 ~~~
 
-Proposals from senders external to the group are sent as MLSPlaintext. See
-{{external-proposals}} for more details.
+Messages from senders that aren't in the group are sent as MLSPlaintext. See
+{{external-proposals}} and {{joining-via-external-commits}} for more details.
 
 The following structure is used to fully describe the data transmitted in
 plaintexts or ciphertexts.
@@ -1579,7 +1579,7 @@ Recipients of an MLSMessage MUST verify the signature with the key depending on
 the `sender_type` of the sender as described above.
 
 The confirmation tag value confirms that the members of the group have arrived
-at the same state of the group. An ContentAuthData is said to be valid when both
+at the same state of the group. A ContentAuthData is said to be valid when both
 the `signature` and `confirmation_tag` fields are valid.
 
 ## Encoding and Decoding a Plaintext
@@ -3321,7 +3321,7 @@ a state transition occurs, the epoch number is incremented by one.
 
 ## Proposals
 
-Proposals are included in an MessageContent by way of a Proposal structure
+Proposals are included in a MessageContent by way of a Proposal structure
 that indicates their type:
 
 ~~~ tls
@@ -3342,7 +3342,7 @@ struct {
 } Proposal;
 ~~~
 
-On receiving an MessageContent containing a Proposal, a client MUST verify the
+On receiving a MessageContent containing a Proposal, a client MUST verify the
 signature inside ContentAuthData and that the `epoch` field of the enclosing
 MessageContent is equal to the `epoch` field of the current GroupContext object.
 If the verification is successful, then the Proposal should be cached in such a way
@@ -3763,7 +3763,7 @@ message at the same time, by taking the following steps:
   of PSKs in the derivation corresponds to the order of PreSharedKey proposals
   in the `proposals` vector.
 
-* Construct an MessageContent object containing the Commit object. Sign the
+* Construct a MessageContent object containing the Commit object. Sign the
   MessageContent using the old GroupContext as context.
   * Use the MessageContent to update the confirmed transcript hash and update
     the new GroupContext.
@@ -3921,7 +3921,7 @@ new members need information to bootstrap their local group state.
 struct {
     CipherSuite cipher_suite;
     GroupContext group_context;
-    Extension other_extensions<V>;
+    Extension extensions<V>;
     MAC confirmation_tag;
     uint32 signer;
     // SignWithLabel(., "GroupInfoTBS", GroupInfoTBS)
