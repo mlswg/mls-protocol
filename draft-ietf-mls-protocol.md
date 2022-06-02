@@ -3954,13 +3954,8 @@ GroupInfo above `signature`:
 ~~~ tls
 struct {
     CipherSuite cipher_suite;
-    opaque group_id<V>;
-    uint64 epoch;
-    opaque tree_hash<V>;
-    opaque confirmed_transcript_hash<V>;
-    Extension group_context_extensions<V>;
-    Extension other_extensions<V>;
-    MAC confirmation_tag;
+    GroupContext group_context;
+    Extension extensions<V>;
     uint32 signer;
 } GroupInfoTBS;
 ~~~
@@ -3988,7 +3983,7 @@ following information for the group's current epoch:
 * external public key
 
 In other words, to join a group via an External Commit, a new member needs a
-GroupInfo with an `ExternalPub` extension present in the `other_extensions`.
+GroupInfo with an `ExternalPub` extension present in its `extensions` field.
 
 ~~~ tls
 struct {
@@ -4152,9 +4147,7 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
   error.  Let `my_leaf` represent this leaf in the tree.
 
 * Construct a new group state using the information in the GroupInfo object.
-    * The GroupContext contains the `group_id`, `epoch`, `tree_hash`,
-      `confirmed_transcript_hash`, and `group_context_extensions` fields from
-      the GroupInfo object.
+    * The GroupContext is the `group_context` field from the GroupInfo object.
 
     * The new member's position in the tree is at the leaf `my_leaf`, as defined
       above.
@@ -4467,9 +4460,10 @@ In other words, an application can use GroupContext extensions to ensure that
 all members of the group agree on a set of parameters. Clients indicate their
 support for parameters in the `capabilities` field of their LeafNode. New
 members of a group are informed of the group's GroupContext extensions via the
-`group_context_extensions` field in the GroupInfo object. The `other_extensions`
-field in a GroupInfo object can be used to provide additional parameters to new
-joiners that are used to join the group.
+`extensions` field in the `group_context` field of the GroupInfo object. The
+`extensions` field in a GroupInfo object (outside of the `group_context` field)
+can be used to provide additional parameters to new joiners that are used to
+join the group.
 
 This extension mechanism is designed to allow for the secure and forward-compatible
 negotiation of extensions.  For this to work, implementations MUST correctly
@@ -4902,9 +4896,8 @@ Template:
 
   * KP: KeyPackage objects
   * LN: LeafNode objects
-  * GC: GroupContext objects (and the `group_context_extensions` field of
-    GroupInfo objects)
-  * GI: The `other_extensions` field of GroupInfo objects
+  * GC: GroupContext objects
+  * GI: GroupInfo objects
 
 * Recommended: Whether support for this extension is recommended by the IETF MLS
   WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
