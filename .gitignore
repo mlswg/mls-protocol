@@ -20,3 +20,4 @@ report.xml
 venv/
 lib
 draft-ietf-mls-protocol.xml
+draft-ietf-mls-protocol.tls
