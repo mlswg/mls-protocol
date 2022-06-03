@@ -5133,7 +5133,7 @@ To construct the tree in {{resolution-tree}}:
 
 * A creates a group with B, ..., H, as well as some members outside this subtree
 * F sends an empty Commit, setting Y and its ancestors
-* D removes B, C, and F, with the following effects:
+* D removes B, C, and G, with the following effects:
   * Blank the direct paths of B, C, and G
   * Set X, the top node, and any further nodes in the direct path of D
 * A adds a new member at C with a partial Commit, adding C as unmerged at X
