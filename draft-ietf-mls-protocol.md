@@ -2393,11 +2393,11 @@ itself) and S the other child:
 
 * U is a descendant of P in the tree.
 
-* The resolution of C is equal to U added to the intersection of P's
-  `unmerged_leaves` with the subtree under C.
-
 * The `parent_hash` field of U is equal to the parent hash of P with copath
   child S.
+
+* U is in the resolution of C, and the intersection of P's `unmerged_leaves`
+  with the subtree under C is equal to the resolution of C with U removed.
 
 These checks verify that U and P were updated at the same time (in the same
 UpdatePath), and that they were neighbors in the UpdatePath because the nodes in
