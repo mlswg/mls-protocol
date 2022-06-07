@@ -2293,15 +2293,16 @@ which is computed recursively by starting at the leaf nodes and building up.
 ## Parent Hashes
 
 While tree hashes summarize the state of a tree at point in time, parent hashes
-capture information about how the tree was constructed.
+capture information about how keys in the tree were populated.
 
 When a client sends a commit to change a group, it can include an UpdatePath to
 assign new keys to the nodes along its filtered direct path.  When a client
 computes an UpdatePath (as defined in {{synchronizing-views-of-the-tree}}), it
 computes and signs a path hash that summarizes the state of the tree after the
 UpdatePath has been applied.  These summaries are constructed in a chain from
-the root to the member's leaf so that upper part of the chain can be overwritten
-as nodes set in one UpdatePath are reset by a later UpdatePath.
+the root to the member's leaf so that the part of the chain closer to the root
+can be overwritten as nodes set in one UpdatePath are reset by a later
+UpdatePath.
 
 ~~~ aasvg
                      ph(Q)
@@ -2316,11 +2317,11 @@ P.public_key --> ph(P)
 ~~~
 
 As a result, the signature over the parent hash in each member's leaf
-effectively signs the subtree containing the leaf for which that leaf was the
-last member to make a change.  A new member joining the group uses these parent
-hashes to verify that the parent nodes in the tree were set by members of the
-group, not chosen by an external attacker.  For an example of how this works,
-see {{th-ph-interaction}}.
+effectively signs the subtree of the tree that hasn't been changed since that
+leaf was last changed in an UpdatePath.  A new member joining the group uses
+these parent hashes to verify that the parent nodes in the tree were set by
+members of the group, not chosen by an external attacker.  For an example of how
+this works, see {{th-ph-interaction}}.
 
 Consider a ratchet tree with a non-blank parent node P and children D and S (for
 "parent", "direct path", and "sibling"), with D and P in the direct path of a
