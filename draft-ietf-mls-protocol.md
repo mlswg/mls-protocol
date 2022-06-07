@@ -1037,12 +1037,12 @@ brackets:
               _
         ______|______
        /             \
-      X[C]            _
+      X[B]            _
     __|__           __|__
    /     \         /     \
   _       _       Y       _
  / \     / \     / \     / \
-A   _   C   D   E   F   _   H
+A   B   _   D   E   F   _   H
 
 0   1   2   3   4   5   6   7
 ~~~
@@ -1050,9 +1050,9 @@ A   _   C   D   E   F   _   H
 
 In this tree, we can see all of the above rules in play:
 
-* The resolution of node X is the list \[X, C\]
-* The resolution of leaf 1 or leaf 6 is the empty list \[\]
-* The resolution of top node is the list \[X, C, Y, H\]
+* The resolution of node X is the list \[X, B\]
+* The resolution of leaf 2 or leaf 6 is the empty list \[\]
+* The resolution of top node is the list \[X, B, Y, H\]
 
 ### Paths through a Ratchet Tree
 
@@ -5133,10 +5133,11 @@ To construct the tree in {{resolution-tree}}:
 
 * A creates a group with B, ..., H, as well as some members outside this subtree
 * F sends an empty Commit, setting Y and its ancestors
-* D removes B, C, and G, with the following effects:
-  * Blank the direct paths of B, C, and G
+* D removes B and C, with the following effects:
+  * Blank the direct paths of B and C
   * Set X, the top node, and any further nodes in the direct path of D
-* A adds a new member at C with a partial Commit, adding C as unmerged at X
+* Someone outside this subtree removes G, blanking the direct path of G
+* A adds a new member at B with a partial Commit, adding B as unmerged at X
 
 To construct the tree in {{evolution-tree}}:
 
