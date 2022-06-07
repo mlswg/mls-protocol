@@ -2422,22 +2422,22 @@ computation.
 
 ### Using Parent Hashes
 
-The Parent Hash of P appears in three types of structs. If V is itself a parent node
+The Parent Hash of P appears in three types of structs. If D is itself a parent node
 then P's Parent Hash is stored in the `parent_hash` field of the structs
 `ParentHashInput` and `ParentNode` of the node before P on the filtered direct
 path of U. (The `ParentNode` struct is used to encapsulate all public
 information about that node that must be conveyed to a new
 member joining the group as well as to define its Tree Hash.)
 
-If, on the other hand, V is the leaf L and its LeafNode has `leaf_node_source` set to `commit`,
-then the Parent Hash of P (with V's sibling as copath child) is stored in
+If, on the other hand, D is the leaf L and its LeafNode has `leaf_node_source` set to `commit`,
+then the Parent Hash of P (with D's sibling as copath child) is stored in
 the `parent_hash` field.  This is true in particular of the LeafNode object sent
 in the `leaf_node` field of an UpdatePath. The signature of such a LeafNode thus also
 attests to which keys the group member introduced into the ratchet tree and
 to whom the corresponding secret keys were sent. This helps prevent malicious insiders
-from constructing artificial ratchet trees with a node V whose HPKE secret key is
+from constructing artificial ratchet trees with a node D whose HPKE secret key is
 known to the insider yet where the insider isn't assigned a leaf in the subtree rooted
-at V. Indeed, such a ratchet tree would violate the tree invariant.
+at D. Indeed, such a ratchet tree would violate the tree invariant.
 
 ### Verifying Parent Hashes
 
@@ -5195,17 +5195,19 @@ we use the shorthand `ph` for parent hash, `th` for tree hash, and `osth` for
 original sibling tree hash):
 
 1. A adds B: set X
-  * `A.parent_hash = ph(X) = H(X, ph="", osth=th(B))`
+
+    * `A.parent_hash = ph(X) = H(X, ph="", osth=th(B))`
 
 2. B adds C, D: set B', X', Y
-  * `X'.parent_hash = ph(Y)  = H(Y, ph="", osth=th(Z))`,
-    where `th(Z)` covers `(C, _, D)`
-  * `B'.parent_hash = ph(X') = H(X', ph=X'.parent_hash, osth=th(A))`
+
+    * `X'.parent_hash = ph(Y)  = H(Y, ph="", osth=th(Z))`,
+      where `th(Z)` covers `(C, _, D)`
+    * `B'.parent_hash = ph(X') = H(X', ph=X'.parent_hash, osth=th(A))`
 
 3. C sends empty Commit: set C', Z', Y'
-  * `Z'.parent_hash = ph(Y') = H(Y', ph="", osth=th(X'))`, where
-    `th(X')` covers `(A, X', B')`
-  * `C'.parent_hash = ph(Z') = H(Z', ph=Z'.parent_hash, osth=th(D))`
+    * `Z'.parent_hash = ph(Y') = H(Y', ph="", osth=th(X'))`, where
+      `th(X')` covers `(A, X', B')`
+    * `C'.parent_hash = ph(Z') = H(Z', ph=Z'.parent_hash, osth=th(D))`
 
 When a new member joins, they will receive a tree that has the following parent
 hash values, and compute the indicated parent-hash validity relationships:
