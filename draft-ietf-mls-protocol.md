@@ -1008,7 +1008,7 @@ an asymmetric key pair with some associated data:
 * A credential (only for leaf nodes)
 * An ordered list of "unmerged" leaves (see {{views}})
 * A hash of certain information about the node's parent, as of the last time the
-  node was changed (see {{parent-hash}}).
+  node was changed (see {{parent-hashes}}).
 
 Every node, regardless of whether the node is blank or populated, has
 a corresponding _hash_ that summarizes the contents of the subtree
@@ -1816,7 +1816,7 @@ struct {
 
 The `encryption_key` field contains an HPKE public key whose private key is held only
 by the members at the leaves among its descendants.  The `parent_hash` field
-contains a hash of this node's parent node, as described in {{parent-hash}}.
+contains a hash of this node's parent node, as described in {{parent-hashes}}.
 The `unmerged_leaves` field lists the leaves under this parent node that are
 unmerged, according to their indices among all the leaves in the tree.  The
 entries in the `unmerged_leaves` vector MUST be sorted in increasing order.
@@ -1947,7 +1947,7 @@ reject any LeafNode where the total lifetime is longer than this duration.
 
 In the case where the leaf node was inserted into the tree via a Commit message,
 the `parent_hash` field contains the parent hash for this leaf node (see
-{{parent-hash}}).
+{{parent-hashes}}).
 
 The LeafNodeTBS structure covers the fields above the signature in the LeafNode.
 In addition, when the leaf node was created in the context of a group (the
@@ -2234,10 +2234,22 @@ specifically:
 
 ## Tree Hashes
 
-To allow group members to verify that they agree on the public cryptographic state
-of the group, this section defines a scheme for generating a hash value (called
-the "tree hash") that represents the contents of the group's ratchet tree and the
-members' leaf nodes.
+MLS hashes the contents of the tree in two ways to authenticate different
+properties of the tree.  This section defines _tree hashes_, and _parent hashes_
+are defined in {{parent-hashes}}.
+
+Each node in a ratchet tree has a tree hash that summarizes the subtree below
+that node.  The tree hash of the root is used in the GroupContext to confirm
+that the group agrees on the whole tree.  Tree hashes are computed recursively
+from the leaves up to the root.
+
+~~~ aasvg
+P --> th(P)
+      ^ ^
+     /   \
+    /     \
+th(L)     th(R)
+~~~
 
 The tree hash of an individual node is the hash of the node's `TreeHashInput`
 object, which may contain either a `LeafNodeHashInput` or a
@@ -2278,13 +2290,37 @@ struct {
 The tree hash of an entire tree corresponds to the tree hash of the root node,
 which is computed recursively by starting at the leaf nodes and building up.
 
-## Parent Hash
+## Parent Hashes
 
-The `parent_hash` field in ratchet tree nodes carries information to
-authenticate the information in the ratchet tree.  Parent hashes chain together
-so that the signature on a leaf node, by covering the leaf node's parent hash,
-indirectly includes information about the structure of the tree at the time the
-leaf node was last updated.
+While tree hashes summarize the state of a tree at point in time, parent hashes
+capture information about how the tree was constructed.
+
+When a client sends a commit to change a group, it can include an UpdatePath to
+assign new keys to the nodes along its filtered direct path.  When a client
+computes an UpdatePath (as defined in {{synchronizing-views-of-the-tree}}), it
+computes and signs a path hash that summarizes the state of the tree after the
+UpdatePath has been applied.  These summaries are constructed in a chain from
+the root to the member's leaf so that upper part of the chain can be overwritten
+as nodes set in one UpdatePath are reset by a later UpdatePath.
+
+~~~ aasvg
+                     ph(Q)
+                     /
+                    /
+                   V
+P.public_key --> ph(P)
+                 / ^
+                /   \
+               V     \
+   N.parent_hash     th(S)
+~~~
+
+As a result, the signature over the parent hash in each member's leaf
+effectively signs the subtree containing the leaf for which that leaf was the
+last member to make a change.  A new member joining the group uses these parent
+hashes to verify that the parent nodes in the tree were set by members of the
+group, not chosen by an external attacker.  For an example of how this works,
+see {{th-ph-interaction}}.
 
 Consider a ratchet tree with a non-blank parent node P and children D and S (for
 "parent", "direct path", and "sibling"), with D and P in the direct path of a
@@ -2434,8 +2470,6 @@ recompute the expected value of `parent_hash` for the committer's new leaf and
 verify that it matches the `parent_hash` value in the supplied `leaf_node`.
 After being merged into the tree, the nodes in the UpdatePath form a parent-hash
 chain from the committer's leaf to the root.
-
-For a detailed example of how this process works, see {{th-ph-interaction}}.
 
 ## Update Paths
 
@@ -5137,77 +5171,83 @@ To construct the tree in {{parent-hash-tree}}:
 
 # Interaction of Tree Hashes and Parent Hashes {#th-ph-interaction}
 
-Recall the example tree from {{full-tree}}:
+To better understand how tree hashes and parent hashes interact, let's look in
+detail at how they evolve in a small group.  Consider the following sequence of
+operations:
+
+1. A initializes a new group
+2. A adds B to the group with a full Commit
+3. B adds C and D to the group with a full Commit
+4. C sends an empty Commit.
 
 ~~~ aasvg
-              W = root
-              |
-        .-----+-----.
-       /             \
-      _=U             Y
-      |               |
-    .-+-.           .-+-.
-   /     \         /     \
-  T       _=V     X       _=Z
- / \     / \     / \     / \
-A   B   _   _   E   F   G   _=H
-
-0   1   2   3   4   5   6   7
+                          Y                   Y'
+                          |                   |
+                        .-+-.               .-+-.
+   ==>         ==>     /     \     ==>     /     \
+          X           X'      _=Z         X'      Z'
+         / \         / \     / \         / \     / \
+A       A   B       A   B   C   D       A   B   C   D
 ~~~
 
-The nodes this tree might have been populated by full Commits from A, E, F, G,
-and B (in that order).  These Commits would send UpdatePaths updating the
-following nodes (where the value for a node is reset each time it is listed and
-the leaves are presumed to start at A1, ..., G1):
+Then the parent hashes associated to the nodes will be updated as follows (where
+we use the shorthand `ph` for parent hash, `th` for tree hash, and `osth` for
+original sibling tree hash):
 
-1. Commit from A: A2 -- T1 -- W1
-2. Commit from E: E2 -- X1 -- Y1 -- W2
-3. Commit from F: F2 -- X2 -- Y2 -- W3
-4. Commit from G: G2 -- Y3 -- W4
-5. Commit from B: B2 -- T2 -- W5
+1. A adds B: set X
+  * `A.parent_hash = ph(X) = H(X, ph="", osth=th(B))`
 
-After these comits, the following parent-hash values would exist in the
-tree (as shown via their inputs):
+2. B adds C, D: set B', X', Y
+  * `X'.parent_hash = ph(Y)  = H(Y, ph="", osth=th(Z))`,
+    where `th(Z)` covers `(C, _, D)`
+  * `B'.parent_hash = ph(X') = H(X', ph=X'.parent_hash, osth=th(A))`
 
-| `D` | `encryption_key` | `parent_hash`     | `original_sibling_tree_hash`          | Valid? |
-|:====|:=================|:==================|:======================================|:=======|
-| A2  | T1               | `parent_hash(W1)` | `tree_hash(B1)`                       | No     |
-| B2  | T2               | `parent_hash(W5)` | `tree_hash(A2)`                       | Yes    |
-| E2  | X1               | `parent_hash(Y1)` | `tree_hash(F1)`                       | No     |
-| F2  | X2               | `parent_hash(Y2)` | `tree_hash(E2)`                       | Yes    |
-| G2  | Y3               | `parent_hash(W4)` | `tree_hash(E2, X2, F2)`               | Yes    |
-|-----|------------------|-------------------|---------------------------------------|--------|
-| T2  | W5               | `""`              | `tree_hash(E2, X2, F2, Y3, G2, _, _)` | Yes    |
-| X2  | Y2               | `parent_hash(W3)` | `tree_hash(G1, _, _)`                 | No     |
-| Y3  | W4               | `""`              | `tree_hash(A2, T1, B1, _, _, _, _)`   | No     |
+3. C sends empty Commit: set C', Z', Y'
+  * `Z'.parent_hash = ph(Y') = H(Y', ph="", osth=th(X'))`, where
+    `th(X')` covers `(A, X', B')`
+  * `C'.parent_hash = ph(Z') = H(Z', ph=Z'.parent_hash, osth=th(D))`
 
-(Here `tree_hash(N)` represents the tree hash of the subtree comprised of the
-indicated nodes.)
+When a new member joins, they will receive a tree that has the following parent
+hash values, and compute the indicated parent-hash validity relationships:
 
-For the valid links, the inputs match the values still in the tree.  For the
-invalid links, some of the values have been overwritten.  The important thing is
-that all the non-blank parent nodes in the tree are covered as the targets of
-these links, through the following chains:
+| Node | Parent hash value                    | Valid?              |
+|:=====|:=====================================|:====================|
+| A    | H(X, ph="", osth=th(B))              | No, B changed       |
+| B'   | H(X', ph=X'.parent_hash, osth=th(A)) | Yes                 |
+| C'   | H(Z', ph=Z'.parent_hash, osth=th(D)) | Yes                 |
+| D    | (none, never sent an UpdatePath)     | N/A                 |
+| X'   | H(Y, ph="", osth=th(Z))              | No, Y and Z changed |
+| Z'   | H(Y', ph="", osth=th(X'))            | Yes                 |
 
-* B2 -- T2 -- W5
-* G2 -- Y3
-* F2 -- X2
+
+In other words, the joiner will find the following path-hash links in the tree:
+
+~~~ aasvg
+       Y'
+       |
+       +-.
+          \
+   X'      Z'
+    \     /
+ A   B'  C'  D
+~~~
 
 Since these chains collectively cover all non-blank parent nodes in the tree,
 the tree is parent-hash valid.
 
 Note that this tree, though valid, contains invalid parent-hash links. If a
-client were checking parent hashes top-down from X, for example, they would find
-that Z has an invalid parent hash relative to X, but that U has valid parent
-hash.  Likewise, if the client were checking bottom-up, they would find that the
-chain from F ends in an invalid link from Y to Z.  These invalid links are the
-natural result of multiple clients having committed.
+client were checking parent hashes top-down from Y', for example, they would
+find that X' has an invalid parent hash relative to Y', but that Z' has valid
+parent hash.  Likewise, if the client were checking bottom-up, they would find
+that the chain from B' ends in an invalid link from X' to Y'.  These invalid
+links are the natural result of multiple clients having committed.
 
 Note also the way the tree hash and the parent hash interact.  The parent hash
-of node F2 includes the tree hash of node E2.  The parent hash of node G2
-includes the tree hash of X2, which covers nodes E2 and F2 (include the parent
-hash of F2).  Although the tree hash and the parent hash depend on each other,
-the dependency relationships are structured so that they don't conflict.
+of node C' includes the tree hash of node D.  The parent hash of node Z'
+includes the tree hash of X', which covers nodes A and B' (including the parent
+hash of B').  Although the tree hash and the parent hash depend on each other,
+the dependency relationships are structured so that there's never a circular
+dependency.
 
 In the particular case where a new member first receives the tree for a group
 (e.g., in a ratchet tree GroupInfo extension {{ratchet-tree-extension}}), the
