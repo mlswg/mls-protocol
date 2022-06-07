@@ -2321,7 +2321,7 @@ effectively signs the subtree of the tree that hasn't been changed since that
 leaf was last changed in an UpdatePath.  A new member joining the group uses
 these parent hashes to verify that the parent nodes in the tree were set by
 members of the group, not chosen by an external attacker.  For an example of how
-this works, see {{th-ph-interaction}}.
+this works, see {{ph-evolution}}.
 
 Consider a ratchet tree with a non-blank parent node P and children D and S (for
 "parent", "direct path", and "sibling"), with D and P in the direct path of a
@@ -2339,7 +2339,7 @@ leaf node L (for "leaf"):
  /
 L
 ~~~
-
+{: #parent-hash-inputs title="Inputs to a parent hash." }
 
 The parent hash of P changes whenever an `UpdatePath` object is applied to
 the ratchet tree along a path from a leaf L traversing node D (and hence also
@@ -2423,22 +2423,20 @@ computation.
 
 ### Using Parent Hashes
 
-The Parent Hash of P appears in three types of structs. If D is itself a parent node
-then P's Parent Hash is stored in the `parent_hash` field of the structs
-`ParentHashInput` and `ParentNode` of the node before P on the filtered direct
-path of U. (The `ParentNode` struct is used to encapsulate all public
-information about that node that must be conveyed to a new
-member joining the group as well as to define its Tree Hash.)
+In ParentNode objects and LeafNode objects with `leaf_node_source` set to
+`commit`, the value of the `parent_hash` field is the parent hash of the next
+non-blank parent node above the node in question (the next node in the filtered
+direct path).  Using the node labels in {{parent-hash-inputs}}, the
+`parent_hash` field of D is equal to the parent hash of P with copath child S.
+This is the case even when the node D is a leaf node.
 
-If, on the other hand, D is the leaf L and its LeafNode has `leaf_node_source` set to `commit`,
-then the Parent Hash of P (with D's sibling as copath child) is stored in
-the `parent_hash` field.  This is true in particular of the LeafNode object sent
-in the `leaf_node` field of an UpdatePath. The signature of such a LeafNode thus also
-attests to which keys the group member introduced into the ratchet tree and
-to whom the corresponding secret keys were sent. This helps prevent malicious insiders
-from constructing artificial ratchet trees with a node D whose HPKE secret key is
-known to the insider yet where the insider isn't assigned a leaf in the subtree rooted
-at D. Indeed, such a ratchet tree would violate the tree invariant.
+The `parent_hash` field of a LeafNode is signed by the member.  The signature of
+such a LeafNode thus also attests to which keys the group member introduced into
+the ratchet tree and to whom the corresponding secret keys were sent. This
+prevents malicious insiders from constructing artificial ratchet trees with a
+node D whose HPKE secret key is known to the insider yet where the insider isn't
+assigned a leaf in the subtree rooted at D. Indeed, such a ratchet tree would
+violate the tree invariant.
 
 ### Verifying Parent Hashes
 
@@ -5170,10 +5168,10 @@ To construct the tree in {{parent-hash-tree}}:
 * E sends an empty Commit, setting Y and W
 * A adds a new member at F in a partial Commit, adding F as unmerged at Y and W
 
-# Interaction of Tree Hashes and Parent Hashes {#th-ph-interaction}
+# Evolution of Parent Hashes {#ph-evolution}
 
-To better understand how tree hashes and parent hashes interact, let's look in
-detail at how they evolve in a small group.  Consider the following sequence of
+To better understand how parent hashes are maintained, let's look in detail at
+how they evolve in a small group.  Consider the following sequence of
 operations:
 
 1. A initializes a new group
