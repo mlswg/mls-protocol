@@ -2298,7 +2298,7 @@ capture information about how keys in the tree were populated.
 When a client sends a commit to change a group, it can include an UpdatePath to
 assign new keys to the nodes along its filtered direct path.  When a client
 computes an UpdatePath (as defined in {{synchronizing-views-of-the-tree}}), it
-computes and signs a path hash that summarizes the state of the tree after the
+computes and signs a parent hash that summarizes the state of the tree after the
 UpdatePath has been applied.  These summaries are constructed in a chain from
 the root to the member's leaf so that the part of the chain closer to the root
 can be overwritten as nodes set in one UpdatePath are reset by a later
@@ -2447,7 +2447,7 @@ The parent hash in a node D is valid with respect to a parent node P if the
 following criteria hold:
 
 * D is a descendant of P in the tree
-* The nodes between D and P in the tree are all blank
+* Any nodes between D and P in the tree are all blank
 * The `parent_hash` field of D is equal to the parent hash of P with copath
   child S, where S is the child of P that is not on the path from D to P.
 
