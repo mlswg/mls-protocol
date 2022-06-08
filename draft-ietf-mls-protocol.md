@@ -2192,39 +2192,79 @@ on the copath of the sender's leaf node.
 There is one encryption of the path secret to each public key in the resolution
 of the non-updated child.
 
-The recipient of an UpdatePath processes it with the following steps:
+A member of the group _updates their direct path_ by computing new values for
+their leaf node and the nodes along their filtered direct path:
 
-1. Compute the updated path secrets.
-   * Identify a node in the filtered direct path for which the recipient
-     is in the subtree of the non-updated child.
-   * Identify a node in the resolution of the copath node for
-     which the recipient has a private key.
-   * Decrypt the path secret for the parent of the copath node using
-     the private key from the resolution node.
-   * Derive path secrets for ancestors of that node using the
-     algorithm described above.
-   * The recipient SHOULD verify that the received public keys agree
-     with the public keys derived from the new path_secret values.
-2. Merge the updated path secrets into the tree.
-   * Blank all nodes on the direct path of the sender's leaf.
-   * For all nodes on the filtered direct path of the sender's leaf,
-     * Set the public key to the received public key.
-     * Set the list of unmerged leaves to the empty list.
-     * Store the updated hash of the next node on the filtered direct path
-       (represented as a ParentNode struct), going from root to leaf, so that
-       each hash incorporates all the non-blank nodes above it. The root node
-       always has a zero-length hash for this value.
-   * For nodes where a path secret was recovered in step 1 ("Compute the
-     updated path secrets"), compute and store the node's updated private key.
+1. Blank all nodes along the direct path of the sender's leaf.
+2. Compute updated path secrets and public keys for the nodes on the sender's
+   filtered direct path.
+    * Generate a sequence of path secrets of the same length as the filtered
+      direct path, as defined in {{ratchet-tree-evolution}}
+    * For each node in the filtered direct path, replace the node's public key
+      with the `node_pub[n]` value derived from the corresponding path secret
+      `path_secret[n]`.
+3. Compute the new parent hashes for the nodes along the filtered direct path
+   and the sender's leaf node.
+4. Update the leaf node for the sender.
+    * Set the `leaf_node_source` to `commit`.
+    * Set the `encryption_key` to the public key of a freshly sampled key pair
+    * Set the parent hash to the parent hash for the leaf.
+    * Re-sign the leaf node with its new contents
+
+Since the new leaf node effectively updates an existing leaf node in the group,
+it MUST adhere to the same restrictions as LeafNodes used in `Update` proposals
+(aside from `leaf_node_source`). The application MAY specify other changes to
+the leaf node, e.g., providing a new signature key, updated capabilities, or
+different extensions.
+
+The member then _encrypts path secrets to the group_.  For each node in the
+member's filtered direct path, the member takes the following steps:
+
+1. Compute the resolution of the node's child that is on the copath of the
+   sender (the child that is not in the direct path of the sender).  Any new
+   member (from an Add proposal) added in the same Commit MUST be excluded from
+   this resolution.
+2. For each node in the resolution, encrypt the path secret for the direct
+   path node using the public key of the resolution node, as defined in
+   {{update-paths}}
+
+The recipient of an UpdatePath performs the corresponding steps.  First, the
+recipient _merges UpdatePath into the tree_:
+
+1. Blank all nodes on the direct path of the sender's leaf.
+2. For all nodes on the filtered direct path of the sender's leaf,
+   * Set the public key to the public key in the UpdatePath.
+   * Set the list of unmerged leaves to the empty list.
+3. Compute parent hashes for the nodes in the sender's filtered direct path,
+   and verify that the `parent_hash` field of the leaf node matches the parent
+   hash for the first node in its filtered direct path.
+   * Note that these hashes are computed from root to leaf, so that
+     each hash incorporates all the non-blank nodes above it. The root node
+     always has a zero-length hash for its parent hash.
+
+Second, the recipient _decrypts the path secrets_:
+
+1. Identify a node in the filtered direct path for which the recipient
+   is in the subtree of the non-updated child.
+2. Identify a node in the resolution of the copath node for
+   which the recipient has a private key.
+3. Decrypt the path secret for the parent of the copath node using
+   the private key from the resolution node.
+4. Derive path secrets for ancestors of that node in the sender's filtered
+   direct path using the algorithm described above.
+5. Derive the node secrets and node key pairs from the path secrets.
+6. Verify that the derived public keys are the same as the corresponding public
+   keys sent in the UpdatePath.
+7. Store the derived private keys in the corresponding ratchet tree nodes.
 
 For example, in order to communicate the example update described in
-{{ratchet-tree-evolution}}, the sender would transmit the following
+{{ratchet-tree-evolution}}, the member at node B would transmit the following
 values:
 
 | Public Key    | Ciphertext(s)                                           |
 |:--------------|:--------------------------------------------------------|
-| node_pub\[1\] | E(pk(Z), path_secret\[1\]), E(pk(C), path_secret\[1\])  |
-| node_pub\[0\] | E(pk(A), path_secret\[0\])                              |
+| `node_pub[1]` | `E(pk(Z), path_secret[1])`, `E(pk(C), path_secret[1]`)  |
+| `node_pub[0]` | `E(pk(A), path_secret[0])`                              |
 
 In this table, the value node_pub\[i\] represents the public key
 derived from node_secret\[i\], pk(X) represents the current public key
@@ -2232,10 +2272,20 @@ of node X, and E(K, S) represents
 the public-key encryption of the path secret S to the
 public key K (using HPKE).
 
+A recipient at node A would decrypt `E(pk(A), path_secret\[0\])` to obtain
+`path_secret\[0\]`, then use it to derive `path_secret[1]` and the resulting
+node secrets and key pairs.  Thus A would have the private keys to nodes X'
+and Y', in accordance with the tree invariant.
+
+Similarly, a recipient at node D would decrypt `E(pk(Z), path_secret[1])` to
+obtain `path_secret[1]`, then use it to derive the node secret and and key pair
+for the node Y'.  As required to maintain the tree invariant, node D does not
+receive the private key for the node X', since X' is not an ancestor of D.
+
 After processing the update, each recipient MUST delete outdated key material,
 specifically:
 
-* The path secrets used to derive each updated node key pair.
+* The path secrets and node secrets used to derive each updated node key pair.
 * Each outdated node key pair that was replaced by the update.
 
 ## Tree Hashes
@@ -3845,23 +3895,10 @@ message at the same time, by taking the following steps:
     ratchet tree, add a blank leaf to the right side of the new ratchet tree and
     assign it to the sender.
 
-  * Generate path secrets for the parent nodes along the sender's filtered
-    direct path, as described in {{synchronizing-views-of-the-tree}}.  Define
+  * Update the sender's direct path in the ratchet tree as described in
+    {{synchronizing-views-of-the-tree}}.  Define
     `commit_secret` as the value `path_secret[n+1]` derived from the
     last path secret value (`path_secret[n]`) derived for the UpdatePath.
-
-  * Update the new ratchet tree by setting the parent nodes on the sender's
-    filtered direct path based on the path secrets. Compute parent hashes for
-    these nodes.  Set the sender's leaf node in the new tree to a new leaf node
-    including the resulting parent hash for its nearest ancestor.
-
-    * The new leaf node MUST have `leaf_node_source` set to `commit`.
-    * Since the new leaf node effectively updates an existing leaf node in the
-      group, it MUST adhere to the same restrictions as LeafNodes used in
-      `Update` proposals (aside from `leaf_node_source`).
-    * The application MAY specify other changes to the leaf node, e.g.,
-      providing a new signature key, updated capabilities, or different
-      extensions.
 
   * Construct a provisional GroupContext object containing the following values:
     * `group_id`: Same as the old GroupContext
@@ -3871,12 +3908,13 @@ message at the same time, by taking the following steps:
     * `extensions`: The new GroupContext extensions (possibly updated by a
       GroupContextExtensions proposal)
 
-  * Create an UpdatePath that encrypts the path secrets for the nodes along the
-    sender's filtered direct path to the new ratchet tree, using the provisional
-    GroupContext as context. Any new member (from an Add proposal) MUST be
-    excluded from the resolution during the computation of the UpdatePath.
+  * Encrypt the path secrets resulting from the tree update to the group as
+    described in {{synchronizing-views-of-the-tree}}, using the provisional
+    group context as the context for HPKE encryption.
 
-  * Assign this UpdatePath to the `path` field in the Commit.
+  * Create an UpdatePath containing the sender's new leaf node and the new
+    public keys and encrypted path secrets along the sender's filtered direct
+    path.  Assign this UpdatePath to the `path` field in the Commit.
 
 * If not populating the `path` field: Set the `path` field in the Commit to the
   null optional.  Define `commit_secret` as the all-zero vector of length
@@ -3982,9 +4020,8 @@ A member of the group applies a Commit message by taking the following steps:
   * Verify that the `encryption_key` value in the LeafNode is different from the
     committer's current leaf node.
 
-  * Compute parent hashes for the parent nodes in the UpdatePath (relative to
-    the new ratchet tree) and verify that the `parent_hash` field of the leaf
-    node matches the parent hash for the first node its filtered direct path.
+  * Merge the UpdatePath into the new ratchet tree as described in
+    {{synchronizing-views-of-the-tree}}.
 
   * Construct a provisional GroupContext object containing the following values:
     * `group_id`: Same as the old GroupContext
@@ -3994,9 +4031,9 @@ A member of the group applies a Commit message by taking the following steps:
     * `extensions`: The new GroupContext extensions (possibly updated by a
       GroupContextExtensions proposal)
 
-  * Apply the UpdatePath to the tree, as described in
-    {{synchronizing-views-of-the-tree}}, using the provisional GroupContext when
-    decrypting the path secret and storing `leaf_node` at the committer's leaf.
+  * Decrypt the path secrets for UpdatePath as described in
+    {{synchronizing-views-of-the-tree}}, using the provisional GroupContext as
+    the context for HPKE decryption.
 
   * Define `commit_secret` as the value `path_secret[n+1]` derived from the
     last path secret value (`path_secret[n]`) derived for the UpdatePath.
