@@ -1032,25 +1032,27 @@ represents a blank node and unmerged leaves are indicated in square
 brackets:
 
 ~~~ ascii-art
-       ...
-       /
-      _
-      |
-    .-+-.
-   /     \
-  _       Z[C]
- / \     / \
-A   _   C   D
+               ...
+               /
+              _
+        ______|______
+       /             \
+      X[B]            _
+    __|__           __|__
+   /     \         /     \
+  _       _       Y       _
+ / \     / \     / \     / \
+A   B   _   D   E   F   _   H
 
-0   1   2   3
+0   1   2   3   4   5   6   7
 ~~~
 {: #resolution-tree title="A tree with blanks and unmerged leaves" }
 
 In this tree, we can see all of the above rules in play:
 
-* The resolution of node Z is the list \[Z, C\]
-* The resolution of leaf 1 is the empty list \[\]
-* The resolution of top node is the list \[A, Z, C\]
+* The resolution of node X is the list \[X, B\]
+* The resolution of leaf 2 or leaf 6 is the empty list \[\]
+* The resolution of top node is the list \[X, B, Y, H\]
 
 ### Paths through a Ratchet Tree
 
@@ -5124,11 +5126,13 @@ To construct the tree in {{full-tree}}:
 
 To construct the tree in {{resolution-tree}}:
 
-* A creates a group with B, C, D, as well as some members outside this subtree
-* D removes C, setting Z and the top node (as well as any further nodes in the
-  direct path)
-* A member outside this subtree removes B, blanking B's direct path
-* A adds a new member at C with a partial Commit, adding it as unmerged at Z
+* A creates a group with B, ..., H, as well as some members outside this subtree
+* F sends an empty Commit, setting Y and its ancestors
+* D removes B and C, with the following effects:
+  * Blank the direct paths of B and C
+  * Set X, the top node, and any further nodes in the direct path of D
+* Someone outside this subtree removes G, blanking the direct path of G
+* A adds a new member at B with a partial Commit, adding B as unmerged at X
 
 To construct the tree in {{evolution-tree}}:
 
