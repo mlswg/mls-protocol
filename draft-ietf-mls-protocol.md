@@ -4342,7 +4342,7 @@ group.  With the latter approach, the attacker would need to compromise the PSK
 as well as the signing key, but the application will need to ensure that
 continuing, non-resynchronizing members have the required PSK.
 
-## Ratchet Tree Extension
+#### Ratchet Tree Extension
 
 By default, a GroupInfo message only provides the joiner with a hash of
 the group's ratchet tree.  In order to process or generate handshake
