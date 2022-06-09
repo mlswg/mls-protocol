@@ -2111,58 +2111,6 @@ leaf_priv -----------+
                  0   1   2   3
 ~~~
 
-## Adding and Removing Leaves
-
-In addition to the path-based updates to the tree described above, it is also
-necessary to add and remove leaves of the tree in order to reflect changes to
-the membership of the group (see {{add}} and {{remove}}).  Since the tree is
-always full, adding or removing leaves corresponds to increasing or decreasing
-the depth of the tree, resulting in the number of leaves being doubled or
-halved. These operations are also known as _extending_ and _truncating_ the
-tree.
-
-Leaves are always added and removed at the right edge of the tree.  When the
-size of the tree needs to be increased, a new blank root node is added, whose
-left subtree is the existing tree and right subtree is a new all-blank subtree.
-This operation is typically done when adding a member to the group.
-
-~~~ ascii-art
-                  _ <-- new blank root                    _
-                __|__                                   __|__
-               /     \                                 /     \
-  X    ===>   X       _ <-- new blank subtree ===>    X       _
- / \         / \     / \                             / \     / \
-A   B       A   B   _   _                           A   B   C   _
-                                                            ^
-                                                            |
-                                                            +-- new member
-~~~
-{: title="Extending the tree to make room for a third member"}
-
-When the right subtree of the tree no longer has any non-blank nodes, it can be
-safely removed.  The root of the tree and the right subtree are discarded
-(whether or not the root node is blank). The left child of the root becomes the
-new root node, and the left subtree becomes the new tree.  This operation is
-typically done after removing a member from the group.
-
-~~~ ascii-art
-               Y                  Y
-             __|__              __|__
-            /     \            /     \
-           X       _   ===>   X       _   ==>   X <-- new root
-          / \     / \        / \     / \       / \
-         A   B   C   _      A   B   _   _     A   B
-                 ^
-                 |
-removed member --+
-~~~
-{: title="Cleaning up after removing the third member"}
-
-Concrete algorithms for these operations on array-based and link-based trees are
-provided in {{array-based-trees}} and {{link-based-trees}}.  The concrete
-algorithms are non-normative.  An implementation MAY use any algorithm that
-produces the correct tree in its internal representation.
-
 ## Synchronizing Views of the Tree
 
 After generating fresh key material and applying it to ratchet forward their
@@ -2287,6 +2235,109 @@ specifically:
 
 * The path secrets and node secrets used to derive each updated node key pair.
 * Each outdated node key pair that was replaced by the update.
+
+## Update Paths
+
+As described in {{commit}}, each Commit message may optionally contain an
+UpdatePath, with a new LeafNode and set of parent nodes for the sender's
+filtered direct path. For each parent node, the UpdatePath contains a new
+public key and encrypted path secret. The parent nodes are kept in the same
+order as the filtered direct path.
+
+~~~ tls
+struct {
+    opaque kem_output<V>;
+    opaque ciphertext<V>;
+} HPKECiphertext;
+
+struct {
+    HPKEPublicKey encryption_key;
+    HPKECiphertext encrypted_path_secret<V>;
+} UpdatePathNode;
+
+struct {
+    LeafNode leaf_node;
+    UpdatePathNode nodes<V>;
+} UpdatePath;
+~~~
+
+For each `UpdatePathNode`, the resolution of the corresponding copath node MUST
+exclude all new leaf nodes added as part of the current Commit. The length of
+the `encrypted_path_secret` vector MUST be equal to the length of the resolution
+of the copath node (excluding new leaf nodes), with each ciphertext being the
+encryption to the respective resolution node.
+
+The HPKECiphertext values are computed as
+
+~~~ pseudocode
+kem_output, context = SetupBaseS(node_public_key, group_context)
+ciphertext = context.Seal("", path_secret)
+~~~
+
+where `node_public_key` is the public key of the node that the path
+secret is being encrypted for, group_context is the provisional GroupContext object
+for the group, and the functions `SetupBaseS` and
+`Seal` are defined according to {{!RFC9180}}.
+
+Decryption is performed in the corresponding way, using the private
+key of the resolution node.
+
+~~~ pseudocode
+context = SetupBaseR(kem_output, node_private_key, group_context)
+path_secret = context.Open("", ciphertext)
+~~~
+
+## Adding and Removing Leaves
+
+In addition to the path-based updates to the tree described above, it is also
+necessary to add and remove leaves of the tree in order to reflect changes to
+the membership of the group (see {{add}} and {{remove}}).  Since the tree is
+always full, adding or removing leaves corresponds to increasing or decreasing
+the depth of the tree, resulting in the number of leaves being doubled or
+halved. These operations are also known as _extending_ and _truncating_ the
+tree.
+
+Leaves are always added and removed at the right edge of the tree.  When the
+size of the tree needs to be increased, a new blank root node is added, whose
+left subtree is the existing tree and right subtree is a new all-blank subtree.
+This operation is typically done when adding a member to the group.
+
+~~~ ascii-art
+                  _ <-- new blank root                    _
+                __|__                                   __|__
+               /     \                                 /     \
+  X    ===>   X       _ <-- new blank subtree ===>    X       _
+ / \         / \     / \                             / \     / \
+A   B       A   B   _   _                           A   B   C   _
+                                                            ^
+                                                            |
+                                                            +-- new member
+~~~
+{: title="Extending the tree to make room for a third member"}
+
+When the right subtree of the tree no longer has any non-blank nodes, it can be
+safely removed.  The root of the tree and the right subtree are discarded
+(whether or not the root node is blank). The left child of the root becomes the
+new root node, and the left subtree becomes the new tree.  This operation is
+typically done after removing a member from the group.
+
+~~~ ascii-art
+               Y                  Y
+             __|__              __|__
+            /     \            /     \
+           X       _   ===>   X       _   ==>   X <-- new root
+          / \     / \        / \     / \       / \
+         A   B   C   _      A   B   _   _     A   B
+                 ^
+                 |
+removed member --+
+~~~
+{: title="Cleaning up after removing the third member"}
+
+Concrete algorithms for these operations on array-based and link-based trees are
+provided in {{array-based-trees}} and {{link-based-trees}}.  The concrete
+algorithms are non-normative.  An implementation MAY use any algorithm that
+produces the correct tree in its internal representation.
 
 ## Tree Hashes
 
@@ -2534,57 +2585,6 @@ recompute the expected value of `parent_hash` for the committer's new leaf and
 verify that it matches the `parent_hash` value in the supplied `leaf_node`.
 After being merged into the tree, the nodes in the UpdatePath form a parent-hash
 chain from the committer's leaf to the root.
-
-## Update Paths
-
-As described in {{commit}}, each Commit message may optionally contain an
-UpdatePath, with a new LeafNode and set of parent nodes for the sender's
-filtered direct path. For each parent node, the UpdatePath contains a new
-public key and encrypted path secret. The parent nodes are kept in the same
-order as the filtered direct path.
-
-~~~ tls
-struct {
-    opaque kem_output<V>;
-    opaque ciphertext<V>;
-} HPKECiphertext;
-
-struct {
-    HPKEPublicKey encryption_key;
-    HPKECiphertext encrypted_path_secret<V>;
-} UpdatePathNode;
-
-struct {
-    LeafNode leaf_node;
-    UpdatePathNode nodes<V>;
-} UpdatePath;
-~~~
-
-For each `UpdatePathNode`, the resolution of the corresponding copath node MUST
-exclude all new leaf nodes added as part of the current Commit. The length of
-the `encrypted_path_secret` vector MUST be equal to the length of the resolution
-of the copath node (excluding new leaf nodes), with each ciphertext being the
-encryption to the respective resolution node.
-
-The HPKECiphertext values are computed as
-
-~~~ pseudocode
-kem_output, context = SetupBaseS(node_public_key, group_context)
-ciphertext = context.Seal("", path_secret)
-~~~
-
-where `node_public_key` is the public key of the node that the path
-secret is being encrypted for, group_context is the provisional GroupContext object
-for the group, and the functions `SetupBaseS` and
-`Seal` are defined according to {{!RFC9180}}.
-
-Decryption is performed in the corresponding way, using the private
-key of the resolution node.
-
-~~~ pseudocode
-context = SetupBaseR(kem_output, node_private_key, group_context)
-path_secret = context.Open("", ciphertext)
-~~~
 
 # Key Schedule
 
