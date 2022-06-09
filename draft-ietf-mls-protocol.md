@@ -2500,12 +2500,21 @@ Parent hashes are verified at two points in the protocol: When joining a group
 and when processing a Commit.
 
 The parent hash in a node D is valid with respect to a parent node P if the
-following criteria hold:
+following criteria hold.  Here C and S are the children of P (for "child" and
+"sibling"), with C being the child that is on the direct path of D (possibly D
+itself) and S the other child:
 
-* D is a descendant of P in the tree
-* Any nodes between D and P in the tree are all blank
+* D is a descendant of P in the tree.
+
 * The `parent_hash` field of D is equal to the parent hash of P with copath
-  child S, where S is the child of P that is not on the path from D to P.
+  child S.
+
+* D is in the resolution of C, and the intersection of P's `unmerged_leaves`
+  with the subtree under C is equal to the resolution of C with D removed.
+
+These checks verify that D and P were updated at the same time (in the same
+UpdatePath), and that they were neighbors in the UpdatePath because the nodes in
+between them would have omitted from the filtered direct path.
 
 A parent node P is "parent-hash valid" if it can be chained back to a leaf node
 in this way.  That is, if there is leaf node L and a sequence of parent nodes
@@ -4270,16 +4279,15 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
   * Verify that the tree hash of the ratchet tree matches the `tree_hash` field
     in GroupInfo.
 
-  * For each non-empty parent node, verify that exactly one of the node's
-    children are non-empty and have the hash of this node set as their
-    `parent_hash` value (if the child is another parent) or has a `parent_hash`
-    field in the LeafNode containing the same value (if the child is a
-    leaf). If either of the node's children is empty, and in particular does not
-    have a parent hash, then its respective children's `parent_hash` values have
-    to be considered instead.
+  * For each non-empty parent node, verify that it is "parent-hash valid",
+    as described in {{verifying-parent-hashes}}.
 
   * For each non-empty leaf node, validate the LeafNode as described in
     {{leaf-node-validation}}.
+
+  * For each non-empty parent node, verify that each entry in the node's
+    `unmerged_leaves` represents a non-blank leaf node that is a descendant of
+    the parent node.
 
 * Identify a leaf whose LeafNode is
   identical to the one in the KeyPackage.  If no such field exists, return an
