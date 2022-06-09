@@ -4109,84 +4109,6 @@ struct {
 } GroupInfoTBS;
 ~~~
 
-#### Joining via External Commits
-
-External Commits are a mechanism for new members (external parties that want to
-become members of the group) to add themselves to a group, without requiring
-that an existing member has to come online to issue a Commit that references an
-Add Proposal.
-
-Whether existing members of the group will accept or reject an External Commit
-follows the same rules that are applied to other handshake messages.
-
-New members can create and issue an External Commit if they have access to the
-following information for the group's current epoch:
-
-* group ID
-* epoch ID
-* ciphersuite
-* public tree hash
-* confirmed transcript hash
-* confirmation tag of the most recent Commit
-* group extensions
-* external public key
-
-In other words, to join a group via an External Commit, a new member needs a
-GroupInfo with an `ExternalPub` extension present in its `extensions` field.
-
-~~~ tls
-struct {
-    HPKEPublicKey external_pub;
-} ExternalPub;
-~~~
-
-Thus, a member of the group can enable new clients to join by making a GroupInfo
-object available to them. Note that because a GroupInfo object is specific to an
-epoch, it will need to be updated as the group advances. In particular, each
-GroupInfo object can be used for one external join, since that external join
-will cause the epoch to change.
-
-Note that the `tree_hash` field is used the same way as in the Welcome message.
-The full tree can be included via the `ratchet_tree` extension
-{{ratchet-tree-extension}}.
-
-The information in a GroupInfo is not generally public information, but applications
-can choose to make it available to new members in order to allow External
-Commits.
-
-In principle, External Commits work like regular Commits. However, their content
-has to meet a specific set of requirements:
-
-* External Commits MUST contain a `path` field (and is therefore a "full"
-  Commit).  The joiner is added at the leftmost free leaf node (just as if they
-  were added with an Add proposal), and the path is calculated relative to that
-  leaf node.
-* The Commit MUST NOT include any proposals by reference, since an external
-  joiner cannot determine the validity of proposals sent within the group
-* External Commits MUST be signed by the new member.  In particular, the
-  signature on the enclosing MLSAuthenticatedContent MUST verify using the public key for
-  the credential in the `leaf_node` of the `path` field.
-* When processing a Commit, both existing and new members MUST use the external
-  init secret as described in {{external-initialization}}.
-* The sender type for the MLSAuthenticatedContent encapsulating the External Commit MUST be
-  `new_member_commit`.
-
-External Commits come in two "flavors" -- a "join" commit that
-adds the sender to the group or a "resync" commit that replaces a member's prior
-appearance with a new one.
-
-Note that the "resync" operation allows an attacker that has compromised a
-member's signature private key to introduce themselves into the group and remove the
-prior, legitimate member in a single Commit.  Without resync, this
-can still be done, but requires two operations, the external Commit to join and
-a second Commit to remove the old appearance.  Applications for whom this
-distinction is salient can choose to disallow external commits that contain a
-Remove, or to allow such resync commits only if they contain a "reinit" PSK
-proposal that demonstrates the joining member's presence in a prior epoch of the
-group.  With the latter approach, the attacker would need to compromise the PSK
-as well as the signing key, but the application will need to ensure that
-continuing, non-resynchronizing members have the required PSK.
-
 #### Joining via Welcome Message
 
 The sender of a Commit message is responsible for sending a single Welcome message to
@@ -4341,6 +4263,84 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
     group match those of the old group, and that the members of the new group
     compose a subset of the members of the old group, according to the
     application.
+
+#### Joining via External Commits
+
+External Commits are a mechanism for new members (external parties that want to
+become members of the group) to add themselves to a group, without requiring
+that an existing member has to come online to issue a Commit that references an
+Add Proposal.
+
+Whether existing members of the group will accept or reject an External Commit
+follows the same rules that are applied to other handshake messages.
+
+New members can create and issue an External Commit if they have access to the
+following information for the group's current epoch:
+
+* group ID
+* epoch ID
+* ciphersuite
+* public tree hash
+* confirmed transcript hash
+* confirmation tag of the most recent Commit
+* group extensions
+* external public key
+
+In other words, to join a group via an External Commit, a new member needs a
+GroupInfo with an `ExternalPub` extension present in its `extensions` field.
+
+~~~ tls
+struct {
+    HPKEPublicKey external_pub;
+} ExternalPub;
+~~~
+
+Thus, a member of the group can enable new clients to join by making a GroupInfo
+object available to them. Note that because a GroupInfo object is specific to an
+epoch, it will need to be updated as the group advances. In particular, each
+GroupInfo object can be used for one external join, since that external join
+will cause the epoch to change.
+
+Note that the `tree_hash` field is used the same way as in the Welcome message.
+The full tree can be included via the `ratchet_tree` extension
+{{ratchet-tree-extension}}.
+
+The information in a GroupInfo is not generally public information, but applications
+can choose to make it available to new members in order to allow External
+Commits.
+
+In principle, External Commits work like regular Commits. However, their content
+has to meet a specific set of requirements:
+
+* External Commits MUST contain a `path` field (and is therefore a "full"
+  Commit).  The joiner is added at the leftmost free leaf node (just as if they
+  were added with an Add proposal), and the path is calculated relative to that
+  leaf node.
+* The Commit MUST NOT include any proposals by reference, since an external
+  joiner cannot determine the validity of proposals sent within the group
+* External Commits MUST be signed by the new member.  In particular, the
+  signature on the enclosing MLSAuthenticatedContent MUST verify using the public key for
+  the credential in the `leaf_node` of the `path` field.
+* When processing a Commit, both existing and new members MUST use the external
+  init secret as described in {{external-initialization}}.
+* The sender type for the MLSAuthenticatedContent encapsulating the External Commit MUST be
+  `new_member_commit`.
+
+External Commits come in two "flavors" -- a "join" commit that
+adds the sender to the group or a "resync" commit that replaces a member's prior
+appearance with a new one.
+
+Note that the "resync" operation allows an attacker that has compromised a
+member's signature private key to introduce themselves into the group and remove the
+prior, legitimate member in a single Commit.  Without resync, this
+can still be done, but requires two operations, the external Commit to join and
+a second Commit to remove the old appearance.  Applications for whom this
+distinction is salient can choose to disallow external commits that contain a
+Remove, or to allow such resync commits only if they contain a "reinit" PSK
+proposal that demonstrates the joining member's presence in a prior epoch of the
+group.  With the latter approach, the attacker would need to compromise the PSK
+as well as the signing key, but the application will need to ensure that
+continuing, non-resynchronizing members have the required PSK.
 
 ## Ratchet Tree Extension
 
