@@ -2691,6 +2691,8 @@ summarizes the state of the group:
 
 ~~~ tls
 struct {
+    ProtocolVersion version = mls10;
+    CipherSuite cipher_suite;
     opaque group_id<V>;
     uint64 epoch;
     opaque tree_hash<V>;
@@ -2701,6 +2703,7 @@ struct {
 
 The fields in this state have the following semantics:
 
+* The `cipher_suite` is the cipher suite used by the group.
 * The `group_id` field is an application-defined identifier for the
   group.
 * The `epoch` field represents the current version of the group.
@@ -3228,7 +3231,7 @@ The validity of a KeyPackage needs to be verified at a few stages:
 The client verifies the validity of a KeyPackage using the following steps:
 
 * Verify that the ciphersuite and protocol version of the KeyPackage match
-  those in use in the group.
+  those in the `GroupContext`.
 
 * Verify that the `leaf_node` of the KeyPackage is valid for a KeyPackage
   according to {{leaf-node-validation}}.
@@ -4072,7 +4075,6 @@ new members need information to bootstrap their local group state.
 
 ~~~ tls
 struct {
-    CipherSuite cipher_suite;
     GroupContext group_context;
     Extension extensions<V>;
     MAC confirmation_tag;
@@ -4092,7 +4094,6 @@ GroupInfo above `signature`:
 
 ~~~ tls
 struct {
-    CipherSuite cipher_suite;
     GroupContext group_context;
     Extension extensions<V>;
     uint32 signer;
@@ -4159,7 +4160,7 @@ has to meet a specific set of requirements:
 * When processing a Commit, both existing and new members MUST use the external
   init secret as described in {{external-initialization}}.
 * The sender type for the MLSAuthenticatedContent encapsulating the External Commit MUST be
-  `new_member_commit `
+  `new_member_commit `.
 
 External Commits come in two "flavors" -- a "join" commit that
 adds the sender to the group or a "resync" commit that replaces a member's prior
@@ -4264,6 +4265,9 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 
 * Verify that the `group_id` is unique among the groups that the client is
   currently participating in.
+
+* Verify that the `cipher_suite` in the GroupInfo matches the `cipher_suite` in
+  the KeyPackage.
 
 * Verify the integrity of the ratchet tree.
 
