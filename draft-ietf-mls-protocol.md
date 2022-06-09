@@ -4160,7 +4160,7 @@ has to meet a specific set of requirements:
 * When processing a Commit, both existing and new members MUST use the external
   init secret as described in {{external-initialization}}.
 * The sender type for the MLSAuthenticatedContent encapsulating the External Commit MUST be
-  `new_member_commit `.
+  `new_member_commit`.
 
 External Commits come in two "flavors" -- a "join" commit that
 adds the sender to the group or a "resync" commit that replaces a member's prior
