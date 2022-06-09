@@ -134,6 +134,52 @@ shared keys with costs that scale as the log of the group size.
 
 RFC EDITOR PLEASE DELETE THIS SECTION.
 
+draft-15
+
+- Include ciphersuite in group context (\*)
+
+- Add new new_proposal_member SenderType (\*)
+
+- Always use a full tree (\*)
+
+- Change KeyPackage identifier extension to be LeafNode identifier (\*)
+
+- Use new tree for context in path secret encryption (\*)
+
+- Use a hash function for hash identifiers (\*)
+
+- Add a marker byte to tree hash input structs (\*)
+
+- Recommend that group ids are generated randomly (\*)
+
+- Update external senders extension to have SignaturePublicKey and Credential (\*)
+
+- Replace LeafNodeRef with leaf index (\*)
+
+- Remove AppAck proposal (\*)
+
+- Make padding arbitrary-size and all-zero (\*)
+
+- Require that unmerged_leaves be ordered
+
+- Derive the commit secret from the end of the UpdatePath, not the root
+
+- Specify the precise points in the protocol where credential validation must be done
+
+- Make PSK provisions more uniform, e.g., always generating a fresh random nonce
+
+- Improve parent hash guarantees with stricter checks on tree correctness
+
+- Streamline some structs, e.g., folding GroupContext into GroupInfo
+
+- Provide clearer rules for validating and applying commits
+
+- Clarify tree hash and parent hash, and correct examples
+
+- Clean up struct names and references to outdated structs
+
+- Cite AEAD limits draft
+
 draft-14
 
 - Ensure that a signature public key is always intelligible (\*)
