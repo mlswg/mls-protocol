@@ -5002,6 +5002,7 @@ Initial contents:
 | 0x0002           | ratchet_tree             | GI         | Y           | RFC XXXX  |
 | 0x0003           | required_capabilities    | GC         | Y           | RFC XXXX  |
 | 0x0004           | external_pub             | GI         | Y           | RFC XXXX  |
+| 0x0005           | external_senders         | GC         | Y           | RFC XXXX  |
 | 0xff00  - 0xffff | Reserved for Private Use | N/A        | N/A         | RFC XXXX  |
 
 ## MLS Proposal Types
