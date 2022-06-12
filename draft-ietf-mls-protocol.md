@@ -42,6 +42,52 @@ author:
     organization: University of Oxford
     email: me@katriel.co.uk
 
+contributor:
+ - name: Joel Alwen
+   org:  Amazon
+   email:  alwenjo@amazon.com
+ - name: Karthikeyan Bhargavan
+   org:  Inria
+   email:  karthikeyan.bhargavan@inria.fr
+ - name: Cas Cremers
+   org:  CISPA
+   email:  cremers@cispa.de
+ - name: Alan Duric
+   org:  Wire
+   email:  alan@wire.com
+ - name: Britta Hale
+   org:  Naval Postgraduate School
+   email:  britta.hale@nps.edu
+ - name: Srinivas Inguva
+   org:  Twitter
+   email:  singuva@twitter.com
+ - name: Konrad Kohbrok
+   org:  Aalto University
+   email:  konrad.kohbrok@datashrine.de
+ - name: Albert Kwon
+   org:  MIT
+   email:  kwonal@mit.edu
+ - name: Tom Leavy
+   org:  Amazon
+   email:  tomleavy@amazon.com
+ - name: Brendan McMillion
+   email: brendanmcmillion@gmail.com
+ - name: Marta Mularczyk
+   org:  Amazon
+   email:  mulmarta@amazon.com
+ - name: Eric Rescorla
+   org:  Mozilla
+   email:  ekr@rtfm.com
+ - name: Michael Rosenberg
+   org:  Trail of Bits
+   email:  michael.rosenberg@trailofbits.com
+ - name: Théophile Wallez
+   org:  Inria
+   email:  theophile.wallez@inria.fr
+ - name: Thyla van der Merwe
+   org:  Royal Holloway, University of London
+   email:  thyla.van.der@merwe.tech
+
 informative:
   art:
     target: https://eprint.iacr.org/2017/666.pdf
@@ -5141,67 +5187,6 @@ Security considerations:
 : MLS is an encrypted messaging layer designed
    to be transmitted over arbitrary lower layer protocols. The
    security considerations in this document (RFC XXXX) also apply.
-
-# Contributors
-
-* Joel Alwen \\
-  Amazon \\
-  alwenjo@amazon.com
-
-* Karthikeyan Bhargavan \\
-  Inria \\
-  karthikeyan.bhargavan@inria.fr
-
-* Cas Cremers \\
-  CISPA \\
-  cremers@cispa.de
-
-* Alan Duric \\
-  Wire \\
-  alan@wire.com
-
-* Britta Hale \\
-  Naval Postgraduate School \\
-  britta.hale@nps.edu
-
-* Srinivas Inguva \\
-  Twitter \\
-  singuva@twitter.com
-
-* Konrad Kohbrok \\
-  Aalto University \\
-  konrad.kohbrok@datashrine.de
-
-* Albert Kwon \\
-  MIT \\
-  kwonal@mit.edu
-
-* Tom Leavy \\
-  Amazon \\
-  tomleavy@amazon.com
-
-* Brendan McMillion \\
-  brendanmcmillion@gmail.com
-
-* Marta Mularczyk \\
-  Amazon \\
-  mulmarta@amazon.com
-
-* Eric Rescorla \\
-  Mozilla \\
-  ekr@rtfm.com
-
-* Michael Rosenberg \\
-  Trail of Bits \\
-  michael.rosenberg@trailofbits.com
-
-* Théophile Wallez \\
-  Inria \\
-  theophile.wallez@inria.fr
-
-* Thyla van der Merwe \\
-  Royal Holloway, University of London \\
-  thyla.van.der@merwe.tech
 
 --- back
 
