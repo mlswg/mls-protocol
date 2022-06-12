@@ -71,8 +71,7 @@ contributor:
    org:  Amazon
    email:  tomleavy@amazon.com
  - name: Brendan McMillion
-   org:  brendanmcmillion@gmail.
-   email:
+   email: brendanmcmillion@gmail.com
  - name: Marta Mularczyk
    org:  Amazon
    email:  mulmarta@amazon.com
