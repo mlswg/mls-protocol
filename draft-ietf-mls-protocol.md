@@ -1312,8 +1312,8 @@ by a label as shown below:
 SignWithLabel(SignatureKey, Label, Content) =
     Signature.Sign(SignatureKey, SignContent)
 
-VerifyWithLabel(VerificationKey, Label, Content) =
-    Signature.Verify(VerificationKey, SignContent)
+VerifyWithLabel(VerificationKey, Label, Content, SignatureValue) =
+    Signature.Verify(VerificationKey, SignContent, SignatureValue)
 
 Where SignContent is specified as:
 
