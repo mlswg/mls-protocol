@@ -4197,6 +4197,7 @@ GroupInfo above `signature`:
 struct {
     GroupContext group_context;
     Extension extensions<V>;
+    MAC confirmation_tag;
     uint32 signer;
 } GroupInfoTBS;
 ~~~
