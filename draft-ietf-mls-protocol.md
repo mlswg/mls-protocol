@@ -5158,7 +5158,7 @@ MLS DE, that MLS DE SHOULD defer to the judgment of the other MLS DEs.
 ## The "message/mls" MIME Type
 
 This document registers the "message/mls" MIME media type in order to allow other
-protocols (ex: HTTP {{!RFC7540}}) to convey MLS messages.
+protocols (e.g., HTTP {{?RFC7540}}) to convey MLS messages.
 
 Media type name:
 : message
