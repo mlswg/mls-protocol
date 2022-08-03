@@ -2005,9 +2005,11 @@ struct {
 
         case update:
             opaque group_id<V>;
+            uint32 leaf_index;
 
         case commit:
             opaque group_id<V>;
+            uint32 leaf_index;
     }
 } LeafNodeTBS;
 ~~~
