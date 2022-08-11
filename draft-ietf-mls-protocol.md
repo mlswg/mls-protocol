@@ -29,8 +29,8 @@ author:
  -
     ins: J. Millican
     name: Jon Millican
-    organization: Facebook
-    email: jmillican@fb.com
+    organization: Meta Platforms
+    email: jmillican@meta.com
  -
     ins: E. Omara
     name: Emad Omara
