@@ -4793,7 +4793,7 @@ trees work by assigning each member of the group to a leaf in the tree and
 maintaining the following property: the private key of a node in the tree is
 known only to members of the group that are assigned a leaf in the node's
 subtree. This is called the *ratchet tree invariant* and it makes it possible to
-encrypt to all group members except one, with a number of ciphertexts that's
+encrypt to all group members except one, with a number of ciphertexts that is
 logarithmic in the number of group members.
 
 The ability to efficiently encrypt to all members except one allows members to
@@ -4829,7 +4829,7 @@ keys.  If a group requires joiners to know a PSK in addition to authenticating
 with a credential, then in order to mount an impersonation attack, the attacker
 would need to compromise the relevant PSK as well as the victim's signature key.
 The cost of this mitigation is that the application needs some external
-arrangement that ensures that the legitimate members of the group to have the
+arrangement that ensures that the legitimate members of the group have the
 required PSKs.
 
 ## Forward Secrecy and Post-Compromise Security
