@@ -4169,6 +4169,11 @@ A member of the group applies a Commit message by taking the following steps:
   send messages anymore. Instead, it MUST wait for a Welcome message from the committer
   meeting the requirements of {{reinitialization}}.
 
+Note that clients need to be prepared to receive a valid Commit message which removes
+them from the group. In this case, the client cannot send any more messages in the
+group and SHOULD promptly delete its group state and secret tree. (A client might keep
+the secret tree for a short time to decrypt late messages in the previous epoch.)
+
 ### Adding Members to the Group
 
 New members can join the group in two ways. Either by being added by a group
