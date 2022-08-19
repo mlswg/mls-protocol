@@ -3601,10 +3601,7 @@ leaf node.
 
 A member of the group applies a Remove message by taking the following steps:
 
-* Identify a leaf node matching `removed`.  This lookup MUST be done on the tree
-  before any non-Remove proposals have been applied (the "old" tree in the
-  terminology of {{commit}}), since proposals such as Update can change the
-  LeafNode stored at a leaf.  Let L be this leaf node.
+* Identify the leaf node matching `removed`.  Let L be this leaf node.
 
 * Replace the leaf node L with a blank node
 
