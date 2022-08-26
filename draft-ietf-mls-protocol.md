@@ -2958,6 +2958,7 @@ enum {
   application(1),
   reinit(2),
   branch(3),
+  (255)
 } ResumptionPSKUsage;
 
 struct {
@@ -3683,11 +3684,11 @@ The `kem_output` field contains the required KEM output.
 A GroupContextExtensions proposal is used to update the list of extensions in
 the GroupContext for the group.
 
-```
+~~~ tls
 struct {
   Extension extensions<V>;
 } GroupContextExtensions;
-```
+~~~
 
 A GroupContextExtensions proposal is invalid if it includes a
 `required_capabilities` extension and some members of the group do not support
