@@ -605,7 +605,7 @@ struct {
     select (present) {
         case 0: struct{};
         case 1: T value;
-    }
+    };
 } optional<T>;
 ~~~
 
@@ -1579,7 +1579,7 @@ struct {
             GroupInfo group_info;
         case mls_key_package:
             KeyPackage key_package;
-    }
+    };
 } MLSMessage;
 ~~~
 
@@ -1650,7 +1650,7 @@ struct {
         case external:
         case new_member_proposal:
             struct{};
-    }
+    };
 } MLSContentTBS;
 
 opaque MAC<V>;
@@ -1666,7 +1666,7 @@ struct {
         case application:
         case proposal:
             struct{};
-    }
+    };
 } MLSContentAuthData;
 ~~~
 
@@ -1715,7 +1715,7 @@ struct {
         case new_member_commit:
         case new_member_proposal:
             struct{};
-    }
+    };
 } MLSPlaintext;
 ~~~
 
@@ -1772,7 +1772,7 @@ struct {
 
         case commit:
           Commit commit;
-    }
+    };
 
     MLSContentAuthData auth;
     opaque padding[length_of_padding];
@@ -1972,7 +1972,7 @@ struct {
 
         case commit:
             opaque parent_hash<V>;
-    }
+    };
 
     Extension extensions<V>;
     // SignWithLabel(., "LeafNodeTBS", LeafNodeTBS)
@@ -1995,7 +1995,7 @@ struct {
 
         case commit:
             opaque parent_hash<V>;
-    }
+    };
 
     Extension extensions<V>;
 
@@ -2008,7 +2008,7 @@ struct {
 
         case commit:
             opaque group_id<V>;
-    }
+    };
 } LeafNodeTBS;
 ~~~
 
@@ -2970,7 +2970,7 @@ struct {
       ResumptionPSKUsage usage;
       opaque psk_group_id<V>;
       uint64 psk_epoch;
-  }
+  };
   opaque psk_nonce<V>;
 } PreSharedKeyID;
 ~~~
@@ -3683,11 +3683,11 @@ The `kem_output` field contains the required KEM output.
 A GroupContextExtensions proposal is used to update the list of extensions in
 the GroupContext for the group.
 
-```
+~~~ tls
 struct {
   Extension extensions<V>;
 } GroupContextExtensions;
-```
+~~~
 
 A GroupContextExtensions proposal is invalid if it includes a
 `required_capabilities` extension and some members of the group do not support
@@ -3735,14 +3735,14 @@ The `external_senders` extension is a group context extension that contains
 the credentials and signature keys of senders that are permitted to send
 external proposals to the group.
 
-~~~~~
+~~~ tls
 struct {
   SignaturePublicKey signature_key;
   Credential credential;
 } ExternalSender;
 
 ExternalSender external_senders<V>;
-~~~~~
+~~~
 
 ## Proposal List Validation
 
@@ -3870,7 +3870,7 @@ struct {
   select (ProposalOrRef.type) {
     case proposal:  Proposal proposal;
     case reference: ProposalRef reference;
-  }
+  };
 } ProposalOrRef;
 
 struct {
@@ -4233,7 +4233,7 @@ struct {
 struct {
   opaque joiner_secret<V>;
   optional<PathSecret> path_secret;
-  PreSharedKeyID psks<V>
+  PreSharedKeyID psks<V>;
 } GroupSecrets;
 
 struct {
