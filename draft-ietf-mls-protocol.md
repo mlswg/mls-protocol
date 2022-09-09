@@ -2958,6 +2958,7 @@ enum {
   application(1),
   reinit(2),
   branch(3),
+  (255)
 } ResumptionPSKUsage;
 
 struct {
