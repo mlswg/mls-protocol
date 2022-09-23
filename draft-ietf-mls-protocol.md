@@ -135,10 +135,6 @@ in size ranging from two to thousands.
 
 # Introduction
 
-DISCLAIMER: This is a work-in-progress draft of MLS and has not yet
-seen significant security analysis. It should not be used as a basis
-for building production systems.
-
 RFC EDITOR: PLEASE REMOVE THE FOLLOWING PARAGRAPH The source for
 this draft is maintained in GitHub. Suggested changes should be
 submitted as pull requests at https://github.com/mlswg/mls-protocol.
@@ -911,7 +907,9 @@ an attacker that had compromised the sender's prior leaf secret.
 Update messages SHOULD be sent at regular intervals of time as long as the group
 is active, and members that don't update SHOULD eventually be removed from the
 group. It's left to the application to determine an appropriate amount of time
-between Updates.
+between Updates.  In general, however, applications should take care that they
+do not send MLS messages at a rate that overwhelms the transport over which
+messages are being sent.
 
 ~~~ aasvg
                                                           Group
@@ -1786,7 +1784,9 @@ A receiver identifies the padding field in a plaintext decoded from
 then the `padding` field comprises any remaining octets of plaintext.  The
 `padding` field MUST be filled with all zero bytes.  A receiver MUST verify that
 there are no non-zero bytes in the `padding` field, and if this check fails, the
-enclosing MLSCiphertext MUST be rejected as malformed.
+enclosing MLSCiphertext MUST be rejected as malformed.  This check ensures that
+the padding process is deterministic, so that, for example, padding cannot be
+used as a covert channel.
 
 In the MLS key schedule, the sender creates two distinct key ratchets for
 handshake and application messages for each member of the group. When encrypting
@@ -4744,7 +4744,10 @@ to an adversary solely by the ciphertext length.
 The length of the `padding` field in `MLSCiphertextContent` can be
 chosen at the time of message encryption by the sender. Senders may use padding
 to reduce the ability of attackers outside the group to infer the size of the
-encrypted content.
+encrypted content.  Note, however, that the transports used to carry MLS
+messages may have maximum message sizes, so padding schemes SHOULD avoid
+increasing message size beyond these any such limits that exist in a given
+deployment scenario.
 
 ## Restrictions {#restrictions}
 
