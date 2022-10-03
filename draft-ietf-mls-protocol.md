@@ -4746,7 +4746,7 @@ chosen at the time of message encryption by the sender. Senders may use padding
 to reduce the ability of attackers outside the group to infer the size of the
 encrypted content.  Note, however, that the transports used to carry MLS
 messages may have maximum message sizes, so padding schemes SHOULD avoid
-increasing message size beyond these any such limits that exist in a given
+increasing message size beyond any such limits that exist in a given
 deployment scenario.
 
 ## Restrictions {#restrictions}
