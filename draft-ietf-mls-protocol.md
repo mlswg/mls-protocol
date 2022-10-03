@@ -957,6 +957,7 @@ A              B     ...      Z          Directory       Channel
 |              |              |              | Remove(B)    |
 |              |              |              | Commit(Rem)  |
 |<----------------------------------------------------------+
+|              |<-------------------------------------------+
 |              |              |<----------------------------+
 |              |              |              |              |
 ~~~
@@ -2005,9 +2006,11 @@ struct {
 
         case update:
             opaque group_id<V>;
+            uint32 leaf_index;
 
         case commit:
             opaque group_id<V>;
+            uint32 leaf_index;
     };
 } LeafNodeTBS;
 ~~~
@@ -2958,6 +2961,7 @@ enum {
   application(1),
   reinit(2),
   branch(3),
+  (255)
 } ResumptionPSKUsage;
 
 struct {
@@ -3601,10 +3605,7 @@ leaf node.
 
 A member of the group applies a Remove message by taking the following steps:
 
-* Identify a leaf node matching `removed`.  This lookup MUST be done on the tree
-  before any non-Remove proposals have been applied (the "old" tree in the
-  terminology of {{commit}}), since proposals such as Update can change the
-  LeafNode stored at a leaf.  Let L be this leaf node.
+* Identify the leaf node matching `removed`.  Let L be this leaf node.
 
 * Replace the leaf node L with a blank node
 
@@ -4168,6 +4169,11 @@ A member of the group applies a Commit message by taking the following steps:
   send messages anymore. Instead, it MUST wait for a Welcome message from the committer
   meeting the requirements of {{reinitialization}}.
 
+Note that clients need to be prepared to receive a valid Commit message which removes
+them from the group. In this case, the client cannot send any more messages in the
+group and SHOULD promptly delete its group state and secret tree. (A client might keep
+the secret tree for a short time to decrypt late messages in the previous epoch.)
+
 ### Adding Members to the Group
 
 New members can join the group in two ways. Either by being added by a group
@@ -4380,7 +4386,7 @@ following information for the group's current epoch:
 * external public key
 
 In other words, to join a group via an External Commit, a new member needs a
-GroupInfo with an `ExternalPub` extension present in its `extensions` field.
+GroupInfo with an `external_pub` extension present in its `extensions` field.
 
 ~~~ tls
 struct {
@@ -4793,7 +4799,7 @@ trees work by assigning each member of the group to a leaf in the tree and
 maintaining the following property: the private key of a node in the tree is
 known only to members of the group that are assigned a leaf in the node's
 subtree. This is called the *ratchet tree invariant* and it makes it possible to
-encrypt to all group members except one, with a number of ciphertexts that's
+encrypt to all group members except one, with a number of ciphertexts that is
 logarithmic in the number of group members.
 
 The ability to efficiently encrypt to all members except one allows members to
@@ -4829,7 +4835,7 @@ keys.  If a group requires joiners to know a PSK in addition to authenticating
 with a credential, then in order to mount an impersonation attack, the attacker
 would need to compromise the relevant PSK as well as the victim's signature key.
 The cost of this mitigation is that the application needs some external
-arrangement that ensures that the legitimate members of the group to have the
+arrangement that ensures that the legitimate members of the group have the
 required PSKs.
 
 ## Forward Secrecy and Post-Compromise Security
@@ -5161,10 +5167,10 @@ MLS DE, that MLS DE SHOULD defer to the judgment of the other MLS DEs.
 This document registers the "message/mls" MIME media type in order to allow other
 protocols (e.g., HTTP {{?RFC7540}}) to convey MLS messages.
 
-Media type name:
+Type name:
 : message
 
-Media subtype name:
+Subtype name:
 : mls
 
 Required parameters:
@@ -5172,23 +5178,61 @@ Required parameters:
 
 Optional parameters:
 : version
-   version:
-   : The MLS protocol version expressed as a string
-   `<major>.<minor>`.  If omitted the version is "1.0", which
-   corresponds to MLS ProtocolVersion mls10. If for some reason
-   the version number in the MIME type parameter differs from the
-   ProtocolVersion embedded in the protocol, the protocol takes
-   precedence.
+    version:
+    : The MLS protocol version expressed as a string
+    `<major>.<minor>`.  If omitted the version is "1.0", which
+    corresponds to MLS ProtocolVersion mls10. If for some reason
+    the version number in the MIME type parameter differs from the
+    ProtocolVersion embedded in the protocol, the protocol takes
+    precedence.
 
-Encoding scheme:
+Encoding considerations:
 : MLS messages are represented using the TLS
   presentation language [RFC8446]. Therefore MLS messages need to be
   treated as binary data.
 
 Security considerations:
 : MLS is an encrypted messaging layer designed
-   to be transmitted over arbitrary lower layer protocols. The
-   security considerations in this document (RFC XXXX) also apply.
+  to be transmitted over arbitrary lower layer protocols. The
+  security considerations in this document (RFC XXXX) also apply.
+
+Interoperability considerations:
+: N/A
+
+Published specification:
+: RFC XXXX
+
+Applications that use this media type:
+: MLS-based messaging applications
+
+Fragment identifier considerations:
+: N/A
+
+Additional information:
+
+  * Deprecated alias names for this type: N/A
+  * Magic number(s): N/A
+  * File extension(s): N/A
+  * Macintosh file type code(s): N/A
+
+Person & email address to contact for further information:
+: IETF MLS Working Group <mls@ietf.org>
+
+Intended usage:
+: COMMON
+
+Restrictions on usage:
+: N/A
+
+Author:
+: IETF MLS Working Group
+
+Change controller:
+: IESG
+
+Provisional registration? (standards tree only):
+: No
+
 
 --- back
 
