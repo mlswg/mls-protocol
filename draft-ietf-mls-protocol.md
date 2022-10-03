@@ -5161,10 +5161,10 @@ MLS DE, that MLS DE SHOULD defer to the judgment of the other MLS DEs.
 This document registers the "message/mls" MIME media type in order to allow other
 protocols (e.g., HTTP {{?RFC7540}}) to convey MLS messages.
 
-Media type name:
+Type name:
 : message
 
-Media subtype name:
+Subtype name:
 : mls
 
 Required parameters:
@@ -5172,23 +5172,61 @@ Required parameters:
 
 Optional parameters:
 : version
-   version:
-   : The MLS protocol version expressed as a string
-   `<major>.<minor>`.  If omitted the version is "1.0", which
-   corresponds to MLS ProtocolVersion mls10. If for some reason
-   the version number in the MIME type parameter differs from the
-   ProtocolVersion embedded in the protocol, the protocol takes
-   precedence.
+    version:
+    : The MLS protocol version expressed as a string
+    `<major>.<minor>`.  If omitted the version is "1.0", which
+    corresponds to MLS ProtocolVersion mls10. If for some reason
+    the version number in the MIME type parameter differs from the
+    ProtocolVersion embedded in the protocol, the protocol takes
+    precedence.
 
-Encoding scheme:
+Encoding considerations:
 : MLS messages are represented using the TLS
   presentation language [RFC8446]. Therefore MLS messages need to be
   treated as binary data.
 
 Security considerations:
 : MLS is an encrypted messaging layer designed
-   to be transmitted over arbitrary lower layer protocols. The
-   security considerations in this document (RFC XXXX) also apply.
+  to be transmitted over arbitrary lower layer protocols. The
+  security considerations in this document (RFC XXXX) also apply.
+
+Interoperability considerations:
+: N/A
+
+Published specification:
+: RFC XXXX
+
+Applications that use this media type:
+: MLS-based messaging applications
+
+Fragment identifier considerations:
+: N/A
+
+Additional information:
+
+  * Deprecated alias names for this type: N/A
+  * Magic number(s): N/A
+  * File extension(s): N/A
+  * Macintosh file type code(s): N/A
+
+Person & email address to contact for further information:
+: IETF MLS Working Group <mls@ietf.org>
+
+Intended usage:
+: COMMON
+
+Restrictions on usage:
+: N/A
+
+Author:
+: IETF MLS Working Group
+
+Change controller:
+: IESG
+
+Provisional registration? (standards tree only):
+: No
+
 
 --- back
 
