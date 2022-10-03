@@ -4385,7 +4385,7 @@ following information for the group's current epoch:
 * external public key
 
 In other words, to join a group via an External Commit, a new member needs a
-GroupInfo with an `ExternalPub` extension present in its `extensions` field.
+GroupInfo with an `external_pub` extension present in its `extensions` field.
 
 ~~~ tls
 struct {
