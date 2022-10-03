@@ -4948,6 +4948,10 @@ The columns in the registry are as follows:
 
 * Name: The name of the ciphersuite
 
+[[ RFC EDITOR: This section should be the same as the corresponding text in
+draft-ietf-tls-rfc8447bis.  Please align the two documents if they have diverged
+in the approval process. ]]
+
 * Recommended: Whether support for this ciphersuite is recommended by the IETF
   MLS WG.  Valid values are "Y", "N", and "D", as described below.  The default
   value of the "Recommended" column is "N".  Setting the Recommended item to "Y"
