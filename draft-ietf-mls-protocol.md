@@ -4954,11 +4954,35 @@ The columns in the registry are as follows:
 
 * Name: The name of the ciphersuite
 
-* Recommended: Whether support for this ciphersuite is recommended by the IETF MLS
-  WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
-  value of "N" unless explicitly requested, and adding a value with a
-  "Recommended" value of "Y" requires Standards Action {{RFC8126}}.  IESG Approval
-  is REQUIRED for a Y->N transition.
+[[ RFC EDITOR: This section should be the same as the corresponding text in
+draft-ietf-tls-rfc8447bis.  Please align the two documents if they have diverged
+in the approval process. ]]
+
+* Recommended: Whether support for this ciphersuite is recommended by the IETF
+  MLS WG.  Valid values are "Y", "N", and "D", as described below.  The default
+  value of the "Recommended" column is "N".  Setting the Recommended item to "Y"
+  or "D", or changing a item whose current value is "Y" or "D", requires
+  Standards Action {{RFC8126}}.
+
+  * Y: Indicates that the IETF has consensus that the item is RECOMMENDED. This
+    only means that the associated mechanism is fit for the purpose for which it
+    was defined. Careful reading of the documentation for the mechanism is
+    necessary to understand the applicability of that mechanism. The IETF could
+    recommend mechanisms that have limited applicability, but will provide
+    applicability statements that describe any limitations of the mechanism or
+    necessary constraints on its use.
+
+  * N: Indicates that the item has not been evaluated by the IETF and that the
+    IETF has made no statement about the suitability of the associated
+    mechanism. This does not necessarily mean that the mechanism is flawed, only
+    that no consensus exists. The IETF might have consensus to leave an items
+    marked as "N" on the basis of it having limited applicability or usage
+    constraints.
+
+  * D: Indicates that the item is discouraged and SHOULD NOT or MUST NOT be
+    used. This marking could be used to identify mechanisms that might result in
+    problems if they are used, such as a weak cryptographic algorithm or a
+    mechanism that might cause interoperability problems in deployment.
 
 * Reference: The document where this ciphersuite is defined
 
