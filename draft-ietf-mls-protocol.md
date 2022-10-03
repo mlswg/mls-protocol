@@ -1657,12 +1657,14 @@ struct {
 opaque MAC<V>;
 
 struct {
-    // SignWithLabel(., "MLSContentTBS", MLSContentTBS)
+    /* SignWithLabel(., "MLSContentTBS", MLSContentTBS) */
     opaque signature<V>;
     select (MLSContent.content_type) {
         case commit:
-            // MAC(confirmation_key,
-            //     GroupContext.confirmed_transcript_hash)
+            /*
+              MAC(confirmation_key,
+                  GroupContext.confirmed_transcript_hash)
+            */
             MAC confirmation_tag;
         case application:
         case proposal:
@@ -1976,7 +1978,7 @@ struct {
     }
 
     Extension extensions<V>;
-    // SignWithLabel(., "LeafNodeTBS", LeafNodeTBS)
+    /* SignWithLabel(., "LeafNodeTBS", LeafNodeTBS) */
     opaque signature<V>;
 } LeafNode;
 
@@ -2866,7 +2868,7 @@ transcript hash.
 ~~~ tls
 struct {
     WireFormat wire_format;
-    MLSContent content; // with content.content_type == commit
+    MLSContent content; /* with content_type == commit */
     opaque signature<V>;
 } ConfirmedTranscriptHashInput;
 
@@ -2876,7 +2878,7 @@ struct {
 ~~~
 
 ~~~ pseudocode
-interim_transcript_hash_[0] = ""; // zero-length octet string
+interim_transcript_hash_[0] = ""; /* zero-length octet string */
 
 confirmed_transcript_hash_[n] =
     Hash(interim_transcript_hash_[n] ||
@@ -3292,7 +3294,7 @@ struct {
     HPKEPublicKey init_key;
     LeafNode leaf_node;
     Extension extensions<V>;
-    // SignWithLabel(., "KeyPackageTBS", KeyPackageTBS)
+    /* SignWithLabel(., "KeyPackageTBS", KeyPackageTBS) */
     opaque signature<V>;
 } KeyPackage;
 
@@ -4186,7 +4188,7 @@ struct {
     Extension extensions<V>;
     MAC confirmation_tag;
     uint32 signer;
-    // SignWithLabel(., "GroupInfoTBS", GroupInfoTBS)
+    /* SignWithLabel(., "GroupInfoTBS", GroupInfoTBS) */
     opaque signature<V>;
 } GroupInfo;
 ~~~
