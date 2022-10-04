@@ -2670,10 +2670,17 @@ UpdatePath), and that they were neighbors in the UpdatePath because the nodes in
 between them would have omitted from the filtered direct path.
 
 A parent node P is "parent-hash valid" if it can be chained back to a leaf node
-in this way.  That is, if there is leaf node L and a sequence of parent nodes
-P\_1, ..., P\_N such that P\_N = P and each step in the chain is authenticated
-by a parent hash: L's parent hash is valid with respect to P\_1, P\_1's parent
-hash is valid with respect to P\_2, and so on.
+in this way, and if that leaf node was the last updated leaf under that parent
+node.  That is, P is parent-hash valid if:
+
+1. There is leaf node L and a sequence of parent nodes P\_1, ..., P\_N such that
+   P\_N = P and each step in the chain is authenticated by a parent hash: L's
+   parent hash is valid with respect to P\_1, P\_1's parent hash is valid with
+   respect to P\_2, and so on.
+
+2. The leaf node L has `leaf_node_source` set to `commit` and its `commit_epoch`
+   field indicates a epoch greater than or equal to any `update_epoch` or
+   `commit_epoch` value present among the leaf nodes that are descendants of P.
 
 When joining a group, the new member MUST authenticate that each non-blank
 parent node P is parent-hash valid.  This can be done "bottom up" by building
