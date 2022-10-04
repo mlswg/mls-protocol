@@ -1971,9 +1971,10 @@ struct {
             Lifetime lifetime;
 
         case update:
-            struct{};
+            uint64 update_epoch;
 
         case commit:
+            uint64 commit_epoch;
             opaque parent_hash<V>;
     };
 
@@ -1994,9 +1995,10 @@ struct {
             Lifetime lifetime;
 
         case update:
-            struct{};
+            uint64 update_epoch;
 
         case commit:
+            uint64 commit_epoch;
             opaque parent_hash<V>;
     };
 
@@ -2108,9 +2110,12 @@ The client verifies the validity of a LeafNode using the following steps:
   * If the LeafNode appears in a KeyPackage, verify that `leaf_node_source` is
     set to `key_package`.
   * If the LeafNode appears in an Update proposal, verify that `leaf_node_source`
-    is set to `update`.
+    is set to `update` and `update_epoch` is set to the current epoch.
   * If the LeafNode appears in the `leaf_node` value of the UpdatePath in
-    a Commit, verify that `leaf_node_source` is set to `commit`.
+    a Commit, verify that `leaf_node_source` is set to `commit`  and
+    `commit_epoch` is set to the current epoch.
+  * If the LeafNode appears in a ratchet tree, verify that the `update_epoch`
+    or `commit_epoch` fields, if present, indicate an epoch before the current epoch.
 
 * Verify that the following fields are unique among the members of the group:
     * `signature_key`
