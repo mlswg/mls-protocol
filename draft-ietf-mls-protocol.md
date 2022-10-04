@@ -176,6 +176,22 @@ asynchronous key-encapsulation mechanism for tree structures.
 This mechanism allows the members of the group to derive and update
 shared keys with costs that scale as the log of the group size.
 
+## Operating Context
+
+MLS is designed to operate in the context described in
+{{?I-D.ietf-mls-architecture}}.  In particular, we assume that the following
+services are provided:
+
+* A Delivery Service that routes MLS messages among the participants in the
+  protocol.  The following types of delivery are typically required:
+
+  * Pre-publication of KeyPackage objects for clients
+  * Broadcast delivery of Proposal and Commit messages to members of a group
+  * Unicast delivery of Welcome messages to new members of a group
+
+* An Authentication Service that enables group members to authenticate the
+  credentials presented by other group members.
+
 ##  Change Log
 
 RFC EDITOR PLEASE DELETE THIS SECTION.
@@ -687,22 +703,6 @@ vectors to overflow available storage.  To facilitate debugging of potential
 interoperability problems, implementations SHOULD provide a clear error when
 such an overflow condition occurs.
 
-# Operating Context
-
-MLS is designed to operate in the context described in
-{{?I-D.ietf-mls-architecture}}.  In particular, we assume that the following
-services are provided:
-
-* A Delivery Service that routes MLS messages among the participants in the
-  protocol.  The following types of delivery are typically required:
-
-  * Pre-publication of KeyPackage objects for clients
-  * Broadcast delivery of Proposal and Commit messages to members of a group
-  * Unicast delivery of Welcome messages to new members of a group
-
-* An Authentication Service that enables group members to authenticate the
-  credentials presented by other group members.
-
 # Protocol Overview
 
 The core functionality of MLS is continuous group authenticated key exchange
@@ -831,7 +831,7 @@ and Commit messages directly, while in reality they would be sent encapsulated i
 MLSPlaintext or MLSCiphertext objects.
 
 Before the initialization of a group, clients publish KeyPackages to a directory
-provided by the Service Provider.
+provided by the Service Provider (see {{prepublish-flow}}).
 
 ~~~ aasvg
                                                                Group
@@ -847,8 +847,9 @@ A                B                C            Directory       Channel
 |                |                +--------------->|              |
 |                |                |                |              |
 ~~~
-{: title="Clients A, B, and C publish KeyPackages to the directory"}
+{: #prepublish-flow title="Clients A, B, and C publish KeyPackages to the directory"}
 
+{{create-flow}} shows how these prepublished KeyPackages are used to create a group.
 When a client A wants to establish a group with B and C, it first initializes a
 group state containing only itself and downloads KeyPackages for B and C. For
 each member, A generates an Add and Commit message adding that member, and
@@ -893,7 +894,7 @@ A              B              C          Directory            Channel
 |              |<------------------------------------------------+
 |              |              |              |                   |
 ~~~
-{: title="Client A creates a group with clients B and C"}
+{: #create-flow title="Client A creates a group with clients B and C"}
 
 Subsequent additions of group members proceed in the same way.  Any
 member of the group can download a KeyPackage for a new client
@@ -904,7 +905,8 @@ initialize its state and join the group.
 To enforce the forward secrecy and post-compromise security of messages, each
 member periodically updates the keys that represent them to the group.  A member
 does this by sending a Commit (possibly with no proposals), or by sending an
-Update message that is committed by another member.  Once the other members of
+Update message that is committed by another member (see {{update-flow}}).
+Once the other members of
 the group have processed these messages, the group's secrets will be unknown to
 an attacker that had compromised the sender's prior leaf secret.
 
@@ -932,11 +934,11 @@ A              B     ...      Z          Directory        Channel
 |              |              |<----------------------------+
 |              |              |              |              |
 ~~~
-{: title="Client B proposes to update its key, and client A commits the
+{: #update-flow title="Client B proposes to update its key, and client A commits the
 proposal.  As a result, the keys for both B and A updated, so the group has
 post-compromise security with respect to both of them."}
 
-Members are removed from the group in a similar way.
+Members are removed from the group in a similar way, as shown in {{remove-flow}}.
 Any member of the group can send a Remove proposal followed by a
 Commit message.  The Commit message provides new entropy to all members of the
 group except the removed member.  This new entropy is added to the epoch secret
@@ -961,7 +963,7 @@ A              B     ...      Z          Directory       Channel
 |              |              |<----------------------------+
 |              |              |              |              |
 ~~~
-{: title="Client Z removes client B from the group"}
+{: #remove-flow title="Client Z removes client B from the group"}
 
 ## Relationships Between Epochs
 
@@ -1263,7 +1265,7 @@ following primitives to be used in group key computations:
 * HPKE parameters:
   * A Key Encapsulation Mechanism (KEM)
   * A Key Derivation Function (KDF)
-  * An AEAD encryption algorithm
+  * An Authenticated Encryption with Associated Data (AEAD) encryption algorithm
 * A hash algorithm
 * A MAC algorithm
 * A signature algorithm
