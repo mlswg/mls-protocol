@@ -2671,7 +2671,7 @@ between them would have omitted from the filtered direct path.
 
 A parent node P is "parent-hash valid" if it can be chained back to a leaf node
 in this way, and if that leaf node was the last updated leaf under that parent
-node.  That is, P is parent-hash valid if:
+node.  That is, P is parent-hash valid if all of the following hold:
 
 1. There is leaf node L and a sequence of parent nodes P\_1, ..., P\_N such that
    P\_N = P and each step in the chain is authenticated by a parent hash: L's
