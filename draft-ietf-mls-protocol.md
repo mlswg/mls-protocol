@@ -1098,15 +1098,33 @@ an asymmetric key pair with some associated data:
 
 * A public key (for the HPKE scheme in use, see {{ciphersuites}})
 * A private key (only within the member's direct path, see {{views}})
-* A credential (only for leaf nodes)
-* An ordered list of "unmerged" leaves (see {{views}})
 * A hash of certain information about the node's parent, as of the last time the
   node was changed (see {{parent-hashes}}).
+
+Moreover, leaf nodes contains:
+* A credential and signature verification key
+* A source, telling how the leaf node was introduced in the tree (see
+  {{#leaf-node-contents}})
+* An epoch at which it was added (if the source is a key package) or at
+  which it was last updated (if the source is an update or commit).
 
 Every node, regardless of whether the node is blank or populated, has
 a corresponding _hash_ that summarizes the contents of the subtree
 below that node.  The rules for computing these hashes are described
 in {{tree-hashes}}.
+
+Nodes also have a corresponding _last update epoch_, which corresponds to the
+epoch in which their content was last modified.  For non-blank leaves, this last
+update epoch is stored in their content (if their source is an update or commit).
+For non-blank nodes, the last update epoch is the last epoch at which one of its
+leaves was updated, in other words it is the maximum last update epoch of its
+leaves.
+
+A leaf can be added under a node's subtree after this node was last updated,
+in that case we say that this leaf is _unmerged_ for this node.  More precisely,
+a leaf is unmerged for a node iff. its source is key package and its add epoch
+is greater than the last update epoch of the node. The list of leaves that are
+unmerged for a node is called the list of _unmerged leaves_ for this node.
 
 The _resolution_ of a node is an ordered list of non-blank nodes
 that collectively cover all non-blank descendants of the node.  The resolution
@@ -1156,8 +1174,7 @@ The _copath_ of a node is the node's sibling concatenated with the list of
 siblings of all the nodes in its direct path, excluding the root.
 
 The _filtered direct path_ of a leaf node L is the node's direct path, with any
-node removed whose child on the copath of L has an empty resolution (keeping in
-mind that any unmerged leaves of the copath child count toward its resolution).
+node removed whose child on the copath of L has an empty resolution.
 The removed nodes do not need their own key pairs because encrypting to the
 node's key pair would be equivalent to encrypting to its non-copath child.
 
@@ -1911,18 +1928,14 @@ subgroups of the group (for parent nodes).  Parent nodes are simpler:
 struct {
     HPKEPublicKey encryption_key;
     opaque parent_hash<V>;
-    uint32 unmerged_leaves<V>;
 } ParentNode;
 ~~~
 
 The `encryption_key` field contains an HPKE public key whose private key is held only
 by the members at the leaves among its descendants.  The `parent_hash` field
 contains a hash of this node's parent node, as described in {{parent-hashes}}.
-The `unmerged_leaves` field lists the leaves under this parent node that are
-unmerged, according to their indices among all the leaves in the tree.  The
-entries in the `unmerged_leaves` vector MUST be sorted in increasing order.
 
-## Leaf Node Contents
+## Leaf Node Contents {#leaf-node-contents}
 
 A leaf node in the tree describes all the details of an individual client's
 appearance in the group, signed by that client. It is also used in client
@@ -1968,6 +1981,7 @@ struct {
     LeafNodeSource leaf_node_source;
     select (LeafNode.leaf_node_source) {
         case key_package:
+            uint64 add_epoch;
             Lifetime lifetime;
 
         case update:
@@ -1992,6 +2006,7 @@ struct {
     LeafNodeSource leaf_node_source;
     select (LeafNodeTBS.leaf_node_source) {
         case key_package:
+            /* add_epoch is not authenticated */
             Lifetime lifetime;
 
         case update:
@@ -2159,7 +2174,7 @@ secret is only used with one algorithm: The path secret is used as an input to
 DeriveSecret and the node secret is used as an input to DeriveKeyPair.
 
 For example, suppose there is a group with four members, with C an unmerged leaf
-at Z:
+of Z:
 
 ~~~ aasvg
       Y
@@ -2284,7 +2299,6 @@ recipient _merges UpdatePath into the tree_:
 1. Blank all nodes on the direct path of the sender's leaf.
 2. For all nodes on the filtered direct path of the sender's leaf,
    * Set the public key to the public key in the UpdatePath.
-   * Set the list of unmerged leaves to the empty list.
 3. Compute parent hashes for the nodes in the sender's filtered direct path,
    and verify that the `parent_hash` field of the leaf node matches the parent
    hash for the first node in its filtered direct path.
@@ -2573,8 +2587,7 @@ fixed by P's Parent Hash. However, for each node that has an HPKE key, this key
 is fixed by P's Parent Hash.
 
 Finally, `original_sibling_tree_hash` is the tree hash of S in the ratchet tree
-modified as follows: For each leaf L in `P.unmerged_leaves`, blank L and remove
-it from the `unmerged_leaves` sets of all parent nodes.
+modified by blanking the unmerged leaves of P.
 
 Observe that `original_sibling_tree_hash` does not change between updates of P.
 This property is crucial for the correctness of the protocol.
@@ -2612,15 +2625,14 @@ following tree:
 E   _   G   _
 ~~~
 
-Because `W.unmerged_leaves` includes F, F is blanked and removed from
-`Y.unmerged_leaves`.
+Because F is unmerged for W, then F is blanked (and is hence not unmerged anymore for Y).
 
 Note that no recomputation is needed if the tree hash of S is unchanged since
 the last time P was updated. This is the case for computing or processing a
 Commit whose UpdatePath traverses P, since the Commit itself resets P. (In
 other words, it is only necessary to recompute the original sibling tree hash
-when validating a group's tree on joining.) More generally, if none of the entries
-in `P.unmerged_leaves` is in the subtree under S (and thus no leaves were blanked),
+when validating a group's tree on joining.) More generally, if no unmerged leaf
+of P under S (and thus no leaves were blanked),
 then the original tree hash at S is the tree hash of S in the current tree.
 
 If it is necessary to recompute the original tree hash of a node, the efficiency
@@ -2662,25 +2674,20 @@ itself) and S the other child:
 * The `parent_hash` field of D is equal to the parent hash of P with copath
   child S.
 
-* D is in the resolution of C, and the intersection of P's `unmerged_leaves`
-  with the subtree under C is equal to the resolution of C with D removed.
+* The last update epoch of D is equal to the last update epoch of P
+
+* The nodes between D and P are blank, and the resolution of nodes on the copath
+  from D to P are a subset of unmerged leaves of P
 
 These checks verify that D and P were updated at the same time (in the same
 UpdatePath), and that they were neighbors in the UpdatePath because the nodes in
 between them would have omitted from the filtered direct path.
 
 A parent node P is "parent-hash valid" if it can be chained back to a leaf node
-in this way, and if that leaf node was the last updated leaf under that parent
-node.  That is, P is parent-hash valid if all of the following hold:
-
-1. There is leaf node L and a sequence of parent nodes P\_1, ..., P\_N such that
-   P\_N = P and each step in the chain is authenticated by a parent hash: L's
-   parent hash is valid with respect to P\_1, P\_1's parent hash is valid with
-   respect to P\_2, and so on.
-
-2. The leaf node L has `leaf_node_source` set to `commit` and its `commit_epoch`
-   field indicates a epoch greater than or equal to any `update_epoch` or
-   `commit_epoch` value present among the leaf nodes that are descendants of P.
+in this way.  That is, if there is leaf node L and a sequence of parent nodes
+P\_1, ..., P\_N such that P\_N = P and each step in the chain is authenticated
+by a parent hash: L's parent hash is valid with respect to P\_1, P\_1's parent
+hash is valid with respect to P\_2, and so on.
 
 When joining a group, the new member MUST authenticate that each non-blank
 parent node P is parent-hash valid.  This can be done "bottom up" by building
@@ -3575,11 +3582,9 @@ the right.
   L is the leftmost empty leaf.  Otherwise, the tree is extended to the right
   by one leaf node and L is the new leaf.
 
-* For each non-blank intermediate node along the path from the leaf L
-  to the root, add L's leaf index to the `unmerged_leaves` list for the node.
-
 * Set the leaf node L to a new node containing the LeafNode object carried in
-  the `leaf_node` field of the KeyPackage in the Add.
+  the `leaf_node` field of the KeyPackage in the Add, and set the `add_epoch`
+  field to the current epoch.
 
 ### Update
 
@@ -4323,10 +4328,6 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 
   * For each non-empty leaf node, validate the LeafNode as described in
     {{leaf-node-validation}}.
-
-  * For each non-empty parent node, verify that each entry in the node's
-    `unmerged_leaves` represents a non-blank leaf node that is a descendant of
-    the parent node.
 
 * Identify a leaf whose LeafNode is
   identical to the one in the KeyPackage.  If no such field exists, return an
