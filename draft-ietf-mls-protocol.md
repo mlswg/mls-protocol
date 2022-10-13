@@ -1981,7 +1981,6 @@ struct {
     LeafNodeSource leaf_node_source;
     select (LeafNode.leaf_node_source) {
         case key_package:
-            uint64 add_epoch;
             Lifetime lifetime;
 
         case update:
@@ -1995,6 +1994,14 @@ struct {
     Extension extensions<V>;
     /* SignWithLabel(., "LeafNodeTBS", LeafNodeTBS) */
     opaque signature<V>;
+    /* add_epoch is not authenticated */
+    select (LeafNode.leaf_node_source) {
+        case key_package:
+            uint64 add_epoch;
+        case update:
+        case commit:
+            struct{};
+    };
 } LeafNode;
 
 struct {
@@ -2006,7 +2013,6 @@ struct {
     LeafNodeSource leaf_node_source;
     select (LeafNodeTBS.leaf_node_source) {
         case key_package:
-            /* add_epoch is not authenticated */
             Lifetime lifetime;
 
         case update:
