@@ -1104,7 +1104,7 @@ an asymmetric key pair with some associated data:
 Moreover, leaf nodes contains:
 * A credential and signature verification key
 * A source, telling how the leaf node was introduced in the tree (see
-  {{#leaf-node-contents}})
+  {{leaf-node-contents}})
 * An epoch at which it was added (if the source is a key package) or at
   which it was last updated (if the source is an update or commit).
 
