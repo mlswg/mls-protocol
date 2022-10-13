@@ -4335,6 +4335,10 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
   * For each non-empty leaf node, validate the LeafNode as described in
     {{leaf-node-validation}}.
 
+  * For each non-empty leaf node, verify that its add epoch, update epoch or
+    commit epoch (depending on the source) is less than or equal to the group
+    epoch.
+
 * Identify a leaf whose LeafNode is
   identical to the one in the KeyPackage.  If no such field exists, return an
   error.  Let `my_leaf` represent this leaf in the tree.
