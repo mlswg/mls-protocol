@@ -1123,8 +1123,9 @@ leaves.
 A leaf can be added under a node's subtree after this node was last updated,
 in that case we say that this leaf is _unmerged_ for this node.  More precisely,
 a leaf is unmerged for a node iff. its source is key package and its add epoch
-is greater than the last update epoch of the node. The list of leaves that are
-unmerged for a node is called the list of _unmerged leaves_ for this node.
+is greater or equal than the last update epoch of the node. The list of leaves
+that are unmerged for a node is called the list of _unmerged leaves_ for this
+node.
 
 The _resolution_ of a node is an ordered list of non-blank nodes
 that collectively cover all non-blank descendants of the node.  The resolution
