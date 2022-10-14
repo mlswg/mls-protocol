@@ -1114,18 +1114,27 @@ below that node.  The rules for computing these hashes are described
 in {{tree-hashes}}.
 
 Nodes also have a corresponding _last update epoch_, which corresponds to the
-epoch in which their content was last modified.  For non-blank leaves, this last
-update epoch is stored in their content (if their source is an update or commit).
-For non-blank nodes, the last update epoch is the last epoch at which one of its
-leaves was updated, in other words it is the maximum last update epoch of its
-leaves.
+epoch in which their content was last modified:
+
+* The last update epoch of a non-blank leaf L with `L.leaf_node_source == commit`
+  is equal to `L.commit_epoch`
+* The last update epoch of a blank leaf, or a non-blank L with
+  `L.leaf_node_source == key_package` or `L.leaf_node_source == update` is equal
+  to `0`
+* The last update epoch of an intermediate node is the maximum between the last
+  update epoch of its left child and the last update epoch of its right child
 
 A leaf can be added under a node's subtree after this node was last updated,
 in that case we say that this leaf is _unmerged_ for this node.  More precisely,
-a leaf is unmerged for a node iff. its source is key package and its add epoch
-is greater or equal than the last update epoch of the node. The list of leaves
-that are unmerged for a node is called the list of _unmerged leaves_ for this
-node.
+a leaf L is unmerged for a node P when:
+
+* P is an ancestor of L
+* `L.leaf_node_source == key_package`
+* `L.add_epoch >= LastUpdateEpoch(P)`, where `LastUpdateEpoch(P)` is the last
+  update epoch of `P`, as computed above
+
+The list of leaves that are unmerged for a node is called the list of
+_unmerged leaves_ for this node.
 
 The _resolution_ of a node is an ordered list of non-blank nodes
 that collectively cover all non-blank descendants of the node.  The resolution
