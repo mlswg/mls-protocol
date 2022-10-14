@@ -2638,8 +2638,8 @@ Note that no recomputation is needed if the tree hash of S is unchanged since
 the last time P was updated. This is the case for computing or processing a
 Commit whose UpdatePath traverses P, since the Commit itself resets P. (In
 other words, it is only necessary to recompute the original sibling tree hash
-when validating a group's tree on joining.) More generally, if no unmerged leaf
-of P under S (and thus no leaves were blanked),
+when validating a group's tree on joining.) More generally, if no leaf under S
+is unmerged with regard to P (and thus no leaves were blanked),
 then the original tree hash at S is the tree hash of S in the current tree.
 
 If it is necessary to recompute the original tree hash of a node, the efficiency
