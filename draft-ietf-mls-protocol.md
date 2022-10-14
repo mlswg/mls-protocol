@@ -1118,9 +1118,10 @@ epoch in which their content was last modified:
 
 * The last update epoch of a non-blank leaf L with `L.leaf_node_source == commit`
   is equal to `L.commit_epoch`
+* The last update epoch of a non-blank leaf L with `L.leaf_node_source == update`
+  is equal to `L.update_epoch`
 * The last update epoch of a blank leaf, or a non-blank L with
-  `L.leaf_node_source == key_package` or `L.leaf_node_source == update` is equal
-  to `0`
+  `L.leaf_node_source == key_package` is equal to `0`
 * The last update epoch of an intermediate node is the maximum between the last
   update epoch of its left child and the last update epoch of its right child
 
