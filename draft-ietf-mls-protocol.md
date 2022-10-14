@@ -1143,7 +1143,7 @@ of a node is effectively a depth-first, left-first enumeration of the nearest
 non-blank nodes below the node:
 
 * The resolution of a non-blank node comprises the node itself,
-  followed by its list of unmerged leaves, if any
+  followed by its list of unmerged leaves (ordered from left to right), if any
 * The resolution of a blank leaf node is the empty list
 * The resolution of a blank intermediate node is the result of
   concatenating the resolution of its left child with the resolution
