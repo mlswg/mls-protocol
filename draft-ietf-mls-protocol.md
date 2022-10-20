@@ -4076,8 +4076,7 @@ message at the same time, by taking the following steps:
   PreSharedKey proposals in the `proposals` vector.  As discussed on
   {{joining-via-welcome-message}}, the committer is free to choose how many
   Welcome messages to construct.  However, the set of Welcome messages produced
-  in this step MUST include one Welcome encrypted for each new member added in
-  the Commit.
+  in this step MUST cover every new member added in the Commit.
 
 * If a ReInit proposal was part of the Commit, the committer MUST create a new
   group with the parameters specified in the ReInit proposal,
