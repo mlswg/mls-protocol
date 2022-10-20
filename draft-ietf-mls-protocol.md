@@ -4070,10 +4070,14 @@ message at the same time, by taking the following steps:
   * Compute an EncryptedGroupSecrets object that encapsulates the `init_secret`
     for the current epoch and the path secret (if present).
 
-* Construct a Welcome message from the encrypted GroupInfo object, the encrypted
-  key packages, and any PSKs for which a proposal was included in the Commit. The
-  order of the `psks` MUST be the same as the order of PreSharedKey proposals in the
-  `proposals` vector.
+* Construct one or more Welcome messages from the encrypted GroupInfo object,
+  the encrypted key packages, and any PSKs for which a proposal was included in
+  the Commit. The order of the `psks` MUST be the same as the order of
+  PreSharedKey proposals in the `proposals` vector.  As discussed on
+  {{joining-via-welcome-message}}, the committer is free to choose how many
+  Welcome messages to construct.  However, the set of Welcome messages produced
+  in this step MUST include one Welcome encrypted for each new member added in
+  the Commit.
 
 * If a ReInit proposal was part of the Commit, the committer MUST create a new
   group with the parameters specified in the ReInit proposal,
@@ -4212,14 +4216,24 @@ struct {
 
 #### Joining via Welcome Message
 
-The sender of a Commit message is responsible for sending a single Welcome message to
-all the new members added via Add proposals.  The Welcome message provides the new
+The sender of a Commit message is responsible for sending a Welcome message to
+each new member added via Add proposals.  The format of the Welcome message
+allows a single Welcome message to be encrypted for multiple new members.  It is
+up to the committer to decide how many Welcome messages to create for a given
+Commit. The committer could create one Welcome that is encrypted for all new
+members, a different Welcome for each new member, or Welcome messages for
+batches of new members (according to some batching scheme that works well for
+the application).  The processes for creating and processing the Welcome are the
+same in all cases, aside from the set of new members for whom a given Welcome is
+encrypted.
+
+The Welcome message provides the new
 members with the current state of the group after the application of the Commit
 message.  The new members will not be able to decrypt or verify the Commit
 message, but will have the secrets they need to participate in the epoch
 initiated by the Commit message.
 
-In order to allow the same Welcome message to be sent to all new members,
+In order to allow the same Welcome message to be sent to multiple new members,
 information describing the group is encrypted with a symmetric key and nonce
 derived from the `joiner_secret` for the new epoch.  The `joiner_secret` is
 then encrypted to each new member using HPKE.  In the same encrypted package,
