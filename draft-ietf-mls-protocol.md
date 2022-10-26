@@ -1401,6 +1401,8 @@ struct {
 
 A BasicCredential is a bare assertion of an identity, without any additional
 information.  The format of the encoded identity is defined by the application.
+Public key material associated with the BasicCredential MUST be identical to the
+`signature_key` in the LeafNode containing this credential.
 
 For an X.509 credential, each entry in the chain represents a single DER-encoded
 X.509 certificate. The chain is ordered such that the first entry (chain[0]) is
