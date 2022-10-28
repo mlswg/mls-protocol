@@ -4426,6 +4426,11 @@ has to meet a specific set of requirements:
   init secret as described in {{external-initialization}}.
 * The sender type for the MLSAuthenticatedContent encapsulating the External Commit MUST be
   `new_member_commit`.
+* Normally, the joiner computes the interim transcript hash using the confirmed transcript
+  hash and the confirmation tag from the GroupInfo. The only exception is when the GroupInfo
+  was sent in an epoch with epoch ID 0 (i.e., before any members were added); in this case,
+  the confirmation tag in GroupInfo can be arbitrary and the joiner uses the empty interim
+  transcript hash.
 
 External Commits come in two "flavors" -- a "join" commit that
 adds the sender to the group or a "resync" commit that replaces a member's prior
