@@ -1116,12 +1116,9 @@ in {{tree-hashes}}.
 Nodes also have a corresponding _last update epoch_, which corresponds to the
 epoch in which their content was last modified:
 
-* The last update epoch of a non-blank leaf L with `L.leaf_node_source == commit`
+* The last commit epoch of a non-blank leaf L with `L.leaf_node_source == commit`
   is equal to `L.commit_epoch`
-* The last update epoch of a non-blank leaf L with `L.leaf_node_source == update`
-  is equal to `L.update_epoch`
-* The last update epoch of a blank leaf, or a non-blank L with
-  `L.leaf_node_source == key_package` is equal to `0`
+* The last commit epoch of other leaves are equal to 0
 * The last update epoch of an intermediate node is the maximum between the last
   update epoch of its left child and the last update epoch of its right child
 
@@ -2145,7 +2142,7 @@ The client verifies the validity of a LeafNode using the following steps:
     is set to `update` and `update_epoch` is set to the current epoch.
   * If the LeafNode appears in the `leaf_node` value of the UpdatePath in
     a Commit, verify that `leaf_node_source` is set to `commit`  and
-    `commit_epoch` is set to the current epoch.
+    `commit_epoch` is set to the new epoch.
   * If the LeafNode appears in a ratchet tree, verify that the `update_epoch`
     or `commit_epoch` fields, if present, indicate an epoch before the current epoch.
 
@@ -2691,10 +2688,10 @@ itself) and S the other child:
 * The `parent_hash` field of D is equal to the parent hash of P with copath
   child S.
 
-* The last update epoch of D is equal to the last update epoch of P
+* The last update epoch of D is equal to the last update epoch of P.
 
-* The nodes between D and P are blank, and the resolution of nodes on the copath
-  from D to P are a subset of unmerged leaves of P
+* D is in the resolution of C, and nodes in the resolution of C are either equal
+  to D or are unmerged leaves of P.
 
 These checks verify that D and P were updated at the same time (in the same
 UpdatePath), and that they were neighbors in the UpdatePath because the nodes in
