@@ -24,7 +24,7 @@ author:
  -
     ins: R. Robert
     name: Raphael Robert
-    organization:
+    organization: Phoenix R&D
     email: ietf@raphaelrobert.com
  -
     ins: J. Millican
@@ -62,7 +62,7 @@ contributor:
    org:  Twitter
    email:  singuva@twitter.com
  - name: Konrad Kohbrok
-   org:  Aalto University
+   org:  Phoenix R&D
    email:  konrad.kohbrok@datashrine.de
  - name: Albert Kwon
    org:  MIT
