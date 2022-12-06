@@ -1506,7 +1506,7 @@ Delivery Service to examine such messages.
 enum {
     reserved(0),
     mls10(1),
-    (255)
+    (65535)
 } ProtocolVersion;
 
 enum {
