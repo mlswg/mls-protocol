@@ -5000,7 +5000,7 @@ Initial contents:
 | 0x0005          | MLS_256_DHKEMP521_AES256GCM_SHA512_P521             | Y | RFC XXXX |
 | 0x0006          | MLS_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     | Y | RFC XXXX |
 | 0x0007          | MLS_256_DHKEMP384_AES256GCM_SHA384_P384.            | Y | RFC XXXX |
-| 0xff00 - 0xffff | Reserved for Private Use                            | - | RFC XXXX |
+| 0xf000 - 0xffff | Reserved for Private Use                            | - | RFC XXXX |
 
 All of these ciphersuites use HMAC {{!RFC2104}} as their MAC function, with
 different hashes per ciphersuite.  The mapping of ciphersuites to HPKE
@@ -5082,7 +5082,7 @@ Initial contents:
 | 0x0003           | required_capabilities    | GC         | Y           | RFC XXXX  |
 | 0x0004           | external_pub             | GI         | Y           | RFC XXXX  |
 | 0x0005           | external_senders         | GC         | Y           | RFC XXXX  |
-| 0xff00  - 0xffff | Reserved for Private Use | N/A        | N/A         | RFC XXXX  |
+| 0xf000  - 0xffff | Reserved for Private Use | N/A        | N/A         | RFC XXXX  |
 
 ## MLS Proposal Types
 
@@ -5119,7 +5119,7 @@ Initial contents:
 | 0x0005           | reinit                   | Y           | N             | RFC XXXX  |
 | 0x0006           | external_init            | Y           | Y             | RFC XXXX  |
 | 0x0007           | group_context_extensions | Y           | Y             | RFC XXXX  |
-| 0xff00  - 0xffff | Reserved for Private Use | N/A         | N/A           | RFC XXXX  |
+| 0xf000  - 0xffff | Reserved for Private Use | N/A         | N/A           | RFC XXXX  |
 
 ## MLS Credential Types
 
@@ -5148,7 +5148,7 @@ Initial contents:
 | 0x0000           | RESERVED                 | N/A         | RFC XXXX  |
 | 0x0001           | basic                    | Y           | RFC XXXX  |
 | 0x0002           | x509                     | Y           | RFC XXXX  |
-| 0xff00  - 0xffff | Reserved for Private Use | N/A         | RFC XXXX  |
+| 0xf000  - 0xffff | Reserved for Private Use | N/A         | RFC XXXX  |
 
 ## MLS Designated Expert Pool {#de}
 
