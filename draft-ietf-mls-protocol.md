@@ -5039,8 +5039,6 @@ The mandatory-to-implement ciphersuite for MLS 1.0 is
 Curve25519 for key exchange, AES-128-GCM for HPKE, HKDF over SHA2-256, and
 Ed25519 for signatures.
 
-Values with the first byte 255 (decimal) are reserved for Private Use.
-
 New ciphersuite values are assigned by IANA as described in
 {{iana-considerations}}.
 
