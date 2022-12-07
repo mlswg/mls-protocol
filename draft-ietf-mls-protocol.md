@@ -857,9 +857,12 @@ directly to the new member (there's no need to send it to the group). Only after
 A has received its Commit message back from the group channel does it update its
 state to reflect the new member's addition.
 
-Upon receiving the Welcome message, the new member will be able to read and send
-new messages to the group. However, messages sent before they were added to the
-group will not be accessible.
+Once A has updated its state, the new member has processed the Welcome, and any
+other group members have processed the Commit, they will all have consistent
+representations of the group state, including a group secret that is known only
+to the members the group. The new member will be able to read and send new
+messages to the group, but messages sent before they were added to the group
+will not be accessible.
 
 ~~~ aasvg
                                                                Group
