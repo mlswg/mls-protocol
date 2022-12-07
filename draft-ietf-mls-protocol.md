@@ -1447,6 +1447,26 @@ identifiers in the new credential is valid as a successor to the set of
 presented identifiers in the old credential, according to the application's
 policy.
 
+### Expiring Credentials
+
+In some credential schemes, the validity status of a credential can change over
+time.  For example, X.509 certificates can expire or be revoked by their issuer.
+To avoid operational problems such as new joiners rejecting expired credentials
+in a group, applications that use such credentials should ensure that all of the
+credentials in use in a group are valid.
+
+If a member finds that its credential is invalid (or will be soon), it should
+issue an Update or Commit that replaces it with a valid credential.  For this
+reason, members SHOULD accept Update proposals and Commits issued by members
+with invalid credentials, if the credential in the Update or Commit is valid.
+
+If a member finds that another member's credential is invalid, they may issue a
+Remove that removes that member.  For example, an application could require a
+member preparing to issue a Commit to check the tree for invalid credentials and
+include Remove proposals for those members in its Commit.  In situations where
+the group tree is known to the DS, the DS could also monitor the tree for
+invalid credentials and issue external Remove proposals.
+
 ### Uniquely Identifying Clients
 
 MLS implementations will presumably provide applications with a way to request
