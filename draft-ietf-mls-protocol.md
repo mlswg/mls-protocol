@@ -89,7 +89,7 @@ contributor:
    email:  thyla.van.der@merwe.tech
 
 informative:
-  art:
+  ART:
     target: https://eprint.iacr.org/2017/666.pdf
     title: "On Ends-to-Ends Encryption: Asynchronous Group Messaging with Strong Security Guarantees"
     author:
@@ -99,9 +99,10 @@ informative:
       - name: Jon Millican
       - name: Kevin Milner
     date: 2018-01-18
-  doubleratchet: DOI.10.1109/EuroSP.2017.27
 
-  signal:
+  DoubleRatchet: DOI.10.1109/EuroSP.2017.27
+
+  Signal:
     target: https://www.signal.org/docs/specifications/doubleratchet/
     title: "The Double Ratchet Algorithm"
     date: 2016-11-20
@@ -145,7 +146,7 @@ the MLS mailing list.
 A group of users who want to send each other encrypted messages needs
 a way to derive shared symmetric encryption keys. For two parties,
 this problem has been studied thoroughly, with the Double Ratchet
-emerging as a common solution {{doubleratchet}} {{signal}}.
+emerging as a common solution {{DoubleRatchet}} {{Signal}}.
 Channels implementing the Double Ratchet enjoy fine-grained forward secrecy
 as well as post-compromise security, but are nonetheless efficient
 enough for heavy use over low-bandwidth networks.
@@ -153,11 +154,13 @@ enough for heavy use over low-bandwidth networks.
 For a group of size greater than two, a common strategy is to
 unilaterally broadcast symmetric "sender" keys over existing shared
 symmetric channels, and then for each member to send messages to the
-group encrypted with their own sender key. Unfortunately, while this
-improves efficiency over pairwise broadcast of individual messages and
-provides forward secrecy (with the addition of a hash ratchet),
-it is difficult to achieve post-compromise security with
-sender keys. An adversary who learns a sender key can often indefinitely and
+group encrypted with their own sender key. On the one hand, using sender keys
+improves efficiency relative to pairwise broadcast of individual messages, and
+it provides forward secrecy (with the addition of a hash ratchet).
+On the other hand, it is difficult to achieve post-compromise security with
+sender keys, requiring a number of key update messages that scales as the square
+of the group size.
+An adversary who learns a sender key can often indefinitely and
 passively eavesdrop on that member's messages.  Generating and
 distributing a new sender key provides a form of post-compromise
 security with regard to that sender.  However, it requires
@@ -167,7 +170,7 @@ the size of the group.
 In this document, we describe a protocol based on tree structures
 that enable asynchronous group keying with forward secrecy and
 post-compromise security.  Based on earlier work on "asynchronous
-ratcheting trees" {{art}}, the protocol presented here uses an
+ratcheting trees" {{ART}}, the protocol presented here uses an
 asynchronous key-encapsulation mechanism for tree structures.
 This mechanism allows the members of the group to derive and update
 shared keys with costs that scale as the log of the group size.
@@ -582,6 +585,11 @@ a Client.  When labeling individual values, we typically use "secret" to refer
 to a value that is used derive further secret values, and "key" to refer to a
 value that is used with an algorithm such as HMAC or an AEAD algorithm.
 
+The MLSPlaintext and MLSCiphertext formats are defined in {{message-framing}};
+they represent integrity-protected and confidentiality-protected messages,
+respectively.  Security notions such as forward secrecy and post-compromise
+security are defined in {{security-considerations}}.
+
 ## Presentation Language
 
 We use the TLS presentation language {{!RFC8446}} to describe the structure of
@@ -605,7 +613,7 @@ struct {
 } optional<T>;
 ~~~
 
-### Variable-size Vector Headers
+### Variable-size Vector Length Headers
 
 In the TLS presentation language, vectors are encoded as a sequence of encoded
 elements prefixed with a length.  The length field has a fixed size set by
@@ -614,8 +622,8 @@ specifying the minimum and maximum lengths of the encoded sequence of elements.
 In MLS, there are several vectors whose sizes vary over significant ranges.  So
 instead of using a fixed-size length field, we use a variable-size length using
 a variable-length integer encoding based on the one in Section 16 of
-{{?RFC9000}}. (They differ only in that the one here requires a minimum-size
-encoding.) Instead of presenting min and max values, the vector description
+{{?RFC9000}}. They differ only in that the one here requires a minimum-size
+encoding. Instead of presenting min and max values, the vector description
 simply includes a `V`. For example:
 
 ~~~ tls
@@ -646,9 +654,11 @@ This means that integers are encoded on 1, 2, or 4 bytes and can encode 6-,
 
 Vectors that start with "11" prefix are invalid and MUST be rejected.
 
-For example, the four byte sequence 0x9d7f3e7d decodes to 494878333;
-the two byte sequence 0x7bbd decodes to 15293; and the single byte 0x25
-decodes to 37.
+For example:
+
+* The four byte length value 0x9d7f3e7d decodes to 494878333.
+* The two byte length value 0x7bbd decodes to 15293.
+* The single byte length value 0x25 decodes to 37.
 
 The following figure adapts the pseudocode provided in {{RFC9000}} to add a
 check for minimum-length encoding:
@@ -2191,9 +2201,7 @@ leaf_secret ------> leaf_node_secret --+--> leaf_priv, leaf_pub
                                                  leaf_node
 ~~~
 
-After applying the UpdatePath, the tree will have the following structure, where
-`lp` and `np[i]` represent the leaf_priv and node_priv values generated as
-described above:
+After applying the UpdatePath, the tree will have the following structure:
 
 ~~~ aasvg
 node_priv[1] --------> Y'
@@ -4845,12 +4853,30 @@ required PSKs.
 
 ## Forward Secrecy and Post-Compromise Security
 
+Forward secrecy and post-compromise security are important security notions for
+long-lived MLS groups.  Forward secrecy means that messages sent at a certain
+point in time are secure in the face of later compromise of a group member.
+Post-compromise security means that messages are secure even if a group member
+was compromised at some point in the past.
+
+~~~aasvg
+                   Compromise
+                       |
+                       |
+                  |    V    |
+------------------|---------|------------------------->
+                  |         |                     Time
+<-----------------|         |---------------->
+  Forward Secrecy |         | Post-Compromise
+                  |         |   Security
+~~~
+
 Post-compromise security is provided between epochs by members regularly
 updating their leaf key in the ratchet tree. Updating their leaf key prevents
 group secrets from continuing to be encrypted to previously compromised public
 keys.
 
-Forward-secrecy between epochs is provided by deleting private keys from past
+Forward secrecy between epochs is provided by deleting private keys from past
 versions of the ratchet tree, as this prevents old group secrets from being
 re-derived. Forward secrecy *within* an epoch is provided by deleting message
 encryption keys once they've been used to encrypt or decrypt a message.
@@ -4947,7 +4973,7 @@ uint16 CipherSuite;
 
 | Component | Contents                                                               |
 |:----------|:-----------------------------------------------------------------------|
-| LVL       | The security level                                                     |
+| LVL       | The security level (in bits)                                           |
 | KEM       | The KEM algorithm used for HPKE in ratchet tree operations             |
 | AEAD      | The AEAD algorithm used for HPKE and message protection                |
 | HASH      | The hash algorithm used for HPKE and the MLS transcript hash           |
