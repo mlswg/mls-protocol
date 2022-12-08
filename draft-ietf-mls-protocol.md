@@ -1196,7 +1196,7 @@ In this tree, the direct paths, copaths, and filtered direct paths for the leaf
 nodes are as follows:
 
 | Node | Direct path | Copath   | Filtered Direct Path |
-|:=====|:============|:=========|:=====================|
+|:-----|:------------|:---------|:---------------------|
 | A    | T, U, W     | B, V, Y  | T, W                 |
 | B    | T, U, W     | A, V, Y  | T, W                 |
 | E    | X, Y, W     | F, Z, U  | X, Y, W              |
@@ -5388,7 +5388,7 @@ When a new member joins, they will receive a tree that has the following parent
 hash values, and compute the indicated parent-hash validity relationships:
 
 | Node | Parent hash value                    | Valid?              |
-|:=====|:=====================================|:====================|
+|:-----|:-------------------------------------|:--------------------|
 | A    | H(X, ph="", osth=th(B))              | No, B changed       |
 | B'   | H(X', ph=X'.parent_hash, osth=th(A)) | Yes                 |
 | C'   | H(Z', ph=Z'.parent_hash, osth=th(D)) | Yes                 |
