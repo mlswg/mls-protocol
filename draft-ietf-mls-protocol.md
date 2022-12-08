@@ -2888,7 +2888,7 @@ struct {
 ~~~
 
 ~~~ pseudocode
-interim_transcript_hash_[0] = ""; /* zero-length octet string */
+confirmed_transcript_hash_[0] = ""; /* zero-length octet string */
 
 confirmed_transcript_hash_[n] =
     Hash(interim_transcript_hash_[n] ||
@@ -3361,19 +3361,25 @@ The client verifies the validity of a KeyPackage using the following steps:
 
 # Group Creation
 
-A group is always created with a single member, the "creator".  The other
-members are added when the creator effectively sends itself Add proposals,
-commits them, and then sends the corresponding Welcome message to the new
-participants.  These processes are described in detail in {{add}}, {{commit}},
-and {{joining-via-welcome-message}}.
+A group is always created with a single member, the "creator".  Other members
+are then added to the group using the usual Add/Commit mechanism.
+
+The creator of a group is responsible for setting the group ID, ciphersuite, and
+initial extensions for the group.  If the creator intends to add other members
+at the time of creation, then it SHOULD Fetch KeyPackages for the members to be
+added, and select a version and ciphersuite according to the capabilities of the
+members.  To protect against downgrade attacks, the creator MUST use the
+`capabilities` information in these KeyPackages to verify that the chosen
+version and ciphersuite is the best option supported by all members.
+
+Group IDs SHOULD be constructed in such a way that there's an overwhelmingly low
+probability of honest group creators generating the same group ID, even without
+assistance from the Delivery Service. For example, by making the group ID a
+freshly generated random value of size `KDF.Nh`. The Delivery Service MAY
+attempt to ensure that group IDs are globally unique by rejecting the creation
+of new groups with a previously used ID.
 
 The creator of a group MUST take the following steps to initialize the group:
-
-* Fetch KeyPackages for the members to be added, and select a version and
-  ciphersuite according to the capabilities of the members.  To protect against
-  downgrade attacks, the creator MUST use the `capabilities` information
-  in these KeyPackages to verify that the
-  chosen version and ciphersuite is the best option supported by all members.
 
 * Initialize a one-member group with the following initial values:
   * Ratchet tree: A tree with a single node, a leaf containing an HPKE public
@@ -3383,29 +3389,27 @@ The creator of a group MUST take the following steps to initialize the group:
   * Tree hash: The root hash of the above ratchet tree
   * Confirmed transcript hash: The zero-length octet string
   * Interim transcript hash: The zero-length octet string
-  * Init secret: A fresh random value of size `KDF.Nh`
+  * Epoch secret: A fresh random value of size `KDF.Nh`
   * Extensions: Any values of the creator's choosing
 
-* For each member, construct an Add proposal from the KeyPackage for that
-  member (see {{add}})
+* Update the interim transcript hash:
+  * Derive the `confirmation_key` for the epoch as described in
+    {{key-schedule}}.
+  * Compute a `confirmation_tag` over the empty `confirmed_transcript_hash`
+    using the `confirmation_key` as described in {{content-authentication}}.
+  * Compute the updated `interim_transcript_hash` from the
+    `confirmed_transcript_hash` and the `confirmation_tag` as described in
+    {{transcript-hashes}}
 
-* Construct a Commit message that commits all of the Add proposals, in any order
-  chosen by the creator (see {{commit}})
+At this point, the creator's state represents a one-member group with a fully
+initialized key schedule, transcript hashes, etc.  Proposals and Commits can be
+generated for this group state just like any other state of the group, such as
+Add proposals and Commits to add other members to the group.  A GroupInfo object
+for this group state can also be published to facilitate external joins.
 
-* Process the Commit message to obtain a new group state (for the epoch in which
-  the new members are added) and a Welcome message
-
-* Transmit the Welcome message to the other new members
-
-Group IDs SHOULD be constructed in such a way that there's an overwhelmingly low
-probability of honest group creators generating the same group ID, even without
-assistance from the Delivery Service. For example, by making the group ID a
-freshly generated random value of size `KDF.Nh`. The Delivery Service MAY
-attempt to ensure that group IDs are globally unique by rejecting the creation
-of new groups with a previously used ID.
-
-The recipient of a Welcome message processes it as described in
-{{joining-via-welcome-message}}.
+Members other than the creator join either by being sent a Welcome message (as
+described in {{joining-via-welcome-message}}) or by sending an external Commit
+(see {{joining-via-external-commits}}).
 
 In principle, the above process could be streamlined by having the
 creator directly create a tree and choose a random value for first
@@ -4205,6 +4209,14 @@ struct {
     opaque signature<V>;
 } GroupInfo;
 ~~~
+
+The `group_context` field represents the current state of the group.  The
+`extensions` field allows the sender to provide additional data that might be
+useful to new joiners.  The `confirmation_tag` represents the  confirmation tag
+from the Commit that initiated the current epoch, or for epoch 0, the
+confirmation tag computed in the creation of the group (see {{group-creation}}).
+(In either case, the creator of a GroupInfo may recompute the confirmation tag
+as `MAC(confirmation_key, confirmed_transcript_hash)`.)
 
 New members MUST verify that `group_id` is unique among the groups they're
 currently participating in.
