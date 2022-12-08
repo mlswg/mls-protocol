@@ -1409,7 +1409,7 @@ struct {
 } Credential;
 ~~~
 
-A BasicCredential is a bare assertion of an identity, without any additional
+A "basic" credential is a bare assertion of an identity, without any additional
 information.  The format of the encoded identity is defined by the application.
 
 For an X.509 credential, each entry in the chain represents a single DER-encoded
