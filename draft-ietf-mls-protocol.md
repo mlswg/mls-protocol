@@ -854,7 +854,7 @@ group state containing only itself and downloads KeyPackages for B and C. For
 each member, A generates an Add and Commit message adding that member, and
 broadcasts them to the group. It also generates a Welcome message and sends this
 directly to the new member (there's no need to send it to the group). Only after
-A has received its Commit message back from the group channel does it update its
+A has received its Commit message back from the Delivery Service does it update its
 state to reflect the new member's addition.
 
 Once A has updated its state, the new member has processed the Welcome, and any
@@ -4786,7 +4786,7 @@ were delayed or reordered.
 Applications SHOULD define a policy on how long to keep unused nonce and key
 pairs for a sender, and the maximum number to keep. This is in addition to
 ensuring that these secrets are deleted according to the deletion schedule
-defined in {{deletion-schedule}} Applications SHOULD also define a policy
+defined in {{deletion-schedule}}. Applications SHOULD also define a policy
 limiting the maximum number of steps that clients will move the ratchet forward
 in response to a new message.  Messages received with a generation counter
 that's too much higher than the last message received would then be rejected.
