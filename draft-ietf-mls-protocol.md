@@ -861,12 +861,15 @@ group state containing only itself and downloads KeyPackages for B and C. For
 each member, A generates an Add and Commit message adding that member, and
 broadcasts them to the group. It also generates a Welcome message and sends this
 directly to the new member (there's no need to send it to the group). Only after
-A has received its Commit message back from the server does it update its state
-to reflect the new member's addition.
+A has received its Commit message back from the Delivery Service does it update its
+state to reflect the new member's addition.
 
-Upon receiving the Welcome message, the new member will be able to read and send
-new messages to the group. However, messages sent before they were added to the
-group will not be accessible.
+Once A has updated its state, the new member has processed the Welcome, and any
+other group members have processed the Commit, they will all have consistent
+representations of the group state, including a group secret that is known only
+to the members the group. The new member will be able to read and send new
+messages to the group, but messages sent before they were added to the group
+will not be accessible.
 
 ~~~ aasvg
                                                                Group
@@ -1094,7 +1097,7 @@ more traditional representation based on linked node objects may also be used.
 {{array-based-trees}} and {{link-based-trees}} provide some details on how to
 implement the tree operations required for MLS in these representations.  MLS
 places no requirements on implementations' internal representations of ratchet
-trees.  An implementation MAY use any tree representation and associated
+trees.  An implementation may use any tree representation and associated
 algorithms, as long as they produce correct protocol messages.
 
 ### Ratchet Tree Nodes
@@ -1189,7 +1192,7 @@ A   B   _   _   E   F   G   _=H
 
 0   1   2   3   4   5   6   7
 ~~~
-{: #full-tree title="A complete tree with seven members, with labels for blank
+{: #full-tree title="A complete tree with five members, with labels for blank
 parent nodes" }
 
 In this tree, the direct paths, copaths, and filtered direct paths for the leaf
@@ -1853,6 +1856,11 @@ struct {
 When decoding an MLSCiphertextContent, the application MUST check that the
 MLSContentAuthData is valid.
 
+It is up to the application to decide what `authenticated_data` to provide and
+how much padding to add to a given message (if any).  The overall size of the
+AAD and ciphertext MUST fit within the limits established for the group's AEAD
+algorithm in [!I-D.irtf-cfrg-aead-limits].
+
 ### Sender Data Encryption
 
 The "sender data" used to look up the key for content encryption is
@@ -2443,7 +2451,7 @@ removed member --+
 
 Concrete algorithms for these operations on array-based and link-based trees are
 provided in {{array-based-trees}} and {{link-based-trees}}.  The concrete
-algorithms are non-normative.  An implementation MAY use any algorithm that
+algorithms are non-normative.  An implementation may use any algorithm that
 produces the correct tree in its internal representation.
 
 ## Tree Hashes
@@ -4803,15 +4811,15 @@ were delayed or reordered.
 
 Applications SHOULD define a policy on how long to keep unused nonce and key
 pairs for a sender, and the maximum number to keep. This is in addition to
-ensuring that these nonce and key pairs are promptly deleted when the epoch
-ends. Applications SHOULD also define a policy limiting the maximum number of
-steps that clients will move the ratchet forward in response to a new message.
-Messages received with a generation counter that's too much higher than the last
-message received would then be rejected. This avoids causing a denial-of-service
-attack by requiring the recipient to perform an excessive number of key
-derivations. For example, a malicious group member could send a message with
-`generation = 0xffffffff` at the beginning of a new epoch, forcing recipients to
-perform billions of key derivations.
+ensuring that these secrets are deleted according to the deletion schedule
+defined in {{deletion-schedule}}. Applications SHOULD also define a policy
+limiting the maximum number of steps that clients will move the ratchet forward
+in response to a new message.  Messages received with a generation counter
+that's too much higher than the last message received would then be rejected.
+This avoids causing a denial-of-service attack by requiring the recipient to
+perform an excessive number of key derivations. For example, a malicious group
+member could send a message with `generation = 0xffffffff` at the beginning of a
+new epoch, forcing recipients to perform billions of key derivations.
 
 # Security Considerations
 
@@ -5072,11 +5080,11 @@ only include modern, yet well-established algorithms.  Depending on their
 requirements, clients can choose between two security levels (roughly 128-bit
 and 256-bit). Within the security levels clients can choose between faster
 X25519/X448 curves and FIPS 140-2 compliant curves for Diffie-Hellman key
-negotiations. Additionally clients that run predominantly on mobile processors
-can choose ChaCha20Poly1305 over AES-GCM for performance reasons. Since
-ChaCha20Poly1305 is not listed by FIPS 140-2 it is not paired with FIPS 140-2
-compliant curves. The security level of symmetric encryption algorithms and hash
-functions is paired with the security level of the curves.
+negotiations. Clients may also choose ChaCha20Poly1305 or AES-GCM, e.g., for
+performance reasons. Since ChaCha20Poly1305 is not listed by FIPS 140-2 it is
+not paired with FIPS 140-2 compliant curves. The security level of symmetric
+encryption algorithms and hash functions is paired with the security level of
+the curves.
 
 The mandatory-to-implement ciphersuite for MLS 1.0 is
 `MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519` which uses
