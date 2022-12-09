@@ -181,15 +181,24 @@ MLS is designed to operate in the context described in
 {{?I-D.ietf-mls-architecture}}.  In particular, we assume that the following
 services are provided:
 
-* A Delivery Service that routes MLS messages among the participants in the
+* A Delivery Service (DS) that routes MLS messages among the participants in the
   protocol.  The following types of delivery are typically required:
 
   * Pre-publication of KeyPackage objects for clients
   * Broadcast delivery of Proposal and Commit messages to members of a group
   * Unicast delivery of Welcome messages to new members of a group
+  * Sequencing of Commit messages (see {{sequencing}})
 
-* An Authentication Service that enables group members to authenticate the
+* An Authentication Service (AS) that enables group members to authenticate the
   credentials presented by other group members.
+
+The DS and AS may also apply additional policies to MLS operations to obtain
+additional security properties.  For example, MLS enables any participant to add
+or remove members of a group; a DS could enforce a policy that only certain
+members are allowed to perform these operations.  MLS authenticates all members
+of a group; a DS could help ensure that only clients with certain types of
+credential are admitted. MLS provides no inherent protection against denial of
+service; A DS could also enforce rate limits in order to mitigate these risks.
 
 ##  Change Log
 
@@ -4819,7 +4828,8 @@ apply limits of the type discussed above.
 The security goals of MLS are described in {{?I-D.ietf-mls-architecture}}.
 We describe here how the protocol achieves its goals at a high level,
 though a complete security analysis is outside of the scope of this
-document.
+document.  The Security Considerations section of {{?I-D.ietf-mls-architecture}}
+provides some citations to detailed security analyses.
 
 ## Confidentiality of the Group Secrets
 
@@ -4835,6 +4845,53 @@ The ability to efficiently encrypt to all members except one allows members to
 be securely removed from a group. It also allows a member to rotate their
 keypair such that the old private key can no longer be used to decrypt new
 messages.
+
+## Confidentiality of Group Metadata
+
+MLS handles certain metadata about a group that is sometimes exposed to parties
+outside the group:
+
+* Group ID
+* Group membership
+* Group extensions
+* Frequency of epoch changes
+* Frequency of application messages within an epoch
+
+This information is typically protected from parties other than the DS by
+applying "hop by hop" transport encryption on communications with the DS (in
+contrast to the "end to end" protections provided by MLS). The protection this
+information receives with regard to the DS depends on how MLS is operated.
+Overall, MLS does not provide robust protections against the DS observing the
+group's metadata.
+
+MLS provides no mechanism to protect the group ID and epoch of a message from
+the DS, so group ID and the frequency of messages and epoch changes are not
+protected against inspection by the DS.
+
+If a group can be joined by external commits (see
+{{joining-via-external-commits}}), then a group member will need to publish a
+GroupInfo object that states the group's extensions and a commitment to the
+group's membership.  This generally results in the group's membership and
+extensions being known to the DS and prospective new joiners.
+
+Aside from published GroupInfo objects, the only ways that a groups extensions
+are transmitted are Welcome messages and GroupContextExtensions proposals.
+Welcome messages encrypt extensions, so they do not expose them to the DS.
+Whether a GroupContextExtensions proposal exposes the group's extensions depends
+on whether it is sent as an MLSPlaintext or MLSCiphertext message.  If a group
+always sends Proposals as MLSCiphertext and only adds members via Welcome
+messages, then its extensions will be private to the members of the group.
+
+If a group sends Proposal and Commit messages unencrypted (as MLSPlaintext),
+then the DS will be able to infer the group's membership from the set of Add and
+Remove proposals covered by Commits.  If Proposal and Commit messages are sent
+in encrypted form (as MLSCiphertext), then the DS will not be able to observe
+membership changes directly, but may be able to make some less direct
+inferences.  For example, the `new_member` field in a Welcome message indicates
+the KeyPackage to the Welcome is directed.  The Welcome message does not state
+which group it belongs to in plaintext, but if the DS is able to infer this
+(e.g., from timing signals), then the Welcome will tell the DS that a given
+client has joined the group.
 
 ## Authentication
 
