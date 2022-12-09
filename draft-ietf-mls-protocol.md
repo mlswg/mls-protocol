@@ -1435,8 +1435,9 @@ authenticated by those presented identifiers.
 The parts of the system that perform these functions are collectively referred
 to as the Authentication Service (AS) {{?I-D.ietf-mls-architecture}}.  A
 member's credential is said to be _validated with the AS_ when the AS verifies
-the credential's presented identifiers, and verifies that those identifiers
-match the reference identifiers for the member.
+that the credential's presented identifiers are correctly associated with the
+`signature_key` field in the LeafNode containing the credential, and verifies
+that those identifiers match the reference identifiers for the member.
 
 Whenever a new credential is introduced in the group, it MUST be validated with
 the AS.  In particular, at the following events in the protocol:
