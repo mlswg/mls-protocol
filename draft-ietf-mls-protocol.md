@@ -1311,9 +1311,8 @@ opaque SignaturePublicKey<V>;
 
 For ciphersuites using Ed25519 or Ed448 signature schemes, the public key is in
 the format specified in {{?RFC8032}}.  For ciphersuites using ECDSA with the
-NIST curves (P-256, P-384, or P-521), the public key is the output of the
-uncompressed Elliptic-Curve-Point-to-Octet-String conversion according to
-{{SECG}}.
+NIST curves (P-256, P-384, or P-521), the public key is represented as an
+encoded UncompressedPointRepresentation struct, as defined in {{RFC8446}}.
 
 The signatures used in this document are encoded as specified in {{!RFC8446}}.
 In particular, ECDSA signatures are DER-encoded and EdDSA signatures are defined
@@ -1706,7 +1705,7 @@ depending on the sender's `sender_type`:
     `content_type` of the message MUST be `commit`.
 * `new_member_proposal`: The signature key in the LeafNode in
     the KeyPackage embedded in an External Add Proposal. The
-    `content_type` of the message MUST be `proposal`and the
+    `content_type` of the message MUST be `proposal` and the
     `proposal_type` of the Proposal MUST be `add`.
 
 Recipients of an MLSMessage MUST verify the signature with the key depending on
@@ -2447,7 +2446,7 @@ typically done after removing a member from the group.
                  |
 removed member --+
 ~~~
-{: title="Cleaning up after removing the third member"}
+{: title="Cleaning up after removing member C"}
 
 Concrete algorithms for these operations on array-based and link-based trees are
 provided in {{array-based-trees}} and {{link-based-trees}}.  The concrete
@@ -2457,8 +2456,8 @@ produces the correct tree in its internal representation.
 ## Tree Hashes
 
 MLS hashes the contents of the tree in two ways to authenticate different
-properties of the tree.  This section defines _tree hashes_, and _parent hashes_
-are defined in {{parent-hashes}}.
+properties of the tree.  _Tree hashes_ are defined in this section, and _parent
+hashes_ are defined in {{parent-hashes}}.
 
 Each node in a ratchet tree has a tree hash that summarizes the subtree below
 that node.  The tree hash of the root is used in the GroupContext to confirm
@@ -4819,7 +4818,8 @@ that's too much higher than the last message received would then be rejected.
 This avoids causing a denial-of-service attack by requiring the recipient to
 perform an excessive number of key derivations. For example, a malicious group
 member could send a message with `generation = 0xffffffff` at the beginning of a
-new epoch, forcing recipients to perform billions of key derivations.
+new epoch, forcing recipients to perform billions of key derivations unless they
+apply limits of the type discussed above.
 
 # Security Considerations
 
@@ -4896,17 +4896,20 @@ was compromised at some point in the past.
 
 Post-compromise security is provided between epochs by members regularly
 updating their leaf key in the ratchet tree. Updating their leaf key prevents
-group secrets from continuing to be encrypted to previously compromised public
-keys.
+group secrets from continuing to be encrypted to public keys whose private keys
+had previously been compromised.
 
 Forward secrecy between epochs is provided by deleting private keys from past
 versions of the ratchet tree, as this prevents old group secrets from being
 re-derived. Forward secrecy *within* an epoch is provided by deleting message
 encryption keys once they've been used to encrypt or decrypt a message.
 
-Post-compromise security is also provided for new groups by members regularly
-generating new KeyPackages and uploading them to the Delivery Service, such that
-compromised key material won't be used when the member is added to a new group.
+New groups are also at risk of using previously compromised keys (as with
+post-compromise security), if a member is added to a new group via an old
+KeyPackage whose corresponding private key has been compromised.  This risk can
+be mitigated by having clients regularly generate new KeyPackages and upload
+them to the Delivery Service.  This way, the key material used to add a member
+to a new group is more likely to be fresh and less likely to be compromised.
 
 ## KeyPackage Reuse
 
