@@ -2888,16 +2888,21 @@ struct {
 ~~~
 
 ~~~ pseudocode
-confirmed_transcript_hash_[0] = ""; /* zero-length octet string */
+confirmed_transcript_hash_[epoch] = ""; /* zero-length octet string */
 
-confirmed_transcript_hash_[n] =
-    Hash(interim_transcript_hash_[n] ||
-        ConfirmedTranscriptHashInput_[n]);
+interim_transcript_hash_[epoch] =
+    Hash(confirmed_transcript_hash_[epoch] ||
+        InterimTranscriptHashInput_[epoch]);
 
-interim_transcript_hash_[n+1] =
-    Hash(confirmed_transcript_hash_[n] ||
-        InterimTranscriptHashInput_[n]);
+confirmed_transcript_hash_[epoch+1] =
+    Hash(interim_transcript_hash_[epoch] ||
+        ConfirmedTranscriptHashInput_[epoch+1]);
 ~~~
+
+In this notation, `InterimTranscriptHashInput_[epoch]` and
+`ConfirmedTranscriptHashInput_[epoch+1]` are based on the Commit that initiated
+the epoch with epoch number `epoch`.  (Note that the `epoch` field in this
+Commit will be set to `epoch - 1`, since it is sent within the previous epoch.)
 
 ## External Initialization
 
@@ -3367,8 +3372,8 @@ are then added to the group using the usual Add/Commit mechanism.
 The creator of a group is responsible for setting the group ID, ciphersuite, and
 initial extensions for the group.  If the creator intends to add other members
 at the time of creation, then it SHOULD Fetch KeyPackages for the members to be
-added, and select a version and ciphersuite according to the capabilities of the
-members.  To protect against downgrade attacks, the creator MUST use the
+added, and select a ciphersuite and extensions according to the capabilities of
+the members.  To protect against downgrade attacks, the creator MUST use the
 `capabilities` information in these KeyPackages to verify that the chosen
 version and ciphersuite is the best option supported by all members.
 
@@ -3388,11 +3393,10 @@ The creator of a group MUST take the following steps to initialize the group:
   * Epoch: 0
   * Tree hash: The root hash of the above ratchet tree
   * Confirmed transcript hash: The zero-length octet string
-  * Interim transcript hash: The zero-length octet string
   * Epoch secret: A fresh random value of size `KDF.Nh`
   * Extensions: Any values of the creator's choosing
 
-* Update the interim transcript hash:
+* Calculate the interim transcript hash:
   * Derive the `confirmation_key` for the epoch as described in
     {{key-schedule}}.
   * Compute a `confirmation_tag` over the empty `confirmed_transcript_hash`
