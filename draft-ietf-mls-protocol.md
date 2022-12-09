@@ -1518,7 +1518,7 @@ Delivery Service to examine such messages.
 enum {
     reserved(0),
     mls10(1),
-    (255)
+    (65535)
 } ProtocolVersion;
 
 enum {
@@ -1551,15 +1551,8 @@ struct {
     }
 } Sender;
 
-enum {
-  reserved(0),
-  mls_plaintext(1),
-  mls_ciphertext(2),
-  mls_welcome(3),
-  mls_group_info(4),
-  mls_key_package(5),
-  (255)
-} WireFormat;
+// See IANA registry for registered values
+uint16 WireFormat;
 
 struct {
     opaque group_id<V>;
@@ -4969,6 +4962,7 @@ copath node corresponding to the node in the UpdatePath.
 This document requests the creation of the following new IANA registries:
 
 * MLS Ciphersuites ({{mls-ciphersuites}})
+* MLS Wire Formats ({{mls-wire-formats}})
 * MLS Extension Types ({{mls-extension-types}})
 * MLS Proposal Types ({{mls-proposal-types}})
 * MLS Credential Types ({{mls-credential-types}})
@@ -5096,6 +5090,38 @@ Ed25519 for signatures.
 
 New ciphersuite values are assigned by IANA as described in
 {{iana-considerations}}.
+
+## MLS Wire Formats
+
+This registry lists identifiers for the types of messages that can be sent in
+MLS.  The wire format field is two bytes wide, so the valid wire format values
+are in the range 0x0000 to 0xffff.
+
+Template:
+
+* Value: The numeric value of the wire format
+
+* Name: The name of the wire format
+
+* Recommended: Whether support for this wire format is recommended by the IETF MLS
+  WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
+  value of "N" unless explicitly requested, and adding a value with a
+  "Recommended" value of "Y" requires Standards Action [RFC8126].  IESG Approval
+  is REQUIRED for a Y->N transition.
+
+* Reference: The document where this wire format is defined
+
+Initial contents:
+
+| Value            | Name                     | Recommended | Reference |
+|:-----------------|:-------------------------|:------------|:----------|
+| 0x0000           | RESERVED                 | N/A         | RFC XXXX  |
+| 0x0001           | mls_plaintext            | Y           | RFC XXXX  |
+| 0x0002           | mls_ciphertext           | Y           | RFC XXXX  |
+| 0x0003           | mls_welcome              | Y           | RFC XXXX  |
+| 0x0004           | mls_group_info           | Y           | RFC XXXX  |
+| 0x0005           | mls_key_package          | Y           | RFC XXXX  |
+| 0xff00  - 0xffff | Reserved for Private Use | N/A         | RFC XXXX  |
 
 ## MLS Extension Types
 
