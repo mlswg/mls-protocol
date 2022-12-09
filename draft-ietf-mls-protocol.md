@@ -1447,18 +1447,34 @@ identifiers in the new credential is valid as a successor to the set of
 presented identifiers in the old credential, according to the application's
 policy.
 
-### Expiring Credentials
+### Credential Expiry and Revocation
 
 In some credential schemes, the validity status of a credential can change over
 time.  For example, X.509 certificates can expire or be revoked by their issuer.
-To avoid operational problems such as new joiners rejecting expired credentials
-in a group, applications that use such credentials should ensure that all of the
-credentials in use in a group are valid.
+These changes can cause operational problems in light of the validation
+requirements of {{credential-validation}}.  Applications can apply some
+operational practices and adaptations to Authentication Service policies to
+moderate these impacts.
+
+It can sometimes be important to distinguish this type of invalidity from other
+types; we call a credential "time-invalid" that is invalid for some time-based
+reason but otherwise valid.  An expired certificate issued by a trusted
+certificate authority would be time-invalid.
+
+In general, To avoid operational problems such as new joiners rejecting expired
+credentials in a group, applications that use such credentials should ensure
+that all of the credentials in use in a group are valid.
 
 If a member finds that its credential is invalid (or will be soon), it should
 issue an Update or Commit that replaces it with a valid credential.  For this
 reason, members SHOULD accept Update proposals and Commits issued by members
-with invalid credentials, if the credential in the Update or Commit is valid.
+with time-invalid credentials, if the credential in the Update or Commit is
+valid.
+
+Similarly, when a client is processing messages sent some time in the past
+(e.g., syncing up with a group after being offline), the client SHOULD accept
+signatures from members with time-invalid credentials, since the credential may
+have been valid at the time the message was sent.
 
 If a member finds that another member's credential is invalid, they may issue a
 Remove that removes that member.  For example, an application could require a
