@@ -5121,7 +5121,7 @@ Initial contents:
 | 0x0003           | mls_welcome              | Y           | RFC XXXX  |
 | 0x0004           | mls_group_info           | Y           | RFC XXXX  |
 | 0x0005           | mls_key_package          | Y           | RFC XXXX  |
-| 0xff00  - 0xffff | Reserved for Private Use | N/A         | RFC XXXX  |
+| 0xf000  - 0xffff | Reserved for Private Use | N/A         | RFC XXXX  |
 
 ## MLS Extension Types
 
