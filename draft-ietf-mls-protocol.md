@@ -24,7 +24,7 @@ author:
  -
     ins: R. Robert
     name: Raphael Robert
-    organization:
+    organization: Phoenix R&D
     email: ietf@raphaelrobert.com
  -
     ins: J. Millican
@@ -62,7 +62,7 @@ contributor:
    org:  Twitter
    email:  singuva@twitter.com
  - name: Konrad Kohbrok
-   org:  Aalto University
+   org:  Phoenix R&D
    email:  konrad.kohbrok@datashrine.de
  - name: Albert Kwon
    org:  MIT
@@ -89,7 +89,7 @@ contributor:
    email:  thyla.van.der@merwe.tech
 
 informative:
-  art:
+  ART:
     target: https://eprint.iacr.org/2017/666.pdf
     title: "On Ends-to-Ends Encryption: Asynchronous Group Messaging with Strong Security Guarantees"
     author:
@@ -99,9 +99,10 @@ informative:
       - name: Jon Millican
       - name: Kevin Milner
     date: 2018-01-18
-  doubleratchet: DOI.10.1109/EuroSP.2017.27
 
-  signal:
+  DoubleRatchet: DOI.10.1109/EuroSP.2017.27
+
+  Signal:
     target: https://www.signal.org/docs/specifications/doubleratchet/
     title: "The Double Ratchet Algorithm"
     date: 2016-11-20
@@ -135,10 +136,6 @@ in size ranging from two to thousands.
 
 # Introduction
 
-DISCLAIMER: This is a work-in-progress draft of MLS and has not yet
-seen significant security analysis. It should not be used as a basis
-for building production systems.
-
 RFC EDITOR: PLEASE REMOVE THE FOLLOWING PARAGRAPH The source for
 this draft is maintained in GitHub. Suggested changes should be
 submitted as pull requests at https://github.com/mlswg/mls-protocol.
@@ -149,7 +146,7 @@ the MLS mailing list.
 A group of users who want to send each other encrypted messages needs
 a way to derive shared symmetric encryption keys. For two parties,
 this problem has been studied thoroughly, with the Double Ratchet
-emerging as a common solution {{doubleratchet}} {{signal}}.
+emerging as a common solution {{DoubleRatchet}} {{Signal}}.
 Channels implementing the Double Ratchet enjoy fine-grained forward secrecy
 as well as post-compromise security, but are nonetheless efficient
 enough for heavy use over low-bandwidth networks.
@@ -157,11 +154,13 @@ enough for heavy use over low-bandwidth networks.
 For a group of size greater than two, a common strategy is to
 unilaterally broadcast symmetric "sender" keys over existing shared
 symmetric channels, and then for each member to send messages to the
-group encrypted with their own sender key. Unfortunately, while this
-improves efficiency over pairwise broadcast of individual messages and
-provides forward secrecy (with the addition of a hash ratchet),
-it is difficult to achieve post-compromise security with
-sender keys. An adversary who learns a sender key can often indefinitely and
+group encrypted with their own sender key. On the one hand, using sender keys
+improves efficiency relative to pairwise broadcast of individual messages, and
+it provides forward secrecy (with the addition of a hash ratchet).
+On the other hand, it is difficult to achieve post-compromise security with
+sender keys, requiring a number of key update messages that scales as the square
+of the group size.
+An adversary who learns a sender key can often indefinitely and
 passively eavesdrop on that member's messages.  Generating and
 distributing a new sender key provides a form of post-compromise
 security with regard to that sender.  However, it requires
@@ -171,10 +170,26 @@ the size of the group.
 In this document, we describe a protocol based on tree structures
 that enable asynchronous group keying with forward secrecy and
 post-compromise security.  Based on earlier work on "asynchronous
-ratcheting trees" {{art}}, the protocol presented here uses an
+ratcheting trees" {{ART}}, the protocol presented here uses an
 asynchronous key-encapsulation mechanism for tree structures.
 This mechanism allows the members of the group to derive and update
 shared keys with costs that scale as the log of the group size.
+
+## Operating Context
+
+MLS is designed to operate in the context described in
+{{?I-D.ietf-mls-architecture}}.  In particular, we assume that the following
+services are provided:
+
+* A Delivery Service that routes MLS messages among the participants in the
+  protocol.  The following types of delivery are typically required:
+
+  * Pre-publication of KeyPackage objects for clients
+  * Broadcast delivery of Proposal and Commit messages to members of a group
+  * Unicast delivery of Welcome messages to new members of a group
+
+* An Authentication Service that enables group members to authenticate the
+  credentials presented by other group members.
 
 ##  Change Log
 
@@ -586,6 +601,11 @@ a Client.  When labeling individual values, we typically use "secret" to refer
 to a value that is used derive further secret values, and "key" to refer to a
 value that is used with an algorithm such as HMAC or an AEAD algorithm.
 
+The MLSPlaintext and MLSCiphertext formats are defined in {{message-framing}};
+they represent integrity-protected and confidentiality-protected messages,
+respectively.  Security notions such as forward secrecy and post-compromise
+security are defined in {{security-considerations}}.
+
 ## Presentation Language
 
 We use the TLS presentation language {{!RFC8446}} to describe the structure of
@@ -609,7 +629,7 @@ struct {
 } optional<T>;
 ~~~
 
-### Variable-size Vector Headers
+### Variable-size Vector Length Headers
 
 In the TLS presentation language, vectors are encoded as a sequence of encoded
 elements prefixed with a length.  The length field has a fixed size set by
@@ -618,8 +638,8 @@ specifying the minimum and maximum lengths of the encoded sequence of elements.
 In MLS, there are several vectors whose sizes vary over significant ranges.  So
 instead of using a fixed-size length field, we use a variable-size length using
 a variable-length integer encoding based on the one in Section 16 of
-{{?RFC9000}}. (They differ only in that the one here requires a minimum-size
-encoding.) Instead of presenting min and max values, the vector description
+{{?RFC9000}}. They differ only in that the one here requires a minimum-size
+encoding. Instead of presenting min and max values, the vector description
 simply includes a `V`. For example:
 
 ~~~ tls
@@ -650,9 +670,11 @@ This means that integers are encoded on 1, 2, or 4 bytes and can encode 6-,
 
 Vectors that start with "11" prefix are invalid and MUST be rejected.
 
-For example, the four byte sequence 0x9d7f3e7d decodes to 494878333;
-the two byte sequence 0x7bbd decodes to 15293; and the single byte 0x25
-decodes to 37.
+For example:
+
+* The four byte length value 0x9d7f3e7d decodes to 494878333.
+* The two byte length value 0x7bbd decodes to 15293.
+* The single byte length value 0x25 decodes to 37.
 
 The following figure adapts the pseudocode provided in {{RFC9000}} to add a
 check for minimum-length encoding:
@@ -686,22 +708,6 @@ very large, up to 2^30 bytes.  Implementations should take care not to allow
 vectors to overflow available storage.  To facilitate debugging of potential
 interoperability problems, implementations SHOULD provide a clear error when
 such an overflow condition occurs.
-
-# Operating Context
-
-MLS is designed to operate in the context described in
-{{?I-D.ietf-mls-architecture}}.  In particular, we assume that the following
-services are provided:
-
-* A Delivery Service that routes MLS messages among the participants in the
-  protocol.  The following types of delivery are typically required:
-
-  * Pre-publication of KeyPackage objects for clients
-  * Broadcast delivery of Proposal and Commit messages to members of a group
-  * Unicast delivery of Welcome messages to new members of a group
-
-* An Authentication Service that enables group members to authenticate the
-  credentials presented by other group members.
 
 # Protocol Overview
 
@@ -831,7 +837,7 @@ and Commit messages directly, while in reality they would be sent encapsulated i
 MLSPlaintext or MLSCiphertext objects.
 
 Before the initialization of a group, clients publish KeyPackages to a directory
-provided by the Service Provider.
+provided by the Service Provider (see {{prepublish-flow}}).
 
 ~~~ aasvg
                                                                Group
@@ -847,19 +853,23 @@ A                B                C            Directory       Channel
 |                |                +--------------->|              |
 |                |                |                |              |
 ~~~
-{: title="Clients A, B, and C publish KeyPackages to the directory"}
+{: #prepublish-flow title="Clients A, B, and C publish KeyPackages to the directory"}
 
+{{create-flow}} shows how these prepublished KeyPackages are used to create a group.
 When a client A wants to establish a group with B and C, it first initializes a
 group state containing only itself and downloads KeyPackages for B and C. For
 each member, A generates an Add and Commit message adding that member, and
 broadcasts them to the group. It also generates a Welcome message and sends this
 directly to the new member (there's no need to send it to the group). Only after
-A has received its Commit message back from the server does it update its state
-to reflect the new member's addition.
+A has received its Commit message back from the Delivery Service does it update its
+state to reflect the new member's addition.
 
-Upon receiving the Welcome message, the new member will be able to read and send
-new messages to the group. However, messages sent before they were added to the
-group will not be accessible.
+Once A has updated its state, the new member has processed the Welcome, and any
+other group members have processed the Commit, they will all have consistent
+representations of the group state, including a group secret that is known only
+to the members the group. The new member will be able to read and send new
+messages to the group, but messages sent before they were added to the group
+will not be accessible.
 
 ~~~ aasvg
                                                                Group
@@ -893,7 +903,7 @@ A              B              C          Directory            Channel
 |              |<------------------------------------------------+
 |              |              |              |                   |
 ~~~
-{: title="Client A creates a group with clients B and C"}
+{: #create-flow title="Client A creates a group with clients B and C"}
 
 Subsequent additions of group members proceed in the same way.  Any
 member of the group can download a KeyPackage for a new client
@@ -904,14 +914,17 @@ initialize its state and join the group.
 To enforce the forward secrecy and post-compromise security of messages, each
 member periodically updates the keys that represent them to the group.  A member
 does this by sending a Commit (possibly with no proposals), or by sending an
-Update message that is committed by another member.  Once the other members of
+Update message that is committed by another member (see {{update-flow}}).
+Once the other members of
 the group have processed these messages, the group's secrets will be unknown to
 an attacker that had compromised the sender's prior leaf secret.
 
 Update messages SHOULD be sent at regular intervals of time as long as the group
 is active, and members that don't update SHOULD eventually be removed from the
 group. It's left to the application to determine an appropriate amount of time
-between Updates.
+between Updates.  In general, however, applications should take care that they
+do not send MLS messages at a rate that overwhelms the transport over which
+messages are being sent.
 
 ~~~ aasvg
                                                           Group
@@ -932,11 +945,11 @@ A              B     ...      Z          Directory        Channel
 |              |              |<----------------------------+
 |              |              |              |              |
 ~~~
-{: title="Client B proposes to update its key, and client A commits the
+{: #update-flow title="Client B proposes to update its key, and client A commits the
 proposal.  As a result, the keys for both B and A updated, so the group has
 post-compromise security with respect to both of them."}
 
-Members are removed from the group in a similar way.
+Members are removed from the group in a similar way, as shown in {{remove-flow}}.
 Any member of the group can send a Remove proposal followed by a
 Commit message.  The Commit message provides new entropy to all members of the
 group except the removed member.  This new entropy is added to the epoch secret
@@ -961,7 +974,7 @@ A              B     ...      Z          Directory       Channel
 |              |              |<----------------------------+
 |              |              |              |              |
 ~~~
-{: title="Client Z removes client B from the group"}
+{: #remove-flow title="Client Z removes client B from the group"}
 
 ## Relationships Between Epochs
 
@@ -1084,7 +1097,7 @@ more traditional representation based on linked node objects may also be used.
 {{array-based-trees}} and {{link-based-trees}} provide some details on how to
 implement the tree operations required for MLS in these representations.  MLS
 places no requirements on implementations' internal representations of ratchet
-trees.  An implementation MAY use any tree representation and associated
+trees.  An implementation may use any tree representation and associated
 algorithms, as long as they produce correct protocol messages.
 
 ### Ratchet Tree Nodes
@@ -1179,7 +1192,7 @@ A   B   _   _   E   F   G   _=H
 
 0   1   2   3   4   5   6   7
 ~~~
-{: #full-tree title="A complete tree with seven members, with labels for blank
+{: #full-tree title="A complete tree with five members, with labels for blank
 parent nodes" }
 
 In this tree, the direct paths, copaths, and filtered direct paths for the leaf
@@ -1263,7 +1276,7 @@ following primitives to be used in group key computations:
 * HPKE parameters:
   * A Key Encapsulation Mechanism (KEM)
   * A Key Derivation Function (KDF)
-  * An AEAD encryption algorithm
+  * An Authenticated Encryption with Associated Data (AEAD) encryption algorithm
 * A hash algorithm
 * A MAC algorithm
 * A signature algorithm
@@ -1398,7 +1411,7 @@ struct {
 } Credential;
 ~~~
 
-A BasicCredential is a bare assertion of an identity, without any additional
+A "basic" credential is a bare assertion of an identity, without any additional
 information.  The format of the encoded identity is defined by the application.
 
 For an X.509 credential, each entry in the chain represents a single DER-encoded
@@ -1788,7 +1801,9 @@ A receiver identifies the padding field in a plaintext decoded from
 then the `padding` field comprises any remaining octets of plaintext.  The
 `padding` field MUST be filled with all zero bytes.  A receiver MUST verify that
 there are no non-zero bytes in the `padding` field, and if this check fails, the
-enclosing MLSCiphertext MUST be rejected as malformed.
+enclosing MLSCiphertext MUST be rejected as malformed.  This check ensures that
+the padding process is deterministic, so that, for example, padding cannot be
+used as a covert channel.
 
 In the MLS key schedule, the sender creates two distinct key ratchets for
 handshake and application messages for each member of the group. When encrypting
@@ -1839,6 +1854,11 @@ struct {
 
 When decoding an MLSCiphertextContent, the application MUST check that the
 MLSContentAuthData is valid.
+
+It is up to the application to decide what `authenticated_data` to provide and
+how much padding to add to a given message (if any).  The overall size of the
+AAD and ciphertext MUST fit within the limits established for the group's AEAD
+algorithm in [!I-D.irtf-cfrg-aead-limits].
 
 ### Sender Data Encryption
 
@@ -2190,9 +2210,7 @@ leaf_secret ------> leaf_node_secret --+--> leaf_priv, leaf_pub
                                                  leaf_node
 ~~~
 
-After applying the UpdatePath, the tree will have the following structure, where
-`lp` and `np[i]` represent the leaf_priv and node_priv values generated as
-described above:
+After applying the UpdatePath, the tree will have the following structure:
 
 ~~~ aasvg
 node_priv[1] --------> Y'
@@ -2432,7 +2450,7 @@ removed member --+
 
 Concrete algorithms for these operations on array-based and link-based trees are
 provided in {{array-based-trees}} and {{link-based-trees}}.  The concrete
-algorithms are non-normative.  An implementation MAY use any algorithm that
+algorithms are non-normative.  An implementation may use any algorithm that
 produces the correct tree in its internal representation.
 
 ## Tree Hashes
@@ -4069,10 +4087,13 @@ message at the same time, by taking the following steps:
   * Compute an EncryptedGroupSecrets object that encapsulates the `init_secret`
     for the current epoch and the path secret (if present).
 
-* Construct a Welcome message from the encrypted GroupInfo object, the encrypted
-  key packages, and any PSKs for which a proposal was included in the Commit. The
-  order of the `psks` MUST be the same as the order of PreSharedKey proposals in the
-  `proposals` vector.
+* Construct one or more Welcome messages from the encrypted GroupInfo object,
+  the encrypted key packages, and any PSKs for which a proposal was included in
+  the Commit. The order of the `psks` MUST be the same as the order of
+  PreSharedKey proposals in the `proposals` vector.  As discussed on
+  {{joining-via-welcome-message}}, the committer is free to choose how many
+  Welcome messages to construct.  However, the set of Welcome messages produced
+  in this step MUST cover every new member added in the Commit.
 
 * If a ReInit proposal was part of the Commit, the committer MUST create a new
   group with the parameters specified in the ReInit proposal,
@@ -4211,14 +4232,24 @@ struct {
 
 #### Joining via Welcome Message
 
-The sender of a Commit message is responsible for sending a single Welcome message to
-all the new members added via Add proposals.  The Welcome message provides the new
+The sender of a Commit message is responsible for sending a Welcome message to
+each new member added via Add proposals.  The format of the Welcome message
+allows a single Welcome message to be encrypted for multiple new members.  It is
+up to the committer to decide how many Welcome messages to create for a given
+Commit. The committer could create one Welcome that is encrypted for all new
+members, a different Welcome for each new member, or Welcome messages for
+batches of new members (according to some batching scheme that works well for
+the application).  The processes for creating and processing the Welcome are the
+same in all cases, aside from the set of new members for whom a given Welcome is
+encrypted.
+
+The Welcome message provides the new
 members with the current state of the group after the application of the Commit
 message.  The new members will not be able to decrypt or verify the Commit
 message, but will have the secrets they need to participate in the epoch
 initiated by the Commit message.
 
-In order to allow the same Welcome message to be sent to all new members,
+In order to allow the same Welcome message to be sent to multiple new members,
 information describing the group is encrypted with a symmetric key and nonce
 derived from the `joiner_secret` for the new epoch.  The `joiner_secret` is
 then encrypted to each new member using HPKE.  In the same encrypted package,
@@ -4751,7 +4782,10 @@ to an adversary solely by the ciphertext length.
 The length of the `padding` field in `MLSCiphertextContent` can be
 chosen at the time of message encryption by the sender. Senders may use padding
 to reduce the ability of attackers outside the group to infer the size of the
-encrypted content.
+encrypted content.  Note, however, that the transports used to carry MLS
+messages may have maximum message sizes, so padding schemes SHOULD avoid
+increasing message size beyond any such limits that exist in a given
+deployment scenario.
 
 ## Restrictions {#restrictions}
 
@@ -4776,16 +4810,16 @@ were delayed or reordered.
 
 Applications SHOULD define a policy on how long to keep unused nonce and key
 pairs for a sender, and the maximum number to keep. This is in addition to
-ensuring that these nonce and key pairs are promptly deleted when the epoch
-ends. Applications SHOULD also define a policy limiting the maximum number of
-steps that clients will move the ratchet forward in response to a new message.
-Messages received with a generation counter that's too much higher than the last
-message received would then be rejected. This avoids causing a denial-of-service
-attack by requiring the recipient to perform an excessive number of key
-derivations. For example, a malicious group member could send a message with
-`generation = 0xffffffff` at the beginning of a new epoch, forcing recipients to
-perform billions of key derivations unless they apply limits of the type
-discussed above.
+ensuring that these secrets are deleted according to the deletion schedule
+defined in {{deletion-schedule}}. Applications SHOULD also define a policy
+limiting the maximum number of steps that clients will move the ratchet forward
+in response to a new message.  Messages received with a generation counter
+that's too much higher than the last message received would then be rejected.
+This avoids causing a denial-of-service attack by requiring the recipient to
+perform an excessive number of key derivations. For example, a malicious group
+member could send a message with `generation = 0xffffffff` at the beginning of a
+new epoch, forcing recipients to perform billions of key derivations unless they
+apply limits of the type discussed above.
 
 # Security Considerations
 
@@ -4842,12 +4876,30 @@ required PSKs.
 
 ## Forward Secrecy and Post-Compromise Security
 
+Forward secrecy and post-compromise security are important security notions for
+long-lived MLS groups.  Forward secrecy means that messages sent at a certain
+point in time are secure in the face of later compromise of a group member.
+Post-compromise security means that messages are secure even if a group member
+was compromised at some point in the past.
+
+~~~aasvg
+                   Compromise
+                       |
+                       |
+                  |    V    |
+------------------|---------|------------------------->
+                  |         |                     Time
+<-----------------|         |---------------->
+  Forward Secrecy |         | Post-Compromise
+                  |         |   Security
+~~~
+
 Post-compromise security is provided between epochs by members regularly
 updating their leaf key in the ratchet tree. Updating their leaf key prevents
 group secrets from continuing to be encrypted to public keys whose private keys
 had previously been compromised.
 
-Forward-secrecy between epochs is provided by deleting private keys from past
+Forward secrecy between epochs is provided by deleting private keys from past
 versions of the ratchet tree, as this prevents old group secrets from being
 re-derived. Forward secrecy *within* an epoch is provided by deleting message
 encryption keys once they've been used to encrypt or decrypt a message.
@@ -4947,7 +4999,7 @@ uint16 CipherSuite;
 
 | Component | Contents                                                               |
 |:----------|:-----------------------------------------------------------------------|
-| LVL       | The security level                                                     |
+| LVL       | The security level (in bits)                                           |
 | KEM       | The KEM algorithm used for HPKE in ratchet tree operations             |
 | AEAD      | The AEAD algorithm used for HPKE and message protection                |
 | HASH      | The hash algorithm used for HPKE and the MLS transcript hash           |
@@ -5003,7 +5055,7 @@ Initial contents:
 | 0x0005          | MLS_256_DHKEMP521_AES256GCM_SHA512_P521             | Y | RFC XXXX |
 | 0x0006          | MLS_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     | Y | RFC XXXX |
 | 0x0007          | MLS_256_DHKEMP384_AES256GCM_SHA384_P384.            | Y | RFC XXXX |
-| 0xff00 - 0xffff | Reserved for Private Use                            | - | RFC XXXX |
+| 0xf000 - 0xffff | Reserved for Private Use                            | - | RFC XXXX |
 
 All of these ciphersuites use HMAC {{!RFC2104}} as their MAC function, with
 different hashes per ciphersuite.  The mapping of ciphersuites to HPKE
@@ -5031,18 +5083,16 @@ only include modern, yet well-established algorithms.  Depending on their
 requirements, clients can choose between two security levels (roughly 128-bit
 and 256-bit). Within the security levels clients can choose between faster
 X25519/X448 curves and FIPS 140-2 compliant curves for Diffie-Hellman key
-negotiations. Additionally clients that run predominantly on mobile processors
-can choose ChaCha20Poly1305 over AES-GCM for performance reasons. Since
-ChaCha20Poly1305 is not listed by FIPS 140-2 it is not paired with FIPS 140-2
-compliant curves. The security level of symmetric encryption algorithms and hash
-functions is paired with the security level of the curves.
+negotiations. Clients may also choose ChaCha20Poly1305 or AES-GCM, e.g., for
+performance reasons. Since ChaCha20Poly1305 is not listed by FIPS 140-2 it is
+not paired with FIPS 140-2 compliant curves. The security level of symmetric
+encryption algorithms and hash functions is paired with the security level of
+the curves.
 
 The mandatory-to-implement ciphersuite for MLS 1.0 is
 `MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519` which uses
 Curve25519 for key exchange, AES-128-GCM for HPKE, HKDF over SHA2-256, and
 Ed25519 for signatures.
-
-Values with the first byte 255 (decimal) are reserved for Private Use.
 
 New ciphersuite values are assigned by IANA as described in
 {{iana-considerations}}.
@@ -5085,7 +5135,7 @@ Initial contents:
 | 0x0003           | required_capabilities    | GC         | Y           | RFC XXXX  |
 | 0x0004           | external_pub             | GI         | Y           | RFC XXXX  |
 | 0x0005           | external_senders         | GC         | Y           | RFC XXXX  |
-| 0xff00  - 0xffff | Reserved for Private Use | N/A        | N/A         | RFC XXXX  |
+| 0xf000  - 0xffff | Reserved for Private Use | N/A        | N/A         | RFC XXXX  |
 
 ## MLS Proposal Types
 
@@ -5122,7 +5172,7 @@ Initial contents:
 | 0x0005           | reinit                   | Y           | N             | RFC XXXX  |
 | 0x0006           | external_init            | Y           | Y             | RFC XXXX  |
 | 0x0007           | group_context_extensions | Y           | Y             | RFC XXXX  |
-| 0xff00  - 0xffff | Reserved for Private Use | N/A         | N/A           | RFC XXXX  |
+| 0xf000  - 0xffff | Reserved for Private Use | N/A         | N/A           | RFC XXXX  |
 
 ## MLS Credential Types
 
@@ -5151,7 +5201,7 @@ Initial contents:
 | 0x0000           | RESERVED                 | N/A         | RFC XXXX  |
 | 0x0001           | basic                    | Y           | RFC XXXX  |
 | 0x0002           | x509                     | Y           | RFC XXXX  |
-| 0xff00  - 0xffff | Reserved for Private Use | N/A         | RFC XXXX  |
+| 0xf000  - 0xffff | Reserved for Private Use | N/A         | RFC XXXX  |
 
 ## MLS Designated Expert Pool {#de}
 
