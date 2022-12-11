@@ -1327,9 +1327,11 @@ SignWithLabel(SignatureKey, Label, Content) =
 
 VerifyWithLabel(VerificationKey, Label, Content, SignatureValue) =
     Signature.Verify(VerificationKey, SignContent, SignatureValue)
+~~~
 
 Where SignContent is specified as:
 
+~~~ tls
 struct {
     opaque label<V> = "MLS 1.0 " + Label;
     opaque content<V> = Content;
@@ -1359,9 +1361,11 @@ MakeKeyPackageRef(value) = RefHash("MLS 1.0 KeyPackage Reference", value)
 MakeProposalRef(value)   = RefHash("MLS 1.0 Proposal Reference", value)
 
 RefHash(label, value) = Hash(RefHashInput)
+~~~
 
 Where RefHashInput is defined as:
 
+~~~ tls
 struct {
   opaque label<V> = label;
   opaque value<V> = value;
@@ -1549,7 +1553,7 @@ struct {
         case new_member_commit:
         case new_member_proposal:
             struct{};
-    }
+    };
 } Sender;
 
 // See IANA registry for registered values
@@ -1569,7 +1573,7 @@ struct {
           Proposal proposal;
         case commit:
           Commit commit;
-    }
+    };
 } MLSContent;
 
 struct {
@@ -2487,7 +2491,7 @@ struct {
   select (TreeHashInput.node_type) {
     case leaf:   LeafNodeHashInput leaf_node;
     case parent: ParentNodeHashInput parent_node;
-  }
+  };
 } TreeHashInput;
 
 struct {
@@ -3874,7 +3878,7 @@ the MLSAuthenticatedContent object in which the proposal was sent (see {{hash-ba
 ~~~ tls
 enum {
   reserved(0),
-  proposal(1)
+  proposal(1),
   reference(2),
   (255)
 } ProposalOrRefType;
