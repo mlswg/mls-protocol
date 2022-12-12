@@ -4854,8 +4854,13 @@ outside the group:
 * Group ID
 * Group membership
 * Group extensions
-* Frequency of epoch changes
+* Current epoch and frequency of epoch changes
 * Frequency of application messages within an epoch
+
+### DS Architecture
+
+The following is relevant for applications where the DS is an entity less
+trusted than the members’ clients (e.g. a serverside component).
 
 This information is typically protected from parties other than the DS by
 applying "hop by hop" transport encryption on communications with the DS (in
@@ -4864,34 +4869,47 @@ information receives with regard to the DS depends on how MLS is operated.
 Overall, MLS does not provide robust protections against the DS observing the
 group's metadata.
 
+With the exception of Group ID and Epoch, all of the following is only relevant
+when Commits and Proposal messages use the MLSPlaintext framing. If instead
+MLSCiphertext is used, the DS cannot observe the content of the messages
+directly.
+
+### Group ID and Epoch
+
 MLS provides no mechanism to protect the group ID and epoch of a message from
 the DS, so group ID and the frequency of messages and epoch changes are not
 protected against inspection by the DS.
 
+### Extensions
+
+Group extensions are set via GroupContextExtensions proposals and thus exposed
+to the DS. Extensions can also be exposed via {{groupinfo-objects}}.
+
+### Group Membership
+
+Like group extensions, group membership is determined by the proposals and
+commits sent by group members and is also exposed if the group uses MLSPlaintext
+handshake messages. They are also included in the group’s ratchet tree.
+
+Note that the revealed membership information that can be extracted from
+observing Add & Remove proposals is only as revealing as the corresponding
+Certificates from the leave nodes in the ratcheting tree or the KeyPackages in
+the Add proposals. Exposing membership information can be further limited by
+additional protection for credentials (e.g. by using pseudonyms or
+privacy-preserving credentials).
+
+
+Membership information can be inferred by the DS through the `new_member` field
+in a Welcome message if the DS has previously seen the KeyPackage of the
+respective new member(s).
+
+### GroupInfo Objects
+
 If a group can be joined by external commits (see
-{{joining-via-external-commits}}), then a group member will need to publish a
-GroupInfo object that states the group's extensions and a commitment to the
+{{joining-via-external-commits}}), then group members need to publish a
+GroupInfo object that includes the group's extensions and a commitment to the
 group's membership.  This generally results in the group's membership and
 extensions being known to the DS and prospective new joiners.
-
-Aside from published GroupInfo objects, the only ways that a groups extensions
-are transmitted are Welcome messages and GroupContextExtensions proposals.
-Welcome messages encrypt extensions, so they do not expose them to the DS.
-Whether a GroupContextExtensions proposal exposes the group's extensions depends
-on whether it is sent as an MLSPlaintext or MLSCiphertext message.  If a group
-always sends Proposals as MLSCiphertext and only adds members via Welcome
-messages, then its extensions will be private to the members of the group.
-
-If a group sends Proposal and Commit messages unencrypted (as MLSPlaintext),
-then the DS will be able to infer the group's membership from the set of Add and
-Remove proposals covered by Commits.  If Proposal and Commit messages are sent
-in encrypted form (as MLSCiphertext), then the DS will not be able to observe
-membership changes directly, but may be able to make some less direct
-inferences.  For example, the `new_member` field in a Welcome message indicates
-the KeyPackage to the Welcome is directed.  The Welcome message does not state
-which group it belongs to in plaintext, but if the DS is able to infer this
-(e.g., from timing signals), then the Welcome will tell the DS that a given
-client has joined the group.
 
 ## Authentication
 
