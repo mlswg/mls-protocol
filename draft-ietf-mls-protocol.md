@@ -1333,9 +1333,16 @@ Where SignContent is specified as:
 
 ~~~ tls
 struct {
-    opaque label<V> = "MLS 1.0 " + Label;
-    opaque content<V> = Content;
+    opaque label<V>;
+    opaque content<V>;
 } SignContent;
+~~~
+
+And its fields set to:
+
+~~~ pseudocode
+label = "MLS 1.0 " + Label;
+content = Content;
 ~~~
 
 Here, the functions `Signature.Sign` and `Signature.Verify` are defined
@@ -1367,9 +1374,16 @@ Where RefHashInput is defined as:
 
 ~~~ tls
 struct {
-  opaque label<V> = label;
-  opaque value<V> = value;
+  opaque label<V>;
+  opaque value<V>;
 } RefHashInput;
+~~~
+
+And its fields set to:
+
+~~~ pseudocode
+label = label;
+value = value;
 ~~~
 
 For a KeyPackageRef, the `value` input is the encoded KeyPackage, and the
