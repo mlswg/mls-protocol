@@ -1449,11 +1449,9 @@ policy.
 
 ### Credential Expiry and Revocation
 
-In some credential schemes, the validity status of a credential can change over
-time.  For example, X.509 certificates can expire or be revoked by their issuer.
-For brevity, in this section we use "expired" to describe any credential that
-was previously valid but has become invalid for a reason such as expiration or
-revocation.
+In some credential schemes, a valid credential can "expire", or become invalid
+after a certain point in time. For example, each X.509 certificate has a
+`notAfter` field, expressing a time after which the certificate is not valid.
 
 Expired credentials can cause operational problems in light of the validation
 requirements of {{credential-validation}}.  Applications can apply some
@@ -1481,6 +1479,13 @@ member preparing to issue a Commit to check the tree for expired credentials and
 include Remove proposals for those members in its Commit.  In situations where
 the group tree is known to the DS, the DS could also monitor the tree for
 expired credentials and issue external Remove proposals.
+
+Some credential schemes also allow credentials to be revoked.  Revocation is
+similar to expiry, in that a previously valid credential becomes invalid.
+As such, most of the considerations above also apply to revoked credentials.
+However, applications may want to treat revoked credentials differently, e.g.,
+removing members with revoked credentials while allowing members with expired
+credentials time to update.
 
 ### Uniquely Identifying Clients
 
