@@ -1451,37 +1451,36 @@ policy.
 
 In some credential schemes, the validity status of a credential can change over
 time.  For example, X.509 certificates can expire or be revoked by their issuer.
-These changes can cause operational problems in light of the validation
+For brevity, in this section we use "expired" to describe any credential that
+was previously valid but has become invalid for a reason such as expiration or
+revocation.
+
+Expired credentials can cause operational problems in light of the validation
 requirements of {{credential-validation}}.  Applications can apply some
 operational practices and adaptations to Authentication Service policies to
 moderate these impacts.
 
-It can sometimes be important to distinguish this type of invalidity from other
-types; we call a credential "time-invalid" that is invalid for some time-based
-reason but otherwise valid.  An expired certificate issued by a trusted
-certificate authority would be time-invalid.
-
 In general, to avoid operational problems such as new joiners rejecting expired
-credentials in a group, applications that use such credentials should ensure
-that all of the credentials in use in a group are valid.
+credentials in a group, applications that use such credentials should ensure to
+the extent practical that all of the credentials in use in a group are valid at
+all times.
 
-If a member finds that its credential is invalid (or will be soon), it should
+If a member finds that its credential has expired (or will soon), it should
 issue an Update or Commit that replaces it with a valid credential.  For this
 reason, members SHOULD accept Update proposals and Commits issued by members
-with time-invalid credentials, if the credential in the Update or Commit is
-valid.
+with expired credentials, if the credential in the Update or Commit is valid.
 
 Similarly, when a client is processing messages sent some time in the past
 (e.g., syncing up with a group after being offline), the client SHOULD accept
-signatures from members with time-invalid credentials, since the credential may
+signatures from members with expired credentials, since the credential may
 have been valid at the time the message was sent.
 
-If a member finds that another member's credential is invalid, they may issue a
+If a member finds that another member's credential has expired, they may issue a
 Remove that removes that member.  For example, an application could require a
-member preparing to issue a Commit to check the tree for invalid credentials and
+member preparing to issue a Commit to check the tree for expired credentials and
 include Remove proposals for those members in its Commit.  In situations where
 the group tree is known to the DS, the DS could also monitor the tree for
-invalid credentials and issue external Remove proposals.
+expired credentials and issue external Remove proposals.
 
 ### Uniquely Identifying Clients
 
