@@ -1461,7 +1461,7 @@ types; we call a credential "time-invalid" that is invalid for some time-based
 reason but otherwise valid.  An expired certificate issued by a trusted
 certificate authority would be time-invalid.
 
-In general, To avoid operational problems such as new joiners rejecting expired
+In general, to avoid operational problems such as new joiners rejecting expired
 credentials in a group, applications that use such credentials should ensure
 that all of the credentials in use in a group are valid.
 
