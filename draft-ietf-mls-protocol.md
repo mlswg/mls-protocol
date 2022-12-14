@@ -110,12 +110,9 @@ informative:
        - name: Trevor Perrin(ed)
        - name: Moxie Marlinspike
 
-  SECG:
-    title: "Elliptic Curve Cryptography, Standards for Efficient Cryptography Group, ver. 2"
-    target: https://secg.org/sec1-v2.pdf
-    date: 2009
-
   SHS: DOI.10.6028/NIST.FIPS.180-4
+
+  NAN: DOI.10.1007/978-3-030-26948-7_9
 
 --- abstract
 
@@ -4921,6 +4918,41 @@ be securely removed from a group. It also allows a member to rotate their
 keypair such that the old private key can no longer be used to decrypt new
 messages.
 
+## Confidentiality of Sender Data
+
+The MLSCiphertext framing encrypts "sender data" that identifies which group
+member sent an encrypted message, as described in {{sender-data-encryption}}.
+As with the QUIC header protection scheme {{?RFC9001, Section 5.4}}, this scheme
+is an instance of the HN1 construction analyzed in {{NAN}}.  A sample of the
+ciphertext is combined with a `sender_data_secret` to derive a key and nonce
+that are used for AEAD encryption of the sender data.
+
+``` pseudocode
+(key, nonce) = PRF(sender_data_secret, sample)
+encrypted_sender_data =
+  AEAD.Seal(key, nonce, sender_data_aad, sender_data)
+```
+
+The only difference between this construction and HN1 as described in {{NAN}} is
+that it uses authenticated encryption instead of unauthenticated encryption.
+
+Since the `sender_data_secret` is distinct from the content encryption key, it
+follows that the sender data encryption scheme achieves AE2 security as defined
+in {{NAN}}, and therefore guarantees the confidentiality of the sender data.
+
+Use of the same `sender_data_secret` and ciphertext sample more than once risks
+compromising sender data protection by reusing an AEAD (key, nonce) pair.  For
+example, in many AEAD schemes, reusing a key and nonce reveals the exclusive OR
+of the two plaintexts.  Assuming that the AEAD acts as a PRF, if L bits are
+sampled, the odds of two ciphertext samples being identical is roughly
+2<sup>-L/2</sup>, i.e., the birthday bound.
+
+The AEAD algorithms for ciphersuites defined in this document provide this
+property; the size of the sample depends on the ciphersuite's hash function, but
+in all cases, the probability of collision is no more than 2<sup>-128</sup>.
+Any future ciphersuite MUST use an AEAD algorithm is a PRF, especially with
+regard to the first `KDF.Nh` bytes of its ciphertext output.
+
 ## Confidentiality of Group Metadata
 
 MLS does not provide confidentiality protection to some messages and fields
@@ -5237,10 +5269,12 @@ primitives, HMAC hash functions, and TLS signature schemes is as follows
 | 0x0006 | 0x0021 | 0x0003 | 0x0003 | SHA512 | ed448                  |
 | 0x0007 | 0x0011 | 0x0002 | 0x0002 | SHA384 | ecdsa_secp384r1_sha384 |
 
-
 The hash used for the MLS transcript hash is the one referenced in the
 ciphersuite name.  In the ciphersuites defined above, "SHA256", "SHA384", and "SHA512"
 refer to the SHA-256, SHA-384, and SHA-512 functions defined in {{SHS}}.
+
+In addition to the general requirements of {{ciphersuites}}, future ciphersuites
+MUST meet the requirements of {{confidentiality-of-sender-data}}.
 
 It is advisable to keep the number of ciphersuites low to increase the chances
 clients can interoperate in a federated environment, therefore the ciphersuites
