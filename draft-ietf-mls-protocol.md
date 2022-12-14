@@ -181,15 +181,24 @@ MLS is designed to operate in the context described in
 {{?I-D.ietf-mls-architecture}}.  In particular, we assume that the following
 services are provided:
 
-* A Delivery Service that routes MLS messages among the participants in the
+* A Delivery Service (DS) that routes MLS messages among the participants in the
   protocol.  The following types of delivery are typically required:
 
   * Pre-publication of KeyPackage objects for clients
   * Broadcast delivery of Proposal and Commit messages to members of a group
   * Unicast delivery of Welcome messages to new members of a group
+  * Sequencing of Commit messages (see {{sequencing}})
 
-* An Authentication Service that enables group members to authenticate the
+* An Authentication Service (AS) that enables group members to authenticate the
   credentials presented by other group members.
+
+The DS and AS may also apply additional policies to MLS operations to obtain
+additional security properties.  For example, MLS enables any participant to add
+or remove members of a group; a DS could enforce a policy that only certain
+members are allowed to perform these operations.  MLS authenticates all members
+of a group; a DS could help ensure that only clients with certain types of
+credential are admitted. MLS provides no inherent protection against denial of
+service; A DS could also enforce rate limits in order to mitigate these risks.
 
 ##  Change Log
 
@@ -4894,7 +4903,8 @@ apply limits of the type discussed above.
 The security goals of MLS are described in {{?I-D.ietf-mls-architecture}}.
 We describe here how the protocol achieves its goals at a high level,
 though a complete security analysis is outside of the scope of this
-document.
+document.  The Security Considerations section of {{?I-D.ietf-mls-architecture}}
+provides some citations to detailed security analyses.
 
 ## Confidentiality of the Group Secrets
 
@@ -4910,6 +4920,92 @@ The ability to efficiently encrypt to all members except one allows members to
 be securely removed from a group. It also allows a member to rotate their
 keypair such that the old private key can no longer be used to decrypt new
 messages.
+
+## Confidentiality of Group Metadata
+
+MLS does not provide confidentiality protection to some messages and fields
+within messages:
+
+* KeyPackage messages
+* GroupInfo messages
+* The unencrypted portion of a Welcome message
+* Any Proposal or Commit messages sent as MLSPlaintext messages
+* The unencrypted header fields in MLSCiphertext messages
+* The lengths of encrypted Welcome and MLSCiphertext messages
+
+The only mechanism MLS provides for confidentially distributing a group's
+ratchet tree to new members is to send it in a Welcome message as a
+`ratchet_tree` extension.  If an application distributes the tree in some other
+way, its security will depend on that application mechanism.
+
+A party observing these fields might be able to infer certain properties of the
+group:
+
+* Group ID
+* Current epoch and frequency of epoch changes
+* Frequency of messages within an epoch
+* Group extensions
+* Group membership
+
+The amount of metadata exposed to parties outside the group, and thus the
+ability of these parties to infer the group's properties, depends on several
+aspects of the DS design, such as:
+
+* How KeyPackages are distributed
+* How the ratchet tree is distributed
+* How prospective external joiners get a GroupInfo object for the group
+* Whether MLSPlaintext or MLSCiphertext messages are used for Proposal and
+  Commit messages
+
+In the remainder of this section, we note the ways that the above properties of
+the group are reflected in unprotected group messages, as a guide to
+understanding how they might be exposed or protected in a given application.
+
+### GroupID, Epoch, and Message Frequency
+
+MLS provides no mechanism to protect the group ID and epoch of a message from
+the DS, so the group ID and the frequency of messages and epoch changes are not
+protected against inspection by the DS.
+
+### Group Extensions
+
+A group's extensions are first set by the group's creator and then updated by
+GroupContextExtensions proposals.  A GroupContextExtension proposal sent as
+MLSPlaintext leaks the groups' extensions.
+
+A new member learns the group's extensions via a GroupInfo object.  When the new
+member joins via a Welcome message, the Welcome message's encryption protects
+the GroupInfo message.  When the new member joins via an external join, they
+must be provided with a GroupInfo object.  Protection of this GroupInfo object
+is up to the application -- if it is transmitted over a channel that is not
+confidential to the group and the new joiner, then it will leak the group's
+extensions.
+
+### Group Membership
+
+The group's membership is represented directly by its ratchet tree, since each
+member's LeafNode contains members' cryptographic keys, a credential that
+contains information about the member's identity, and possibly other
+identifiers.  Applications that expose the group's ratchet tree outside the
+group also leak the group's membership.
+
+Changes to the group's membership are made by means of Add and Remove proposals.
+If these proposals are sent as MLSPlaintext, then information will be leaked
+about the corresponding changes to the group's membership.  A party that sees
+all of these changes can reconstruct the group membership.
+
+Welcome messages contain a hash of each KeyPackage for which the Welcome message
+is encrypted.  If a party has access to a pool of KeyPackages and observes a
+Welcome message, then they can identify the KeyPackage representing the new
+member.  If the party can also associate the Welcome with a group, then the
+party can infer that the identified new member was added to that group.
+
+Note that these information leaks reveal the group's membership only to the degree
+that that membership is revealed by the contents of a member's LeafNode in the
+ratchet tree.  In some cases, this may be quite direct, e.g., due to credentials
+attesting to identifiers such as email addresses.  An application could
+construct a member's leaf node to be less identifying, e.g., by using a
+pseudonymous credential and frequently rotating encryption and signature keys.
 
 ## Authentication
 
