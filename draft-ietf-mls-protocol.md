@@ -3675,7 +3675,9 @@ A member of the group applies an Update message by taking the following steps:
 
 * Replace the sender's LeafNode with the one contained in the Update proposal
 
-* Blank the intermediate nodes along the path from the sender's leaf to the root
+* For each intermediate node along the path from the sender's leaf to the root:
+  If the member's leaf node is not listed in the `unmerged_leaves` field of the
+  intermediate node, then blank the intermediate node.
 
 ### Remove
 
@@ -3697,7 +3699,10 @@ A member of the group applies a Remove message by taking the following steps:
 
 * Replace the leaf node L with a blank node
 
-* Blank the intermediate nodes along the path from L to the root
+* For each intermediate node along the path from the sender's leaf to the root:
+    * If the member's leaf node is listed in the `unmerged_leaves` field of the
+      intermediate node, then remove the entry from `unmerged_leaves`.
+    * Otherwise, blank the intermediate node.
 
 * Truncate the tree by removing the right subtree until there is at least one
   non-blank leaf node in the right subtree.  If the rightmost non-blank leaf has
