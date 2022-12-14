@@ -2729,6 +2729,12 @@ itself) and S the other child:
 * D is in the resolution of C, and the intersection of P's `unmerged_leaves`
   with the subtree under C is equal to the resolution of C with D removed.
 
+* If D is a parent node, the `unmerged_leaves` field of D is a subset of the
+  `unmerged_leaves` field of P.
+
+* If D is a leaf node, then the leaf index of D does not appear in the
+  `unmerged_leaves` field of P or any of its ancestors.
+
 These checks verify that D and P were updated at the same time (in the same
 UpdatePath), and that they were neighbors in the UpdatePath because the nodes in
 between them would have omitted from the filtered direct path.
