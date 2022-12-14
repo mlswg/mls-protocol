@@ -1478,6 +1478,46 @@ identifiers in the new credential is valid as a successor to the set of
 presented identifiers in the old credential, according to the application's
 policy.
 
+### Credential Expiry and Revocation
+
+In some credential schemes, a valid credential can "expire", or become invalid
+after a certain point in time. For example, each X.509 certificate has a
+`notAfter` field, expressing a time after which the certificate is not valid.
+
+Expired credentials can cause operational problems in light of the validation
+requirements of {{credential-validation}}.  Applications can apply some
+operational practices and adaptations to Authentication Service policies to
+moderate these impacts.
+
+In general, to avoid operational problems such as new joiners rejecting expired
+credentials in a group, applications that use such credentials should ensure to
+the extent practical that all of the credentials in use in a group are valid at
+all times.
+
+If a member finds that its credential has expired (or will soon), it should
+issue an Update or Commit that replaces it with a valid credential.  For this
+reason, members SHOULD accept Update proposals and Commits issued by members
+with expired credentials, if the credential in the Update or Commit is valid.
+
+Similarly, when a client is processing messages sent some time in the past
+(e.g., syncing up with a group after being offline), the client SHOULD accept
+signatures from members with expired credentials, since the credential may
+have been valid at the time the message was sent.
+
+If a member finds that another member's credential has expired, they may issue a
+Remove that removes that member.  For example, an application could require a
+member preparing to issue a Commit to check the tree for expired credentials and
+include Remove proposals for those members in its Commit.  In situations where
+the group tree is known to the DS, the DS could also monitor the tree for
+expired credentials and issue external Remove proposals.
+
+Some credential schemes also allow credentials to be revoked.  Revocation is
+similar to expiry, in that a previously valid credential becomes invalid.
+As such, most of the considerations above also apply to revoked credentials.
+However, applications may want to treat revoked credentials differently, e.g.,
+removing members with revoked credentials while allowing members with expired
+credentials time to update.
+
 ### Uniquely Identifying Clients
 
 MLS implementations will presumably provide applications with a way to request
