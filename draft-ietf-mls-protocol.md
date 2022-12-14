@@ -4863,7 +4863,7 @@ ratchet tree to new members is to send it in a Welcome message as a
 `ratchet_tree` extension.  If an application distributes the tree in some other
 way, its security will depend on that application mechanism.
 
-A party observing these fields might be able to infer certain metadata about the
+A party observing these fields might be able to infer certain properties of the
 group:
 
 * Group ID
@@ -4872,10 +4872,9 @@ group:
 * Group extensions
 * Group membership
 
-These fields are typically protected from parties other than the DS by applying
-"hop by hop" transport encryption (in contrast to the "end to end" protections
-provided by MLS). Whether the DS is exposed to unencrypted fields depends on
-several aspects of the DS design, such as:
+The amount of metadata exposed to parties outside the group, and thus the
+ability of these parties to infer the group's properties, depends on several
+aspects of the DS design, such as:
 
 * How KeyPackages are distributed
 * How the ratchet tree is distributed
