@@ -4878,7 +4878,7 @@ aspects of the DS design, such as:
 
 * How KeyPackages are distributed
 * How the ratchet tree is distributed
-* How proespective external joiners get a GroupInfo object for the group
+* How prospective external joiners get a GroupInfo object for the group
 * Whether MLSPlaintext or MLSCiphertext messages are used for Proposal and
   Commit messages
 
@@ -4925,11 +4925,11 @@ Welcome message, then they can identify the KeyPackage representing the new
 member.  If the party can also associate the Welcome with a group, then the
 party can infer that the identified new member was added to that group.
 
-Note that these information leaks reveal the group's membership to the degree
+Note that these information leaks reveal the group's membership only to the degree
 that that membership is revealed by the contents of a member's LeafNode in the
 ratchet tree.  In some cases, this may be quite direct, e.g., due to credentials
 attesting to identifiers such as email addresses.  An application could
-cosntruct a member's leaf node to be less identifying, e.g., by using a
+construct a member's leaf node to be less identifying, e.g., by using a
 pseudonymous credential and frequently rotating encryption and signature keys.
 
 ## Authentication
