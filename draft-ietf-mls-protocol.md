@@ -4923,7 +4923,7 @@ messages.
 The MLSCiphertext framing encrypts "sender data" that identifies which group
 member sent an encrypted message, as described in {{sender-data-encryption}}.
 As with the QUIC header protection scheme {{?RFC9001, Section 5.4}}, this scheme
-is an instance of the HN1 construction analyzed in {{NAN}}.  A sample of the
+is a variant of the HN1 construction analyzed in {{NAN}}.  A sample of the
 ciphertext is combined with a `sender_data_secret` to derive a key and nonce
 that are used for AEAD encryption of the sender data.
 
@@ -4933,8 +4933,10 @@ encrypted_sender_data =
   AEAD.Seal(key, nonce, sender_data_aad, sender_data)
 ```
 
-The only difference between this construction and HN1 as described in {{NAN}} is
-that it uses authenticated encryption instead of unauthenticated encryption.
+The only differences between this construction and HN1 as described in {{NAN}} are
+(1) that it uses authenticated encryption instead of unauthenticated encryption
+and (2) that it protects information used to derive a nonce instead of the nonce
+itself.
 
 Since the `sender_data_secret` is distinct from the content encryption key, it
 follows that the sender data encryption scheme achieves AE2 security as defined
