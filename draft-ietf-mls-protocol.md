@@ -352,7 +352,7 @@ draft-12
 
 - Make ratchet tree section clearer.
 
-- Handle non-member sender cases in PublicMessageTBS
+- Handle non-member sender cases in MLSPlaintextTBS
 
 - Clarify encoding of signatures with NIST curves
 
@@ -392,7 +392,7 @@ draft-10
 
 - Do not encrypt to joiners in UpdatePath generation (\*)
 
-- Move PublicMessage signature under the confirmation tag (\*)
+- Move MLSPlaintext signature under the confirmation tag (\*)
 
 - Explicitly authenticate group membership with MLSPLaintext (\*)
 
@@ -455,7 +455,7 @@ draft-08
 
 - Add extensions to ClientInitKeys for expiration and downgrade resistance (\*)
 
-- Allow multiple Proposals and a single Commit in one PublicMessage (\*)
+- Allow multiple Proposals and a single Commit in one MLSPlaintext (\*)
 
 draft-07
 
@@ -478,7 +478,7 @@ draft-06
 - Resolve the circular dependency that draft-05 introduced in the
   confirmation MAC calculation (\*)
 
-- Cover the entire PublicMessage in the transcript hash (\*)
+- Cover the entire MLSPlaintext in the transcript hash (\*)
 
 draft-05
 
@@ -595,11 +595,11 @@ Signature Key:
 : A signing key pair used to authenticate the sender of a message.
 
 Handshake Message:
-: An PublicMessage or PrivateMessage message carrying an MLS Proposal or Commit
+: A PublicMessage or PrivateMessage carrying an MLS Proposal or Commit
 object, as opposed to application data.
 
 Application Message:
-: An PrivateMessage message carrying application data.
+: A PrivateMessage carrying application data.
 
 Terminology specific to tree computations is described in
 {{ratchet-tree-terminology}}.
@@ -758,9 +758,8 @@ group.
 
 Proposal and Commit messages are sent from one member of a group to the others.
 MLS provides a common framing layer for sending messages within a group:
-An _PublicMessage_
-message provides sender authentication for unencrypted Proposal and Commit
-messages.  An _PrivateMessage_ message provides encryption and authentication for
+A _PublicMessage_ provides sender authentication for unencrypted Proposal and Commit
+messages.  A _PrivateMessage_ provides encryption and authentication for
 both Proposal/Commit messages as well as any application data.
 
 ## Cryptographic State and Evolution
@@ -1681,13 +1680,13 @@ consume them:
                                  +--------------+--------------+
                                                 |
                                                 V
-                                        GroupContent
+                                         GroupContent
                                              |  |                -.
                                              |  |                  |
                                     +--------+  |                  |
                                     |           |                  |
                                     V           |                  +-- Asymmetric
-                           GroupContentAuthData   |                  |   Sign / Verify
+                           GroupContentAuthData |                  |   Sign / Verify
                                     |           |                  |
                                     +--------+  |                  |
                                              |  |                  |
@@ -1699,7 +1698,7 @@ consume them:
                                        +--------+--------+         +-- Symmetric
                                        |                 |         |   Protect / Unprotect
                                        V                 V         |
-Welcome  KeyPackage  GroupInfo   PublicMessage      PrivateMessage -'
+Welcome  KeyPackage  GroupInfo   PublicMessage    PrivateMessage -'
    |          |          |             |                 |
    |          |          |             |                 |
    +----------+----------+----+--------+-----------------+
@@ -1776,9 +1775,9 @@ The confirmation tag value confirms that the members of the group have arrived
 at the same state of the group. A GroupContentAuthData is said to be valid when both
 the `signature` and `confirmation_tag` fields are valid.
 
-## Encoding and Decoding a Plaintext
+## Encoding and Decoding a Public Message
 
-Plaintexts are encoded using the PublicMessage structure.
+Messages that are authenticated but not encrypted are encoded using the PublicMessage structure.
 
 ~~~ tls
 struct {
@@ -1814,9 +1813,9 @@ When decoding an PublicMessage into an AuthenticatedContent,
 the application MUST check `membership_tag` and MUST check that the
 GroupContentAuthData is valid.
 
-## Encoding and Decoding a Ciphertext
+## Encoding and Decoding a Private Message
 
-Ciphertexts are encoded using the PrivateMessage structure.
+Authenticated and encrypted messages are encoded using the PrivateMessage structure.
 
 ~~~ tls
 struct {
@@ -1835,7 +1834,7 @@ and AuthenticatedContentTBE.
 
 ### Content Encryption
 
-The ciphertext content is encoded using the AuthenticatedContentTBE structure.
+Content to be encrypted is encoded in an AuthenticatedContentTBE structure.
 
 ~~~ tls
 struct {
@@ -1936,7 +1935,7 @@ struct {
 } SenderData;
 ~~~
 
-When constructing an SenderData from a Sender object, the sender MUST verify
+When constructing a SenderData object from a Sender object, the sender MUST verify
 Sender.sender_type is `member` and use Sender.leaf_index for
 SenderData.leaf_index.
 
@@ -3597,7 +3596,7 @@ a state transition occurs, the epoch number is incremented by one.
 
 ## Proposals
 
-Proposals are included in an GroupContent by way of a Proposal structure
+Proposals are included in a GroupContent by way of a Proposal structure
 that indicates their type:
 
 ~~~ tls
@@ -3618,7 +3617,7 @@ struct {
 } Proposal;
 ~~~
 
-On receiving an GroupContent containing a Proposal, a client MUST verify the
+On receiving a GroupContent containing a Proposal, a client MUST verify the
 signature inside GroupContentAuthData and that the `epoch` field of the enclosing
 GroupContent is equal to the `epoch` field of the current GroupContext object.
 If the verification is successful, then the Proposal should be cached in such a way
@@ -3815,8 +3814,8 @@ existing members of the group can independently authorize the addition of an
 MLS client proposing it be added to the group. External proposals which are not
 authorized are considered invalid.
 
-An external proposal MUST be sent as an PublicMessage object, since the sender
-will not have the keys necessary to construct an PrivateMessage object.
+An external proposal MUST be sent as a PublicMessage object, since the sender
+will not have the keys necessary to construct a PrivateMessage object.
 
 #### External Senders Extension
 
@@ -4117,7 +4116,7 @@ message at the same time, by taking the following steps:
   of PSKs in the derivation corresponds to the order of PreSharedKey proposals
   in the `proposals` vector.
 
-* Construct an GroupContent object containing the Commit object. Sign the
+* Construct a GroupContent object containing the Commit object. Sign the
   GroupContent using the old GroupContext as context.
   * Use the GroupContent to update the confirmed transcript hash and update
     the new GroupContext.
@@ -4857,7 +4856,7 @@ the attacker enough information to mount an attack. If Alice asks Bob
 to an adversary solely by the ciphertext length.
 
 The length of the `padding` field in `AuthenticatedContentTBE` can be
-chosen at the time of message encryption by the sender. Senders may use padding
+chosen by the sender at the time of message encryption. Senders may use padding
 to reduce the ability of attackers outside the group to infer the size of the
 encrypted content.  Note, however, that the transports used to carry MLS
 messages may have maximum message sizes, so padding schemes SHOULD avoid
@@ -4954,8 +4953,7 @@ aspects of the DS design, such as:
 * How KeyPackages are distributed
 * How the ratchet tree is distributed
 * How prospective external joiners get a GroupInfo object for the group
-* Whether PublicMessage or PrivateMessage messages are used for Proposal and
-  Commit messages
+* Whether Proposal and Commit messages are sent as PublicMessage or PrivateMessage
 
 In the remainder of this section, we note the ways that the above properties of
 the group are reflected in unprotected group messages, as a guide to
@@ -4971,7 +4969,7 @@ protected against inspection by the DS.
 
 A group's extensions are first set by the group's creator and then updated by
 GroupContextExtensions proposals.  A GroupContextExtension proposal sent as
-PublicMessage leaks the groups' extensions.
+a PublicMessage leaks the groups' extensions.
 
 A new member learns the group's extensions via a GroupInfo object.  When the new
 member joins via a Welcome message, the Welcome message's encryption protects
