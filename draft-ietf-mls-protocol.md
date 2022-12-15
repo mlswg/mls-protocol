@@ -4943,15 +4943,15 @@ in {{NAN}}, and therefore guarantees the confidentiality of the sender data.
 Use of the same `sender_data_secret` and ciphertext sample more than once risks
 compromising sender data protection by reusing an AEAD (key, nonce) pair.  For
 example, in many AEAD schemes, reusing a key and nonce reveals the exclusive OR
-of the two plaintexts.  Assuming that the AEAD acts as a PRF, if L bits are
-sampled, the odds of two ciphertext samples being identical is roughly
+of the two plaintexts. Assuming the ciphertext output of the AEAD algorithm is
+indistinguishable from random data (i.e., the AEAD is AE1-secure in the phrasing
+of {{NAN}}), the odds of two ciphertext samples being identical is roughly
 2<sup>-L/2</sup>, i.e., the birthday bound.
 
-The AEAD algorithms for ciphersuites defined in this document provide this
-property; the size of the sample depends on the ciphersuite's hash function, but
+The AEAD algorithms for ciphersuites defined in this document all provide this
+property. The size of the sample depends on the ciphersuite's hash function, but
 in all cases, the probability of collision is no more than 2<sup>-128</sup>.
-Any future ciphersuite MUST use an AEAD algorithm is a PRF, especially with
-regard to the first `KDF.Nh` bytes of its ciphertext output.
+Any future ciphersuite MUST use an AE1-secure AEAD algorithm.
 
 ## Confidentiality of Group Metadata
 
