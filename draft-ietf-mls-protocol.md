@@ -5281,11 +5281,7 @@ Template:
 
 * Name: The name of the wire format
 
-* Recommended: Whether support for this wire format is recommended by the IETF MLS
-  WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
-  value of "N" unless explicitly requested, and adding a value with a
-  "Recommended" value of "Y" requires Standards Action [RFC8126].  IESG Approval
-  is REQUIRED for a Y->N transition.
+* Recommended: Same as in {{mls-ciphersuites}}
 
 * Reference: The document where this wire format is defined
 
@@ -5321,11 +5317,7 @@ Template:
   * GC: GroupContext objects
   * GI: GroupInfo objects
 
-* Recommended: Whether support for this extension is recommended by the IETF MLS
-  WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
-  value of "N" unless explicitly requested, and adding a value with a
-  "Recommended" value of "Y" requires Standards Action [RFC8126].  IESG Approval
-  is REQUIRED for a Y->N transition.
+* Recommended: Same as in {{mls-ciphersuites}}
 
 * Reference: The document where this extension is defined
 
@@ -5353,11 +5345,7 @@ Template:
 
 * Name: The name of the proposal type
 
-* Recommended: Whether support for this extension is recommended by the IETF MLS
-  WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
-  value of "N" unless explicitly requested, and adding a value with a
-  "Recommended" value of "Y" requires Standards Action [RFC8126].  IESG Approval
-  is REQUIRED for a Y->N transition.
+* Recommended: Same as in {{mls-ciphersuites}}
 
 * Path Required: Whether a Commit covering a proposal of this type is required
   to have its `path` field populated (see {{commit}}).
@@ -5390,11 +5378,7 @@ Template:
 
 * Name: The name of the credential type
 
-* Recommended: Whether support for this credential is recommended by the IETF MLS
-  WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
-  value of "N" unless explicitly requested, and adding a value with a
-  "Recommended" value of "Y" requires Standards Action [RFC8126].  IESG Approval
-  is REQUIRED for a Y->N transition.
+* Recommended: Same as in {{mls-ciphersuites}}
 
 * Reference: The document where this credential is defined
 
@@ -5422,11 +5406,7 @@ Template:
 
 * Label: The string to be used as the `Label` parameter to `SignWithLabel`
 
-* Recommended: Whether support for this credential is recommended by the IETF MLS
-  WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
-  value of "N" unless explicitly requested, and adding a value with a
-  "Recommended" value of "Y" requires Standards Action [RFC8126].  IESG Approval
-  is REQUIRED for a Y->N transition.
+* Recommended: Same as in {{mls-ciphersuites}}
 
 * Reference: The document where this credential is defined
 
@@ -5451,11 +5431,7 @@ Template:
 
 * Label: The string to be used as the `Label` parameter to `MLS-Exporter`
 
-* Recommended: Whether support for this credential is recommended by the IETF MLS
-  WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
-  value of "N" unless explicitly requested, and adding a value with a
-  "Recommended" value of "Y" requires Standards Action [RFC8126].  IESG Approval
-  is REQUIRED for a Y->N transition.
+* Recommended: Same as in {{mls-ciphersuites}}
 
 * Reference: The document where this credential is defined
 
