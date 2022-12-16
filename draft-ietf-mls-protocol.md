@@ -4670,6 +4670,7 @@ using a key exchanged over the MLS channel.
 Regardless of how the client obtains the tree, the client MUST verify that the
 root hash of the ratchet tree matches the `tree_hash` of the GroupContext before
 using the tree for MLS operations.
+
 # Extensibility
 
 The base MLS protocol can be extended in a few ways.  New ciphersuites can be
@@ -4679,7 +4680,7 @@ used to add additional information to the protocol.  In this section, we discuss
 some constraints on these extensibility mechanisms that are necessary to ensure
 broad interoperability.
 
-## Ciphersuites
+## Additional Ciphersuites
 
 As discussed in {{ciphersuites}}, MLS allows the participants in a group to
 negotiate the cryptographic algorithms used within the group.  This
@@ -5285,8 +5286,8 @@ The hash used for the MLS transcript hash is the one referenced in the
 ciphersuite name.  In the ciphersuites defined above, "SHA256", "SHA384", and "SHA512"
 refer to the SHA-256, SHA-384, and SHA-512 functions defined in {{SHS}}.
 
-In addition to the general requirements of {{ciphersuites}}, future ciphersuites
-MUST meet the requirements of {{confidentiality-of-sender-data}}.
+In addition to the general requirements of {{additional-ciphersuites}}, future
+ciphersuites MUST meet the requirements of {{confidentiality-of-sender-data}}.
 
 It is advisable to keep the number of ciphersuites low to increase the chances
 clients can interoperate in a federated environment, therefore the ciphersuites
@@ -5506,7 +5507,7 @@ whether the proposed registration duplicates existing functionality,
 whether it is likely to be of general applicability or useful only
 for a single application, and whether the registration description
 is clear. For example, the MLS DEs will apply the ciphersuite-related
-advisory found in {{ciphersuites}}.
+advisory found in {{mls-ciphersuites}}.
 
 IANA MUST only accept registry updates from the MLS DEs and SHOULD
 direct all requests for registration to the MLS DEs' mailing list.
