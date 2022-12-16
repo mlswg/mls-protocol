@@ -4421,9 +4421,14 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
   * For each non-empty leaf node, validate the LeafNode as described in
     {{leaf-node-validation}}.
 
-  * For each non-empty parent node, verify that each entry in the node's
-    `unmerged_leaves` represents a non-blank leaf node that is a descendant of
-    the parent node.
+  * For each non-empty parent node and each entry in the node's
+    `unmerged_leaves` field:
+
+    * Verify that the entry represents a non-blank leaf node that is a
+      descendant of the parent node.
+
+    * Verify that every non-blank intermediate node beween the leaf node and the
+      parent node also has an entry for the leaf node in its `unmerged_leaves`.
 
 * Identify a leaf whose LeafNode is
   identical to the one in the KeyPackage.  If no such field exists, return an
