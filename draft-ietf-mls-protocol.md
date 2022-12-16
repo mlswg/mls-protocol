@@ -1351,8 +1351,11 @@ label = "MLS 1.0 " + Label;
 content = Content;
 ~~~
 
-Here, the functions `Signature.Sign` and `Signature.Verify` are defined
-by the signature algorithm.
+Here, the functions `Signature.Sign` and `Signature.Verify` are defined by the
+signature algorithm.  If MLS extensions require signatures by group members,
+they should re-use the SignWithLabel construction, using a distinct label.  To
+avoid collisions in these labels, an IANA registry is defined in
+{{mls-signature-labels}}.
 
 The ciphersuites are defined in section {{mls-ciphersuites}}.
 
@@ -3131,7 +3134,9 @@ MLS-Exporter(Label, Context, Length) =
 
 Applications SHOULD provide a unique label to `MLS-Exporter` that
 identifies the secret's intended purpose. This is to help prevent the same
-secret from being generated and used in two different places.
+secret from being generated and used in two different places. To help avoid
+the same label being used in different applications, an IANA registry for these
+labels has been defined in {{mls-exporter-labels}}.
 
 The exported values are bound to the group epoch from which the
 `exporter_secret` is derived, and hence reflect a particular state of
@@ -5171,6 +5176,8 @@ This document requests the creation of the following new IANA registries:
 * MLS Extension Types ({{mls-extension-types}})
 * MLS Proposal Types ({{mls-proposal-types}})
 * MLS Credential Types ({{mls-credential-types}})
+* MLS Signature Labels ({{mls-signature-labels}})
+* MLS Exporter Labels ({{mls-exporter-labels}})
 
 All of these registries should be under a heading of "Messaging Layer Security",
 and assignments are made via the Specification Required policy {{!RFC8126}}. See
@@ -5310,11 +5317,7 @@ Template:
 
 * Name: The name of the wire format
 
-* Recommended: Whether support for this wire format is recommended by the IETF MLS
-  WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
-  value of "N" unless explicitly requested, and adding a value with a
-  "Recommended" value of "Y" requires Standards Action [RFC8126].  IESG Approval
-  is REQUIRED for a Y->N transition.
+* Recommended: Same as in {{mls-ciphersuites}}
 
 * Reference: The document where this wire format is defined
 
@@ -5350,11 +5353,7 @@ Template:
   * GC: GroupContext objects
   * GI: GroupInfo objects
 
-* Recommended: Whether support for this extension is recommended by the IETF MLS
-  WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
-  value of "N" unless explicitly requested, and adding a value with a
-  "Recommended" value of "Y" requires Standards Action [RFC8126].  IESG Approval
-  is REQUIRED for a Y->N transition.
+* Recommended: Same as in {{mls-ciphersuites}}
 
 * Reference: The document where this extension is defined
 
@@ -5382,11 +5381,7 @@ Template:
 
 * Name: The name of the proposal type
 
-* Recommended: Whether support for this extension is recommended by the IETF MLS
-  WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
-  value of "N" unless explicitly requested, and adding a value with a
-  "Recommended" value of "Y" requires Standards Action [RFC8126].  IESG Approval
-  is REQUIRED for a Y->N transition.
+* Recommended: Same as in {{mls-ciphersuites}}
 
 * Path Required: Whether a Commit covering a proposal of this type is required
   to have its `path` field populated (see {{commit}}).
@@ -5419,11 +5414,7 @@ Template:
 
 * Name: The name of the credential type
 
-* Recommended: Whether support for this credential is recommended by the IETF MLS
-  WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
-  value of "N" unless explicitly requested, and adding a value with a
-  "Recommended" value of "Y" requires Standards Action [RFC8126].  IESG Approval
-  is REQUIRED for a Y->N transition.
+* Recommended: Same as in {{mls-ciphersuites}}
 
 * Reference: The document where this credential is defined
 
@@ -5435,6 +5426,56 @@ Initial contents:
 | 0x0001           | basic                    | Y           | RFC XXXX  |
 | 0x0002           | x509                     | Y           | RFC XXXX  |
 | 0xf000  - 0xffff | Reserved for Private Use | N/A         | RFC XXXX  |
+
+## MLS Signature Labels
+
+The `SignWithLabel` function defined in {{ciphersuites}} avoids the risk of
+confusion between signatures in different contexts.  Each context is assigned a
+distinct label that is incorporated into the signature.  This registry records
+the labels defined in this document, and allows additional labels to be
+registered in case extensions add other types of signature using the same
+signature keys used elsewhere in MLS.
+
+Template:
+
+* Label: The string to be used as the `Label` parameter to `SignWithLabel`
+
+* Recommended: Same as in {{mls-ciphersuites}}
+
+* Reference: The document where this credential is defined
+
+Initial contents:
+
+| Label           | Recommended | Reference |
+|:----------------|:------------|:----------|
+| "MLSContentTBS" | Y           | RFC XXXX  |
+| "LeafNodeTBS"   | Y           | RFC XXXX  |
+| "KeyPackageTBS" | Y           | RFC XXXX  |
+| "GroupInfoTBS"  | Y           | RFC XXXX  |
+
+## MLS Exporter Labels
+
+The exporter function defined in {{exporters}} allows applications to derive key
+material from the MLS key schedule.  Like the TLS exporter {{RFC8446}}, the MLS
+exporter uses a label to distinguish between different applications' use of the
+exporter.  This registry allows applications to register their usage to avoid
+collisions.
+
+Template:
+
+* Label: The string to be used as the `Label` parameter to `MLS-Exporter`
+
+* Recommended: Same as in {{mls-ciphersuites}}
+
+* Reference: The document where this credential is defined
+
+The registry has no initial contents, since it is intended to be used by
+applications, not the core protocol.  The table below is intended only to show
+the column layout of the registry.
+
+| Label | Recommended | Reference |
+|:------|:------------|:----------|
+| (N/A) | (N/A)       | (N/A)     |
 
 ## MLS Designated Expert Pool {#de}
 
