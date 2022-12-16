@@ -1305,7 +1305,7 @@ opaque HPKEPublicKey<V>;
 ~~~
 
 The signature algorithm specified in the ciphersuite is the mandatory algorithm
-to be used for signatures in GroupContentAuthData and the tree signatures.  It MUST be
+to be used for signatures in FramedContentAuthData and the tree signatures.  It MUST be
 the same as the signature algorithm specified in the credentials in the leaves
 of the tree (including the leaf node information in KeyPackages used to add new
 members).
@@ -1628,7 +1628,7 @@ struct {
     opaque authenticated_data<V>;
 
     ContentType content_type;
-    select (GroupContent.content_type) {
+    select (FramedContent.content_type) {
         case application:
           opaque application_data<V>;
         case proposal:
@@ -1636,7 +1636,7 @@ struct {
         case commit:
           Commit commit;
     };
-} GroupContent;
+} FramedContent;
 
 struct {
     ProtocolVersion version = mls10;
@@ -1665,8 +1665,8 @@ plaintexts or ciphertexts.
 ~~~ tls
 struct {
     WireFormat wire_format;
-    GroupContent content;
-    GroupContentAuthData auth;
+    FramedContent content;
+    FramedContentAuthData auth;
 } AuthenticatedContent;
 ~~~
 
@@ -1680,13 +1680,13 @@ consume them:
                                  +--------------+--------------+
                                                 |
                                                 V
-                                         GroupContent
+                                         FramedContent
                                              |  |                -.
                                              |  |                  |
                                     +--------+  |                  |
                                     |           |                  |
                                     V           |                  +-- Asymmetric
-                           GroupContentAuthData |                  |   Sign / Verify
+                          FramedContentAuthData |                  |   Sign / Verify
                                     |           |                  |
                                     +--------+  |                  |
                                              |  |                  |
@@ -1709,14 +1709,14 @@ Welcome  KeyPackage  GroupInfo   PublicMessage    PrivateMessage -'
 
 ## Content Authentication
 
-GroupContent is authenticated using the GroupContentAuthData structure.
+FramedContent is authenticated using the FramedContentAuthData structure.
 
 ~~~ tls
 struct {
     ProtocolVersion version = mls10;
     WireFormat wire_format;
-    GroupContent content;
-    select (GroupContentTBS.content.sender.sender_type) {
+    FramedContent content;
+    select (FramedContentTBS.content.sender.sender_type) {
         case member:
         case new_member_commit:
             GroupContext context;
@@ -1724,14 +1724,14 @@ struct {
         case new_member_proposal:
             struct{};
     };
-} GroupContentTBS;
+} FramedContentTBS;
 
 opaque MAC<V>;
 
 struct {
-    /* SignWithLabel(., "GroupContentTBS", GroupContentTBS) */
+    /* SignWithLabel(., "FramedContentTBS", FramedContentTBS) */
     opaque signature<V>;
-    select (GroupContent.content_type) {
+    select (FramedContent.content_type) {
         case commit:
             /*
               MAC(confirmation_key,
@@ -1742,11 +1742,11 @@ struct {
         case proposal:
             struct{};
     };
-} GroupContentAuthData;
+} FramedContentAuthData;
 ~~~
 
 The signature is computed using `SignWithLabel` with label
-`"GroupContentTBS"` and with a content that covers the message content and
+`"FramedContentTBS"` and with a content that covers the message content and
 the wire format that will be used for this message. If the sender's
 `sender_type` is `member`, the content also covers the GroupContext for the
 current epoch so that signatures are specific to a given group and epoch.
@@ -1772,7 +1772,7 @@ Recipients of an MLSMessage MUST verify the signature with the key depending on
 the `sender_type` of the sender as described above.
 
 The confirmation tag value confirms that the members of the group have arrived
-at the same state of the group. A GroupContentAuthData is said to be valid when both
+at the same state of the group. A FramedContentAuthData is said to be valid when both
 the `signature` and `confirmation_tag` fields are valid.
 
 ## Encoding and Decoding a Public Message
@@ -1781,8 +1781,8 @@ Messages that are authenticated but not encrypted are encoded using the PublicMe
 
 ~~~ tls
 struct {
-    GroupContent content;
-    GroupContentAuthData auth;
+    FramedContent content;
+    FramedContentAuthData auth;
     select (PublicMessage.content.sender.sender_type) {
         case member:
             MAC membership_tag;
@@ -1800,8 +1800,8 @@ following value:
 
 ~~~ tls
 struct {
-  GroupContentTBS content_tbs;
-  GroupContentAuthData auth;
+  FramedContentTBS content_tbs;
+  FramedContentAuthData auth;
 } AuthenticatedContentTBM;
 ~~~
 
@@ -1811,7 +1811,7 @@ membership_tag = MAC(membership_key, AuthenticatedContentTBM)
 
 When decoding an PublicMessage into an AuthenticatedContent,
 the application MUST check `membership_tag` and MUST check that the
-GroupContentAuthData is valid.
+FramedContentAuthData is valid.
 
 ## Encoding and Decoding a Private Message
 
@@ -1830,11 +1830,11 @@ struct {
 
 `encrypted_sender_data` and `ciphertext` are encrypted using the AEAD function
 specified by the ciphersuite in use, using as input the structures SenderData
-and AuthenticatedContentTBE.
+and PrivateContentTBE.
 
 ### Content Encryption
 
-Content to be encrypted is encoded in an AuthenticatedContentTBE structure.
+Content to be encrypted is encoded in an PrivateContentTBE structure.
 
 ~~~ tls
 struct {
@@ -1849,9 +1849,9 @@ struct {
           Commit commit;
     };
 
-    GroupContentAuthData auth;
+    FramedContentAuthData auth;
     opaque padding[length_of_padding];
-} AuthenticatedContentTBE;
+} PrivateContentTBE;
 ~~~
 
 The `padding` field is set by the sender, by first encoding the content (via the
@@ -1909,11 +1909,11 @@ struct {
     uint64 epoch;
     ContentType content_type;
     opaque authenticated_data<V>;
-} ContentAAD;
+} PrivateContentAAD;
 ~~~
 
-When decoding an AuthenticatedContentTBE, the application MUST check that the
-GroupContentAuthData is valid.
+When decoding an PrivateContentTBE, the application MUST check that the
+FramedContentAuthData is valid.
 
 It is up to the application to decide what `authenticated_data` to provide and
 how much padding to add to a given message (if any).  The overall size of the
@@ -2945,7 +2945,7 @@ transcript hash.
 ~~~ tls
 struct {
     WireFormat wire_format;
-    GroupContent content; /* with content_type == commit */
+    FramedContent content; /* with content_type == commit */
     opaque signature<V>;
 } ConfirmedTranscriptHashInput;
 
@@ -3596,7 +3596,7 @@ a state transition occurs, the epoch number is incremented by one.
 
 ## Proposals
 
-Proposals are included in a GroupContent by way of a Proposal structure
+Proposals are included in a FramedContent by way of a Proposal structure
 that indicates their type:
 
 ~~~ tls
@@ -3617,9 +3617,9 @@ struct {
 } Proposal;
 ~~~
 
-On receiving a GroupContent containing a Proposal, a client MUST verify the
-signature inside GroupContentAuthData and that the `epoch` field of the enclosing
-GroupContent is equal to the `epoch` field of the current GroupContext object.
+On receiving a FramedContent containing a Proposal, a client MUST verify the
+signature inside FramedContentAuthData and that the `epoch` field of the enclosing
+FramedContent is equal to the `epoch` field of the current GroupContext object.
 If the verification is successful, then the Proposal should be cached in such a way
 that it can be retrieved by hash (as a ProposalOrRef object) in a later Commit message.
 
@@ -4116,9 +4116,9 @@ message at the same time, by taking the following steps:
   of PSKs in the derivation corresponds to the order of PreSharedKey proposals
   in the `proposals` vector.
 
-* Construct a GroupContent object containing the Commit object. Sign the
-  GroupContent using the old GroupContext as context.
-  * Use the GroupContent to update the confirmed transcript hash and update
+* Construct a FramedContent object containing the Commit object. Sign the
+  FramedContent using the old GroupContext as context.
+  * Use the FramedContent to update the confirmed transcript hash and update
     the new GroupContext.
   * Use the `init_secret` from the previous epoch, the `commit_secret` and the
     `psk_secret` as defined in the previous steps, and the new GroupContext to
@@ -4127,7 +4127,7 @@ message at the same time, by taking the following steps:
   * Use the `confirmation_key` for the new epoch to compute the
     `confirmation_tag` value.
   * Calculate the interim transcript hash using the new confirmed transcript
-    hash and the `confirmation_tag` from the GroupContentAuthData.
+    hash and the `confirmation_tag` from the FramedContentAuthData.
 
 * Protect the AuthenticatedContent object using keys from the old epoch:
   * If encoding as PublicMessage, compute the `membership_tag` value using the
@@ -4139,7 +4139,7 @@ message at the same time, by taking the following steps:
 * Construct a GroupInfo reflecting the new state:
   * Group ID, epoch, tree, confirmed transcript hash, interim transcript
     hash, and group context extensions from the new state
-  * The confirmation_tag from the GroupContentAuthData object
+  * The confirmation_tag from the FramedContentAuthData object
   * Other extensions as defined by the application
   * Optionally derive an external keypair as described in {{key-schedule}}
     (required for External Commits, see {{joining-via-external-commits}})
@@ -4177,7 +4177,7 @@ message at the same time, by taking the following steps:
 
 A member of the group applies a Commit message by taking the following steps:
 
-* Verify that the `epoch` field of the enclosing GroupContent is equal
+* Verify that the `epoch` field of the enclosing FramedContent is equal
   to the `epoch` field of the current GroupContext object
 
 * Unprotect the Commit using the keys from the current epoch:
@@ -4187,7 +4187,7 @@ A member of the group applies a Commit message by taking the following steps:
     `sender_data_secret` and the (key, nonce) pair from the step on the sender's
     hash ratchet indicated by the `generation` field.
 
-* Verify that the signature on the GroupContent message as described in
+* Verify that the signature on the FramedContent message as described in
   Section {{content-authentication}}.
 
 * Verify that the `proposals` vector is valid as specified in {{proposal-list-validation}}.
@@ -4250,7 +4250,7 @@ A member of the group applies a Commit message by taking the following steps:
 
 * Use the `confirmation_key` for the new epoch to compute the confirmation tag
   for this message, as described below, and verify that it is the same as the
-  `confirmation_tag` field in the GroupContentAuthData object.
+  `confirmation_tag` field in the FramedContentAuthData object.
 
 * If the above checks are successful, consider the new GroupContext object
   as the current state of the group.
@@ -4791,7 +4791,7 @@ described in {{reinitialization}}.
 # Sequencing of State Changes {#sequencing}
 
 Each Commit message is premised on a given starting state,
-indicated by the `epoch` field of the enclosing GroupContent.
+indicated by the `epoch` field of the enclosing FramedContent.
 If the changes implied by a Commit message are made
 starting from a different state, the results will be incorrect.
 
@@ -4855,7 +4855,7 @@ the attacker enough information to mount an attack. If Alice asks Bob
 "When are we going to the movie?", then the answer "Wednesday" could be leaked
 to an adversary solely by the ciphertext length.
 
-The length of the `padding` field in `AuthenticatedContentTBE` can be
+The length of the `padding` field in `PrivateContentTBE` can be
 chosen by the sender at the time of message encryption. Senders may use padding
 to reduce the ability of attackers outside the group to infer the size of the
 encrypted content.  Note, however, that the transports used to carry MLS
