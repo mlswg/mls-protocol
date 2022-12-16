@@ -5400,8 +5400,6 @@ the labels defined in this document, and allows additional labels to be
 registered in case extensions add other types of signature using the same
 signature keys used elsewhere in MLS.
 
-Labels beginning with "PRIVATE:" are reserved for private use.
-
 Template:
 
 * Label: The string to be used as the `Label` parameter to `SignWithLabel`
@@ -5435,7 +5433,13 @@ Template:
 
 * Reference: The document where this credential is defined
 
-The registry has no initial contents.
+The registry has no initial contents, since it is intended to be used by
+applications, not the core protocol.  The table below is intended only to show
+the column layout of the registry.
+
+| Label | Recommended | Reference |
+|:------|:------------|:----------|
+| (N/A) | (N/A)       | (N/A)     |
 
 ## MLS Designated Expert Pool {#de}
 
