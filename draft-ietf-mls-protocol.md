@@ -5143,7 +5143,7 @@ This document requests the creation of the following new IANA registries:
 * MLS Proposal Types ({{mls-proposal-types}})
 * MLS Credential Types ({{mls-credential-types}})
 * MLS Signature Labels ({{mls-signature-labels}})
-* MLS Exporter Labels ({{mls-signature-labels}})
+* MLS Exporter Labels ({{mls-exporter-labels}})
 
 All of these registries should be under a heading of "Messaging Layer Security",
 and assignments are made via the Specification Required policy {{!RFC8126}}. See
