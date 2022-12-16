@@ -5449,12 +5449,12 @@ Template:
 
 Initial contents:
 
-| Label           | Recommended | Reference |
-|:----------------|:------------|:----------|
-| "MLSContentTBS" | Y           | RFC XXXX  |
-| "LeafNodeTBS"   | Y           | RFC XXXX  |
-| "KeyPackageTBS" | Y           | RFC XXXX  |
-| "GroupInfoTBS"  | Y           | RFC XXXX  |
+| Label              | Recommended | Reference |
+|:-------------------|:------------|:----------|
+| "FramedContentTBS" | Y           | RFC XXXX  |
+| "LeafNodeTBS"      | Y           | RFC XXXX  |
+| "KeyPackageTBS"    | Y           | RFC XXXX  |
+| "GroupInfoTBS"     | Y           | RFC XXXX  |
 
 ## MLS Exporter Labels
 
