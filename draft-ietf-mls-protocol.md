@@ -110,12 +110,9 @@ informative:
        - name: Trevor Perrin(ed)
        - name: Moxie Marlinspike
 
-  SECG:
-    title: "Elliptic Curve Cryptography, Standards for Efficient Cryptography Group, ver. 2"
-    target: https://secg.org/sec1-v2.pdf
-    date: 2009
-
   SHS: DOI.10.6028/NIST.FIPS.180-4
+
+  NAN: DOI.10.1007/978-3-030-26948-7_9
 
 --- abstract
 
@@ -1353,8 +1350,11 @@ label = "MLS 1.0 " + Label;
 content = Content;
 ~~~
 
-Here, the functions `Signature.Sign` and `Signature.Verify` are defined
-by the signature algorithm.
+Here, the functions `Signature.Sign` and `Signature.Verify` are defined by the
+signature algorithm.  If MLS extensions require signatures by group members,
+they should re-use the SignWithLabel construction, using a distinct label.  To
+avoid collisions in these labels, an IANA registry is defined in
+{{mls-signature-labels}}.
 
 The ciphersuites are defined in section {{mls-ciphersuites}}.
 
@@ -3133,7 +3133,9 @@ MLS-Exporter(Label, Context, Length) =
 
 Applications SHOULD provide a unique label to `MLS-Exporter` that
 identifies the secret's intended purpose. This is to help prevent the same
-secret from being generated and used in two different places.
+secret from being generated and used in two different places. To help avoid
+the same label being used in different applications, an IANA registry for these
+labels has been defined in {{mls-exporter-labels}}.
 
 The exported values are bound to the group epoch from which the
 `exporter_secret` is derived, and hence reflect a particular state of
@@ -4418,9 +4420,14 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
   * For each non-empty leaf node, validate the LeafNode as described in
     {{leaf-node-validation}}.
 
-  * For each non-empty parent node, verify that each entry in the node's
-    `unmerged_leaves` represents a non-blank leaf node that is a descendant of
-    the parent node.
+  * For each non-empty parent node and each entry in the node's
+    `unmerged_leaves` field:
+
+    * Verify that the entry represents a non-blank leaf node that is a
+      descendant of the parent node.
+
+    * Verify that every non-blank intermediate node beween the leaf node and the
+      parent node also has an entry for the leaf node in its `unmerged_leaves`.
 
 * Identify a leaf whose LeafNode is
   identical to the one in the KeyPackage.  If no such field exists, return an
@@ -4920,6 +4927,43 @@ be securely removed from a group. It also allows a member to rotate their
 keypair such that the old private key can no longer be used to decrypt new
 messages.
 
+## Confidentiality of Sender Data
+
+The MLSCiphertext framing encrypts "sender data" that identifies which group
+member sent an encrypted message, as described in {{sender-data-encryption}}.
+As with the QUIC header protection scheme {{?RFC9001, Section 5.4}}, this scheme
+is a variant of the HN1 construction analyzed in {{NAN}}.  A sample of the
+ciphertext is combined with a `sender_data_secret` to derive a key and nonce
+that are used for AEAD encryption of the sender data.
+
+``` pseudocode
+(key, nonce) = PRF(sender_data_secret, sample)
+encrypted_sender_data =
+  AEAD.Seal(key, nonce, sender_data_aad, sender_data)
+```
+
+The only differences between this construction and HN1 as described in {{NAN}} are
+(1) that it uses authenticated encryption instead of unauthenticated encryption
+and (2) that it protects information used to derive a nonce instead of the nonce
+itself.
+
+Since the `sender_data_secret` is distinct from the content encryption key, it
+follows that the sender data encryption scheme achieves AE2 security as defined
+in {{NAN}}, and therefore guarantees the confidentiality of the sender data.
+
+Use of the same `sender_data_secret` and ciphertext sample more than once risks
+compromising sender data protection by reusing an AEAD (key, nonce) pair.  For
+example, in many AEAD schemes, reusing a key and nonce reveals the exclusive OR
+of the two plaintexts. Assuming the ciphertext output of the AEAD algorithm is
+indistinguishable from random data (i.e., the AEAD is AE1-secure in the phrasing
+of {{NAN}}), the odds of two ciphertext samples being identical is roughly
+2<sup>-L/2</sup>, i.e., the birthday bound.
+
+The AEAD algorithms for ciphersuites defined in this document all provide this
+property. The size of the sample depends on the ciphersuite's hash function, but
+in all cases, the probability of collision is no more than 2<sup>-128</sup>.
+Any future ciphersuite MUST use an AE1-secure AEAD algorithm.
+
 ## Confidentiality of Group Metadata
 
 MLS does not provide confidentiality protection to some messages and fields
@@ -5135,6 +5179,8 @@ This document requests the creation of the following new IANA registries:
 * MLS Extension Types ({{mls-extension-types}})
 * MLS Proposal Types ({{mls-proposal-types}})
 * MLS Credential Types ({{mls-credential-types}})
+* MLS Signature Labels ({{mls-signature-labels}})
+* MLS Exporter Labels ({{mls-exporter-labels}})
 
 All of these registries should be under a heading of "Messaging Layer Security",
 and assignments are made via the Specification Required policy {{!RFC8126}}. See
@@ -5235,10 +5281,12 @@ primitives, HMAC hash functions, and TLS signature schemes is as follows
 | 0x0006 | 0x0021 | 0x0003 | 0x0003 | SHA512 | ed448                  |
 | 0x0007 | 0x0011 | 0x0002 | 0x0002 | SHA384 | ecdsa_secp384r1_sha384 |
 
-
 The hash used for the MLS transcript hash is the one referenced in the
 ciphersuite name.  In the ciphersuites defined above, "SHA256", "SHA384", and "SHA512"
 refer to the SHA-256, SHA-384, and SHA-512 functions defined in {{SHS}}.
+
+In addition to the general requirements of {{ciphersuites}}, future ciphersuites
+MUST meet the requirements of {{confidentiality-of-sender-data}}.
 
 It is advisable to keep the number of ciphersuites low to increase the chances
 clients can interoperate in a federated environment, therefore the ciphersuites
@@ -5272,11 +5320,7 @@ Template:
 
 * Name: The name of the wire format
 
-* Recommended: Whether support for this wire format is recommended by the IETF MLS
-  WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
-  value of "N" unless explicitly requested, and adding a value with a
-  "Recommended" value of "Y" requires Standards Action [RFC8126].  IESG Approval
-  is REQUIRED for a Y->N transition.
+* Recommended: Same as in {{mls-ciphersuites}}
 
 * Reference: The document where this wire format is defined
 
@@ -5312,11 +5356,7 @@ Template:
   * GC: GroupContext objects
   * GI: GroupInfo objects
 
-* Recommended: Whether support for this extension is recommended by the IETF MLS
-  WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
-  value of "N" unless explicitly requested, and adding a value with a
-  "Recommended" value of "Y" requires Standards Action [RFC8126].  IESG Approval
-  is REQUIRED for a Y->N transition.
+* Recommended: Same as in {{mls-ciphersuites}}
 
 * Reference: The document where this extension is defined
 
@@ -5344,11 +5384,7 @@ Template:
 
 * Name: The name of the proposal type
 
-* Recommended: Whether support for this extension is recommended by the IETF MLS
-  WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
-  value of "N" unless explicitly requested, and adding a value with a
-  "Recommended" value of "Y" requires Standards Action [RFC8126].  IESG Approval
-  is REQUIRED for a Y->N transition.
+* Recommended: Same as in {{mls-ciphersuites}}
 
 * Path Required: Whether a Commit covering a proposal of this type is required
   to have its `path` field populated (see {{commit}}).
@@ -5381,11 +5417,7 @@ Template:
 
 * Name: The name of the credential type
 
-* Recommended: Whether support for this credential is recommended by the IETF MLS
-  WG.  Valid values are "Y" and "N".  The "Recommended" column is assigned a
-  value of "N" unless explicitly requested, and adding a value with a
-  "Recommended" value of "Y" requires Standards Action [RFC8126].  IESG Approval
-  is REQUIRED for a Y->N transition.
+* Recommended: Same as in {{mls-ciphersuites}}
 
 * Reference: The document where this credential is defined
 
@@ -5397,6 +5429,56 @@ Initial contents:
 | 0x0001           | basic                    | Y           | RFC XXXX  |
 | 0x0002           | x509                     | Y           | RFC XXXX  |
 | 0xf000  - 0xffff | Reserved for Private Use | N/A         | RFC XXXX  |
+
+## MLS Signature Labels
+
+The `SignWithLabel` function defined in {{ciphersuites}} avoids the risk of
+confusion between signatures in different contexts.  Each context is assigned a
+distinct label that is incorporated into the signature.  This registry records
+the labels defined in this document, and allows additional labels to be
+registered in case extensions add other types of signature using the same
+signature keys used elsewhere in MLS.
+
+Template:
+
+* Label: The string to be used as the `Label` parameter to `SignWithLabel`
+
+* Recommended: Same as in {{mls-ciphersuites}}
+
+* Reference: The document where this credential is defined
+
+Initial contents:
+
+| Label           | Recommended | Reference |
+|:----------------|:------------|:----------|
+| "MLSContentTBS" | Y           | RFC XXXX  |
+| "LeafNodeTBS"   | Y           | RFC XXXX  |
+| "KeyPackageTBS" | Y           | RFC XXXX  |
+| "GroupInfoTBS"  | Y           | RFC XXXX  |
+
+## MLS Exporter Labels
+
+The exporter function defined in {{exporters}} allows applications to derive key
+material from the MLS key schedule.  Like the TLS exporter {{RFC8446}}, the MLS
+exporter uses a label to distinguish between different applications' use of the
+exporter.  This registry allows applications to register their usage to avoid
+collisions.
+
+Template:
+
+* Label: The string to be used as the `Label` parameter to `MLS-Exporter`
+
+* Recommended: Same as in {{mls-ciphersuites}}
+
+* Reference: The document where this credential is defined
+
+The registry has no initial contents, since it is intended to be used by
+applications, not the core protocol.  The table below is intended only to show
+the column layout of the registry.
+
+| Label | Recommended | Reference |
+|:------|:------------|:----------|
+| (N/A) | (N/A)       | (N/A)     |
 
 ## MLS Designated Expert Pool {#de}
 
