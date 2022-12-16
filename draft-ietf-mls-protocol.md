@@ -1292,23 +1292,21 @@ strings to HPKE key pairs.  As in HPKE, MLS assumes that an AEAD algorithm
 produces a single ciphertext output from AEAD encryption (aligning with
 {{?RFC5116}}), as opposed to a separate ciphertext and tag.
 
-Ciphersuites are represented with the CipherSuite type. HPKE public keys
-are opaque values in a format defined by the underlying
-protocol (see the Cryptographic Dependencies section of the HPKE specification for more
-information).
+Ciphersuites are represented with the CipherSuite type. The ciphersuites are
+defined in {{mls-ciphersuites}}.
+
+### Public Keys
+
+HPKE public keys are opaque values in a format defined by the underlying
+protocol (see the Cryptographic Dependencies section of the HPKE specification
+for more information).
 
 ~~~ tls
 opaque HPKEPublicKey<V>;
 ~~~
 
-The signature algorithm specified in the ciphersuite is the mandatory algorithm
-to be used for signatures in FramedContentAuthData and the tree signatures.  It MUST be
-the same as the signature algorithm specified in the credentials in the leaves
-of the tree (including the leaf node information in KeyPackages used to add new
-members).
-
-Like HPKE public keys, signature public keys are represented as opaque values in
-a format defined by the ciphersuite's signature scheme.
+Signature public keys are likewise represented as opaque values in a format
+defined by the ciphersuite's signature scheme.
 
 ~~~ tls
 opaque SignaturePublicKey<V>;
@@ -1318,6 +1316,14 @@ For ciphersuites using Ed25519 or Ed448 signature schemes, the public key is in
 the format specified in {{?RFC8032}}.  For ciphersuites using ECDSA with the
 NIST curves (P-256, P-384, or P-521), the public key is represented as an
 encoded UncompressedPointRepresentation struct, as defined in {{RFC8446}}.
+
+### Signing
+
+The signature algorithm specified in the ciphersuite is the mandatory algorithm
+to be used for signatures in FramedContentAuthData and the tree signatures.  It
+MUST be the same as the signature algorithm specified in the credentials in the
+leaves of the tree (including the leaf node information in KeyPackages used to
+add new members).
 
 The signatures used in this document are encoded as specified in {{!RFC8446}}.
 In particular, ECDSA signatures are DER-encoded and EdDSA signatures are defined
@@ -1356,7 +1362,41 @@ they should re-use the SignWithLabel construction, using a distinct label.  To
 avoid collisions in these labels, an IANA registry is defined in
 {{mls-signature-labels}}.
 
-The ciphersuites are defined in section {{mls-ciphersuites}}.
+### Public-Key Encryption
+
+As with signing, MLS includes a label and context in encryption operations to
+avoid confusion between ciphertexts produced for different purposes.  Encryption
+and decryption including this label and context are done as follows:
+
+~~~ pseudocode
+EncryptWithLabel(PublicKey, Label, Context, Plaintext) =
+  SealBase(PublicKey, EncryptContext, "", Plaintext)
+
+DecryptWithLabel(PrivateKey, Label, Context, KEMOutput, Ciphertext) =
+  OpenBase(KEMOutput, PrivateKey, EncryptContext, "", Ciphertext)
+~~~
+
+Where EncryptContext is specified as:
+
+~~~ tls
+struct {
+  opaque label<V>;
+  opaque context<V>;
+} EncryptContext;
+~~~
+
+And its fields set to:
+
+~~~
+label = "MLS 1.0 " + Label;
+content = Context;
+~~~
+
+Here, the functions `SealBase` and `OpenBase` are defined {{RFC9180}}, using the
+HPKE algorithms specified by the group's cipehersuite.  If MLS extensions
+require HPKE encryption operations, they should re-use the EncryptWithLabel
+construction, using a distinct label.  To avoid collisions in these labels, an
+IANA registry is defined in {{mls-public-key-encryption-labels}}.
 
 ## Hash-Based Identifiers
 
@@ -2441,25 +2481,22 @@ the `encrypted_path_secret` vector MUST be equal to the length of the resolution
 of the copath node (excluding new leaf nodes), with each ciphertext being the
 encryption to the respective resolution node.
 
-The HPKECiphertext values are computed as
+The HPKECiphertext values are encrypted and decrypted as follows:
 
 ~~~ pseudocode
-kem_output, context = SetupBaseS(node_public_key, group_context)
-ciphertext = context.Seal("", path_secret)
+(kem_output, ciphertext) =
+  EncryptWithLabel(node_public_key, "UpdatePathNode",
+                   group_context, path_secret)
+
+path_secret =
+  DecryptWithLabel(node_private_key, "UpdatePathNode",
+                   group_context, kem_output, ciphertext)
 ~~~
 
-where `node_public_key` is the public key of the node that the path
-secret is being encrypted for, group_context is the provisional GroupContext object
-for the group, and the functions `SetupBaseS` and
-`Seal` are defined according to {{!RFC9180}}.
-
-Decryption is performed in the corresponding way, using the private
-key of the resolution node.
-
-~~~ pseudocode
-context = SetupBaseR(kem_output, node_private_key, group_context)
-path_secret = context.Open("", ciphertext)
-~~~
+Here `node_public_key` is the public key of the node that the path secret is
+being encrypted for, `group_context` is the provisional GroupContext object for
+the group, and the `EncryptWithLabel` function is as defined in
+{{public-key-encryption}}.
 
 ## Adding and Removing Leaves
 
@@ -4378,9 +4415,17 @@ On receiving a Welcome message, a client processes it using the following steps:
   ciphersuite indicated in the KeyPackage does not match the one in the
   Welcome message, return an error.
 
-* Decrypt the `encrypted_group_secrets` value with the algorithms indicated
-  by the ciphersuite and the private key corresponding to `init_key` in the
-  referenced KeyPackage.
+* Decrypt the `encrypted_group_secrets` value with the algorithms indicated by
+  the ciphersuite and the private key `init_key_priv` corresponding to
+  `init_key` in the referenced KeyPackage.
+
+~~~ pseudocode
+encrypted_group_secrets = EncryptWithLabel(init_key, "Welcome",
+                                           encrypted_group_info, group_secrets)
+
+group_secrets = DecryptWithLabel(kem_output, init_key_priv, "Welcome",
+                                 encrypted_group_info, ciphertext)
+~~~
 
 * If a `PreSharedKeyID` is part of the GroupSecrets and the client is not in
   possession of the corresponding PSK, return an error. Additionally, if a
@@ -4670,6 +4715,7 @@ using a key exchanged over the MLS channel.
 Regardless of how the client obtains the tree, the client MUST verify that the
 root hash of the ratchet tree matches the `tree_hash` of the GroupContext before
 using the tree for MLS operations.
+
 # Extensibility
 
 The base MLS protocol can be extended in a few ways.  New ciphersuites can be
@@ -5180,6 +5226,7 @@ This document requests the creation of the following new IANA registries:
 * MLS Proposal Types ({{mls-proposal-types}})
 * MLS Credential Types ({{mls-credential-types}})
 * MLS Signature Labels ({{mls-signature-labels}})
+* MLS Public Key Encryption Labels ({{mls-public-key-encryption-labels}})
 * MLS Exporter Labels ({{mls-exporter-labels}})
 
 All of these registries should be under a heading of "Messaging Layer Security",
@@ -5432,7 +5479,7 @@ Initial contents:
 
 ## MLS Signature Labels
 
-The `SignWithLabel` function defined in {{ciphersuites}} avoids the risk of
+The `SignWithLabel` function defined in {{signing}} avoids the risk of
 confusion between signatures in different contexts.  Each context is assigned a
 distinct label that is incorporated into the signature.  This registry records
 the labels defined in this document, and allows additional labels to be
@@ -5455,6 +5502,31 @@ Initial contents:
 | "LeafNodeTBS"      | Y           | RFC XXXX  |
 | "KeyPackageTBS"    | Y           | RFC XXXX  |
 | "GroupInfoTBS"     | Y           | RFC XXXX  |
+
+## MLS Public Key Encryption Labels
+
+The `EncryptWithLabel` function defined in {{public-key-encryption}} avoids the
+risk of confusion between ciphertexts produced for different purposes in
+different contexts.  Each context is assigned a distinct label that is
+incorporated into the signature.  This registry records the labels defined in
+this document, and allows additional labels to be registered in case extensions
+add other types of public-key encryption using the same HPKE keys used elsewhere
+in MLS.
+
+Template:
+
+* Label: The string to be used as the `Label` parameter to `EncryptWithLabel`
+
+* Recommended: Same as in {{mls-ciphersuites}}
+
+* Reference: The document where this credential is defined
+
+Initial contents:
+
+| Label            | Recommended | Reference |
+|:-----------------|:------------|:----------|
+| "UpdatePathNode" | Y           | RFC XXXX  |
+| "Welcome"        | Y           | RFC XXXX  |
 
 ## MLS Exporter Labels
 
