@@ -1389,11 +1389,11 @@ And its fields set to:
 
 ~~~
 label = "MLS 1.0 " + Label;
-content = Context;
+context = Context;
 ~~~
 
 Here, the functions `SealBase` and `OpenBase` are defined {{RFC9180}}, using the
-HPKE algorithms specified by the group's cipehersuite.  If MLS extensions
+HPKE algorithms specified by the group's ciphersuite.  If MLS extensions
 require HPKE encryption operations, they should re-use the EncryptWithLabel
 construction, using a distinct label.  To avoid collisions in these labels, an
 IANA registry is defined in {{mls-public-key-encryption-labels}}.
@@ -2493,8 +2493,8 @@ path_secret =
                    group_context, kem_output, ciphertext)
 ~~~
 
-Here `node_public_key` is the public key of the node that the path secret is
-being encrypted for, `group_context` is the provisional GroupContext object for
+Here `node_public_key` is the public key of the node for which the path secret is
+encrypted, `group_context` is the provisional GroupContext object for
 the group, and the `EncryptWithLabel` function is as defined in
 {{public-key-encryption}}.
 
