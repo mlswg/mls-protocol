@@ -1682,10 +1682,10 @@ struct {
     ProtocolVersion version = mls10;
     WireFormat wire_format;
     select (MLSMessage.wire_format) {
-        case mls_plaintext:
-            PublicMessage plaintext;
-        case mls_ciphertext:
-            PrivateMessage ciphertext;
+        case mls_public_message:
+            PublicMessage public_message;
+        case mls_private_message:
+            PrivateMessage private_message;
         case mls_welcome:
             Welcome welcome;
         case mls_group_info:
@@ -5376,8 +5376,8 @@ Initial contents:
 | Value            | Name                     | Recommended | Reference |
 |:-----------------|:-------------------------|:------------|:----------|
 | 0x0000           | RESERVED                 | N/A         | RFC XXXX  |
-| 0x0001           | mls_plaintext            | Y           | RFC XXXX  |
-| 0x0002           | mls_ciphertext           | Y           | RFC XXXX  |
+| 0x0001           | mls_public_message       | Y           | RFC XXXX  |
+| 0x0002           | mls_private_message      | Y           | RFC XXXX  |
 | 0x0003           | mls_welcome              | Y           | RFC XXXX  |
 | 0x0004           | mls_group_info           | Y           | RFC XXXX  |
 | 0x0005           | mls_key_package          | Y           | RFC XXXX  |
