@@ -2814,10 +2814,18 @@ Where KDFLabel is specified as:
 
 ~~~ tls
 struct {
-    uint16 length = Length;
-    opaque label<V> = "MLS 1.0 " + Label;
-    opaque context<V> = Context;
+    uint16 length;
+    opaque label<V>;
+    opaque context<V>;
 } KDFLabel;
+~~~
+
+And its fields set to:
+
+~~~ pseudocode
+length = Length;
+label = "MLS 1.0 " + Label;
+context = Context;
 ~~~
 
 The value `KDF.Nh` is the size of an output from `KDF.Extract`, in bytes.  In
