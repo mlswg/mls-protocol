@@ -702,8 +702,8 @@ ReadVarint(data):
   repeat length-1 times:
     v = (v << 8) + data.next_byte()
 
-  // Check that the encoder used the minimum bits required
-  if prefix >= 1 && v < (1 << (8*(1 << (prefix-1))-2)):
+  // Check if the value would fit in half the provided length.
+  if prefix >= 1 && v < (1 << (8*(length/2) - 2)):
     raise Exception('minimum encoding was not used')
 
   return v
