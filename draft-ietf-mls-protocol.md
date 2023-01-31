@@ -591,6 +591,22 @@ Group Context:
 Signature Key:
 : A signing key pair used to authenticate the sender of a message.
 
+Proposal:
+: A message that proposes a change to the group, e.g., adding or removing a
+member.
+
+Commit:
+: A message that implements the changes to the group proposed in a set of
+Proposals.
+
+PublicMessage:
+: An MLS protocol message that is signed by its sender and authenticated as
+coming from a member of the group in a particular epoch, but not encrypted.
+
+PrivateMessage:
+: An MLS protocol message that is both signed by its sender and encrypted so
+that is confidential to the members of group in a particular epoch.
+
 Handshake Message:
 : A PublicMessage or PrivateMessage carrying an MLS Proposal or Commit
 object, as opposed to application data.
@@ -607,9 +623,8 @@ a Client.  When labeling individual values, we typically use "secret" to refer
 to a value that is used derive further secret values, and "key" to refer to a
 value that is used with an algorithm such as HMAC or an AEAD algorithm.
 
-The PublicMessage and PrivateMessage formats are defined in {{message-framing}};
-they represent integrity-protected and confidentiality-protected messages,
-respectively.  Security notions such as forward secrecy and post-compromise
+The PublicMessage and PrivateMessage formats are defined in {{message-framing}}.
+Security notions such as forward secrecy and post-compromise
 security are defined in {{security-considerations}}.
 
 ## Presentation Language
@@ -815,7 +830,7 @@ Each new epoch is initiated with a Commit message.  The Commit instructs
 existing members of the group to update their views of the ratchet tree by applying
 a set of Proposals, and uses the updated ratchet tree to distribute fresh
 entropy to the group.  This fresh entropy is provided only to members in the new
-epoch and not to members who have been removed. Commits thus maintain the property that the
+epoch and not to members who have been removed. Commits thus maintain the property that
 the epoch secret is confidential to the members in the current epoch.
 
 For each Commit that adds one or more members to the group, there is a single corresponding
@@ -1298,8 +1313,7 @@ defined in {{mls-ciphersuites}}.
 ### Public Keys
 
 HPKE public keys are opaque values in a format defined by the underlying
-protocol (see the Cryptographic Dependencies section of the HPKE specification
-for more information).
+protocol (see Section 4 of {{RFC9180}} for more information).
 
 ~~~ tls
 opaque HPKEPublicKey<V>;
@@ -1591,7 +1605,7 @@ If needed, applications may add application-specific identifiers to the
 opaque application_id<V>;
 ~~~
 
-However, applications SHOULD NOT rely on the data in an `application_id` extension
+However, applications MUST NOT rely on the data in an `application_id` extension
 as if it were authenticated by the Authentication Service, and SHOULD gracefully
 handle cases where the identifier presented is not unique.
 
@@ -3873,9 +3887,10 @@ ExternalSender external_senders<V>;
 
 ## Proposal List Validation
 
-A group member creating a commit and a group member processing a commit
+A group member creating a commit and a group member processing a Commit
 MUST verify that the list of committed proposals is valid using one of the following
-procedures, depending on whether the commit is external or not.
+procedures, depending on whether the commit is external or not.  If the list of
+proposals is invalid, then the Commit message MUST be rejected as invalid.
 
 For a regular, i.e. not external, commit the list is invalid if any of the following
 occurs:
