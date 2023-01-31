@@ -2,7 +2,7 @@
 title: The Messaging Layer Security (MLS) Protocol
 abbrev: MLS
 docname: draft-ietf-mls-protocol-latest
-category: info
+category: std
 
 ipr: trust200902
 area: Security
@@ -5271,8 +5271,8 @@ The columns in the registry are as follows:
 draft-ietf-tls-rfc8447bis.  Please align the two documents if they have diverged
 in the approval process. ]]
 
-* Recommended: Whether support for this ciphersuite is recommended by the IETF
-  MLS WG.  Valid values are "Y", "N", and "D", as described below.  The default
+* Recommended: Whether support for this ciphersuite is recommended by the IETF.
+  Valid values are "Y", "N", and "D", as described below.  The default
   value of the "Recommended" column is "N".  Setting the Recommended item to "Y"
   or "D", or changing a item whose current value is "Y" or "D", requires
   Standards Action {{RFC8126}}.
