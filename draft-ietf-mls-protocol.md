@@ -3405,7 +3405,7 @@ signature key. A KeyPackage object with an invalid signature field MUST be
 considered malformed.
 
 The signature is computed by the function `SignWithLabel` with a label
-`KeyPackageTBS` and a `Content` input comprising of all of the fields except for the
+`KeyPackageTBS` and a `Content` input comprising all of the fields except for the
 signature field.
 
 ~~~ tls
