@@ -86,7 +86,7 @@ contributor:
    email:  theophile.wallez@inria.fr
  - name: Thyla van der Merwe
    org:  Royal Holloway, University of London
-   email:  thyla.van.der@merwe.tech
+   email:  tjvdmerwe@gmail.com
 
 informative:
   ART:
