@@ -927,9 +927,17 @@ an attacker that had compromised the sender's prior leaf secret.
 Update messages SHOULD be sent at regular intervals of time as long as the group
 is active, and members that don't update SHOULD eventually be removed from the
 group. It's left to the application to determine an appropriate amount of time
-between Updates.  In general, however, applications should take care that they
-do not send MLS messages at a rate that overwhelms the transport over which
-messages are being sent.
+between Updates. Since the purpose of sending an Update is to proactively
+constrain a compromise window, the right frequency is usually on the order of
+hours or days, not milliseconds.
+
+The MLS architecture recommends that MLS be operated over a secure transport
+(see {{Section 7.1 of I-D.ietf-mls-architecture}}).  Such transport protocols
+will typically provide functions such as congestion control that manage the
+impact of an MLS-using application on other applications sharing the same
+network.  Applications should take care that they do not send MLS messages at a
+rate that will cause problems such as network congestion, especially if they are
+not following the above recommendation (e.g., sending MLS directly over UDP).
 
 ~~~ aasvg
                                                           Group
