@@ -178,16 +178,17 @@ MLS is designed to operate in the context described in
 {{?I-D.ietf-mls-architecture}}.  In particular, we assume that the following
 services are provided:
 
+* An Authentication Service (AS) that enables group members to authenticate the
+  credentials presented by other group members.
+
 * A Delivery Service (DS) that routes MLS messages among the participants in the
-  protocol.  The following types of delivery are typically required:
+  protocol.  The following types of delivery are typically required (where
+  KeyPackage, Proposal, Commit, and Welcome are defined below):
 
   * Pre-publication of KeyPackage objects for clients
   * Broadcast delivery of Proposal and Commit messages to members of a group
   * Unicast delivery of Welcome messages to new members of a group
   * Sequencing of Commit messages (see {{sequencing}})
-
-* An Authentication Service (AS) that enables group members to authenticate the
-  credentials presented by other group members.
 
 The DS and AS may also apply additional policies to MLS operations to obtain
 additional security properties.  For example, MLS enables any participant to add
@@ -571,7 +572,7 @@ Group:
 
 Epoch:
 : A state of a group in which a specific set of authenticated clients hold
-shared cryptographic state.
+  shared cryptographic state.
 
 Member:
 : A client that is included in the shared state of a group, hence
@@ -658,8 +659,9 @@ struct {
 Such a vector can represent values with length from 0 bytes to 2^30 bytes.
 The variable-length integer encoding reserves the two most significant bits
 of the first byte to encode the base 2 logarithm of the integer encoding length
-in bytes.  The integer value is encoded on the remaining bits, in network byte
-order.  The encoded value MUST use the smallest number of bits required to
+in bytes.  The integer value is encoded on the remaining bits, so that the
+overall value is in network byte order.
+The encoded value MUST use the smallest number of bits required to
 represent the value.  When decoding, values using more bits than necessary MUST
 be treated as malformed.
 
@@ -829,7 +831,7 @@ in this epoch.
 There are three major operations in the lifecycle of a group:
 
 * Adding a member, initiated by a current member;
-* Updating the leaf secret of a member;
+* Updating a member's representation in the tree;
 * Removing a member.
 
 Each of these operations is "proposed" by sending a message of the corresponding
@@ -842,9 +844,13 @@ and Commit messages directly, while in reality they would be sent encapsulated i
 PublicMessage or PrivateMessage objects.
 
 Before the initialization of a group, clients publish KeyPackages to a directory
-provided by the Service Provider (see {{prepublish-flow}}).
+provided by the DS (see {{prepublish-flow}}).
 
 ~~~ aasvg
+                                                  Delivery Service
+                                                          |
+                                                .--------' '--------.
+                                               |                     |
                                                                Group
 A                B                C            Directory       Channel
 |                |                |                |              |
@@ -922,14 +928,14 @@ does this by sending a Commit (possibly with no proposals), or by sending an
 Update message that is committed by another member (see {{update-flow}}).
 Once the other members of
 the group have processed these messages, the group's secrets will be unknown to
-an attacker that had compromised the sender's prior leaf secret.
+an attacker that had compromised the secrets corresponding to the sender's leaf in the tree.
 
 Update messages SHOULD be sent at regular intervals of time as long as the group
 is active, and members that don't update SHOULD eventually be removed from the
 group. It's left to the application to determine an appropriate amount of time
 between Updates.  In general, however, applications should take care that they
 do not send MLS messages at a rate that overwhelms the transport over which
-messages are being sent.
+messages are being sent, or the computational resources of other clients.
 
 ~~~ aasvg
                                                           Group
@@ -991,7 +997,9 @@ one epoch to be injected into a future epoch. This link guarantees that members
 entering the new epoch agree on a key if and only if they were members of the group
 during the epoch from which the resumption key was extracted.
 
-MLS supports two ways to tie a new group to an existing group. Reinitialization
+MLS supports two ways to tie a new group to an existing group, illustrated in
+{{psk-reinit}} and {{psk-branch}}.
+Reinitialization
 closes one group and creates a new group comprising the same members with
 different parameters. Branching starts a new group with a subset of the original
 group's participants (with no effect on the original group).  In both cases,
@@ -1012,7 +1020,7 @@ epoch_A_[n]           epoch_B_[0]
                            V
                       epoch_B_[1]
 ~~~
-{: title="Reinitializing a group" }
+{: #psk-reinit title="Reinitializing a group" }
 
 
 ~~~ aasvg
@@ -1024,10 +1032,10 @@ epoch_A_[n]           epoch_B_[0]
      V                     V
 epoch_A_[n+1]         epoch_B_[1]
 ~~~
-{: title="Branching a group" }
+{: #psk-branch title="Branching a group" }
 
 Applications may also choose to use resumption PSKs to link epochs in other
-ways.  For example, the following figure shows a case where a resumption PSK
+ways.  For example, {{psk-reinject}} shows a case where a resumption PSK
 from epoch `n` is injected into epoch `n+k`.  This demonstrates that the members
 of the group at epoch `n+k` were also members at epoch `n`, irrespective of any
 changes to these members' keys due to Updates or Commits.
@@ -1051,7 +1059,7 @@ epoch_A_[n+k-1]           .
      V
 epoch_A_[n+k]
 ~~~
-{: title="Reinjecting entropy from an earlier epoch" }
+{: #psk-reinject title="Reinjecting entropy from an earlier epoch" }
 
 # Ratchet Tree Concepts
 
@@ -1063,7 +1071,7 @@ reflect changes in the group.
 Ratchet trees allow a group to efficiently remove any member by encrypting new
 entropy to a subset of the group.  A ratchet tree assigns shared keys to
 subgroups of the overall group, so that, for example, encrypting to all but one
-member of the group requires only log(N) encryptions, instead of the N-1
+member of the group requires only `log(N)` encryptions to subtrees, instead of the `N-1`
 encryptions that would be needed to encrypt to each participant individually
 (where N is the number of members in the group).
 
@@ -1234,7 +1242,7 @@ The corresponding private key is known only to members occupying
 leaves below that node.
 
 The reverse implication is not true: A member may not know the private keys of
-all the intermediate nodes they're below.  Such a member has an _unmerged_ leaf.
+all the intermediate nodes above them.  Such a member has an _unmerged_ leaf.
 Encrypting to an intermediate node requires encrypting to the node's public key,
 as well as the public keys of all the unmerged leaves below it.  A leaf is
 unmerged when it is first added, because the process of adding the leaf does not
@@ -1746,6 +1754,7 @@ Welcome  KeyPackage  GroupInfo   PublicMessage    PrivateMessage -'
                               V
                           MLSMessage
 ~~~
+{: title="Relationships among MLS objects" }
 
 ## Content Authentication
 
@@ -2309,6 +2318,7 @@ leaf_secret ------> leaf_node_secret --+--> leaf_priv, leaf_pub
                                                      |
                                                  leaf_node
 ~~~
+{: title="Derivation of ratchet tree keys along a direct path" }
 
 After applying the UpdatePath, the tree will have the following structure:
 
@@ -2324,6 +2334,7 @@ node_priv[0] ----> X'      Z[C]
 leaf_priv -----------+
                  0   1   2   3
 ~~~
+{: title="Placement of keys in a ratchet tree" }
 
 ## Synchronizing Views of the Tree
 
@@ -2568,6 +2579,7 @@ P --> th(P)
     /     \
 th(L)     th(R)
 ~~~
+{: title="Composition of the tree hash" }
 
 The tree hash of an individual node is the hash of the node's `TreeHashInput`
 object, which may contain either a `LeafNodeHashInput` or a
@@ -2633,6 +2645,7 @@ P.public_key --> ph(P)
                V     \
    N.parent_hash     th(S)
 ~~~
+{: title="Inputs to a parent hash" }
 
 As a result, the signature over the parent hash in each member's leaf
 effectively signs the subtree of the tree that hasn't been changed since that
@@ -2657,7 +2670,7 @@ leaf node L (for "leaf"):
  /
 L
 ~~~
-{: #parent-hash-inputs title="Inputs to a parent hash." }
+{: #parent-hash-nodes title="Nodes involved in a parent hash computation" }
 
 The parent hash of P changes whenever an `UpdatePath` object is applied to
 the ratchet tree along a path from a leaf L traversing node D (and hence also
@@ -2744,7 +2757,7 @@ computation.
 In ParentNode objects and LeafNode objects with `leaf_node_source` set to
 `commit`, the value of the `parent_hash` field is the parent hash of the next
 non-blank parent node above the node in question (the next node in the filtered
-direct path).  Using the node labels in {{parent-hash-inputs}}, the
+direct path).  Using the node labels in {{parent-hash-nodes}}, the
 `parent_hash` field of D is equal to the parent hash of P with copath child S.
 This is the case even when the node D is a leaf node.
 
@@ -2879,6 +2892,7 @@ psk_secret (or 0) --> KDF.Extract
                           V
                     init_secret_[n]
 ~~~
+{: title="The MLS key schedule" }
 
 A number of values are derived from the epoch secret for different purposes:
 
@@ -3038,7 +3052,7 @@ previous epoch, encoded using the TLS serialization.
 
 ## Pre-Shared Keys
 
-Groups which already have an out-of-band mechanism to generate
+Groups that already have an out-of-band mechanism to generate
 shared group secrets can inject those into the MLS key schedule to seed
 the MLS group secrets computations by this external entropy.
 
@@ -3153,6 +3167,7 @@ psk_[1]   --> Extract --> ExpandWithLabel --> Extract = psk_secret_[2]
                  V                               V
 psk_[n-1] --> Extract --> ExpandWithLabel --> Extract = psk_secret_[n]
 ~~~
+{: title="Computatation of a PSK secret from a set of PSKs" }
 
 In particular, if there are no PreSharedKey proposals in a given Commit, then
 the resulting `psk_secret` is `psk_secret_[0]`, the all-zero vector.
@@ -3235,6 +3250,7 @@ tree_node_[N]_secret
         +--> ExpandWithLabel(., "tree", "right", KDF.Nh)
              = tree_node_[right(N)]_secret
 ~~~
+{: title="Derivation of secrets from parent to children within a secret tree" }
 
 The secret in the leaf of the Secret Tree is used to initiate two symmetric hash
 ratchets, from which a sequence of single-use keys and nonces are derived, as
@@ -3250,6 +3266,7 @@ tree_node_[N]_secret
         +--> ExpandWithLabel(., "application", "", KDF.Nh)
              = application_ratchet_secret_[N]_[0]
 ~~~
+{: title="Initialization of the hash ratches from the leaves of a secret tree" }
 
 ## Encryption Keys
 
@@ -4699,6 +4716,7 @@ A   B   C   D   E   F   _   _
 <---> R <--->   <---> R <--->
 - R -   - R -   - R -   - R -
 ~~~
+{: title="Left-to-right in-order traversal of a six-member tree" }
 
 The presence of a `ratchet_tree` extension in a GroupInfo message does not
 result in any changes to the GroupContext extensions for the group.  The ratchet
@@ -5145,6 +5163,7 @@ was compromised at some point in the past.
   Forward Secrecy |         | Post-Compromise
                   |         |   Security
 ~~~
+{: title="Forward secrecy and post-compromise security" }
 
 Post-compromise security is provided between epochs by members regularly
 updating their leaf key in the ratchet tree. Updating their leaf key prevents
@@ -5724,6 +5743,7 @@ operations:
          / \         / \     / \         / \     / \
 A       A   B       A   B   C   D       A   B   C   D
 ~~~
+{: title="Building a four-member tree to illustrate parent hashes" }
 
 Then the parent hashes associated to the nodes will be updated as follows (where
 we use the shorthand `ph` for parent hash, `th` for tree hash, and `osth` for
@@ -5768,6 +5788,7 @@ In other words, the joiner will find the following path-hash links in the tree:
     \     /
  A   B'  C'  D
 ~~~
+{: title="Parent-hash links connect all non-empty parent nodes to leaves" }
 
 Since these chains collectively cover all non-blank parent nodes in the tree,
 the tree is parent-hash valid.
@@ -5821,6 +5842,7 @@ Node: 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14
 
 Leaf: 0     1     2     3     4     5     6     7
 ~~~
+{: title="An 8-member tree represented as an array" }
 
 This allows us to compute relationships between tree nodes simply by
 manipulating indices, rather than having to maintain complicated structures in
