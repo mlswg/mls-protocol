@@ -831,7 +831,7 @@ in this epoch.
 There are three major operations in the lifecycle of a group:
 
 * Adding a member, initiated by a current member;
-* Updating a member's representation in the tree;
+* Updating the keys that represent a member in the tree;
 * Removing a member.
 
 Each of these operations is "proposed" by sending a message of the corresponding
@@ -998,8 +998,7 @@ entering the new epoch agree on a key if and only if they were members of the gr
 during the epoch from which the resumption key was extracted.
 
 MLS supports two ways to tie a new group to an existing group, illustrated in
-{{psk-reinit}} and {{psk-branch}}.
-Reinitialization
+{{psk-reinit}} and {{psk-branch}}. Reinitialization
 closes one group and creates a new group comprising the same members with
 different parameters. Branching starts a new group with a subset of the original
 group's participants (with no effect on the original group).  In both cases,
