@@ -937,7 +937,7 @@ will typically provide functions such as congestion control that manage the
 impact of an MLS-using application on other applications sharing the same
 network.  Applications should take care that they do not send MLS messages at a
 rate that will cause problems such as network congestion, especially if they are
-not following the above recommendation (e.g., sending MLS directly over UDP).
+not following the above recommendation (e.g., sending MLS directly over UDP instead).
 
 ~~~ aasvg
                                                           Group
