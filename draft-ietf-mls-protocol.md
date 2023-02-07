@@ -604,8 +604,9 @@ PublicMessage:
 coming from a member of the group in a particular epoch, but not encrypted.
 
 PrivateMessage:
-: An MLS protocol message that is both signed by its sender and encrypted so
-that is confidential to the members of group in a particular epoch.
+: An MLS protocol message that is both signed by its sender, authenticated as
+coming from a member of the group in a particular epoch, and encrypted so
+that it is confidential to the members of the group in that epoch.
 
 Handshake Message:
 : A PublicMessage or PrivateMessage carrying an MLS Proposal or Commit
