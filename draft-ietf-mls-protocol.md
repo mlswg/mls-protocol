@@ -193,6 +193,39 @@ shared keys with costs that scale as the log of the group size.
 
 RFC EDITOR PLEASE DELETE THIS SECTION.
 
+draft-18
+
+- Responses to IESG reviews
+- Describe varint length check more clearly
+
+draft-17
+
+- Add label and context to public-key encryption (\*)
+- Include leaf index in LeafNodeTBS for better parent-hash guarantees (\*)
+- Make ProtocolVersion two bytes (\*)
+- Clarify group creation (\*)
+- Validate additional properties of unmerged leaves (\*)
+- Clarify that the AS needs to vet the signature key
+- Remove "MLS" prefix on structs
+- Credentials should be replaced before expiring
+- Add a section discussing the security of the sender data protection
+- Minor fixes in presentation language.
+- Allow multiple welcomes per commit
+- Remove reference to BasicCredential.
+- Client aware of its own removal in group
+- Create IANA registries for signature and export labels
+- Complete IANA media type registration
+- Make more vendor code points available
+- Update Recommended column definition to match 8447bis
+- Responses to early ARTART review
+- Responses to early OPSDIR review
+- Responses to early TSV-ART review
+
+draft-16
+
+- Fix GroupInfoTBS (\*)
+- Make reference to h2 informative
+
 draft-15
 
 - Include ciphersuite in group context (\*)
