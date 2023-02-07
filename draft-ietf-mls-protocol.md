@@ -2220,7 +2220,7 @@ The client verifies the validity of a LeafNode using the following steps:
   * If instead the LeafNode appears in a message being received by the client, e.g.,
     a proposal, a commit, or a ratchet tree of the group the client is joining, it is
     RECOMMENDED that the client verifies that the current time is within the range
-    of the `lifetime` field.  (This check is not required because the LeafNode
+    of the `lifetime` field.  (This check is not mandatory because the LeafNode
     might have expired in the time between when the message was sent and when it
     was received.)
 
