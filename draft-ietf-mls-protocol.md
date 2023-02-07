@@ -3265,7 +3265,7 @@ tree_node_[N]_secret
         +--> ExpandWithLabel(., "application", "", KDF.Nh)
              = application_ratchet_secret_[N]_[0]
 ~~~
-{: title="Initialization of the hash ratches from the leaves of a secret tree" }
+{: title="Initialization of the hash ratchets from the leaves of a secret tree" }
 
 ## Encryption Keys
 
