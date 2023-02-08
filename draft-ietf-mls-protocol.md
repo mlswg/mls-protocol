@@ -2992,21 +2992,42 @@ struct {
 ~~~
 
 ~~~ pseudocode
-confirmed_transcript_hash_[epoch] = ""; /* zero-length octet string */
+confirmed_transcript_hash_[0] = ""; /* zero-length octet string */
+interim_transcript_hash_[0] = ""; /* zero-length octet string */
+
+confirmed_transcript_hash_[epoch] =
+    Hash(interim_transcript_hash_[epoch - 1] ||
+        ConfirmedTranscriptHashInput_[epoch]);
 
 interim_transcript_hash_[epoch] =
     Hash(confirmed_transcript_hash_[epoch] ||
         InterimTranscriptHashInput_[epoch]);
-
-confirmed_transcript_hash_[epoch+1] =
-    Hash(interim_transcript_hash_[epoch] ||
-        ConfirmedTranscriptHashInput_[epoch+1]);
 ~~~
 
-In this notation, `InterimTranscriptHashInput_[epoch]` and
-`ConfirmedTranscriptHashInput_[epoch+1]` are based on the Commit that initiated
-the epoch with epoch number `epoch`.  (Note that the `epoch` field in this
+In this notation, `ConfirmedTranscriptHashInput_[epoch]` and
+`InterimTranscriptHashInput_[epoch]` are based on the Commit that initiated the
+epoch with epoch number `epoch.  (Note that the `epoch` field in this
 Commit will be set to `epoch - 1`, since it is sent within the previous epoch.)
+
+The transcript hash `ConfirmedTranscriptHashInput_[epoch]` is used as the
+`confirmed_transcript_hash` input to the `confirmation_tag` field for this
+Commit. Each Commit thus confirms the whole transcript of Commits up to that
+point, except for the latest Commit's confirmation tag.
+
+~~~ aasvg
+ epoch 0                               epoch 1                               epoch 2                               epoch 3
+    |                                     |                                     |                                     |
+    +-------------- commit1 --------------+-------------- commit2 --------------+-------------- commit3 --------------+ ...
+    |                 |                   |                 |                   |                 |                   |
+    +--- confirmed ---+--- confirm_tag ---+--- confirmed ---+--- confirm_tag ---+--- confirmed ---+--- confirm_tag ---+
+    |                 |                   |                 |                   |                 |                   |
+                      |          ^        |                 |          ^        |                 |          ^        |
+                      V          |        V                 V          |        V                 V          |        V
+interim[0] -----> confirmed[1] --+    interim[1] -----> confirmed[2] --+    interim[2] -----> confirmed[3] --+    interim[3]
+  = ""                           |                                     |                                     |
+                                 |                                     |                                     |
+                           confirm_key[1]                        confirm_key[2]                        confirm_key[3]
+~~~
 
 ## External Initialization
 
