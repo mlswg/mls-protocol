@@ -3028,6 +3028,7 @@ interim[0] -----> confirmed[1] --+    interim[1] -----> confirmed[2] --+    inte
                                  |                                     |                                     |
                            confirm_key[1]                        confirm_key[2]                        confirm_key[3]
 ~~~
+{: title="Evolution of the transcript hashes"}
 
 ## External Initialization
 
