@@ -59,8 +59,7 @@ contributor:
    org:  Naval Postgraduate School
    email:  britta.hale@nps.edu
  - name: Srinivas Inguva
-   org:  Twitter
-   email:  singuva@twitter.com
+   email:  singuva@yahoo.com
  - name: Konrad Kohbrok
    org:  Phoenix R&D
    email:  konrad.kohbrok@datashrine.de
