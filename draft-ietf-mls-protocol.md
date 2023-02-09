@@ -2,7 +2,7 @@
 title: The Messaging Layer Security (MLS) Protocol
 abbrev: MLS
 docname: draft-ietf-mls-protocol-latest
-category: info
+category: std
 
 ipr: trust200902
 area: Security
@@ -178,16 +178,17 @@ MLS is designed to operate in the context described in
 {{?I-D.ietf-mls-architecture}}.  In particular, we assume that the following
 services are provided:
 
+* An Authentication Service (AS) that enables group members to authenticate the
+  credentials presented by other group members.
+
 * A Delivery Service (DS) that routes MLS messages among the participants in the
-  protocol.  The following types of delivery are typically required:
+  protocol.  The following types of delivery are typically required (where
+  KeyPackage, Proposal, Commit, and Welcome are defined below):
 
   * Pre-publication of KeyPackage objects for clients
   * Broadcast delivery of Proposal and Commit messages to members of a group
   * Unicast delivery of Welcome messages to new members of a group
   * Sequencing of Commit messages (see {{sequencing}})
-
-* An Authentication Service (AS) that enables group members to authenticate the
-  credentials presented by other group members.
 
 The DS and AS may also apply additional policies to MLS operations to obtain
 additional security properties.  For example, MLS enables any participant to add
@@ -571,7 +572,7 @@ Group:
 
 Epoch:
 : A state of a group in which a specific set of authenticated clients hold
-shared cryptographic state.
+  shared cryptographic state.
 
 Member:
 : A client that is included in the shared state of a group, hence
@@ -591,6 +592,23 @@ Group Context:
 Signature Key:
 : A signing key pair used to authenticate the sender of a message.
 
+Proposal:
+: A message that proposes a change to the group, e.g., adding or removing a
+member.
+
+Commit:
+: A message that implements the changes to the group proposed in a set of
+Proposals.
+
+PublicMessage:
+: An MLS protocol message that is signed by its sender and authenticated as
+coming from a member of the group in a particular epoch, but not encrypted.
+
+PrivateMessage:
+: An MLS protocol message that is both signed by its sender, authenticated as
+coming from a member of the group in a particular epoch, and encrypted so
+that it is confidential to the members of the group in that epoch.
+
 Handshake Message:
 : A PublicMessage or PrivateMessage carrying an MLS Proposal or Commit
 object, as opposed to application data.
@@ -607,9 +625,8 @@ a Client.  When labeling individual values, we typically use "secret" to refer
 to a value that is used derive further secret values, and "key" to refer to a
 value that is used with an algorithm such as HMAC or an AEAD algorithm.
 
-The PublicMessage and PrivateMessage formats are defined in {{message-framing}};
-they represent integrity-protected and confidentiality-protected messages,
-respectively.  Security notions such as forward secrecy and post-compromise
+The PublicMessage and PrivateMessage formats are defined in {{message-framing}}.
+Security notions such as forward secrecy and post-compromise
 security are defined in {{security-considerations}}.
 
 ## Presentation Language
@@ -658,8 +675,9 @@ struct {
 Such a vector can represent values with length from 0 bytes to 2^30 bytes.
 The variable-length integer encoding reserves the two most significant bits
 of the first byte to encode the base 2 logarithm of the integer encoding length
-in bytes.  The integer value is encoded on the remaining bits, in network byte
-order.  The encoded value MUST use the smallest number of bits required to
+in bytes.  The integer value is encoded on the remaining bits, so that the
+overall value is in network byte order.
+The encoded value MUST use the smallest number of bits required to
 represent the value.  When decoding, values using more bits than necessary MUST
 be treated as malformed.
 
@@ -702,8 +720,8 @@ ReadVarint(data):
   repeat length-1 times:
     v = (v << 8) + data.next_byte()
 
-  // Check that the encoder used the minimum bits required
-  if prefix >= 1 && v < (1 << (8*(1 << (prefix-1))-2)):
+  // Check if the value would fit in half the provided length.
+  if prefix >= 1 && v < (1 << (8*(length/2) - 2)):
     raise Exception('minimum encoding was not used')
 
   return v
@@ -815,7 +833,7 @@ Each new epoch is initiated with a Commit message.  The Commit instructs
 existing members of the group to update their views of the ratchet tree by applying
 a set of Proposals, and uses the updated ratchet tree to distribute fresh
 entropy to the group.  This fresh entropy is provided only to members in the new
-epoch and not to members who have been removed. Commits thus maintain the property that the
+epoch and not to members who have been removed. Commits thus maintain the property that
 the epoch secret is confidential to the members in the current epoch.
 
 For each Commit that adds one or more members to the group, there is a single corresponding
@@ -829,7 +847,7 @@ in this epoch.
 There are three major operations in the lifecycle of a group:
 
 * Adding a member, initiated by a current member;
-* Updating the leaf secret of a member;
+* Updating the keys that represent a member in the tree;
 * Removing a member.
 
 Each of these operations is "proposed" by sending a message of the corresponding
@@ -842,9 +860,13 @@ and Commit messages directly, while in reality they would be sent encapsulated i
 PublicMessage or PrivateMessage objects.
 
 Before the initialization of a group, clients publish KeyPackages to a directory
-provided by the Service Provider (see {{prepublish-flow}}).
+provided by the DS (see {{prepublish-flow}}).
 
 ~~~ aasvg
+                                                  Delivery Service
+                                                          |
+                                                .--------' '--------.
+                                               |                     |
                                                                Group
 A                B                C            Directory       Channel
 |                |                |                |              |
@@ -922,14 +944,22 @@ does this by sending a Commit (possibly with no proposals), or by sending an
 Update message that is committed by another member (see {{update-flow}}).
 Once the other members of
 the group have processed these messages, the group's secrets will be unknown to
-an attacker that had compromised the sender's prior leaf secret.
+an attacker that had compromised the secrets corresponding to the sender's leaf in the tree.
 
 Update messages SHOULD be sent at regular intervals of time as long as the group
 is active, and members that don't update SHOULD eventually be removed from the
 group. It's left to the application to determine an appropriate amount of time
-between Updates.  In general, however, applications should take care that they
-do not send MLS messages at a rate that overwhelms the transport over which
-messages are being sent.
+between Updates. Since the purpose of sending an Update is to proactively
+constrain a compromise window, the right frequency is usually on the order of
+hours or days, not milliseconds.
+
+The MLS architecture recommends that MLS be operated over a secure transport
+(see {{Section 7.1 of I-D.ietf-mls-architecture}}).  Such transport protocols
+will typically provide functions such as congestion control that manage the
+impact of an MLS-using application on other applications sharing the same
+network.  Applications should take care that they do not send MLS messages at a
+rate that will cause problems such as network congestion, especially if they are
+not following the above recommendation (e.g., sending MLS directly over UDP instead).
 
 ~~~ aasvg
                                                           Group
@@ -962,7 +992,7 @@ for the new epoch so that it is not known to the removed member.
 Note that this does not necessarily imply that any member
 is actually allowed to evict other members; groups can
 enforce access control policies on top of these
-basic mechanism.
+basic mechanisms.
 
 ~~~ aasvg
                                                           Group
@@ -991,7 +1021,8 @@ one epoch to be injected into a future epoch. This link guarantees that members
 entering the new epoch agree on a key if and only if they were members of the group
 during the epoch from which the resumption key was extracted.
 
-MLS supports two ways to tie a new group to an existing group. Reinitialization
+MLS supports two ways to tie a new group to an existing group, illustrated in
+{{psk-reinit}} and {{psk-branch}}. Reinitialization
 closes one group and creates a new group comprising the same members with
 different parameters. Branching starts a new group with a subset of the original
 group's participants (with no effect on the original group).  In both cases,
@@ -1012,7 +1043,7 @@ epoch_A_[n]           epoch_B_[0]
                            V
                       epoch_B_[1]
 ~~~
-{: title="Reinitializing a group" }
+{: #psk-reinit title="Reinitializing a group" }
 
 
 ~~~ aasvg
@@ -1024,10 +1055,10 @@ epoch_A_[n]           epoch_B_[0]
      V                     V
 epoch_A_[n+1]         epoch_B_[1]
 ~~~
-{: title="Branching a group" }
+{: #psk-branch title="Branching a group" }
 
 Applications may also choose to use resumption PSKs to link epochs in other
-ways.  For example, the following figure shows a case where a resumption PSK
+ways.  For example, {{psk-reinject}} shows a case where a resumption PSK
 from epoch `n` is injected into epoch `n+k`.  This demonstrates that the members
 of the group at epoch `n+k` were also members at epoch `n`, irrespective of any
 changes to these members' keys due to Updates or Commits.
@@ -1051,7 +1082,7 @@ epoch_A_[n+k-1]           .
      V
 epoch_A_[n+k]
 ~~~
-{: title="Reinjecting entropy from an earlier epoch" }
+{: #psk-reinject title="Reinjecting entropy from an earlier epoch" }
 
 # Ratchet Tree Concepts
 
@@ -1063,7 +1094,7 @@ reflect changes in the group.
 Ratchet trees allow a group to efficiently remove any member by encrypting new
 entropy to a subset of the group.  A ratchet tree assigns shared keys to
 subgroups of the overall group, so that, for example, encrypting to all but one
-member of the group requires only log(N) encryptions, instead of the N-1
+member of the group requires only `log(N)` encryptions to subtrees, instead of the `N-1`
 encryptions that would be needed to encrypt to each participant individually
 (where N is the number of members in the group).
 
@@ -1234,7 +1265,7 @@ The corresponding private key is known only to members occupying
 leaves below that node.
 
 The reverse implication is not true: A member may not know the private keys of
-all the intermediate nodes they're below.  Such a member has an _unmerged_ leaf.
+all the intermediate nodes above them.  Such a member has an _unmerged_ leaf.
 Encrypting to an intermediate node requires encrypting to the node's public key,
 as well as the public keys of all the unmerged leaves below it.  A leaf is
 unmerged when it is first added, because the process of adding the leaf does not
@@ -1298,8 +1329,7 @@ defined in {{mls-ciphersuites}}.
 ### Public Keys
 
 HPKE public keys are opaque values in a format defined by the underlying
-protocol (see the Cryptographic Dependencies section of the HPKE specification
-for more information).
+protocol (see Section 4 of {{RFC9180}} for more information).
 
 ~~~ tls
 opaque HPKEPublicKey<V>;
@@ -1591,7 +1621,7 @@ If needed, applications may add application-specific identifiers to the
 opaque application_id<V>;
 ~~~
 
-However, applications SHOULD NOT rely on the data in an `application_id` extension
+However, applications MUST NOT rely on the data in an `application_id` extension
 as if it were authenticated by the Authentication Service, and SHOULD gracefully
 handle cases where the identifier presented is not unique.
 
@@ -1682,10 +1712,10 @@ struct {
     ProtocolVersion version = mls10;
     WireFormat wire_format;
     select (MLSMessage.wire_format) {
-        case mls_plaintext:
-            PublicMessage plaintext;
-        case mls_ciphertext:
-            PrivateMessage ciphertext;
+        case mls_public_message:
+            PublicMessage public_message;
+        case mls_private_message:
+            PrivateMessage private_message;
         case mls_welcome:
             Welcome welcome;
         case mls_group_info:
@@ -1746,6 +1776,7 @@ Welcome  KeyPackage  GroupInfo   PublicMessage    PrivateMessage -'
                               V
                           MLSMessage
 ~~~
+{: title="Relationships among MLS objects" }
 
 ## Content Authentication
 
@@ -1874,7 +1905,7 @@ and PrivateContentTBE.
 
 ### Content Encryption
 
-Content to be encrypted is encoded in an PrivateContentTBE structure.
+Content to be encrypted is encoded in a PrivateContentTBE structure.
 
 ~~~ tls
 struct {
@@ -1952,7 +1983,7 @@ struct {
 } PrivateContentAAD;
 ~~~
 
-When decoding an PrivateContentTBE, the application MUST check that the
+When decoding a PrivateContentTBE, the application MUST check that the
 FramedContentAuthData is valid.
 
 It is up to the application to decide what `authenticated_data` to provide and
@@ -2165,7 +2196,10 @@ KeyPackage, the `lifetime` field represents the times between which clients will
 consider a LeafNode valid.  These times are represented as absolute times,
 measured in seconds since the Unix epoch (1970-01-01T00:00:00Z).  Applications
 MUST define a maximum total lifetime that is acceptable for a LeafNode, and
-reject any LeafNode where the total lifetime is longer than this duration.
+reject any LeafNode where the total lifetime is longer than this duration. In
+order to avoid disagreements about whether a LeafNode has a valid lifetime, the
+clients in a group SHOULD maintain time synchronization (e.g., using the Network
+Time Protocol {{?RFC5905}}).
 
 In the case where the leaf node was inserted into the tree via a Commit message,
 the `parent_hash` field contains the parent hash for this leaf node (see
@@ -2217,7 +2251,9 @@ The client verifies the validity of a LeafNode using the following steps:
   * If instead the LeafNode appears in a message being received by the client, e.g.,
     a proposal, a commit, or a ratchet tree of the group the client is joining, it is
     RECOMMENDED that the client verifies that the current time is within the range
-    of the `lifetime` field.
+    of the `lifetime` field.  (This check is not mandatory because the LeafNode
+    might have expired in the time between when the message was sent and when it
+    was received.)
 
 * Verify that the extensions in the LeafNode are supported by checking that the
   ID for each extension in the `extensions` field is listed in the
@@ -2309,6 +2345,7 @@ leaf_secret ------> leaf_node_secret --+--> leaf_priv, leaf_pub
                                                      |
                                                  leaf_node
 ~~~
+{: title="Derivation of ratchet tree keys along a direct path" }
 
 After applying the UpdatePath, the tree will have the following structure:
 
@@ -2324,6 +2361,7 @@ node_priv[0] ----> X'      Z[C]
 leaf_priv -----------+
                  0   1   2   3
 ~~~
+{: title="Placement of keys in a ratchet tree" }
 
 ## Synchronizing Views of the Tree
 
@@ -2436,11 +2474,11 @@ public key K (using HPKE).
 
 A recipient at node A would decrypt `E(pk(A), path_secret\[0\])` to obtain
 `path_secret\[0\]`, then use it to derive `path_secret[1]` and the resulting
-node secrets and key pairs.  Thus A would have the private keys to nodes X'
+node secrets and key pairs.  Thus, A would have the private keys to nodes X'
 and Y', in accordance with the tree invariant.
 
 Similarly, a recipient at node D would decrypt `E(pk(Z), path_secret[1])` to
-obtain `path_secret[1]`, then use it to derive the node secret and and key pair
+obtain `path_secret[1]`, then use it to derive the node secret and key pair
 for the node Y'.  As required to maintain the tree invariant, node D does not
 receive the private key for the node X', since X' is not an ancestor of D.
 
@@ -2568,6 +2606,7 @@ P --> th(P)
     /     \
 th(L)     th(R)
 ~~~
+{: title="Composition of the tree hash" }
 
 The tree hash of an individual node is the hash of the node's `TreeHashInput`
 object, which may contain either a `LeafNodeHashInput` or a
@@ -2633,6 +2672,7 @@ P.public_key --> ph(P)
                V     \
    N.parent_hash     th(S)
 ~~~
+{: title="Inputs to a parent hash" }
 
 As a result, the signature over the parent hash in each member's leaf
 effectively signs the subtree of the tree that hasn't been changed since that
@@ -2657,7 +2697,7 @@ leaf node L (for "leaf"):
  /
 L
 ~~~
-{: #parent-hash-inputs title="Inputs to a parent hash." }
+{: #parent-hash-nodes title="Nodes involved in a parent hash computation" }
 
 The parent hash of P changes whenever an `UpdatePath` object is applied to
 the ratchet tree along a path from a leaf L traversing node D (and hence also
@@ -2744,7 +2784,7 @@ computation.
 In ParentNode objects and LeafNode objects with `leaf_node_source` set to
 `commit`, the value of the `parent_hash` field is the parent hash of the next
 non-blank parent node above the node in question (the next node in the filtered
-direct path).  Using the node labels in {{parent-hash-inputs}}, the
+direct path).  Using the node labels in {{parent-hash-nodes}}, the
 `parent_hash` field of D is equal to the parent hash of P with copath child S.
 This is the case even when the node D is a leaf node.
 
@@ -2814,10 +2854,18 @@ Where KDFLabel is specified as:
 
 ~~~ tls
 struct {
-    uint16 length = Length;
-    opaque label<V> = "MLS 1.0 " + Label;
-    opaque context<V> = Context;
+    uint16 length;
+    opaque label<V>;
+    opaque context<V>;
 } KDFLabel;
+~~~
+
+And its fields set to:
+
+~~~ pseudocode
+length = Length;
+label = "MLS 1.0 " + Label;
+context = Context;
 ~~~
 
 The value `KDF.Nh` is the size of an output from `KDF.Extract`, in bytes.  In
@@ -2879,6 +2927,7 @@ psk_secret (or 0) --> KDF.Extract
                           V
                     init_secret_[n]
 ~~~
+{: title="The MLS key schedule" }
 
 A number of values are derived from the epoch secret for different purposes:
 
@@ -3034,7 +3083,7 @@ interim[0] -----> confirmed[1] --+    interim[1] -----> confirmed[2] --+    inte
 
 In addition to initializing a new epoch via KDF invocations as described above,
 an MLS group can also initialize a new epoch via an asymmetric interaction using
-the external key pair for the previous epoch.  This is done when an new member
+the external key pair for the previous epoch.  This is done when a new member
 is joining via an external commit.
 
 In this process, the joiner sends a new `init_secret` value to the group using
@@ -3060,7 +3109,7 @@ previous epoch, encoded using the TLS serialization.
 
 ## Pre-Shared Keys
 
-Groups which already have an out-of-band mechanism to generate
+Groups that already have an out-of-band mechanism to generate
 shared group secrets can inject those into the MLS key schedule to seed
 the MLS group secrets computations by this external entropy.
 
@@ -3175,6 +3224,7 @@ psk_[1]   --> Extract --> ExpandWithLabel --> Extract = psk_secret_[2]
                  V                               V
 psk_[n-1] --> Extract --> ExpandWithLabel --> Extract = psk_secret_[n]
 ~~~
+{: title="Computatation of a PSK secret from a set of PSKs" }
 
 In particular, if there are no PreSharedKey proposals in a given Commit, then
 the resulting `psk_secret` is `psk_secret_[0]`, the all-zero vector.
@@ -3257,6 +3307,7 @@ tree_node_[N]_secret
         +--> ExpandWithLabel(., "tree", "right", KDF.Nh)
              = tree_node_[right(N)]_secret
 ~~~
+{: title="Derivation of secrets from parent to children within a secret tree" }
 
 The secret in the leaf of the Secret Tree is used to initiate two symmetric hash
 ratchets, from which a sequence of single-use keys and nonces are derived, as
@@ -3272,6 +3323,7 @@ tree_node_[N]_secret
         +--> ExpandWithLabel(., "application", "", KDF.Nh)
              = application_ratchet_secret_[N]_[0]
 ~~~
+{: title="Initialization of the hash ratchets from the leaves of a secret tree" }
 
 ## Encryption Keys
 
@@ -3427,7 +3479,7 @@ signature key. A KeyPackage object with an invalid signature field MUST be
 considered malformed.
 
 The signature is computed by the function `SignWithLabel` with a label
-`KeyPackageTBS` and a content comprising of all of the fields except for the
+`KeyPackageTBS` and a `Content` input comprising all of the fields except for the
 signature field.
 
 ~~~ tls
@@ -3895,9 +3947,10 @@ ExternalSender external_senders<V>;
 
 ## Proposal List Validation
 
-A group member creating a commit and a group member processing a commit
+A group member creating a commit and a group member processing a Commit
 MUST verify that the list of committed proposals is valid using one of the following
-procedures, depending on whether the commit is external or not.
+procedures, depending on whether the commit is external or not.  If the list of
+proposals is invalid, then the Commit message MUST be rejected as invalid.
 
 For a regular, i.e. not external, commit the list is invalid if any of the following
 occurs:
@@ -3963,7 +4016,7 @@ logic to incorporate considerations related to proposals of the new type.
 ## Applying a Proposal List
 
 The sections above defining each proposal type describe how each individual
-proposals is applied.  When creating or processing a Commit, a client applies a
+proposal is applied.  When creating or processing a Commit, a client applies a
 list of proposals to the ratchet tree and GroupContext. The client MUST apply
 the proposals in the list in the following order:
 
@@ -4193,7 +4246,7 @@ message at the same time, by taking the following steps:
 * Protect the AuthenticatedContent object using keys from the old epoch:
   * If encoding as PublicMessage, compute the `membership_tag` value using the
     `membership_key`.
-  * If encoding as an PrivateMessage, encrypt the message using the
+  * If encoding as a PrivateMessage, encrypt the message using the
     `sender_data_secret` and the next (key, nonce) pair from the sender's
     handshake ratchet.
 
@@ -4249,7 +4302,7 @@ A member of the group applies a Commit message by taking the following steps:
     hash ratchet indicated by the `generation` field.
 
 * Verify that the signature on the FramedContent message as described in
-  Section {{content-authentication}}.
+  {{content-authentication}}.
 
 * Verify that the `proposals` vector is valid as specified in {{proposal-list-validation}}.
 
@@ -4721,6 +4774,7 @@ A   B   C   D   E   F   _   _
 <---> R <--->   <---> R <--->
 - R -   - R -   - R -   - R -
 ~~~
+{: title="Left-to-right in-order traversal of a six-member tree" }
 
 The presence of a `ratchet_tree` extension in a GroupInfo message does not
 result in any changes to the GroupContext extensions for the group.  The ratchet
@@ -4769,7 +4823,7 @@ versions of MLS should consider whether it is desirable for the new version to
 be compatible with existing ciphersuites, or whether the new version should rule
 out some ciphersuites. For example, a new version could follow the example of
 HTTP/2, which restricted the set of allowed TLS ciphers (see Section 9.2.2 of
-{{?RFC7540}}.
+{{?RFC9113}}.
 
 ## Proposals
 
@@ -5167,6 +5221,7 @@ was compromised at some point in the past.
   Forward Secrecy |         | Post-Compromise
                   |         |   Security
 ~~~
+{: title="Forward secrecy and post-compromise security" }
 
 Post-compromise security is provided between epochs by members regularly
 updating their leaf key in the ratchet tree. Updating their leaf key prevents
@@ -5293,10 +5348,10 @@ The columns in the registry are as follows:
 draft-ietf-tls-rfc8447bis.  Please align the two documents if they have diverged
 in the approval process. ]]
 
-* Recommended: Whether support for this ciphersuite is recommended by the IETF
-  MLS WG.  Valid values are "Y", "N", and "D", as described below.  The default
+* Recommended: Whether support for this ciphersuite is recommended by the IETF.
+  Valid values are "Y", "N", and "D", as described below.  The default
   value of the "Recommended" column is "N".  Setting the Recommended item to "Y"
-  or "D", or changing a item whose current value is "Y" or "D", requires
+  or "D", or changing an item whose current value is "Y" or "D", requires
   Standards Action {{RFC8126}}.
 
   * Y: Indicates that the IETF has consensus that the item is RECOMMENDED. This
@@ -5310,7 +5365,7 @@ in the approval process. ]]
   * N: Indicates that the item has not been evaluated by the IETF and that the
     IETF has made no statement about the suitability of the associated
     mechanism. This does not necessarily mean that the mechanism is flawed, only
-    that no consensus exists. The IETF might have consensus to leave an items
+    that no consensus exists. The IETF might have consensus to leave an item
     marked as "N" on the basis of it having limited applicability or usage
     constraints.
 
@@ -5369,10 +5424,11 @@ not paired with FIPS 140-2 compliant curves. The security level of symmetric
 encryption algorithms and hash functions is paired with the security level of
 the curves.
 
+
 The mandatory-to-implement ciphersuite for MLS 1.0 is
 `MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519` which uses
 Curve25519 for key exchange, AES-128-GCM for HPKE, HKDF over SHA2-256, and
-Ed25519 for signatures.
+Ed25519 for signatures.  MLS clients MUST implement this ciphersuite.
 
 New ciphersuite values are assigned by IANA as described in
 {{iana-considerations}}.
@@ -5398,8 +5454,8 @@ Initial contents:
 | Value            | Name                     | Recommended | Reference |
 |:-----------------|:-------------------------|:------------|:----------|
 | 0x0000           | RESERVED                 | N/A         | RFC XXXX  |
-| 0x0001           | mls_plaintext            | Y           | RFC XXXX  |
-| 0x0002           | mls_ciphertext           | Y           | RFC XXXX  |
+| 0x0001           | mls_public_message       | Y           | RFC XXXX  |
+| 0x0002           | mls_private_message      | Y           | RFC XXXX  |
 | 0x0003           | mls_welcome              | Y           | RFC XXXX  |
 | 0x0004           | mls_group_info           | Y           | RFC XXXX  |
 | 0x0005           | mls_key_package          | Y           | RFC XXXX  |
@@ -5615,7 +5671,7 @@ MLS DE, that MLS DE SHOULD defer to the judgment of the other MLS DEs.
 ## The "message/mls" MIME Type
 
 This document registers the "message/mls" MIME media type in order to allow other
-protocols (e.g., HTTP {{?RFC7540}}) to convey MLS messages.
+protocols (e.g., HTTP {{?RFC9113}}) to convey MLS messages.
 
 Type name:
 : message
@@ -5746,6 +5802,7 @@ operations:
          / \         / \     / \         / \     / \
 A       A   B       A   B   C   D       A   B   C   D
 ~~~
+{: title="Building a four-member tree to illustrate parent hashes" }
 
 Then the parent hashes associated to the nodes will be updated as follows (where
 we use the shorthand `ph` for parent hash, `th` for tree hash, and `osth` for
@@ -5790,6 +5847,7 @@ In other words, the joiner will find the following path-hash links in the tree:
     \     /
  A   B'  C'  D
 ~~~
+{: title="Parent-hash links connect all non-empty parent nodes to leaves" }
 
 Since these chains collectively cover all non-blank parent nodes in the tree,
 the tree is parent-hash valid.
@@ -5843,6 +5901,7 @@ Node: 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14
 
 Leaf: 0     1     2     3     4     5     6     7
 ~~~
+{: title="An 8-member tree represented as an array" }
 
 This allows us to compute relationships between tree nodes simply by
 manipulating indices, rather than having to maintain complicated structures in
@@ -6032,7 +6091,7 @@ class Tree:
 
         L = self.root
         R = Node.blank_subtree(self.depth)
-        self.root = Node(None, left=self.root, right=R)
+        self.root = Node(None, left=L, right=R)
         self.depth += 1
 
     # Truncate the right subtree
