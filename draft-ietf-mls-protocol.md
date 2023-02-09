@@ -2,7 +2,7 @@
 title: The Messaging Layer Security (MLS) Protocol
 abbrev: MLS
 docname: draft-ietf-mls-protocol-latest
-category: info
+category: std
 
 ipr: trust200902
 area: Security
@@ -815,7 +815,7 @@ Each new epoch is initiated with a Commit message.  The Commit instructs
 existing members of the group to update their views of the ratchet tree by applying
 a set of Proposals, and uses the updated ratchet tree to distribute fresh
 entropy to the group.  This fresh entropy is provided only to members in the new
-epoch and not to members who have been removed. Commits thus maintain the property that the
+epoch and not to members who have been removed. Commits thus maintain the property that
 the epoch secret is confidential to the members in the current epoch.
 
 For each Commit that adds one or more members to the group, there is a single corresponding
@@ -962,7 +962,7 @@ for the new epoch so that it is not known to the removed member.
 Note that this does not necessarily imply that any member
 is actually allowed to evict other members; groups can
 enforce access control policies on top of these
-basic mechanism.
+basic mechanisms.
 
 ~~~ aasvg
                                                           Group
@@ -2436,11 +2436,11 @@ public key K (using HPKE).
 
 A recipient at node A would decrypt `E(pk(A), path_secret\[0\])` to obtain
 `path_secret\[0\]`, then use it to derive `path_secret[1]` and the resulting
-node secrets and key pairs.  Thus A would have the private keys to nodes X'
+node secrets and key pairs.  Thus, A would have the private keys to nodes X'
 and Y', in accordance with the tree invariant.
 
 Similarly, a recipient at node D would decrypt `E(pk(Z), path_secret[1])` to
-obtain `path_secret[1]`, then use it to derive the node secret and and key pair
+obtain `path_secret[1]`, then use it to derive the node secret and key pair
 for the node Y'.  As required to maintain the tree invariant, node D does not
 receive the private key for the node X', since X' is not an ancestor of D.
 
@@ -3020,7 +3020,7 @@ Commit will be set to `epoch - 1`, since it is sent within the previous epoch.)
 
 In addition to initializing a new epoch via KDF invocations as described above,
 an MLS group can also initialize a new epoch via an asymmetric interaction using
-the external key pair for the previous epoch.  This is done when an new member
+the external key pair for the previous epoch.  This is done when a new member
 is joining via an external commit.
 
 In this process, the joiner sends a new `init_secret` value to the group using
@@ -3413,7 +3413,7 @@ signature key. A KeyPackage object with an invalid signature field MUST be
 considered malformed.
 
 The signature is computed by the function `SignWithLabel` with a label
-`KeyPackageTBS` and a content comprising of all of the fields except for the
+`KeyPackageTBS` and a `Content` input comprising all of the fields except for the
 signature field.
 
 ~~~ tls
@@ -3949,7 +3949,7 @@ logic to incorporate considerations related to proposals of the new type.
 ## Applying a Proposal List
 
 The sections above defining each proposal type describe how each individual
-proposals is applied.  When creating or processing a Commit, a client applies a
+proposal is applied.  When creating or processing a Commit, a client applies a
 list of proposals to the ratchet tree and GroupContext. The client MUST apply
 the proposals in the list in the following order:
 
@@ -4235,7 +4235,7 @@ A member of the group applies a Commit message by taking the following steps:
     hash ratchet indicated by the `generation` field.
 
 * Verify that the signature on the FramedContent message as described in
-  Section {{content-authentication}}.
+  {{content-authentication}}.
 
 * Verify that the `proposals` vector is valid as specified in {{proposal-list-validation}}.
 
@@ -4755,7 +4755,7 @@ versions of MLS should consider whether it is desirable for the new version to
 be compatible with existing ciphersuites, or whether the new version should rule
 out some ciphersuites. For example, a new version could follow the example of
 HTTP/2, which restricted the set of allowed TLS ciphers (see Section 9.2.2 of
-{{?RFC7540}}.
+{{?RFC9113}}.
 
 ## Proposals
 
@@ -5279,10 +5279,10 @@ The columns in the registry are as follows:
 draft-ietf-tls-rfc8447bis.  Please align the two documents if they have diverged
 in the approval process. ]]
 
-* Recommended: Whether support for this ciphersuite is recommended by the IETF
-  MLS WG.  Valid values are "Y", "N", and "D", as described below.  The default
+* Recommended: Whether support for this ciphersuite is recommended by the IETF.
+  Valid values are "Y", "N", and "D", as described below.  The default
   value of the "Recommended" column is "N".  Setting the Recommended item to "Y"
-  or "D", or changing a item whose current value is "Y" or "D", requires
+  or "D", or changing an item whose current value is "Y" or "D", requires
   Standards Action {{RFC8126}}.
 
   * Y: Indicates that the IETF has consensus that the item is RECOMMENDED. This
@@ -5296,7 +5296,7 @@ in the approval process. ]]
   * N: Indicates that the item has not been evaluated by the IETF and that the
     IETF has made no statement about the suitability of the associated
     mechanism. This does not necessarily mean that the mechanism is flawed, only
-    that no consensus exists. The IETF might have consensus to leave an items
+    that no consensus exists. The IETF might have consensus to leave an item
     marked as "N" on the basis of it having limited applicability or usage
     constraints.
 
@@ -5355,10 +5355,11 @@ not paired with FIPS 140-2 compliant curves. The security level of symmetric
 encryption algorithms and hash functions is paired with the security level of
 the curves.
 
+
 The mandatory-to-implement ciphersuite for MLS 1.0 is
 `MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519` which uses
 Curve25519 for key exchange, AES-128-GCM for HPKE, HKDF over SHA2-256, and
-Ed25519 for signatures.
+Ed25519 for signatures.  MLS clients MUST implement this ciphersuite.
 
 New ciphersuite values are assigned by IANA as described in
 {{iana-considerations}}.
@@ -5601,7 +5602,7 @@ MLS DE, that MLS DE SHOULD defer to the judgment of the other MLS DEs.
 ## The "message/mls" MIME Type
 
 This document registers the "message/mls" MIME media type in order to allow other
-protocols (e.g., HTTP {{?RFC7540}}) to convey MLS messages.
+protocols (e.g., HTTP {{?RFC9113}}) to convey MLS messages.
 
 Type name:
 : message
@@ -6018,7 +6019,7 @@ class Tree:
 
         L = self.root
         R = Node.blank_subtree(self.depth)
-        self.root = Node(None, left=self.root, right=R)
+        self.root = Node(None, left=L, right=R)
         self.depth += 1
 
     # Truncate the right subtree
