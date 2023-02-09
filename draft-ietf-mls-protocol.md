@@ -3064,20 +3064,50 @@ Commit. Each Commit thus confirms the whole transcript of Commits up to that
 point, except for the latest Commit's confirmation tag.
 
 ~~~ aasvg
- epoch 0                               epoch 1                               epoch 2                               epoch 3
-    |                                     |                                     |                                     |
-    +-------------- commit1 --------------+-------------- commit2 --------------+-------------- commit3 --------------+ ...
-    |                 |                   |                 |                   |                 |                   |
-    +--- confirmed ---+--- confirm_tag ---+--- confirmed ---+--- confirm_tag ---+--- confirmed ---+--- confirm_tag ---+
-    |                 |                   |                 |                   |                 |                   |
-                      |          ^        |                 |          ^        |                 |          ^        |
-                      V          |        V                 V          |        V                 V          |        V
-interim[0] -----> confirmed[1] --+    interim[1] -----> confirmed[2] --+    interim[2] -----> confirmed[3] --+    interim[3]
-  = ""                           |                                     |                                     |
-                                 |                                     |                                     |
-                           confirm_key[1]                        confirm_key[2]                        confirm_key[3]
+                                                             ...
+
+                                                              |
+                                                              |
+                                                              V
+                                                     +-----------------+
+                                                     |  interim_[N-1]  |
+                                                     +--------+--------+
+                                                              |
+     .--------------.         +------------------+            |
+    |  Ratchet Tree  |        | wire_format      |            |
+    |  Key Schedule  |<-------+ content          |            |
+     '-------+------'         |   epoch = N-1    +------------+
+             |                |   commit         |            |
+             V                | signature        |            V
+ +------------------------+   +------------------+   +-----------------+
+ |  confirmation_key_[N]  +-->| confirmation_tag |<--+  confirmed_[N]  |
+ +------------------------+   +--------+---------+   +--------+--------+
+                                       |                      |
+                                       |                      V
+                                       |             +-----------------+
+                                       +------------>|   interim_[N]   |
+                                                     +--------+--------+
+                                                              |
+     .--------------.         +------------------+            |
+    |  Ratchet Tree  |        | wire_format      |            |
+    |  Key Schedule  |<-------+ content          |            |
+     '-------+------'         |   epoch = N      +------------+
+             |                |   commit         |            |
+             V                | signature        |            V
+ +------------------------+   +------------------+   +-----------------+
+ | confirmation_key_[N+1] +-->| confirmation_tag |<--+ confirmed_[N+1] |
+ +------------------------+   +--------+---------+   +--------+--------+
+                                       |                      |
+                                       |                      V
+                                       |             +-----------------+
+                                       +------------>|  interim_[N+1]  |
+                                                     +--------+--------+
+                                                              |
+                                                              V
+
+                                                             ...
 ~~~
-{: title="Evolution of the transcript hashes"}
+{: title="Evolution of the transcript hashes through two epoch changes"}
 
 ## External Initialization
 
