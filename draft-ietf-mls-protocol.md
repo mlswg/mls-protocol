@@ -1874,7 +1874,7 @@ and PrivateContentTBE.
 
 ### Content Encryption
 
-Content to be encrypted is encoded in an PrivateContentTBE structure.
+Content to be encrypted is encoded in a PrivateContentTBE structure.
 
 ~~~ tls
 struct {
@@ -1952,7 +1952,7 @@ struct {
 } PrivateContentAAD;
 ~~~
 
-When decoding an PrivateContentTBE, the application MUST check that the
+When decoding a PrivateContentTBE, the application MUST check that the
 FramedContentAuthData is valid.
 
 It is up to the application to decide what `authenticated_data` to provide and
@@ -2165,7 +2165,10 @@ KeyPackage, the `lifetime` field represents the times between which clients will
 consider a LeafNode valid.  These times are represented as absolute times,
 measured in seconds since the Unix epoch (1970-01-01T00:00:00Z).  Applications
 MUST define a maximum total lifetime that is acceptable for a LeafNode, and
-reject any LeafNode where the total lifetime is longer than this duration.
+reject any LeafNode where the total lifetime is longer than this duration. In
+order to avoid disagreements about whether a LeafNode has a valid lifetime, the
+clients in a group SHOULD maintain time synchronization (e.g., using the Network
+Time Protocol {{?RFC5905}}).
 
 In the case where the leaf node was inserted into the tree via a Commit message,
 the `parent_hash` field contains the parent hash for this leaf node (see
@@ -2217,7 +2220,9 @@ The client verifies the validity of a LeafNode using the following steps:
   * If instead the LeafNode appears in a message being received by the client, e.g.,
     a proposal, a commit, or a ratchet tree of the group the client is joining, it is
     RECOMMENDED that the client verifies that the current time is within the range
-    of the `lifetime` field.
+    of the `lifetime` field.  (This check is not mandatory because the LeafNode
+    might have expired in the time between when the message was sent and when it
+    was received.)
 
 * Verify that the extensions in the LeafNode are supported by checking that the
   ID for each extension in the `extensions` field is listed in the
@@ -4179,7 +4184,7 @@ message at the same time, by taking the following steps:
 * Protect the AuthenticatedContent object using keys from the old epoch:
   * If encoding as PublicMessage, compute the `membership_tag` value using the
     `membership_key`.
-  * If encoding as an PrivateMessage, encrypt the message using the
+  * If encoding as a PrivateMessage, encrypt the message using the
     `sender_data_secret` and the next (key, nonce) pair from the sender's
     handshake ratchet.
 
