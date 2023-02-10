@@ -1157,7 +1157,9 @@ below that node.  The rules for computing these hashes are described
 in {{tree-hashes}}.
 
 The _resolution_ of a node is an ordered list of non-blank nodes
-that collectively cover all non-blank descendants of the node.  The resolution
+that collectively cover all non-blank descendants of the node.
+The resolution contains the set of keys which are collectively necessary to
+encrypt to every node in the group. The resolution
 of a node is effectively a depth-first, left-first enumeration of the nearest
 non-blank nodes below the node:
 
