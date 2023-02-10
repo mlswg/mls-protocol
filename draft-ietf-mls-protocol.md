@@ -1299,7 +1299,11 @@ A   ?   ?   ?     ?   B   ?   ?     ?   ?   C   ?     ?   ?   ?   D
 ~~~
 
 Note how the tree invariant applies: Each member knows only their own leaf, and
-the private key AB is known only to A and B.
+the private key AB is known only to A and B, and the private key ABCD
+is known to all four members. This also illustrates another important
+point: it is possible for there to be "holes" on the path from a node
+to the root in which the node knows the key both above and below
+a given node, but not for that node, as in the case with D.
 
 # Cryptographic Objects
 
