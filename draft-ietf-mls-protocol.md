@@ -4490,8 +4490,8 @@ group_secrets = DecryptWithLabel(kem_output, init_key_priv, "Welcome",
   `encrypted_group_info` field.
 
 ~~~ pseudocode
-welcome_nonce = KDF.Expand(welcome_secret, "nonce", AEAD.Nn)
-welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
+welcome_nonce = ExpandWithLabel(welcome_secret, "nonce", "", AEAD.Nn)
+welcome_key = ExpandWithLabel(welcome_secret, "key", "", AEAD.Nk)
 ~~~
 
 * Verify the signature on the GroupInfo object. The signature input comprises
