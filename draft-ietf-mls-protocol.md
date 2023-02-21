@@ -4096,6 +4096,7 @@ The only proposal types defined in this document that do not require a path are:
 * `add`
 * `psk`
 * `reinit`
+* `group_context_extensions`
 
 New proposal types MUST state whether they require a path. If any instance of a
 proposal type requires a path, then the proposal type requires a path. This
