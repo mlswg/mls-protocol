@@ -1899,7 +1899,7 @@ struct {
 ~~~
 
 `encrypted_sender_data` and `ciphertext` are encrypted using the AEAD function
-specified by the ciphersuite in use, using as input the structures SenderData
+specified by the ciphersuite in use, using as input the structures SenderDataTBE
 and PrivateContentTBE.
 
 ### Content Encryption
@@ -2002,12 +2002,12 @@ struct {
     uint32 leaf_index;
     uint32 generation;
     opaque reuse_guard[4];
-} SenderData;
+} SenderDataTBE;
 ~~~
 
-When constructing a SenderData object from a Sender object, the sender MUST verify
+When constructing a SenderDataTBE object from a Sender object, the sender MUST verify
 Sender.sender_type is `member` and use Sender.leaf_index for
-SenderData.leaf_index.
+SenderDataTBE.leaf_index.
 
 The `reuse_guard` field contains a fresh random value used to avoid nonce reuse
 in the case of state loss or corruption, as described in {{content-encryption}}.
@@ -2026,7 +2026,7 @@ sender_data_nonce = ExpandWithLabel(sender_data_secret, "nonce",
                       ciphertext_sample, AEAD.Nn)
 ~~~
 
-The Additional Authenticated Data (AAD) for the SenderData ciphertext is the
+The Additional Authenticated Data (AAD) for the SenderDataTBE ciphertext is the
 first three fields of PrivateMessage:
 
 ~~~ tls
@@ -2037,7 +2037,7 @@ struct {
 } SenderDataAAD;
 ~~~
 
-When parsing a SenderData struct as part of message decryption, the recipient
+When parsing a SenderDataTBE struct as part of message decryption, the recipient
 MUST verify that the leaf index indicated in the `leaf_index` field identifies a
 non-blank node.
 
