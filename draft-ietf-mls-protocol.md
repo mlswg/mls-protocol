@@ -2180,7 +2180,10 @@ not be listed, while any credential types the application wishes to use MUST
 be listed. Extensions that appear in the `extensions` field of a LeafNode
 MUST be included in the `extensions` field of the `capabilities` field, and the
 credential type used in the LeafNode MUST be included in the `credentials` field
-of the `capabilities` field.
+of the `capabilities` field.  As discussed in {{extensibility}}, unknown values
+in `capabilities` MUST be ignored, and the creator of a `capabilities` field
+SHOULD contain some random values to help ensure that other clients correctly
+ignore unknown values.
 
 The `leaf_node_source` field indicates how this LeafNode came to be added to the
 tree.  This signal tells other members of the group whether the leaf node is
@@ -3496,8 +3499,12 @@ ciphersuite per KeyPackage.
 The field `leaf_node.leaf_node_source` of the LeafNode in a KeyPackage MUST be
 set to `key_package`.
 
-Extension included in the `extensions` or `leaf_node.extensions` fields MUST be
-included in the `leaf_node.capabilities` field.
+Extensions included in the `extensions` or `leaf_node.extensions` fields MUST
+be included in the `leaf_node.capabilities` field.  As discussed in
+{{extensibility}}, unknown extensions in `KeyPackage.extensions` MUST be
+ignored, and the creator of a `KeyPackage` object SHOULD include some random
+extensions to help ensure that other clients correctly ignore unknown
+extensions.
 
 ## KeyPackage Validation
 
@@ -4380,6 +4387,12 @@ confirmation tag computed in the creation of the group (see {{group-creation}}).
 (In either case, the creator of a GroupInfo may recompute the confirmation tag
 as `MAC(confirmation_key, confirmed_transcript_hash)`.)
 
+As discussed in {{extensibility}}, unknown extensions in `GroupInfo.extensions`
+MUST be ignored, and the creator of a `GroupInfo` object SHOULD include some
+random extensions to help ensure that other clients correctly ignore unknown
+extensions.  Extensions in `GroupInfo.group_context.extensions`, however, MUST
+be supported by the new joiner.
+
 New members MUST verify that `group_id` is unique among the groups they're
 currently participating in.
 
@@ -4872,27 +4885,72 @@ handle extensible fields:
   it.  Otherwise, another client might fail to interoperate by selecting one of
   those parameters.
 
-* A client initiating a group MUST ignore all unrecognized ciphersuites,
-  extensions, and other parameters.  Otherwise, it may fail to interoperate with
-  newer clients.
+* A client processing a KeyPackage object MUST ignore all unrecognized values
+  in the `capabilities` field of the `LeafNode`, and all unknown extensions in
+  the `extensions` and `leaf_node.extensions` fields.  Otherwise, it may fail
+  to interoperate with newer clients.
 
-* Any field containing a list of extensions MUST NOT have more than one extension of any given type.
+* A client processing a GroupInfo object MUST ignore all unrecognized
+  extensions in the `extensions` field.
+
+* Any field containing a list of extensions MUST NOT have more than one
+  extension of any given type.
 
 * A client adding a new member to a group MUST verify that the LeafNode for the
   new member is compatible with the group's extensions.  The `capabilities`
   field MUST indicate support for each extension in the GroupContext.
 
-* If any extension in a GroupInfo message is unrecognized (i.e., not contained
-  in the `capabilities` of the corresponding KeyPackage), then the client MUST
-  reject the Welcome message and not join the group.
+* A client joining a group MUST verify that it supports every extension in the
+  GroupContext for the group.  Otherwise, it should treat the enclosing
+  GroupInfo message as invalid and not join the group.
 
-Note that the latter two requirements mean that all MLS extensions are
-mandatory, in the sense that an extension in use by the group MUST be supported
-by all members of the group.
+Note that the latter two requirements mean that all MLS GroupContext extensions
+are mandatory, in the sense that an extension in use by the group MUST be
+supported by all members of the group.
 
 The parameters of a group may be changed by sending a GroupContextExtensions
-proposal to enable additional extensions, or by reinitializing the group as
-described in {{reinitialization}}.
+proposal to enable additional extensions ({{groupcontextextensions}}), or
+by reinitializing the group ({{reinitialization}}).
+
+## GREASE
+
+As described in {{extensions}}, clients are required to ignore unknown values
+for certain parameters.  To help ensure that other clients implement this
+behavior, a client can follow the “Generate Random Extensions And Sustain
+Extensibility” or GREASE approach described in {{?RFC8701}}.  In the context of
+MLS, this means that a client creating a LeafNode or Welcome message includes
+random values in certain fields, which should be ignored by a
+correctly-implemented client processing the message.  A client that incorrectly
+rejects unknown code points will fail to process such a message, providing a
+signal to its implementor that the client needs to be fixed.
+
+When generating the following fields, an MLS client SHOULD include a random
+selection of values chosen from these GREASE values:
+
+* `LeafNode.capabilities.versions`
+* `LeafNode.capabilities.ciphersuites`
+* `LeafNode.capabilities.extensions`
+* `LeafNode.capabilities.proposals`
+* `LeafNode.capabilities.credentials`
+* `KeyPackage.extensions`
+* `GroupInfo.extensions`
+
+For the KeyPackage and GroupInfo extensions, the `extension_data` for GREASE
+extensions MAY have any contents selected by the sender, since they will be
+ignored by a correctly-operating receiver.  For example, a senders might
+populate these extensions with a variable-sized amount of random data.
+
+A set of values reserved for GREASE have been registered in the various
+registries in {{iana-considerations}}.  This prevents conflict between GREASE
+and real future values.  The following values are reserved in each registry:
+`0x0A0A`, `0x1A1A`, `0x2A2A`, `0x3A3A`, `0x4A4A`, `0x5A5A`, `0x6A6A`, `0x7A7A`,
+`0x8A8A`, `0x9A9A`, `0xAAAA`, `0xBABA`, `0xCACA`, `0xDADA`, and `0xEAEA`.  (The
+value `0xFAFA` falls within the private use range.). These values MUST only
+appear in the fields listed above, and not, for example, in the `proposal_type`
+field of a Proposal.  Clients MUST NOT implement special processing for these
+values, since this negates their utility for detecting extensibility failures.
+GREASE values should be handled using normal logic for processing unsupported
+values.
 
 # Sequencing of State Changes {#sequencing}
 
@@ -5365,6 +5423,21 @@ Initial contents:
 | 0x0005          | MLS_256_DHKEMP521_AES256GCM_SHA512_P521             | Y | RFC XXXX |
 | 0x0006          | MLS_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     | Y | RFC XXXX |
 | 0x0007          | MLS_256_DHKEMP384_AES256GCM_SHA384_P384.            | Y | RFC XXXX |
+| 0x0A0A          | GREASE                                              | Y | RFC XXXX |
+| 0x1A1A          | GREASE                                              | Y | RFC XXXX |
+| 0x2A2A          | GREASE                                              | Y | RFC XXXX |
+| 0x3A3A          | GREASE                                              | Y | RFC XXXX |
+| 0x4A4A          | GREASE                                              | Y | RFC XXXX |
+| 0x5A5A          | GREASE                                              | Y | RFC XXXX |
+| 0x6A6A          | GREASE                                              | Y | RFC XXXX |
+| 0x7A7A          | GREASE                                              | Y | RFC XXXX |
+| 0x8A8A          | GREASE                                              | Y | RFC XXXX |
+| 0x9A9A          | GREASE                                              | Y | RFC XXXX |
+| 0xAAAA          | GREASE                                              | Y | RFC XXXX |
+| 0xBABA          | GREASE                                              | Y | RFC XXXX |
+| 0xCACA          | GREASE                                              | Y | RFC XXXX |
+| 0xDADA          | GREASE                                              | Y | RFC XXXX |
+| 0xEAEA          | GREASE                                              | Y | RFC XXXX |
 | 0xf000 - 0xffff | Reserved for Private Use                            | - | RFC XXXX |
 
 All of these ciphersuites use HMAC {{!RFC2104}} as their MAC function, with
@@ -5428,15 +5501,15 @@ Template:
 
 Initial contents:
 
-| Value            | Name                     | Recommended | Reference |
-|:-----------------|:-------------------------|:------------|:----------|
-| 0x0000           | RESERVED                 | N/A         | RFC XXXX  |
-| 0x0001           | mls_public_message       | Y           | RFC XXXX  |
-| 0x0002           | mls_private_message      | Y           | RFC XXXX  |
-| 0x0003           | mls_welcome              | Y           | RFC XXXX  |
-| 0x0004           | mls_group_info           | Y           | RFC XXXX  |
-| 0x0005           | mls_key_package          | Y           | RFC XXXX  |
-| 0xf000  - 0xffff | Reserved for Private Use | N/A         | RFC XXXX  |
+| Value           | Name                     | R | Ref       |
+|:----------------|:-------------------------|:--|:----------|
+| 0x0000          | RESERVED                 | - | RFC XXXX  |
+| 0x0001          | mls_public_message       | Y | RFC XXXX  |
+| 0x0002          | mls_private_message      | Y | RFC XXXX  |
+| 0x0003          | mls_welcome              | Y | RFC XXXX  |
+| 0x0004          | mls_group_info           | Y | RFC XXXX  |
+| 0x0005          | mls_key_package          | Y | RFC XXXX  |
+| 0xf000 - 0xffff | Reserved for Private Use | - | RFC XXXX  |
 
 ## MLS Extension Types
 
@@ -5464,15 +5537,30 @@ Template:
 
 Initial contents:
 
-| Value            | Name                     | Message(s) | Recommended | Reference |
-|:-----------------|:-------------------------|:-----------|:------------|:----------|
-| 0x0000           | RESERVED                 | N/A        | N/A         | RFC XXXX  |
-| 0x0001           | application_id           | LN         | Y           | RFC XXXX  |
-| 0x0002           | ratchet_tree             | GI         | Y           | RFC XXXX  |
-| 0x0003           | required_capabilities    | GC         | Y           | RFC XXXX  |
-| 0x0004           | external_pub             | GI         | Y           | RFC XXXX  |
-| 0x0005           | external_senders         | GC         | Y           | RFC XXXX  |
-| 0xf000  - 0xffff | Reserved for Private Use | N/A        | N/A         | RFC XXXX  |
+| Value            | Name                     | Message(s) | R | Ref      |
+|:-----------------|:-------------------------|:-----------|:--|:---------|
+| 0x0000           | RESERVED                 | N/A        | - | RFC XXXX |
+| 0x0001           | application_id           | LN         | Y | RFC XXXX |
+| 0x0002           | ratchet_tree             | GI         | Y | RFC XXXX |
+| 0x0003           | required_capabilities    | GC         | Y | RFC XXXX |
+| 0x0004           | external_pub             | GI         | Y | RFC XXXX |
+| 0x0005           | external_senders         | GC         | Y | RFC XXXX |
+| 0x0A0A           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0x1A1A           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0x2A2A           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0x3A3A           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0x4A4A           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0x5A5A           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0x6A6A           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0x7A7A           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0x8A8A           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0x9A9A           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0xAAAA           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0xBABA           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0xCACA           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0xDADA           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0xEAEA           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0xf000  - 0xffff | Reserved for Private Use | N/A        | - | RFC XXXX |
 
 ## MLS Proposal Types
 
@@ -5495,17 +5583,32 @@ Template:
 
 Initial contents:
 
-| Value            | Name                     | Recommended | Path Required | Reference |
-|:-----------------|:-------------------------|:------------|:--------------|:----------|
-| 0x0000           | RESERVED                 | N/A         | N/A           | RFC XXXX  |
-| 0x0001           | add                      | Y           | N             | RFC XXXX  |
-| 0x0002           | update                   | Y           | Y             | RFC XXXX  |
-| 0x0003           | remove                   | Y           | Y             | RFC XXXX  |
-| 0x0004           | psk                      | Y           | N             | RFC XXXX  |
-| 0x0005           | reinit                   | Y           | N             | RFC XXXX  |
-| 0x0006           | external_init            | Y           | Y             | RFC XXXX  |
-| 0x0007           | group_context_extensions | Y           | Y             | RFC XXXX  |
-| 0xf000  - 0xffff | Reserved for Private Use | N/A         | N/A           | RFC XXXX  |
+| Value            | Name                     | R | Path | Ref      |
+|:-----------------|:-------------------------|:--|:-----|:---------|
+| 0x0000           | RESERVED                 | - | -    | RFC XXXX |
+| 0x0001           | add                      | Y | N    | RFC XXXX |
+| 0x0002           | update                   | Y | Y    | RFC XXXX |
+| 0x0003           | remove                   | Y | Y    | RFC XXXX |
+| 0x0004           | psk                      | Y | N    | RFC XXXX |
+| 0x0005           | reinit                   | Y | N    | RFC XXXX |
+| 0x0006           | external_init            | Y | Y    | RFC XXXX |
+| 0x0007           | group_context_extensions | Y | Y    | RFC XXXX |
+| 0x0A0A           | GREASE                   | Y | -    | RFC XXXX |
+| 0x1A1A           | GREASE                   | Y | -    | RFC XXXX |
+| 0x2A2A           | GREASE                   | Y | -    | RFC XXXX |
+| 0x3A3A           | GREASE                   | Y | -    | RFC XXXX |
+| 0x4A4A           | GREASE                   | Y | -    | RFC XXXX |
+| 0x5A5A           | GREASE                   | Y | -    | RFC XXXX |
+| 0x6A6A           | GREASE                   | Y | -    | RFC XXXX |
+| 0x7A7A           | GREASE                   | Y | -    | RFC XXXX |
+| 0x8A8A           | GREASE                   | Y | -    | RFC XXXX |
+| 0x9A9A           | GREASE                   | Y | -    | RFC XXXX |
+| 0xAAAA           | GREASE                   | Y | -    | RFC XXXX |
+| 0xBABA           | GREASE                   | Y | -    | RFC XXXX |
+| 0xCACA           | GREASE                   | Y | -    | RFC XXXX |
+| 0xDADA           | GREASE                   | Y | -    | RFC XXXX |
+| 0xEAEA           | GREASE                   | Y | -    | RFC XXXX |
+| 0xf000  - 0xffff | Reserved for Private Use | - | -    | RFC XXXX |
 
 ## MLS Credential Types
 
@@ -5525,12 +5628,27 @@ Template:
 
 Initial contents:
 
-| Value            | Name                     | Recommended | Reference |
-|:-----------------|:-------------------------|:------------|:----------|
-| 0x0000           | RESERVED                 | N/A         | RFC XXXX  |
-| 0x0001           | basic                    | Y           | RFC XXXX  |
-| 0x0002           | x509                     | Y           | RFC XXXX  |
-| 0xf000  - 0xffff | Reserved for Private Use | N/A         | RFC XXXX  |
+| Value            | Name                     | R | Ref      |
+|:-----------------|:-------------------------|:--|:---------|
+| 0x0000           | RESERVED                 | - | RFC XXXX |
+| 0x0001           | basic                    | Y | RFC XXXX |
+| 0x0002           | x509                     | Y | RFC XXXX |
+| 0x0A0A           | GREASE                   | Y | RFC XXXX |
+| 0x1A1A           | GREASE                   | Y | RFC XXXX |
+| 0x2A2A           | GREASE                   | Y | RFC XXXX |
+| 0x3A3A           | GREASE                   | Y | RFC XXXX |
+| 0x4A4A           | GREASE                   | Y | RFC XXXX |
+| 0x5A5A           | GREASE                   | Y | RFC XXXX |
+| 0x6A6A           | GREASE                   | Y | RFC XXXX |
+| 0x7A7A           | GREASE                   | Y | RFC XXXX |
+| 0x8A8A           | GREASE                   | Y | RFC XXXX |
+| 0x9A9A           | GREASE                   | Y | RFC XXXX |
+| 0xAAAA           | GREASE                   | Y | RFC XXXX |
+| 0xBABA           | GREASE                   | Y | RFC XXXX |
+| 0xCACA           | GREASE                   | Y | RFC XXXX |
+| 0xDADA           | GREASE                   | Y | RFC XXXX |
+| 0xEAEA           | GREASE                   | Y | RFC XXXX |
+| 0xf000  - 0xffff | Reserved for Private Use | - | RFC XXXX  |
 
 ## MLS Signature Labels
 
@@ -5551,12 +5669,12 @@ Template:
 
 Initial contents:
 
-| Label              | Recommended | Reference |
-|:-------------------|:------------|:----------|
-| "FramedContentTBS" | Y           | RFC XXXX  |
-| "LeafNodeTBS"      | Y           | RFC XXXX  |
-| "KeyPackageTBS"    | Y           | RFC XXXX  |
-| "GroupInfoTBS"     | Y           | RFC XXXX  |
+| Label              | R | Ref      |
+|:-------------------|:--|:---------|
+| "FramedContentTBS" | Y | RFC XXXX |
+| "LeafNodeTBS"      | Y | RFC XXXX |
+| "KeyPackageTBS"    | Y | RFC XXXX |
+| "GroupInfoTBS"     | Y | RFC XXXX |
 
 ## MLS Public Key Encryption Labels
 
@@ -5578,10 +5696,10 @@ Template:
 
 Initial contents:
 
-| Label            | Recommended | Reference |
-|:-----------------|:------------|:----------|
-| "UpdatePathNode" | Y           | RFC XXXX  |
-| "Welcome"        | Y           | RFC XXXX  |
+| Label            | R | Ref      |
+|:-----------------|:--|:---------|
+| "UpdatePathNode" | Y | RFC XXXX |
+| "Welcome"        | Y | RFC XXXX |
 
 ## MLS Exporter Labels
 
