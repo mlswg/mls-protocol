@@ -5649,7 +5649,7 @@ Initial contents:
 | 0xCACA           | GREASE                   | Y | RFC XXXX |
 | 0xDADA           | GREASE                   | Y | RFC XXXX |
 | 0xEAEA           | GREASE                   | Y | RFC XXXX |
-| 0xf000  - 0xffff | Reserved for Private Use | - | RFC XXXX  |
+| 0xf000  - 0xffff | Reserved for Private Use | - | RFC XXXX |
 
 ## MLS Signature Labels
 
