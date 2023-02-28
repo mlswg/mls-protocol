@@ -4887,7 +4887,7 @@ handle extensible fields:
 
 * A client processing a KeyPackage object MUST ignore all unrecognized values
   in the `capabilities` field of the `LeafNode`, and all unknown extensions in
-  the `extensions` and `leaf_node.extensions` fields.  Otherwise, it may fail
+  the `extensions` and `leaf_node.extensions` fields.  Otherwise, it could fail
   to interoperate with newer clients.
 
 * A client processing a GroupInfo object MUST ignore all unrecognized
@@ -4922,7 +4922,7 @@ MLS, this means that a client creating a LeafNode or Welcome message includes
 random values in certain fields, which should be ignored by a
 correctly-implemented client processing the message.  A client that incorrectly
 rejects unknown code points will fail to process such a message, providing a
-signal to its implementor that the client needs to be fixed.
+signal to its implementer that the client needs to be fixed.
 
 When generating the following fields, an MLS client SHOULD include a random
 selection of values chosen from these GREASE values:
@@ -4938,7 +4938,7 @@ selection of values chosen from these GREASE values:
 For the KeyPackage and GroupInfo extensions, the `extension_data` for GREASE
 extensions MAY have any contents selected by the sender, since they will be
 ignored by a correctly-operating receiver.  For example, a senders might
-populate these extensions with a variable-sized amount of random data.
+populate these extensions with a randomly-sized amount of random data.
 
 A set of values reserved for GREASE have been registered in the various
 registries in {{iana-considerations}}.  This prevents conflict between GREASE
@@ -4947,9 +4947,10 @@ and real future values.  The following values are reserved in each registry:
 `0x8A8A`, `0x9A9A`, `0xAAAA`, `0xBABA`, `0xCACA`, `0xDADA`, and `0xEAEA`.  (The
 value `0xFAFA` falls within the private use range.). These values MUST only
 appear in the fields listed above, and not, for example, in the `proposal_type`
-field of a Proposal.  Clients MUST NOT implement special processing for these
-values, since this negates their utility for detecting extensibility failures.
-GREASE values should be handled using normal logic for processing unsupported
+field of a Proposal.  Clients MUST NOT implement any special processing rules 
+for how to handle these values when receiving them, since this negates their
+utility for detecting extensibility failures.
+GREASE values MUST be handled using normal logic for processing unsupported
 values.
 
 # Sequencing of State Changes {#sequencing}
