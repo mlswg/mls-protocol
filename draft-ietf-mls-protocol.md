@@ -2262,7 +2262,9 @@ The client verifies the validity of a LeafNode using the following steps:
   * If the LeafNode appears in a KeyPackage, verify that `leaf_node_source` is
     set to `key_package`.
   * If the LeafNode appears in an Update proposal, verify that `leaf_node_source`
-    is set to `update`.
+    is set to `update` and that `encryption_key` represents a different public
+    key than the `encryption_key` in the leaf node being replaced by the Update
+    proposal.
   * If the LeafNode appears in the `leaf_node` value of the UpdatePath in
     a Commit, verify that `leaf_node_source` is set to `commit`.
 
