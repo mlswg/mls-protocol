@@ -2182,7 +2182,7 @@ MUST be included in the `extensions` field of the `capabilities` field, and the
 credential type used in the LeafNode MUST be included in the `credentials` field
 of the `capabilities` field.  As discussed in {{extensibility}}, unknown values
 in `capabilities` MUST be ignored, and the creator of a `capabilities` field
-SHOULD contain some random values to help ensure that other clients correctly
+SHOULD contain some random GREASE values to help ensure that other clients correctly
 ignore unknown values.
 
 The `leaf_node_source` field indicates how this LeafNode came to be added to the
@@ -3502,7 +3502,7 @@ set to `key_package`.
 Extensions included in the `extensions` or `leaf_node.extensions` fields MUST
 be included in the `leaf_node.capabilities` field.  As discussed in
 {{extensibility}}, unknown extensions in `KeyPackage.extensions` MUST be
-ignored, and the creator of a `KeyPackage` object SHOULD include some random
+ignored, and the creator of a `KeyPackage` object SHOULD include some random GREASE
 extensions to help ensure that other clients correctly ignore unknown
 extensions.
 
@@ -4389,7 +4389,7 @@ as `MAC(confirmation_key, confirmed_transcript_hash)`.)
 
 As discussed in {{extensibility}}, unknown extensions in `GroupInfo.extensions`
 MUST be ignored, and the creator of a `GroupInfo` object SHOULD include some
-random extensions to help ensure that other clients correctly ignore unknown
+random GREASE extensions to help ensure that other clients correctly ignore unknown
 extensions.  Extensions in `GroupInfo.group_context.extensions`, however, MUST
 be supported by the new joiner.
 
@@ -4937,7 +4937,7 @@ selection of values chosen from these GREASE values:
 
 For the KeyPackage and GroupInfo extensions, the `extension_data` for GREASE
 extensions MAY have any contents selected by the sender, since they will be
-ignored by a correctly-operating receiver.  For example, a senders might
+ignored by a correctly-implemented receiver.  For example, a senders might
 populate these extensions with a randomly-sized amount of random data.
 
 A set of values reserved for GREASE have been registered in the various
@@ -4945,9 +4945,9 @@ registries in {{iana-considerations}}.  This prevents conflict between GREASE
 and real future values.  The following values are reserved in each registry:
 `0x0A0A`, `0x1A1A`, `0x2A2A`, `0x3A3A`, `0x4A4A`, `0x5A5A`, `0x6A6A`, `0x7A7A`,
 `0x8A8A`, `0x9A9A`, `0xAAAA`, `0xBABA`, `0xCACA`, `0xDADA`, and `0xEAEA`.  (The
-value `0xFAFA` falls within the private use range.). These values MUST only
+value `0xFAFA` falls within the private use range.) These values MUST only
 appear in the fields listed above, and not, for example, in the `proposal_type`
-field of a Proposal.  Clients MUST NOT implement any special processing rules 
+field of a Proposal.  Clients MUST NOT implement any special processing rules
 for how to handle these values when receiving them, since this negates their
 utility for detecting extensibility failures.
 GREASE values MUST be handled using normal logic for processing unsupported
