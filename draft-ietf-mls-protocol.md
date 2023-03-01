@@ -4119,10 +4119,7 @@ pathRequiredTypes = [
 
 pathRequired = false
 
-for i, id in commit.proposals:
-    proposal = proposalCache[id]
-    assert(proposal != null)
-
+for proposal in commit.proposals:
     pathRequired = pathRequired ||
                    (proposal.msg_type in pathRequiredTypes)
 
