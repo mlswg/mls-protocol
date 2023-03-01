@@ -4951,7 +4951,11 @@ field of a Proposal.  Clients MUST NOT implement any special processing rules
 for how to handle these values when receiving them, since this negates their
 utility for detecting extensibility failures.
 GREASE values MUST be handled using normal logic for processing unsupported
-values.
+values.  When comparing lists of capabilities to identify mutually-supported
+capabilities, clients MUST represent their own capabilities with a list
+containing only the capabilities actually supported, without any GREASE values.
+In other words, lists including GREASE values are only sent to other clients;
+representations of a client's own capabilities MUST NOT contain GREASE values.
 
 # Sequencing of State Changes {#sequencing}
 
