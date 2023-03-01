@@ -1900,11 +1900,11 @@ struct {
 
 `encrypted_sender_data` and `ciphertext` are encrypted using the AEAD function
 specified by the ciphersuite in use, using as input the structures SenderData
-and PrivateContentTBE.
+and PrivateMessageContent.
 
 ### Content Encryption
 
-Content to be encrypted is encoded in a PrivateContentTBE structure.
+Content to be encrypted is encoded in a PrivateMessageContent structure.
 
 ~~~ tls
 struct {
@@ -1921,7 +1921,7 @@ struct {
 
     FramedContentAuthData auth;
     opaque padding[length_of_padding];
-} PrivateContentTBE;
+} PrivateMessageContent;
 ~~~
 
 The `padding` field is set by the sender, by first encoding the content (via the
@@ -1982,7 +1982,7 @@ struct {
 } PrivateContentAAD;
 ~~~
 
-When decoding a PrivateContentTBE, the application MUST check that the
+When decoding a PrivateMessageContent, the application MUST check that the
 FramedContentAuthData is valid.
 
 It is up to the application to decide what `authenticated_data` to provide and
@@ -4961,7 +4961,7 @@ the attacker enough information to mount an attack. If Alice asks Bob
 "When are we going to the movie?", then the answer "Wednesday" could be leaked
 to an adversary solely by the ciphertext length.
 
-The length of the `padding` field in `PrivateContentTBE` can be
+The length of the `padding` field in `PrivateMessageContent` can be
 chosen by the sender at the time of message encryption. Senders may use padding
 to reduce the ability of attackers outside the group to infer the size of the
 encrypted content.  Note, however, that the transports used to carry MLS
