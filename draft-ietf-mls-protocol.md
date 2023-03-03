@@ -148,10 +148,10 @@ as well as post-compromise security, but are nonetheless efficient
 enough for heavy use over low-bandwidth networks.
 
 For a group of size greater than two, a common strategy is to
-unilaterally broadcast symmetric "sender" keys over existing shared
-symmetric channels, and then for each member to send messages to the
+distribute symmetric "sender keys" over existing 1:1
+secure channels, and then for each member to send messages to the
 group encrypted with their own sender key. On the one hand, using sender keys
-improves efficiency relative to pairwise broadcast of individual messages, and
+improves efficiency relative to pairwise transmission of individual messages, and
 it provides forward secrecy (with the addition of a hash ratchet).
 On the other hand, it is difficult to achieve post-compromise security with
 sender keys, requiring a number of key update messages that scales as the square
@@ -185,17 +185,19 @@ services are provided:
   KeyPackage, Proposal, Commit, and Welcome are defined below):
 
   * Pre-publication of KeyPackage objects for clients
-  * Broadcast delivery of Proposal and Commit messages to members of a group
-  * Unicast delivery of Welcome messages to new members of a group
+  * Delivery of Proposal and Commit messages to members of a group
+  * Delivery of Welcome messages to new members of a group
   * Sequencing of Commit messages (see {{sequencing}})
 
 The DS and AS may also apply additional policies to MLS operations to obtain
-additional security properties.  For example, MLS enables any participant to add
-or remove members of a group; a DS could enforce a policy that only certain
-members are allowed to perform these operations.  MLS authenticates all members
-of a group; a DS could help ensure that only clients with certain types of
-credential are admitted. MLS provides no inherent protection against denial of
-service; A DS could also enforce rate limits in order to mitigate these risks.
+additional security properties, especially in cases where MLS handshake messages
+are transmitted unencrypted (as PublicMessage objects).  For example, MLS
+enables any participant to add or remove members of a group; a DS could enforce
+a policy that only certain members are allowed to perform these operations.  MLS
+authenticates all members of a group; a DS could help ensure that only clients
+with certain types of credential are admitted. MLS provides no inherent
+protection against denial of service; A DS could also enforce rate limits in
+order to mitigate these risks.
 
 ##  Change Log
 
@@ -584,9 +586,9 @@ Key Package:
   introduce the client to a new group.
 
 Group Context:
-: An object that summarizes the state of the group. The group context is signed
-  to bind a message to a particular group, and also provided to new members to
-  help them join a group.
+: An object that summarizes the shared, public state of the group. The group
+  context is typically distributed in a signed GroupInfo message, which provided
+  to new members to help them join a group.
 
 Signature Key:
 : A signing key pair used to authenticate the sender of a message.
@@ -819,7 +821,7 @@ The cryptographic state at the core of MLS is divided into three areas of respon
   * An _exporter secret_ that allows other protocols to leverage MLS as a
     generic authenticated group key exchange.
   * A _resumption secret_ that members can use to prove their membership in the
-    group, e.g., in the case of branching a subgroup.
+    group, e.g., when creating a subgroup or a successor group.
 * A _secret tree_ derived from the key schedule that represents shared secrets
   used by the members of the group for encrypting and authenticating messages.
   Each epoch has a distinct secret tree.
@@ -950,7 +952,9 @@ is active, and members that don't update SHOULD eventually be removed from the
 group. It's left to the application to determine an appropriate amount of time
 between Updates. Since the purpose of sending an Update is to proactively
 constrain a compromise window, the right frequency is usually on the order of
-hours or days, not milliseconds.
+hours or days, not milliseconds. For example, an application might send an
+Update each time a member sends an application message after receiving from
+other members, or daily if no application messages are sent.
 
 The MLS architecture recommends that MLS be operated over a secure transport
 (see {{Section 7.1 of I-D.ietf-mls-architecture}}).  Such transport protocols
@@ -1010,15 +1014,76 @@ A              B     ...      Z          Directory       Channel
 ~~~
 {: #remove-flow title="Client Z removes client B from the group"}
 
+Note that the flows in this section are examples; applications can arrange
+message flows in other ways.  For example:
+
+* Welcome messages don't necessarily need to be sent directly to new joiners.
+  Since they are encrypted to new joiners, they could be distributed more
+  broadly, say if the application only had access to a broadcast channel for the
+  group.
+
+* Proposal messages don't necessarily need to be sent to all group members. They
+  only need to reach a member who will commit them.
+
+* The sender of a Commit doesn't necessarily have to wait to receive its own
+  Commit back before advancing its state. It only needs to know that its Commit
+  will be the next one applied by the group, say based on a promise from an
+  orchestration server.
+
+## External Joins
+
+In addition to the Welcome-based flow for adding a new member to the group, it
+is also possible for a new member to join by means of an "external Commit".
+This mechanism can be used when the existing members don't have a KeyPackage for
+the new member, for example, in the case of an "open" group that can be joined
+by new members without asking permission from existing members.
+
+{{groupinfo-flow}} shows a typical  message flow for an external join. To enable
+a new member to join the group in this way, a member of the group (A, B)
+publishes a GroupInfo object that includes the GroupContext for the group as
+well as a public key that can be used to encrypt a secret to the existing
+members of the group.  When the new member Z wishes to join, they download the
+GroupInfo object and use it to form a Commit of a special form that adds Z to
+the group (as detailed in {{joining-via-external-commits}}).  The existing
+members of the group process this external Commit in a similar way to normal
+Commit, advancing to a new epoch in which Z is now a member of the group.
+
+~~~
+                                                          Group
+A              B              Z          Directory        Channel
+|              |              |              |              |
+| GroupInfo    |              |              |              |
++------------------------------------------->|              |
+|              |              | GroupInfo    |              |
+|              |              |<-------------+              |
+|              |              |              |              |
+|              |              | Commit(ExtZ) |              |
+|              |              +---------------------------->|
+|              |              |              | Commit(ExtZ) |
+|<----------------------------------------------------------+
+|              |<-------------------------------------------+
+|              |              |<----------------------------+
+|              |              |              |              |
+~~~
+{: #groupinfo-flow title"Client A publishes a GroupInfo object and Client Z uses
+it to join the group"}
+
+
 ## Relationships Between Epochs
 
 A group has a single linear sequence of epochs. Groups and epochs are generally
 independent of one another. However, it can sometimes be useful to link epochs
 cryptographically, either within a group or across groups. MLS derives a
 resumption pre-shared key (PSK) from each epoch to allow entropy extracted from
-one epoch to be injected into a future epoch. This link guarantees that members
-entering the new epoch agree on a key if and only if they were members of the group
-during the epoch from which the resumption key was extracted.
+one epoch to be injected into a future epoch.  A group member that wishes to
+inject a PSK issues a PreSharedKey proposal ({{presharedkey}}) describing the
+PSK to be injected.  When this proposal is committed, the corresponding PSK will
+be incorporated into the key schedule as described in {{pre-shared-keys}}.
+
+Linking epochs in this way
+guarantees that members entering the new epoch agree on a key if and only if
+they were members of the group during the epoch from which the resumption key
+was extracted.
 
 MLS supports two ways to tie a new group to an existing group, illustrated in
 {{psk-reinit}} and {{psk-branch}}. Reinitialization
@@ -1142,14 +1207,21 @@ at `0` from the left to `2^d - 1` at the right (for a tree with `2^d` leaves). A
 with `2^d` leaves has `2^(d+1) - 1` nodes, including parent nodes.
 
 Each node in a ratchet tree is either _blank_ (containing no value) or it holds
-an asymmetric key pair with some associated data:
+an HPKE public key with some associated data:
 
 * A public key (for the HPKE scheme in use, see {{ciphersuites}})
-* A private key (only within the member's direct path, see {{views}})
-* A credential (only for leaf nodes)
+* A credential (only for leaf nodes, see {{credentials}})
 * An ordered list of "unmerged" leaves (see {{views}})
 * A hash of certain information about the node's parent, as of the last time the
   node was changed (see {{parent-hashes}}).
+
+As described in {{views}}, different members know different subsets of the set
+of private keys corresponding to the public keys in nodes in the tree.  The
+private key corresponding to a parent node is known only to members at leaf
+nodes that are descedants of that node.  The private key corresponding to a leaf
+node is known only to the member at that leaf node.  A leaf node is _unmerged_
+relative to one of its ancestor node if the member at the leaf node does not
+know the private key corresponding the ancestor node.
 
 Every node, regardless of whether the node is blank or populated, has
 a corresponding _hash_ that summarizes the contents of the subtree
@@ -1263,13 +1335,14 @@ In other words, if a node is not blank, then it holds a public key.
 The corresponding private key is known only to members occupying
 leaves below that node.
 
-The reverse implication is not true: A member may not know the private keys of
-all the intermediate nodes above them.  Such a member has an _unmerged_ leaf.
-Encrypting to an intermediate node requires encrypting to the node's public key,
-as well as the public keys of all the unmerged leaves below it.  A leaf is
-unmerged when it is first added, because the process of adding the leaf does not
-give it access to all of the nodes above it in the tree.  Leaves are "merged" as
-they receive the private keys for nodes, as described in
+The reverse implication is not true: A member may not know the private key of
+an intermediate node above them.  Such a member has an _unmerged_ leaf at the
+intermediate node.  Encrypting to an intermediate node requires encrypting to
+the node's public key, as well as the public keys of all the unmerged leaves
+below it.  A leaf is unmerged with regard to all of its ancestors when it is
+first added, because the process of adding the leaf does not give it access to
+the private keys for all of the nodes above it in the tree.  Leaves are "merged"
+as they receive the private keys for nodes, as described in
 {{ratchet-tree-evolution}}.
 
 For example, consider a four-member group (A, B, C, D) where the node above the
@@ -1348,8 +1421,8 @@ encoded UncompressedPointRepresentation struct, as defined in {{RFC8446}}.
 
 ### Signing
 
-The signature algorithm specified in the ciphersuite is the mandatory algorithm
-to be used for signatures in FramedContentAuthData and the tree signatures.  It
+The signature algorithm specified in a group's ciphersuite is the mandatory algorithm
+to be used for signing messages within the group.  It
 MUST be the same as the signature algorithm specified in the credentials in the
 leaves of the tree (including the leaf node information in KeyPackages used to
 add new members).
@@ -2266,9 +2339,12 @@ The client verifies the validity of a LeafNode using the following steps:
   * If the LeafNode appears in the `leaf_node` value of the UpdatePath in
     a Commit, verify that `leaf_node_source` is set to `commit`.
 
-* Verify that the following fields are unique among the members of the group:
-    * `signature_key`
-    * `encryption_key`
+* Verify that the leaf node's `signature_key` value does not appear in any other
+  leaf node in the group's ratchet tree.
+
+* Verify that the leaf node's `encryption_key` value does not appear in any
+  other node of the group's ratchet tree (including both leaf nodes and parent
+  nodes).
 
 ## Ratchet Tree Evolution
 
@@ -4306,6 +4382,9 @@ A member of the group applies a Commit message by taking the following steps:
   * Verify that the `encryption_key` value in the LeafNode is different from the
     committer's current leaf node.
 
+  * Verify that none of the public keys in the UpdatePath appear in any node of
+    the new ratchet tree.
+
   * Merge the UpdatePath into the new ratchet tree as described in
     {{synchronizing-views-of-the-tree}}.
 
@@ -4525,6 +4604,9 @@ welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
 
     * Verify that every non-blank intermediate node beween the leaf node and the
       parent node also has an entry for the leaf node in its `unmerged_leaves`.
+
+    * Verify that the encryption key in the parent node does not appear in any
+      other node of the tree.
 
 * Identify a leaf whose LeafNode is
   identical to the one in the KeyPackage.  If no such field exists, return an
@@ -5216,6 +5298,23 @@ KeyPackage whose corresponding private key has been compromised.  This risk can
 be mitigated by having clients regularly generate new KeyPackages and upload
 them to the Delivery Service.  This way, the key material used to add a member
 to a new group is more likely to be fresh and less likely to be compromised.
+
+## Uniqueness of Ratchet Tree Key Pairs
+
+The encryption and signature keys stored in ratchet tree nodes MUST be distinct
+from one another.  If two members' leaf nodes have the same signature key, then
+the data origin authentication properties afforded by signatures within the
+group are degraded.  If two nodes have the same encryption key, it creates a
+"double join" scenario where a removed member may still be able to compute the
+group's secrets.
+
+Uniqueness of keys in leaf nodes is assured by explicit checks on leaf nodes
+being added to the tree by Add or Update proposals, or in the `path` field of a
+Commit.  Details can be found in {{leaf-node-validation}},
+{{proposal-list-validation}}, and {{processing-a-commit}}.  Uniqueness of
+encryption keys in parent nodes is assured by checking that the keys in an
+UpdatePath are not found elsewhere in the tree (see {{processing-a-commit}}.
+
 
 ## KeyPackage Reuse
 
