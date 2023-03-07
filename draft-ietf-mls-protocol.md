@@ -2268,7 +2268,9 @@ The client verifies the validity of a LeafNode using the following steps:
   * If the LeafNode appears in a KeyPackage, verify that `leaf_node_source` is
     set to `key_package`.
   * If the LeafNode appears in an Update proposal, verify that `leaf_node_source`
-    is set to `update`.
+    is set to `update` and that `encryption_key` represents a different public
+    key than the `encryption_key` in the leaf node being replaced by the Update
+    proposal.
   * If the LeafNode appears in the `leaf_node` value of the UpdatePath in
     a Commit, verify that `leaf_node_source` is set to `commit`.
 
@@ -3793,8 +3795,9 @@ empty leaf to the right, etc. If no empty leaf exists, the tree is extended to
 the right.
 
 * Identify the leaf L for the new member: if there are empty leaves in the tree,
-  L is the leftmost empty leaf.  Otherwise, the tree is extended to the right
-  by one leaf node and L is the new leaf.
+  L is the leftmost empty leaf. Otherwise, the tree is extended to the right as
+  described in {{adding-and-removing-leaves}} and L is assigned the leftmost new
+  blank leaf.
 
 * For each non-blank intermediate node along the path from the leaf L
   to the root, add L's leaf index to the `unmerged_leaves` list for the node.
@@ -4177,10 +4180,7 @@ pathRequiredTypes = [
 
 pathRequired = false
 
-for i, id in commit.proposals:
-    proposal = proposalCache[id]
-    assert(proposal != null)
-
+for proposal in commit.proposals:
     pathRequired = pathRequired ||
                    (proposal.msg_type in pathRequiredTypes)
 
@@ -4233,8 +4233,9 @@ message at the same time, by taking the following steps:
 
   * If this is an external commit, assign the sender the leftmost blank leaf
     node in the new ratchet tree.  If there are no blank leaf nodes in the new
-    ratchet tree, add a blank leaf to the right side of the new ratchet tree and
-    assign it to the sender.
+    ratchet tree, expand the tree to the right as defined in
+    {{adding-and-removing-leaves}} and assign the leftmost new blank leaf to the
+    sender.
 
   * Update the sender's direct path in the ratchet tree as described in
     {{synchronizing-views-of-the-tree}}.  Define
