@@ -4533,8 +4533,8 @@ On receiving a Welcome message, a client processes it using the following steps:
 encrypted_group_secrets = EncryptWithLabel(init_key, "Welcome",
                                            encrypted_group_info, group_secrets)
 
-group_secrets = DecryptWithLabel(kem_output, init_key_priv, "Welcome",
-                                 encrypted_group_info, ciphertext)
+group_secrets = DecryptWithLabel(init_key_priv, "Welcome",
+                                 encrypted_group_info, kem_output, ciphertext)
 ~~~
 
 * If a `PreSharedKeyID` is part of the GroupSecrets and the client is not in
