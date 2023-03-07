@@ -3272,7 +3272,7 @@ be used by an application to derive new secrets for use outside of MLS.
 ~~~ pseudocode
 MLS-Exporter(Label, Context, Length) =
        ExpandWithLabel(DeriveSecret(exporter_secret, Label),
-                         "exporter", Hash(Context), Length)
+                         "exported", Hash(Context), Length)
 ~~~
 
 Applications SHOULD provide a unique label to `MLS-Exporter` that
