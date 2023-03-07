@@ -5086,7 +5086,7 @@ messages.
 
 ## Confidentiality of Sender Data
 
-The MLSCiphertext framing encrypts "sender data" that identifies which group
+The PrivateMessage framing encrypts "sender data" that identifies which group
 member sent an encrypted message, as described in {{sender-data-encryption}}.
 As with the QUIC header protection scheme {{?RFC9001, Section 5.4}}, this scheme
 is a variant of the HN1 construction analyzed in {{NAN}}.  A sample of the
