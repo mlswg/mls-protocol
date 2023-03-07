@@ -835,8 +835,8 @@ entropy to the group.  This fresh entropy is provided only to members in the new
 epoch and not to members who have been removed. Commits thus maintain the property that
 the epoch secret is confidential to the members in the current epoch.
 
-For each Commit that adds one or more members to the group, there is a single corresponding
-Welcome message.  The Welcome message provides all the new members with the information
+For each Commit that adds one or more members to the group, there are one or more corresponding
+Welcome messages.  Each Welcome message provides new members with the information
 they need to initialize their views of the key schedule and ratchet tree, so
 that these views align with the views held by other members of the group
 in this epoch.
@@ -1507,7 +1507,7 @@ struct {
             opaque identity<V>;
 
         case x509:
-            Certificate chain<V>;
+            Certificate certificates<V>;
     };
 } Credential;
 ~~~
@@ -1515,12 +1515,12 @@ struct {
 A "basic" credential is a bare assertion of an identity, without any additional
 information.  The format of the encoded identity is defined by the application.
 
-For an X.509 credential, each entry in the chain represents a single DER-encoded
+For an X.509 credential, each entry in the `certificates` field represents a single DER-encoded
 X.509 certificate. The chain is ordered such that the first entry (chain[0]) is
-the end-entity certificate and each subsequent certificate in the chain MUST be
-the issuer of the previous certificate.  The public key encoded in the
+the end-entity certificate. The public key encoded in the
 `subjectPublicKeyInfo` of the end-entity certificate MUST be identical to the
-`signature_key` in the LeafNode containing this credential.
+`signature_key` in the LeafNode containing this credential. A chain MAY omit any
+non-leaf certificates that supported peers are known to already possess.
 
 ### Credential Validation
 
