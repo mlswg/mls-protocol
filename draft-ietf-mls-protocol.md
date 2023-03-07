@@ -4746,12 +4746,12 @@ trees outlined in {{array-based-trees}}.)
 
 If the tree has `2^d` leaves, then it has `2^(d+1) - 1` nodes.  The
 `ratchet_tree` vector logically has this number of entries, but the sender
-SHOULD NOT include blank nodes after the last non-blank node.  If a receiver
-encounters a vector whose length `L` is not of the form `2^(d+1) - 1`, then the
-receiver MUST extend it to the right with blank values until it has such a
-length, adding the minimum number of blank values possible.  (Obviously, this
-may be done "virtually", by synthesizing blank nodes when required, as opposed
-to actually changing the structure in memory.)
+MUST NOT include blank nodes after the last non-blank node.  The receiver MUST
+check that the last node in `ratchet_tree` is non-blank, and extend it to the
+right until it has a length of the form `2^(d+1) - 1`, adding the minimum number
+of blank values possible.  (Obviously, this may be done "virtually", by
+synthesizing blank nodes when required, as opposed to actually changing the
+structure in memory.)
 
 The leaves of the tree are stored in even-numbered entries in the array (the
 leaf with index `L` in array position `2*L`). The root node of the tree is at
