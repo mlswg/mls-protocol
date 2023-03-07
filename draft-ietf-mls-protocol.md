@@ -5279,8 +5279,8 @@ MLS is designed to protect the confidentiality and integrity of
 the group data even in the face of a compromised DS. However, a compromised
 DNS can still mount some attacks. While it cannot forge messages,
 it can selectively delay or remove them. This can in some cases be
-observed by detecting gaps in a the per-sender generation counter,
-though it may not always be possible to distingush attack from message
+observed by detecting gaps in the per-sender generation counter,
+though it may not always be possible to distinguish attack from message
 loss. In addition, the DS can permanently block messages to and from
 a group member. This will not always be detectable by other members.
 If an application uses the DS to resolve conflicts between
@@ -5290,25 +5290,24 @@ preventing a member from ever having its Commit applied.
 
 When put together, these abilities potentially allow a DS to collude
 with a compromised member to defeat PCS by suppressing the valid
-Update and Commit messages sent by the uncompromised endpoint for
-the same user. This may be detectable in some but not all cases.
+Update and Commit messages sent by the uncompromised endpoint for the
+same user. Aside from the generation, MLS leaves loss detection up the
+application.
 
 
 ## Authentication Service Compromise
 
 Authentication Service compromise is much more serious than compromise
-of the Delivery Service. A compromised AS can sign any signature key
-and identity pair of its choice, thus allowing impersonation of a
-given user. This ability is sufficient to allow the AS to join
-new groups as if it were that user. Depending on the application architecture,
-it may also be sufficient to allow the compromised AS to join the
-group as an existing user, for instance as if it were a new
-device associated with the same user. In addition, if the application
-accepts Commit messages as PublicMessages, the AS can simply
-assume an existing user's identity. [TODO: Is this correct]
-If the application uses a transparency mechanism such as CONIKS {{CONIKS}}
-or Key Transparency {{KT}}, then it may be possible for end users
-to detect this kind of misbehavior by the AS.
+of the Delivery Service. A compromised AS can assert a binding for a
+signature key and identity pair of its choice, thus allowing
+impersonation of a given user. This ability is sufficient to allow the
+AS to join new groups as if it were that user. Depending on the
+application architecture, it may also be sufficient to allow the
+compromised AS to join the group as an existing user, for instance as
+if it were a new device associated with the same user. If
+the application uses a transparency mechanism such as CONIKS
+{{CONIKS}} or Key Transparency {{KT}}, then it may be possible for end
+users to detect this kind of misbehavior by the AS.
 
 
 ## Group Fragmentation by Malicious Insiders
