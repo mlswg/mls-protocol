@@ -628,6 +628,12 @@ The PublicMessage and PrivateMessage formats are defined in {{message-framing}}.
 Security notions such as forward secrecy and post-compromise
 security are defined in {{security-considerations}}.
 
+As detailed in {{grease}}, "MLS the Generate Random Extensions And Sustain
+Extensibility" (GREASE) approach to maintaining extensibility, inserting random
+values into fields in which receivers are required to ignore unknown values.
+Specific "GREASE values" for this purpose are registered in the appropriate IANA
+registries.
+
 ## Presentation Language
 
 We use the TLS presentation language {{!RFC8446}} to describe the structure of
