@@ -1501,7 +1501,7 @@ struct {
             opaque identity<V>;
 
         case x509:
-            Certificate chain<V>;
+            Certificate certificates<V>;
     };
 } Credential;
 ~~~
@@ -1509,7 +1509,7 @@ struct {
 A "basic" credential is a bare assertion of an identity, without any additional
 information.  The format of the encoded identity is defined by the application.
 
-For an X.509 credential, each entry in the chain represents a single DER-encoded
+For an X.509 credential, each entry in the `certificates` field represents a single DER-encoded
 X.509 certificate. The chain is ordered such that the first entry (chain[0]) is
 the end-entity certificate. The public key encoded in the
 `subjectPublicKeyInfo` of the end-entity certificate MUST be identical to the
