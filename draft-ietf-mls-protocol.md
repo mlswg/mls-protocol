@@ -5277,7 +5277,7 @@ requests, especially if not authenticated.
 
 MLS is designed to protect the confidentiality and integrity of
 the group data even in the face of a compromised DS. However, a compromised
-DNS can still mount some attacks. While it cannot forge messages,
+DS can still mount some attacks. While it cannot forge messages,
 it can selectively delay or remove them. This can in some cases be
 observed by detecting gaps in the per-sender generation counter,
 though it may not always be possible to distinguish attack from message
