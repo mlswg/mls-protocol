@@ -113,6 +113,24 @@ informative:
 
   NAN: DOI.10.1007/978-3-030-26948-7_9
 
+  CONIKS:
+    target: https://www.usenix.org/system/files/conference/usenixsecurity15/sec15-paper-melara.pdf
+    title: "CONIKS: Bringing Key Transparency to End Users"
+    date: 2015
+    author:
+      - name: Marcela S. Melara
+      - name: Aaron Blankstein
+      - name: Joseph Bonneau
+      - name: Edward W. Felten
+      - name: Michael J. Freedman
+
+  KT:
+    target: https://github.com/google/keytransparency/blob/master/docs/design.md
+    title: Key Transparency Design Doc
+    date: 2020-06-26
+
+
+
 --- abstract
 
 Messaging applications are increasingly making use of end-to-end
@@ -5070,6 +5088,20 @@ though a complete security analysis is outside of the scope of this
 document.  The Security Considerations section of {{?I-D.ietf-mls-architecture}}
 provides some citations to detailed security analyses.
 
+## Transport Security
+
+Because MLS messages are protected at the message level, the
+confidentiality and integrity of the group state do not depend on
+those messages being protected in transit. However, an attacker who
+can observe those messages and transit will be able to learn about the
+group state, including potentially the group membership (see
+{{group-membership}} below). Such an attacker might also be able to
+mount denial-of-service attacks on the group or exclude new members by
+selectively removing messages in transit. In order to prevent this
+form of attack, it is RECOMMENDED that all MLS messages be carried
+over a secure transport such as TLS {{?RFC8446}} or QUIC {{?RFC9000}}.
+
+
 ## Confidentiality of the Group Secrets
 
 Group secrets are partly derived from the output of a ratchet tree. Ratchet
@@ -5165,13 +5197,14 @@ understanding how they might be exposed or protected in a given application.
 
 MLS provides no mechanism to protect the group ID and epoch of a message from
 the DS, so the group ID and the frequency of messages and epoch changes are not
-protected against inspection by the DS.
+protected against inspection by the DS. However, any modifications to these
+will cause decryption failure.
 
 ### Group Extensions
 
 A group's extensions are first set by the group's creator and then updated by
 GroupContextExtensions proposals.  A GroupContextExtension proposal sent as
-a PublicMessage leaks the groups' extensions.
+a PublicMessage leaks the group's extensions.
 
 A new member learns the group's extensions via a GroupInfo object.  When the new
 member joins via a Welcome message, the Welcome message's encryption protects
@@ -5259,15 +5292,27 @@ was compromised at some point in the past.
 ~~~
 {: title="Forward secrecy and post-compromise security" }
 
-Post-compromise security is provided between epochs by members regularly
-updating their leaf key in the ratchet tree. Updating their leaf key prevents
-group secrets from continuing to be encrypted to public keys whose private keys
-had previously been compromised.
+Post-compromise security is provided between epochs by members
+regularly updating their leaf key in the ratchet tree. Updating their
+leaf key prevents group secrets from continuing to be encrypted to
+public keys whose private keys had previously been compromised. Note
+that sending an Update proposal does not achieve PCS until another
+member includes it in a Commit. Members can achieve immediate PCS by
+sending their own Commit and populating the `path` field, as described
+in {{commit}}. To be clear, in all these cases, the PCS guarantees
+come into effect when the members of the group process the relevant
+Commit, not when the sender creates it.
 
 Forward secrecy between epochs is provided by deleting private keys from past
 versions of the ratchet tree, as this prevents old group secrets from being
 re-derived. Forward secrecy *within* an epoch is provided by deleting message
 encryption keys once they've been used to encrypt or decrypt a message.
+Note that group secrets and message encryption keys are shared by the
+group, and thus their is a risk to forward secrecy as long as any
+member has not deleted these keys. This is a particular risk if a member
+is offline for a long period of time. Applications SHOULD have mechanisms
+for evicting group members which are offline for too long (e.g., have
+not changed their key within some period).
 
 New groups are also at risk of using previously compromised keys (as with
 post-compromise security), if a member is added to a new group via an old
@@ -5289,6 +5334,46 @@ client to a new group, an attacker could prevent a client being added to new
 groups by exhausting all available KeyPackages. To prevent such a denial-of-service
 attack, the KeyPackage publication system SHOULD rate-limit KeyPackage
 requests, especially if not authenticated.
+
+## Delivery Service Compromise
+
+MLS is designed to protect the confidentiality and integrity of
+the group data even in the face of a compromised DS. However, a compromised
+DS can still mount some attacks. While it cannot forge messages,
+it can selectively delay or remove them. This can in some cases be
+observed by detecting gaps in the per-sender generation counter,
+though it may not always be possible to distinguish an attack from message
+loss. In addition, the DS can permanently block messages to and from
+a group member. This will not always be detectable by other members.
+If an application uses the DS to resolve conflicts between
+simultaneous Commits (see {{sequencing}}), it is also possible for the
+DS to influence which Commit is applied, even to the point of
+preventing a member from ever having its Commits applied.
+
+When put together, these abilities potentially allow a DS to collude
+with an attacker who has compromised a member's state to defeat PCS by
+suppressing the valid Update and Commit messages from the member that
+would lock out the attacker and update the member's leaf to a new,
+uncompromised state. Aside from the SenderData.generation value, MLS
+leaves loss detection up to the application.
+
+
+## Authentication Service Compromise
+
+Authentication Service compromise is much more serious than compromise
+of the Delivery Service. A compromised AS can assert a binding for a
+signature key and identity pair of its choice, thus allowing
+impersonation of a given user. This ability is sufficient to allow the
+AS to join new groups as if it were that user. Depending on the
+application architecture, it may also be sufficient to allow the
+compromised AS to join the group as an existing user, for instance as
+if it were a new device associated with the same user. If
+the application uses a transparency mechanism such as CONIKS
+{{CONIKS}} or Key Transparency {{KT}}, then it may be possible for end
+users to detect this kind of misbehavior by the AS.  It is also possible to
+construct schemes in which the various clients owned by a user vouch
+for each other, e.g., by signing each others' keys.
+
 
 ## Group Fragmentation by Malicious Insiders
 
@@ -5327,7 +5412,9 @@ acknowledge successful processing of a Commit before the group regards the
 Commit as accepted.  The minimum set of acknowledgements necessary to verify
 that a Commit is well-formed comprises an acknowledgement from one member per
 node in the UpdatePath, that is, one member from each subtree rooted in the
-copath node corresponding to the node in the UpdatePath.
+copath node corresponding to the node in the UpdatePath. MLS does not
+provide a built-in mechanism for such acknowledgements, but they can
+be added at the application layer.
 
 # IANA Considerations
 
