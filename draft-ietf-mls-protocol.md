@@ -784,7 +784,7 @@ KeyPackage and Welcome messages are used to initiate a group or introduce new
 members, so they are exchanged between group members and clients not yet in the
 group. A client publishes a KeyPackage via the DS, thus enabling other
 clients to add it to groups. When a group member wants to add a new member
-to a group it uses the new member's KeyPackage to add the new member to 
+to a group it uses the new member's KeyPackage to add the new member to
 the group and construct a Welcome message with which the new member can
 initialize its local state.
 
