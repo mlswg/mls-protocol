@@ -5233,13 +5233,16 @@ was compromised at some point in the past.
 ~~~
 {: title="Forward secrecy and post-compromise security" }
 
-Post-compromise security is provided between epochs by members regularly
-updating their leaf key in the ratchet tree. Updating their leaf key prevents
-group secrets from continuing to be encrypted to public keys whose private keys
-had previously been compromised. Note that sending an Update proposal does not achieve
-PCS until another member includes it in a Commit. Members can achieve immediate
-PCS by sending their own Commit and populating the `path` field, as
-described in {{commit}}.
+Post-compromise security is provided between epochs by members
+regularly updating their leaf key in the ratchet tree. Updating their
+leaf key prevents group secrets from continuing to be encrypted to
+public keys whose private keys had previously been compromised. Note
+that sending an Update proposal does not achieve PCS until another
+member includes it in a Commit. Members can achieve immediate PCS by
+sending their own Commit and populating the `path` field, as described
+in {{commit}}. To be clear, in all these cases, the PCS guarantees
+come into effect when the members of the group process the relevant
+Commit, not when the sender creates it.
 
 Forward secrecy between epochs is provided by deleting private keys from past
 versions of the ratchet tree, as this prevents old group secrets from being
@@ -5289,10 +5292,11 @@ DS to influence which Commit is applied, even to the point of
 preventing a member from ever having its Commits applied.
 
 When put together, these abilities potentially allow a DS to collude
-with a compromised member to defeat PCS by suppressing the valid
-Update and Commit messages sent by the uncompromised endpoint for the
-same user. Aside from the generation, MLS leaves loss detection up to the
-application.
+with an attacker who has compromised a member's state to defeat PCS by
+suppressing the valid Update and Commit messages from the member that
+would lock out the attacker and update the member's leaf to a new,
+uncompromised state. Aside from the SenderData.generation value, MLS
+leaves loss detection up to the application.
 
 
 ## Authentication Service Compromise
@@ -5307,7 +5311,7 @@ compromised AS to join the group as an existing user, for instance as
 if it were a new device associated with the same user. If
 the application uses a transparency mechanism such as CONIKS
 {{CONIKS}} or Key Transparency {{KT}}, then it may be possible for end
-users to detect this kind of misbehavior by the AS.  It is also possible to 
+users to detect this kind of misbehavior by the AS.  It is also possible to
 construct schemes in which the various clients owned by a user vouch
 for each other, e.g., by signing each others' keys.
 
