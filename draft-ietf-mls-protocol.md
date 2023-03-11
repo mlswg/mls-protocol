@@ -5236,8 +5236,8 @@ was compromised at some point in the past.
 Post-compromise security is provided between epochs by members regularly
 updating their leaf key in the ratchet tree. Updating their leaf key prevents
 group secrets from continuing to be encrypted to public keys whose private keys
-had previously been compromised. Note that sending an Update does not achieve
-PCS until another member sends a Commit. Members can achieve immediate
+had previously been compromised. Note that sending an Update proposal does not achieve
+PCS until another member includes it in a Commit. Members can achieve immediate
 PCS by sending their own Commit and populating the `path` field, as
 described in {{commit}}.
 
@@ -5280,13 +5280,13 @@ the group data even in the face of a compromised DS. However, a compromised
 DS can still mount some attacks. While it cannot forge messages,
 it can selectively delay or remove them. This can in some cases be
 observed by detecting gaps in the per-sender generation counter,
-though it may not always be possible to distinguish attack from message
+though it may not always be possible to distinguish an attack from message
 loss. In addition, the DS can permanently block messages to and from
 a group member. This will not always be detectable by other members.
 If an application uses the DS to resolve conflicts between
 simultaneous Commits (see {{sequencing}}), it is also possible for the
 DS to influence which Commit is applied, even to the point of
-preventing a member from ever having its Commit applied.
+preventing a member from ever having its Commits applied.
 
 When put together, these abilities potentially allow a DS to collude
 with a compromised member to defeat PCS by suppressing the valid
@@ -5307,7 +5307,9 @@ compromised AS to join the group as an existing user, for instance as
 if it were a new device associated with the same user. If
 the application uses a transparency mechanism such as CONIKS
 {{CONIKS}} or Key Transparency {{KT}}, then it may be possible for end
-users to detect this kind of misbehavior by the AS.
+users to detect this kind of misbehavior by the AS.  It is also possible to 
+construct schemes in which the various clients owned by a user vouch
+for each other, e.g., by signing each others' keys.
 
 
 ## Group Fragmentation by Malicious Insiders
