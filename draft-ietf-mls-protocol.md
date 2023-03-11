@@ -5291,7 +5291,7 @@ preventing a member from ever having its Commits applied.
 When put together, these abilities potentially allow a DS to collude
 with a compromised member to defeat PCS by suppressing the valid
 Update and Commit messages sent by the uncompromised endpoint for the
-same user. Aside from the generation, MLS leaves loss detection up the
+same user. Aside from the generation, MLS leaves loss detection up to the
 application.
 
 
