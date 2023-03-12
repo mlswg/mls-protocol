@@ -628,8 +628,8 @@ The PublicMessage and PrivateMessage formats are defined in {{message-framing}}.
 Security notions such as forward secrecy and post-compromise
 security are defined in {{security-considerations}}.
 
-As detailed in {{grease}}, the "Generate Random Extensions And Sustain
-Extensibility" (GREASE) approach to maintaining extensibility, senders insert random
+As detailed in {{grease}}, MLS uses the "Generate Random Extensions And Sustain
+Extensibility" (GREASE) approach to maintaining extensibility, where senders insert random
 values into fields in which receivers are required to ignore unknown values.
 Specific "GREASE values" for this purpose are registered in the appropriate IANA
 registries.
