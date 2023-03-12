@@ -189,31 +189,6 @@ asynchronous key-encapsulation mechanism for tree structures.
 This mechanism allows the members of the group to derive and update
 shared keys with costs that scale as the log of the group size.
 
-## Operating Context
-
-MLS is designed to operate in the context described in
-{{?I-D.ietf-mls-architecture}}.  In particular, we assume that the following
-services are provided:
-
-* An Authentication Service (AS) that enables group members to authenticate the
-  credentials presented by other group members.
-
-* A Delivery Service (DS) that routes MLS messages among the participants in the
-  protocol.  The following types of delivery are typically required (where
-  KeyPackage, Proposal, Commit, and Welcome are defined below):
-
-  * Pre-publication of KeyPackage objects for clients
-  * Broadcast delivery of Proposal and Commit messages to members of a group
-  * Unicast delivery of Welcome messages to new members of a group
-  * Sequencing of Commit messages (see {{sequencing}})
-
-The DS and AS may also apply additional policies to MLS operations to obtain
-additional security properties.  For example, MLS enables any participant to add
-or remove members of a group; a DS could enforce a policy that only certain
-members are allowed to perform these operations.  MLS authenticates all members
-of a group; a DS could help ensure that only clients with certain types of
-credential are admitted. MLS provides no inherent protection against denial of
-service; A DS could also enforce rate limits in order to mitigate these risks.
 
 ##  Change Log
 
@@ -752,10 +727,31 @@ such an overflow condition occurs.
 
 # Protocol Overview
 
+MLS is designed to operate in the context described in
+{{?I-D.ietf-mls-architecture}}. In particular, we assume that the following
+services are provided:
+
+* An Authentication Service (AS) that enables group members to authenticate the
+  credentials presented by other group members.
+
+* A Delivery Service (DS) that routes MLS messages among the participants in the
+  protocol.
+
+MLS assumes a trusted AS but a largely untrusted DS. {{authentication-service-compromise}}
+describes the impact of compromise or
+misbehavior of an AS. MLS is designed to protect the confidentiality and integrity of
+the group data even in the face of a compromised DS;
+in general, the DS is just expected to reliably deliver messages.
+{{delivery-service-compromise}} describes the impact of compromise or
+misbehavior of a DS.
+
 The core functionality of MLS is continuous group authenticated key exchange
 (AKE).  As with other authenticated key exchange protocols (such as TLS), the
 participants in the protocol agree on a common secret value, and each
-participant can verify the identity of the other participants.  MLS provides
+participant can verify the identity of the other participants. That secret
+can then be used to protect messages sent from one participant in the
+group to the other participants using the MLS framing layer
+or can be exported for use with other protocols. MLS provides
 group AKE in the sense that there can be more than two participants in the
 protocol, and continuous group AKE in the sense that the set of participants in
 the protocol can change over time.
@@ -772,7 +768,7 @@ message encryption, group membership authentication, and so on.
 
 The creator of an MLS group creates the group's first epoch unilaterally, with
 no protocol interactions.  Thereafter, the members of the group advance their
-shared cryptographic state from one epoch to another by exchanging MLS messages:
+shared cryptographic state from one epoch to another by exchanging MLS messages.
 
 * A _KeyPackage_ object describes a client's capabilities and provides keys that
   can be used to add the client to a group.
@@ -786,7 +782,11 @@ shared cryptographic state from one epoch to another by exchanging MLS messages:
 
 KeyPackage and Welcome messages are used to initiate a group or introduce new
 members, so they are exchanged between group members and clients not yet in the
-group.
+group. A client publishes a KeyPackage via the DS, thus enabling other
+clients to add it to groups. When a group member wants to add a new member
+to a group it uses the new member's KeyPackage to add the new member to
+the group and construct a Welcome message with which the new member can
+initialize its local state.
 
 Proposal and Commit messages are sent from one member of a group to the others.
 MLS provides a common framing layer for sending messages within a group:
@@ -5374,6 +5374,17 @@ users to detect this kind of misbehavior by the AS.  It is also possible to
 construct schemes in which the various clients owned by a user vouch
 for each other, e.g., by signing each others' keys.
 
+
+## Additional Policy Enforcement
+
+The DS and AS may also apply additional policies to MLS operations to obtain
+additional security properties. For example, MLS enables any participant to add
+or remove members of a group; a DS could enforce a policy that only certain
+members are allowed to perform these operations. MLS authenticates all members
+of a group; a DS could help ensure that only clients with certain types of
+credential are admitted. MLS provides no inherent protection against denial of
+service; A DS could also enforce rate limits in order to mitigate
+these risks.
 
 ## Group Fragmentation by Malicious Insiders
 
