@@ -628,8 +628,8 @@ The PublicMessage and PrivateMessage formats are defined in {{message-framing}}.
 Security notions such as forward secrecy and post-compromise
 security are defined in {{security-considerations}}.
 
-As detailed in {{grease}}, "MLS the Generate Random Extensions And Sustain
-Extensibility" (GREASE) approach to maintaining extensibility, inserting random
+As detailed in {{grease}}, the "Generate Random Extensions And Sustain
+Extensibility" (GREASE) approach to maintaining extensibility, senders insert random
 values into fields in which receivers are required to ignore unknown values.
 Specific "GREASE values" for this purpose are registered in the appropriate IANA
 registries.
@@ -4943,7 +4943,7 @@ selection of values chosen from these GREASE values:
 
 For the KeyPackage and GroupInfo extensions, the `extension_data` for GREASE
 extensions MAY have any contents selected by the sender, since they will be
-ignored by a correctly-implemented receiver.  For example, a senders might
+ignored by a correctly-implemented receiver.  For example, a sender might
 populate these extensions with a randomly-sized amount of random data.
 
 A set of values reserved for GREASE have been registered in the various
