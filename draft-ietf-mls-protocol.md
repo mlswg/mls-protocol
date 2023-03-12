@@ -737,13 +737,13 @@ services are provided:
 * A Delivery Service (DS) that routes MLS messages among the participants in the
   protocol.
 
-MLS assumes a trusted AS but a largely untrusted DS. Section [TODO:
-awaiting merge of PR #873] describes the impact of compromise or
+MLS assumes a trusted AS but a largely untrusted DS. {{authentication-service-compromise}}
+describes the impact of compromise or
 misbehavior of an AS. MLS is designed to protect the confidentiality and integrity of
 the group data even in the face of a compromised DS;
 in general, the DS is just expected to reliably deliver messages.
-Section [TODO: awaiting merge of PR #873] describes the impact of compromise or
-misbehavior of an DS.
+{{delivery-service-compromise}} describes the impact of compromise or
+misbehavior of a DS.
 
 The core functionality of MLS is continuous group authenticated key exchange
 (AKE).  As with other authenticated key exchange protocols (such as TLS), the
@@ -5374,6 +5374,17 @@ users to detect this kind of misbehavior by the AS.  It is also possible to
 construct schemes in which the various clients owned by a user vouch
 for each other, e.g., by signing each others' keys.
 
+
+## Additional Policy Enforcement
+
+The DS and AS may also apply additional policies to MLS operations to obtain
+additional security properties. For example, MLS enables any participant to add
+or remove members of a group; a DS could enforce a policy that only certain
+members are allowed to perform these operations. MLS authenticates all members
+of a group; a DS could help ensure that only clients with certain types of
+credential are admitted. MLS provides no inherent protection against denial of
+service; A DS could also enforce rate limits in order to mitigate
+these risks.
 
 ## Group Fragmentation by Malicious Insiders
 
