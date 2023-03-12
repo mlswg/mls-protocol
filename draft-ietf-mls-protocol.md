@@ -113,6 +113,24 @@ informative:
 
   NAN: DOI.10.1007/978-3-030-26948-7_9
 
+  CONIKS:
+    target: https://www.usenix.org/system/files/conference/usenixsecurity15/sec15-paper-melara.pdf
+    title: "CONIKS: Bringing Key Transparency to End Users"
+    date: 2015
+    author:
+      - name: Marcela S. Melara
+      - name: Aaron Blankstein
+      - name: Joseph Bonneau
+      - name: Edward W. Felten
+      - name: Michael J. Freedman
+
+  KT:
+    target: https://github.com/google/keytransparency/blob/master/docs/design.md
+    title: Key Transparency Design Doc
+    date: 2020-06-26
+
+
+
 --- abstract
 
 Messaging applications are increasingly making use of end-to-end
@@ -170,34 +188,6 @@ ratcheting trees" {{ART}}, the protocol presented here uses an
 asynchronous key-encapsulation mechanism for tree structures.
 This mechanism allows the members of the group to derive and update
 shared keys with costs that scale as the log of the group size.
-
-## Operating Context
-
-MLS is designed to operate in the context described in
-{{?I-D.ietf-mls-architecture}}.  In particular, we assume that the following
-services are provided:
-
-* An Authentication Service (AS) that enables group members to authenticate the
-  credentials presented by other group members.
-
-* A Delivery Service (DS) that routes MLS messages among the participants in the
-  protocol.  The following types of delivery are typically required (where
-  KeyPackage, Proposal, Commit, and Welcome are defined below):
-
-  * Pre-publication of KeyPackage objects for clients
-  * Delivery of Proposal and Commit messages to members of a group
-  * Delivery of Welcome messages to new members of a group
-  * Sequencing of Commit messages (see {{sequencing}})
-
-The DS and AS may also apply additional policies to MLS operations to obtain
-stronger security properties, especially in cases where MLS handshake messages
-are transmitted unencrypted (as PublicMessage objects).  For example, MLS
-enables any participant to add or remove members of a group; a DS could enforce
-a policy that only certain members are allowed to perform these operations.  MLS
-authenticates all members of a group; a DS could help ensure that only clients
-with certain types of credential are admitted. MLS provides no inherent
-protection against denial of service; a DS could also enforce rate limits in
-order to mitigate these risks.
 
 ##  Change Log
 
@@ -630,6 +620,12 @@ The PublicMessage and PrivateMessage formats are defined in {{message-framing}}.
 Security notions such as forward secrecy and post-compromise
 security are defined in {{security-considerations}}.
 
+As detailed in {{grease}}, MLS uses the "Generate Random Extensions And Sustain
+Extensibility" (GREASE) approach to maintaining extensibility, where senders insert random
+values into fields in which receivers are required to ignore unknown values.
+Specific "GREASE values" for this purpose are registered in the appropriate IANA
+registries.
+
 ## Presentation Language
 
 We use the TLS presentation language {{!RFC8446}} to describe the structure of
@@ -736,10 +732,31 @@ such an overflow condition occurs.
 
 # Protocol Overview
 
+MLS is designed to operate in the context described in
+{{?I-D.ietf-mls-architecture}}. In particular, we assume that the following
+services are provided:
+
+* An Authentication Service (AS) that enables group members to authenticate the
+  credentials presented by other group members.
+
+* A Delivery Service (DS) that routes MLS messages among the participants in the
+  protocol.
+
+MLS assumes a trusted AS but a largely untrusted DS. {{authentication-service-compromise}}
+describes the impact of compromise or
+misbehavior of an AS. MLS is designed to protect the confidentiality and integrity of
+the group data even in the face of a compromised DS;
+in general, the DS is just expected to reliably deliver messages.
+{{delivery-service-compromise}} describes the impact of compromise or
+misbehavior of a DS.
+
 The core functionality of MLS is continuous group authenticated key exchange
 (AKE).  As with other authenticated key exchange protocols (such as TLS), the
 participants in the protocol agree on a common secret value, and each
-participant can verify the identity of the other participants.  MLS provides
+participant can verify the identity of the other participants. That secret
+can then be used to protect messages sent from one participant in the
+group to the other participants using the MLS framing layer
+or can be exported for use with other protocols. MLS provides
 group AKE in the sense that there can be more than two participants in the
 protocol, and continuous group AKE in the sense that the set of participants in
 the protocol can change over time.
@@ -756,7 +773,7 @@ message encryption, group membership authentication, and so on.
 
 The creator of an MLS group creates the group's first epoch unilaterally, with
 no protocol interactions.  Thereafter, the members of the group advance their
-shared cryptographic state from one epoch to another by exchanging MLS messages:
+shared cryptographic state from one epoch to another by exchanging MLS messages.
 
 * A _KeyPackage_ object describes a client's capabilities and provides keys that
   can be used to add the client to a group.
@@ -770,7 +787,11 @@ shared cryptographic state from one epoch to another by exchanging MLS messages:
 
 KeyPackage and Welcome messages are used to initiate a group or introduce new
 members, so they are exchanged between group members and clients not yet in the
-group.
+group. A client publishes a KeyPackage via the DS, thus enabling other
+clients to add it to groups. When a group member wants to add a new member
+to a group it uses the new member's KeyPackage to add the new member to
+the group and construct a Welcome message with which the new member can
+initialize its local state.
 
 Proposal and Commit messages are sent from one member of a group to the others.
 MLS provides a common framing layer for sending messages within a group:
@@ -837,8 +858,8 @@ entropy to the group.  This fresh entropy is provided only to members in the new
 epoch and not to members who have been removed. Commits thus maintain the property that
 the epoch secret is confidential to the members in the current epoch.
 
-For each Commit that adds one or more members to the group, there is a single corresponding
-Welcome message.  The Welcome message provides all the new members with the information
+For each Commit that adds one or more members to the group, there are one or more corresponding
+Welcome messages.  Each Welcome message provides new members with the information
 they need to initialize their views of the key schedule and ratchet tree, so
 that these views align with the views held by other members of the group
 in this epoch.
@@ -1229,7 +1250,9 @@ below that node.  The rules for computing these hashes are described
 in {{tree-hashes}}.
 
 The _resolution_ of a node is an ordered list of non-blank nodes
-that collectively cover all non-blank descendants of the node.  The resolution
+that collectively cover all non-blank descendants of the node.
+The resolution of the root contains the set of keys which are collectively necessary to
+encrypt to every node in the group. The resolution
 of a node is effectively a depth-first, left-first enumeration of the nearest
 non-blank nodes below the node:
 
@@ -1371,8 +1394,12 @@ pk(A)   pk(B)   pk(C)   pk(D)
 A   ?   ?   ?     ?   B   ?   ?     ?   ?   C   ?     ?   ?   ?   D
 ~~~
 
-Note how the tree invariant applies: Each member knows only their own leaf, and
-the private key AB is known only to A and B.
+Note how the tree invariant applies: Each member knows only their own leaf,
+the private key AB is known only to A and B, and the private key ABCD
+is known to all four members. This also illustrates another important
+point: it is possible for there to be "holes" on the path from a member's leaf
+to the root in which the member knows the key both above and below
+a given node, but not for that node, as in the case with D.
 
 # Cryptographic Objects
 
@@ -1574,7 +1601,7 @@ struct {
             opaque identity<V>;
 
         case x509:
-            Certificate chain<V>;
+            Certificate certificates<V>;
     };
 } Credential;
 ~~~
@@ -1582,12 +1609,12 @@ struct {
 A "basic" credential is a bare assertion of an identity, without any additional
 information.  The format of the encoded identity is defined by the application.
 
-For an X.509 credential, each entry in the chain represents a single DER-encoded
+For an X.509 credential, each entry in the `certificates` field represents a single DER-encoded
 X.509 certificate. The chain is ordered such that the first entry (chain[0]) is
-the end-entity certificate and each subsequent certificate in the chain MUST be
-the issuer of the previous certificate.  The public key encoded in the
+the end-entity certificate. The public key encoded in the
 `subjectPublicKeyInfo` of the end-entity certificate MUST be identical to the
-`signature_key` in the LeafNode containing this credential.
+`signature_key` in the LeafNode containing this credential. A chain MAY omit any
+non-leaf certificates that supported peers are known to already possess.
 
 ### Credential Validation
 
@@ -1973,11 +2000,11 @@ struct {
 
 `encrypted_sender_data` and `ciphertext` are encrypted using the AEAD function
 specified by the ciphersuite in use, using as input the structures SenderData
-and PrivateContentTBE.
+and PrivateMessageContent.
 
 ### Content Encryption
 
-Content to be encrypted is encoded in a PrivateContentTBE structure.
+Content to be encrypted is encoded in a PrivateMessageContent structure.
 
 ~~~ tls
 struct {
@@ -1994,7 +2021,7 @@ struct {
 
     FramedContentAuthData auth;
     opaque padding[length_of_padding];
-} PrivateContentTBE;
+} PrivateMessageContent;
 ~~~
 
 The `padding` field is set by the sender, by first encoding the content (via the
@@ -2055,7 +2082,7 @@ struct {
 } PrivateContentAAD;
 ~~~
 
-When decoding a PrivateContentTBE, the application MUST check that the
+When decoding a PrivateMessageContent, the application MUST check that the
 FramedContentAuthData is valid.
 
 It is up to the application to decide what `authenticated_data` to provide and
@@ -2253,7 +2280,10 @@ not be listed, while any credential types the application wishes to use MUST
 be listed. Extensions that appear in the `extensions` field of a LeafNode
 MUST be included in the `extensions` field of the `capabilities` field, and the
 credential type used in the LeafNode MUST be included in the `credentials` field
-of the `capabilities` field.
+of the `capabilities` field.  As discussed in {{extensibility}}, unknown values
+in `capabilities` MUST be ignored, and the creator of a `capabilities` field
+SHOULD contain some random GREASE values to help ensure that other clients correctly
+ignore unknown values.
 
 The `leaf_node_source` field indicates how this LeafNode came to be added to the
 tree.  This signal tells other members of the group whether the leaf node is
@@ -2335,7 +2365,9 @@ The client verifies the validity of a LeafNode using the following steps:
   * If the LeafNode appears in a KeyPackage, verify that `leaf_node_source` is
     set to `key_package`.
   * If the LeafNode appears in an Update proposal, verify that `leaf_node_source`
-    is set to `update`.
+    is set to `update` and that `encryption_key` represents a different public
+    key than the `encryption_key` in the leaf node being replaced by the Update
+    proposal.
   * If the LeafNode appears in the `leaf_node` value of the UpdatePath in
     a Commit, verify that `leaf_node_source` is set to `commit`.
 
@@ -3116,21 +3148,73 @@ struct {
 ~~~
 
 ~~~ pseudocode
-confirmed_transcript_hash_[epoch] = ""; /* zero-length octet string */
+confirmed_transcript_hash_[0] = ""; /* zero-length octet string */
+interim_transcript_hash_[0] = ""; /* zero-length octet string */
+
+confirmed_transcript_hash_[epoch] =
+    Hash(interim_transcript_hash_[epoch - 1] ||
+        ConfirmedTranscriptHashInput_[epoch]);
 
 interim_transcript_hash_[epoch] =
     Hash(confirmed_transcript_hash_[epoch] ||
         InterimTranscriptHashInput_[epoch]);
-
-confirmed_transcript_hash_[epoch+1] =
-    Hash(interim_transcript_hash_[epoch] ||
-        ConfirmedTranscriptHashInput_[epoch+1]);
 ~~~
 
-In this notation, `InterimTranscriptHashInput_[epoch]` and
-`ConfirmedTranscriptHashInput_[epoch+1]` are based on the Commit that initiated
-the epoch with epoch number `epoch`.  (Note that the `epoch` field in this
+In this notation, `ConfirmedTranscriptHashInput_[epoch]` and
+`InterimTranscriptHashInput_[epoch]` are based on the Commit that initiated the
+epoch with epoch number `epoch.  (Note that the `epoch` field in this
 Commit will be set to `epoch - 1`, since it is sent within the previous epoch.)
+
+The transcript hash `ConfirmedTranscriptHashInput_[epoch]` is used as the
+`confirmed_transcript_hash` input to the `confirmation_tag` field for this
+Commit. Each Commit thus confirms the whole transcript of Commits up to that
+point, except for the latest Commit's confirmation tag.
+
+~~~ aasvg
+                                                             ...
+
+                                                              |
+                                                              |
+                                                              V
+                                                     +-----------------+
+                                                     |  interim_[N-1]  |
+                                                     +--------+--------+
+                                                              |
+     .--------------.         +------------------+            |
+    |  Ratchet Tree  |        | wire_format      |            |
+    |  Key Schedule  |<-------+ content          |            |
+     '-------+------'         |   epoch = N-1    +------------+
+             |                |   commit         |            |
+             V                | signature        |            V
+ +------------------------+   +------------------+   +-----------------+
+ |  confirmation_key_[N]  +-->| confirmation_tag |<--+  confirmed_[N]  |
+ +------------------------+   +--------+---------+   +--------+--------+
+                                       |                      |
+                                       |                      V
+                                       |             +-----------------+
+                                       +------------>|   interim_[N]   |
+                                                     +--------+--------+
+                                                              |
+     .--------------.         +------------------+            |
+    |  Ratchet Tree  |        | wire_format      |            |
+    |  Key Schedule  |<-------+ content          |            |
+     '-------+------'         |   epoch = N      +------------+
+             |                |   commit         |            |
+             V                | signature        |            V
+ +------------------------+   +------------------+   +-----------------+
+ | confirmation_key_[N+1] +-->| confirmation_tag |<--+ confirmed_[N+1] |
+ +------------------------+   +--------+---------+   +--------+--------+
+                                       |                      |
+                                       |                      V
+                                       |             +-----------------+
+                                       +------------>|  interim_[N+1]  |
+                                                     +--------+--------+
+                                                              |
+                                                              V
+
+                                                             ...
+~~~
+{: title="Evolution of the transcript hashes through two epoch changes"}
 
 ## External Initialization
 
@@ -3290,7 +3374,7 @@ be used by an application to derive new secrets for use outside of MLS.
 ~~~ pseudocode
 MLS-Exporter(Label, Context, Length) =
        ExpandWithLabel(DeriveSecret(exporter_secret, Label),
-                         "exporter", Hash(Context), Length)
+                         "exported", Hash(Context), Length)
 ~~~
 
 Applications SHOULD provide a unique label to `MLS-Exporter` that
@@ -3572,8 +3656,12 @@ ciphersuite per KeyPackage.
 The field `leaf_node.leaf_node_source` of the LeafNode in a KeyPackage MUST be
 set to `key_package`.
 
-Extension included in the `extensions` or `leaf_node.extensions` fields MUST be
-included in the `leaf_node.capabilities` field.
+Extensions included in the `extensions` or `leaf_node.extensions` fields MUST
+be included in the `leaf_node.capabilities` field.  As discussed in
+{{extensibility}}, unknown extensions in `KeyPackage.extensions` MUST be
+ignored, and the creator of a `KeyPackage` object SHOULD include some random GREASE
+extensions to help ensure that other clients correctly ignore unknown
+extensions.
 
 ## KeyPackage Validation
 
@@ -3811,8 +3899,9 @@ empty leaf to the right, etc. If no empty leaf exists, the tree is extended to
 the right.
 
 * Identify the leaf L for the new member: if there are empty leaves in the tree,
-  L is the leftmost empty leaf.  Otherwise, the tree is extended to the right
-  by one leaf node and L is the new leaf.
+  L is the leftmost empty leaf. Otherwise, the tree is extended to the right as
+  described in {{adding-and-removing-leaves}} and L is assigned the leftmost new
+  blank leaf.
 
 * For each non-blank intermediate node along the path from the leaf L
   to the root, add L's leaf index to the `unmerged_leaves` list for the node.
@@ -4195,10 +4284,7 @@ pathRequiredTypes = [
 
 pathRequired = false
 
-for i, id in commit.proposals:
-    proposal = proposalCache[id]
-    assert(proposal != null)
-
+for proposal in commit.proposals:
     pathRequired = pathRequired ||
                    (proposal.msg_type in pathRequiredTypes)
 
@@ -4251,8 +4337,9 @@ message at the same time, by taking the following steps:
 
   * If this is an external commit, assign the sender the leftmost blank leaf
     node in the new ratchet tree.  If there are no blank leaf nodes in the new
-    ratchet tree, add a blank leaf to the right side of the new ratchet tree and
-    assign it to the sender.
+    ratchet tree, expand the tree to the right as defined in
+    {{adding-and-removing-leaves}} and assign the leftmost new blank leaf to the
+    sender.
 
   * Update the sender's direct path in the ratchet tree as described in
     {{synchronizing-views-of-the-tree}}.  Define
@@ -4459,6 +4546,12 @@ confirmation tag computed in the creation of the group (see {{group-creation}}).
 (In either case, the creator of a GroupInfo may recompute the confirmation tag
 as `MAC(confirmation_key, confirmed_transcript_hash)`.)
 
+As discussed in {{extensibility}}, unknown extensions in `GroupInfo.extensions`
+MUST be ignored, and the creator of a `GroupInfo` object SHOULD include some
+random GREASE extensions to help ensure that other clients correctly ignore unknown
+extensions.  Extensions in `GroupInfo.group_context.extensions`, however, MUST
+be supported by the new joiner.
+
 New members MUST verify that `group_id` is unique among the groups they're
 currently participating in.
 
@@ -4554,8 +4647,8 @@ On receiving a Welcome message, a client processes it using the following steps:
 encrypted_group_secrets = EncryptWithLabel(init_key, "Welcome",
                                            encrypted_group_info, group_secrets)
 
-group_secrets = DecryptWithLabel(kem_output, init_key_priv, "Welcome",
-                                 encrypted_group_info, ciphertext)
+group_secrets = DecryptWithLabel(init_key_priv, "Welcome",
+                                 encrypted_group_info, kem_output, ciphertext)
 ~~~
 
 * If a `PreSharedKeyID` is part of the GroupSecrets and the client is not in
@@ -4569,8 +4662,8 @@ group_secrets = DecryptWithLabel(kem_output, init_key_priv, "Welcome",
   `encrypted_group_info` field.
 
 ~~~ pseudocode
-welcome_nonce = KDF.Expand(welcome_secret, "nonce", AEAD.Nn)
-welcome_key = KDF.Expand(welcome_secret, "key", AEAD.Nk)
+welcome_nonce = ExpandWithLabel(welcome_secret, "nonce", "", AEAD.Nn)
+welcome_key = ExpandWithLabel(welcome_secret, "key", "", AEAD.Nk)
 ~~~
 
 * Verify the signature on the GroupInfo object. The signature input comprises
@@ -4770,12 +4863,12 @@ trees outlined in {{array-based-trees}}.)
 
 If the tree has `2^d` leaves, then it has `2^(d+1) - 1` nodes.  The
 `ratchet_tree` vector logically has this number of entries, but the sender
-SHOULD NOT include blank nodes after the last non-blank node.  If a receiver
-encounters a vector whose length `L` is not of the form `2^(d+1) - 1`, then the
-receiver MUST extend it to the right with blank values until it has such a
-length, adding the minimum number of blank values possible.  (Obviously, this
-may be done "virtually", by synthesizing blank nodes when required, as opposed
-to actually changing the structure in memory.)
+MUST NOT include blank nodes after the last non-blank node.  The receiver MUST
+check that the last node in `ratchet_tree` is non-blank, and extend it to the
+right until it has a length of the form `2^(d+1) - 1`, adding the minimum number
+of blank values possible.  (Obviously, this may be done "virtually", by
+synthesizing blank nodes when required, as opposed to actually changing the
+structure in memory.)
 
 The leaves of the tree are stored in even-numbered entries in the array (the
 leaf with index `L` in array position `2*L`). The root node of the tree is at
@@ -4954,27 +5047,77 @@ handle extensible fields:
   it.  Otherwise, another client might fail to interoperate by selecting one of
   those parameters.
 
-* A client initiating a group MUST ignore all unrecognized ciphersuites,
-  extensions, and other parameters.  Otherwise, it may fail to interoperate with
-  newer clients.
+* A client processing a KeyPackage object MUST ignore all unrecognized values
+  in the `capabilities` field of the `LeafNode`, and all unknown extensions in
+  the `extensions` and `leaf_node.extensions` fields.  Otherwise, it could fail
+  to interoperate with newer clients.
 
-* Any field containing a list of extensions MUST NOT have more than one extension of any given type.
+* A client processing a GroupInfo object MUST ignore all unrecognized
+  extensions in the `extensions` field.
+
+* Any field containing a list of extensions MUST NOT have more than one
+  extension of any given type.
 
 * A client adding a new member to a group MUST verify that the LeafNode for the
   new member is compatible with the group's extensions.  The `capabilities`
   field MUST indicate support for each extension in the GroupContext.
 
-* If any extension in a GroupInfo message is unrecognized (i.e., not contained
-  in the `capabilities` of the corresponding KeyPackage), then the client MUST
-  reject the Welcome message and not join the group.
+* A client joining a group MUST verify that it supports every extension in the
+  GroupContext for the group.  Otherwise, it should treat the enclosing
+  GroupInfo message as invalid and not join the group.
 
-Note that the latter two requirements mean that all MLS extensions are
-mandatory, in the sense that an extension in use by the group MUST be supported
-by all members of the group.
+Note that the latter two requirements mean that all MLS GroupContext extensions
+are mandatory, in the sense that an extension in use by the group MUST be
+supported by all members of the group.
 
 The parameters of a group may be changed by sending a GroupContextExtensions
-proposal to enable additional extensions, or by reinitializing the group as
-described in {{reinitialization}}.
+proposal to enable additional extensions ({{groupcontextextensions}}), or
+by reinitializing the group ({{reinitialization}}).
+
+## GREASE
+
+As described in {{extensions}}, clients are required to ignore unknown values
+for certain parameters.  To help ensure that other clients implement this
+behavior, a client can follow the “Generate Random Extensions And Sustain
+Extensibility” or GREASE approach described in {{?RFC8701}}.  In the context of
+MLS, this means that a client creating a LeafNode or Welcome message includes
+random values in certain fields, which should be ignored by a
+correctly-implemented client processing the message.  A client that incorrectly
+rejects unknown code points will fail to process such a message, providing a
+signal to its implementer that the client needs to be fixed.
+
+When generating the following fields, an MLS client SHOULD include a random
+selection of values chosen from these GREASE values:
+
+* `LeafNode.capabilities.versions`
+* `LeafNode.capabilities.ciphersuites`
+* `LeafNode.capabilities.extensions`
+* `LeafNode.capabilities.proposals`
+* `LeafNode.capabilities.credentials`
+* `KeyPackage.extensions`
+* `GroupInfo.extensions`
+
+For the KeyPackage and GroupInfo extensions, the `extension_data` for GREASE
+extensions MAY have any contents selected by the sender, since they will be
+ignored by a correctly-implemented receiver.  For example, a sender might
+populate these extensions with a randomly-sized amount of random data.
+
+A set of values reserved for GREASE have been registered in the various
+registries in {{iana-considerations}}.  This prevents conflict between GREASE
+and real future values.  The following values are reserved in each registry:
+`0x0A0A`, `0x1A1A`, `0x2A2A`, `0x3A3A`, `0x4A4A`, `0x5A5A`, `0x6A6A`, `0x7A7A`,
+`0x8A8A`, `0x9A9A`, `0xAAAA`, `0xBABA`, `0xCACA`, `0xDADA`, and `0xEAEA`.  (The
+value `0xFAFA` falls within the private use range.) These values MUST only
+appear in the fields listed above, and not, for example, in the `proposal_type`
+field of a Proposal.  Clients MUST NOT implement any special processing rules
+for how to handle these values when receiving them, since this negates their
+utility for detecting extensibility failures.
+GREASE values MUST be handled using normal logic for processing unsupported
+values.  When comparing lists of capabilities to identify mutually-supported
+capabilities, clients MUST represent their own capabilities with a list
+containing only the capabilities actually supported, without any GREASE values.
+In other words, lists including GREASE values are only sent to other clients;
+representations of a client's own capabilities MUST NOT contain GREASE values.
 
 # Sequencing of State Changes {#sequencing}
 
@@ -5043,7 +5186,7 @@ the attacker enough information to mount an attack. If Alice asks Bob
 "When are we going to the movie?", then the answer "Wednesday" could be leaked
 to an adversary solely by the ciphertext length.
 
-The length of the `padding` field in `PrivateContentTBE` can be
+The length of the `padding` field in `PrivateMessageContent` can be
 chosen by the sender at the time of message encryption. Senders may use padding
 to reduce the ability of attackers outside the group to infer the size of the
 encrypted content.  Note, however, that the transports used to carry MLS
@@ -5093,6 +5236,20 @@ though a complete security analysis is outside of the scope of this
 document.  The Security Considerations section of {{?I-D.ietf-mls-architecture}}
 provides some citations to detailed security analyses.
 
+## Transport Security
+
+Because MLS messages are protected at the message level, the
+confidentiality and integrity of the group state do not depend on
+those messages being protected in transit. However, an attacker who
+can observe those messages and transit will be able to learn about the
+group state, including potentially the group membership (see
+{{group-membership}} below). Such an attacker might also be able to
+mount denial-of-service attacks on the group or exclude new members by
+selectively removing messages in transit. In order to prevent this
+form of attack, it is RECOMMENDED that all MLS messages be carried
+over a secure transport such as TLS {{?RFC8446}} or QUIC {{?RFC9000}}.
+
+
 ## Confidentiality of the Group Secrets
 
 Group secrets are partly derived from the output of a ratchet tree. Ratchet
@@ -5110,7 +5267,7 @@ messages.
 
 ## Confidentiality of Sender Data
 
-The MLSCiphertext framing encrypts "sender data" that identifies which group
+The PrivateMessage framing encrypts "sender data" that identifies which group
 member sent an encrypted message, as described in {{sender-data-encryption}}.
 As with the QUIC header protection scheme {{?RFC9001, Section 5.4}}, this scheme
 is a variant of the HN1 construction analyzed in {{NAN}}.  A sample of the
@@ -5188,13 +5345,14 @@ understanding how they might be exposed or protected in a given application.
 
 MLS provides no mechanism to protect the group ID and epoch of a message from
 the DS, so the group ID and the frequency of messages and epoch changes are not
-protected against inspection by the DS.
+protected against inspection by the DS. However, any modifications to these
+will cause decryption failure.
 
 ### Group Extensions
 
 A group's extensions are first set by the group's creator and then updated by
 GroupContextExtensions proposals.  A GroupContextExtension proposal sent as
-a PublicMessage leaks the groups' extensions.
+a PublicMessage leaks the group's extensions.
 
 A new member learns the group's extensions via a GroupInfo object.  When the new
 member joins via a Welcome message, the Welcome message's encryption protects
@@ -5282,15 +5440,27 @@ was compromised at some point in the past.
 ~~~
 {: title="Forward secrecy and post-compromise security" }
 
-Post-compromise security is provided between epochs by members regularly
-updating their leaf key in the ratchet tree. Updating their leaf key prevents
-group secrets from continuing to be encrypted to public keys whose private keys
-had previously been compromised.
+Post-compromise security is provided between epochs by members
+regularly updating their leaf key in the ratchet tree. Updating their
+leaf key prevents group secrets from continuing to be encrypted to
+public keys whose private keys had previously been compromised. Note
+that sending an Update proposal does not achieve PCS until another
+member includes it in a Commit. Members can achieve immediate PCS by
+sending their own Commit and populating the `path` field, as described
+in {{commit}}. To be clear, in all these cases, the PCS guarantees
+come into effect when the members of the group process the relevant
+Commit, not when the sender creates it.
 
 Forward secrecy between epochs is provided by deleting private keys from past
 versions of the ratchet tree, as this prevents old group secrets from being
 re-derived. Forward secrecy *within* an epoch is provided by deleting message
 encryption keys once they've been used to encrypt or decrypt a message.
+Note that group secrets and message encryption keys are shared by the
+group, and thus their is a risk to forward secrecy as long as any
+member has not deleted these keys. This is a particular risk if a member
+is offline for a long period of time. Applications SHOULD have mechanisms
+for evicting group members which are offline for too long (e.g., have
+not changed their key within some period).
 
 New groups are also at risk of using previously compromised keys (as with
 post-compromise security), if a member is added to a new group via an old
@@ -5330,6 +5500,57 @@ groups by exhausting all available KeyPackages. To prevent such a denial-of-serv
 attack, the KeyPackage publication system SHOULD rate-limit KeyPackage
 requests, especially if not authenticated.
 
+## Delivery Service Compromise
+
+MLS is designed to protect the confidentiality and integrity of
+the group data even in the face of a compromised DS. However, a compromised
+DS can still mount some attacks. While it cannot forge messages,
+it can selectively delay or remove them. This can in some cases be
+observed by detecting gaps in the per-sender generation counter,
+though it may not always be possible to distinguish an attack from message
+loss. In addition, the DS can permanently block messages to and from
+a group member. This will not always be detectable by other members.
+If an application uses the DS to resolve conflicts between
+simultaneous Commits (see {{sequencing}}), it is also possible for the
+DS to influence which Commit is applied, even to the point of
+preventing a member from ever having its Commits applied.
+
+When put together, these abilities potentially allow a DS to collude
+with an attacker who has compromised a member's state to defeat PCS by
+suppressing the valid Update and Commit messages from the member that
+would lock out the attacker and update the member's leaf to a new,
+uncompromised state. Aside from the SenderData.generation value, MLS
+leaves loss detection up to the application.
+
+
+## Authentication Service Compromise
+
+Authentication Service compromise is much more serious than compromise
+of the Delivery Service. A compromised AS can assert a binding for a
+signature key and identity pair of its choice, thus allowing
+impersonation of a given user. This ability is sufficient to allow the
+AS to join new groups as if it were that user. Depending on the
+application architecture, it may also be sufficient to allow the
+compromised AS to join the group as an existing user, for instance as
+if it were a new device associated with the same user. If
+the application uses a transparency mechanism such as CONIKS
+{{CONIKS}} or Key Transparency {{KT}}, then it may be possible for end
+users to detect this kind of misbehavior by the AS.  It is also possible to
+construct schemes in which the various clients owned by a user vouch
+for each other, e.g., by signing each others' keys.
+
+
+## Additional Policy Enforcement
+
+The DS and AS may also apply additional policies to MLS operations to obtain
+additional security properties. For example, MLS enables any participant to add
+or remove members of a group; a DS could enforce a policy that only certain
+members are allowed to perform these operations. MLS authenticates all members
+of a group; a DS could help ensure that only clients with certain types of
+credential are admitted. MLS provides no inherent protection against denial of
+service; A DS could also enforce rate limits in order to mitigate
+these risks.
+
 ## Group Fragmentation by Malicious Insiders
 
 It is possible for a malicious member of a group to "fragment" the group by
@@ -5367,7 +5588,9 @@ acknowledge successful processing of a Commit before the group regards the
 Commit as accepted.  The minimum set of acknowledgements necessary to verify
 that a Commit is well-formed comprises an acknowledgement from one member per
 node in the UpdatePath, that is, one member from each subtree rooted in the
-copath node corresponding to the node in the UpdatePath.
+copath node corresponding to the node in the UpdatePath. MLS does not
+provide a built-in mechanism for such acknowledgements, but they can
+be added at the application layer.
 
 # IANA Considerations
 
@@ -5464,6 +5687,21 @@ Initial contents:
 | 0x0005          | MLS_256_DHKEMP521_AES256GCM_SHA512_P521             | Y | RFC XXXX |
 | 0x0006          | MLS_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     | Y | RFC XXXX |
 | 0x0007          | MLS_256_DHKEMP384_AES256GCM_SHA384_P384.            | Y | RFC XXXX |
+| 0x0A0A          | GREASE                                              | Y | RFC XXXX |
+| 0x1A1A          | GREASE                                              | Y | RFC XXXX |
+| 0x2A2A          | GREASE                                              | Y | RFC XXXX |
+| 0x3A3A          | GREASE                                              | Y | RFC XXXX |
+| 0x4A4A          | GREASE                                              | Y | RFC XXXX |
+| 0x5A5A          | GREASE                                              | Y | RFC XXXX |
+| 0x6A6A          | GREASE                                              | Y | RFC XXXX |
+| 0x7A7A          | GREASE                                              | Y | RFC XXXX |
+| 0x8A8A          | GREASE                                              | Y | RFC XXXX |
+| 0x9A9A          | GREASE                                              | Y | RFC XXXX |
+| 0xAAAA          | GREASE                                              | Y | RFC XXXX |
+| 0xBABA          | GREASE                                              | Y | RFC XXXX |
+| 0xCACA          | GREASE                                              | Y | RFC XXXX |
+| 0xDADA          | GREASE                                              | Y | RFC XXXX |
+| 0xEAEA          | GREASE                                              | Y | RFC XXXX |
 | 0xf000 - 0xffff | Reserved for Private Use                            | - | RFC XXXX |
 
 All of these ciphersuites use HMAC {{!RFC2104}} as their MAC function, with
@@ -5527,15 +5765,15 @@ Template:
 
 Initial contents:
 
-| Value            | Name                     | Recommended | Reference |
-|:-----------------|:-------------------------|:------------|:----------|
-| 0x0000           | RESERVED                 | N/A         | RFC XXXX  |
-| 0x0001           | mls_public_message       | Y           | RFC XXXX  |
-| 0x0002           | mls_private_message      | Y           | RFC XXXX  |
-| 0x0003           | mls_welcome              | Y           | RFC XXXX  |
-| 0x0004           | mls_group_info           | Y           | RFC XXXX  |
-| 0x0005           | mls_key_package          | Y           | RFC XXXX  |
-| 0xf000  - 0xffff | Reserved for Private Use | N/A         | RFC XXXX  |
+| Value           | Name                     | R | Ref       |
+|:----------------|:-------------------------|:--|:----------|
+| 0x0000          | RESERVED                 | - | RFC XXXX  |
+| 0x0001          | mls_public_message       | Y | RFC XXXX  |
+| 0x0002          | mls_private_message      | Y | RFC XXXX  |
+| 0x0003          | mls_welcome              | Y | RFC XXXX  |
+| 0x0004          | mls_group_info           | Y | RFC XXXX  |
+| 0x0005          | mls_key_package          | Y | RFC XXXX  |
+| 0xf000 - 0xffff | Reserved for Private Use | - | RFC XXXX  |
 
 ## MLS Extension Types
 
@@ -5563,15 +5801,30 @@ Template:
 
 Initial contents:
 
-| Value            | Name                     | Message(s) | Recommended | Reference |
-|:-----------------|:-------------------------|:-----------|:------------|:----------|
-| 0x0000           | RESERVED                 | N/A        | N/A         | RFC XXXX  |
-| 0x0001           | application_id           | LN         | Y           | RFC XXXX  |
-| 0x0002           | ratchet_tree             | GI         | Y           | RFC XXXX  |
-| 0x0003           | required_capabilities    | GC         | Y           | RFC XXXX  |
-| 0x0004           | external_pub             | GI         | Y           | RFC XXXX  |
-| 0x0005           | external_senders         | GC         | Y           | RFC XXXX  |
-| 0xf000  - 0xffff | Reserved for Private Use | N/A        | N/A         | RFC XXXX  |
+| Value            | Name                     | Message(s) | R | Ref      |
+|:-----------------|:-------------------------|:-----------|:--|:---------|
+| 0x0000           | RESERVED                 | N/A        | - | RFC XXXX |
+| 0x0001           | application_id           | LN         | Y | RFC XXXX |
+| 0x0002           | ratchet_tree             | GI         | Y | RFC XXXX |
+| 0x0003           | required_capabilities    | GC         | Y | RFC XXXX |
+| 0x0004           | external_pub             | GI         | Y | RFC XXXX |
+| 0x0005           | external_senders         | GC         | Y | RFC XXXX |
+| 0x0A0A           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0x1A1A           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0x2A2A           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0x3A3A           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0x4A4A           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0x5A5A           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0x6A6A           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0x7A7A           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0x8A8A           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0x9A9A           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0xAAAA           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0xBABA           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0xCACA           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0xDADA           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0xEAEA           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0xf000  - 0xffff | Reserved for Private Use | N/A        | - | RFC XXXX |
 
 ## MLS Proposal Types
 
@@ -5594,17 +5847,32 @@ Template:
 
 Initial contents:
 
-| Value            | Name                     | Recommended | Path Required | Reference |
-|:-----------------|:-------------------------|:------------|:--------------|:----------|
-| 0x0000           | RESERVED                 | N/A         | N/A           | RFC XXXX  |
-| 0x0001           | add                      | Y           | N             | RFC XXXX  |
-| 0x0002           | update                   | Y           | Y             | RFC XXXX  |
-| 0x0003           | remove                   | Y           | Y             | RFC XXXX  |
-| 0x0004           | psk                      | Y           | N             | RFC XXXX  |
-| 0x0005           | reinit                   | Y           | N             | RFC XXXX  |
-| 0x0006           | external_init            | Y           | Y             | RFC XXXX  |
-| 0x0007           | group_context_extensions | Y           | Y             | RFC XXXX  |
-| 0xf000  - 0xffff | Reserved for Private Use | N/A         | N/A           | RFC XXXX  |
+| Value            | Name                     | R | Path | Ref      |
+|:-----------------|:-------------------------|:--|:-----|:---------|
+| 0x0000           | RESERVED                 | - | -    | RFC XXXX |
+| 0x0001           | add                      | Y | N    | RFC XXXX |
+| 0x0002           | update                   | Y | Y    | RFC XXXX |
+| 0x0003           | remove                   | Y | Y    | RFC XXXX |
+| 0x0004           | psk                      | Y | N    | RFC XXXX |
+| 0x0005           | reinit                   | Y | N    | RFC XXXX |
+| 0x0006           | external_init            | Y | Y    | RFC XXXX |
+| 0x0007           | group_context_extensions | Y | Y    | RFC XXXX |
+| 0x0A0A           | GREASE                   | Y | -    | RFC XXXX |
+| 0x1A1A           | GREASE                   | Y | -    | RFC XXXX |
+| 0x2A2A           | GREASE                   | Y | -    | RFC XXXX |
+| 0x3A3A           | GREASE                   | Y | -    | RFC XXXX |
+| 0x4A4A           | GREASE                   | Y | -    | RFC XXXX |
+| 0x5A5A           | GREASE                   | Y | -    | RFC XXXX |
+| 0x6A6A           | GREASE                   | Y | -    | RFC XXXX |
+| 0x7A7A           | GREASE                   | Y | -    | RFC XXXX |
+| 0x8A8A           | GREASE                   | Y | -    | RFC XXXX |
+| 0x9A9A           | GREASE                   | Y | -    | RFC XXXX |
+| 0xAAAA           | GREASE                   | Y | -    | RFC XXXX |
+| 0xBABA           | GREASE                   | Y | -    | RFC XXXX |
+| 0xCACA           | GREASE                   | Y | -    | RFC XXXX |
+| 0xDADA           | GREASE                   | Y | -    | RFC XXXX |
+| 0xEAEA           | GREASE                   | Y | -    | RFC XXXX |
+| 0xf000  - 0xffff | Reserved for Private Use | - | -    | RFC XXXX |
 
 ## MLS Credential Types
 
@@ -5624,12 +5892,27 @@ Template:
 
 Initial contents:
 
-| Value            | Name                     | Recommended | Reference |
-|:-----------------|:-------------------------|:------------|:----------|
-| 0x0000           | RESERVED                 | N/A         | RFC XXXX  |
-| 0x0001           | basic                    | Y           | RFC XXXX  |
-| 0x0002           | x509                     | Y           | RFC XXXX  |
-| 0xf000  - 0xffff | Reserved for Private Use | N/A         | RFC XXXX  |
+| Value            | Name                     | R | Ref      |
+|:-----------------|:-------------------------|:--|:---------|
+| 0x0000           | RESERVED                 | - | RFC XXXX |
+| 0x0001           | basic                    | Y | RFC XXXX |
+| 0x0002           | x509                     | Y | RFC XXXX |
+| 0x0A0A           | GREASE                   | Y | RFC XXXX |
+| 0x1A1A           | GREASE                   | Y | RFC XXXX |
+| 0x2A2A           | GREASE                   | Y | RFC XXXX |
+| 0x3A3A           | GREASE                   | Y | RFC XXXX |
+| 0x4A4A           | GREASE                   | Y | RFC XXXX |
+| 0x5A5A           | GREASE                   | Y | RFC XXXX |
+| 0x6A6A           | GREASE                   | Y | RFC XXXX |
+| 0x7A7A           | GREASE                   | Y | RFC XXXX |
+| 0x8A8A           | GREASE                   | Y | RFC XXXX |
+| 0x9A9A           | GREASE                   | Y | RFC XXXX |
+| 0xAAAA           | GREASE                   | Y | RFC XXXX |
+| 0xBABA           | GREASE                   | Y | RFC XXXX |
+| 0xCACA           | GREASE                   | Y | RFC XXXX |
+| 0xDADA           | GREASE                   | Y | RFC XXXX |
+| 0xEAEA           | GREASE                   | Y | RFC XXXX |
+| 0xf000  - 0xffff | Reserved for Private Use | - | RFC XXXX |
 
 ## MLS Signature Labels
 
@@ -5650,12 +5933,12 @@ Template:
 
 Initial contents:
 
-| Label              | Recommended | Reference |
-|:-------------------|:------------|:----------|
-| "FramedContentTBS" | Y           | RFC XXXX  |
-| "LeafNodeTBS"      | Y           | RFC XXXX  |
-| "KeyPackageTBS"    | Y           | RFC XXXX  |
-| "GroupInfoTBS"     | Y           | RFC XXXX  |
+| Label              | R | Ref      |
+|:-------------------|:--|:---------|
+| "FramedContentTBS" | Y | RFC XXXX |
+| "LeafNodeTBS"      | Y | RFC XXXX |
+| "KeyPackageTBS"    | Y | RFC XXXX |
+| "GroupInfoTBS"     | Y | RFC XXXX |
 
 ## MLS Public Key Encryption Labels
 
@@ -5677,10 +5960,10 @@ Template:
 
 Initial contents:
 
-| Label            | Recommended | Reference |
-|:-----------------|:------------|:----------|
-| "UpdatePathNode" | Y           | RFC XXXX  |
-| "Welcome"        | Y           | RFC XXXX  |
+| Label            | R | Ref      |
+|:-----------------|:--|:---------|
+| "UpdatePathNode" | Y | RFC XXXX |
+| "Welcome"        | Y | RFC XXXX |
 
 ## MLS Exporter Labels
 
