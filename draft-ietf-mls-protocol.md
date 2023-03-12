@@ -190,13 +190,13 @@ services are provided:
   * Sequencing of Commit messages (see {{sequencing}})
 
 The DS and AS may also apply additional policies to MLS operations to obtain
-additional security properties, especially in cases where MLS handshake messages
+stronger security properties, especially in cases where MLS handshake messages
 are transmitted unencrypted (as PublicMessage objects).  For example, MLS
 enables any participant to add or remove members of a group; a DS could enforce
 a policy that only certain members are allowed to perform these operations.  MLS
 authenticates all members of a group; a DS could help ensure that only clients
 with certain types of credential are admitted. MLS provides no inherent
-protection against denial of service; A DS could also enforce rate limits in
+protection against denial of service; a DS could also enforce rate limits in
 order to mitigate these risks.
 
 ##  Change Log
@@ -587,7 +587,7 @@ Key Package:
 
 Group Context:
 : An object that summarizes the shared, public state of the group. The group
-  context is typically distributed in a signed GroupInfo message, which provided
+  context is typically distributed in a signed GroupInfo message, which is provided
   to new members to help them join a group.
 
 Signature Key:
@@ -1045,7 +1045,7 @@ well as a public key that can be used to encrypt a secret to the existing
 members of the group.  When the new member Z wishes to join, they download the
 GroupInfo object and use it to form a Commit of a special form that adds Z to
 the group (as detailed in {{joining-via-external-commits}}).  The existing
-members of the group process this external Commit in a similar way to normal
+members of the group process this external Commit in a similar way to a normal
 Commit, advancing to a new epoch in which Z is now a member of the group.
 
 ~~~
@@ -1065,7 +1065,7 @@ A              B              Z          Directory        Channel
 |              |              |<----------------------------+
 |              |              |              |              |
 ~~~
-{: #groupinfo-flow title"Client A publishes a GroupInfo object and Client Z uses
+{: #groupinfo-flow title="Client A publishes a GroupInfo object and Client Z uses
 it to join the group"}
 
 
