@@ -1242,8 +1242,8 @@ of private keys corresponding to the public keys in nodes in the tree.  The
 private key corresponding to a parent node is known only to members at leaf
 nodes that are descedants of that node.  The private key corresponding to a leaf
 node is known only to the member at that leaf node.  A leaf node is _unmerged_
-relative to one of its ancestor node if the member at the leaf node does not
-know the private key corresponding the ancestor node.
+relative to one of its ancestor nodes if the member at the leaf node does not
+know the private key corresponding to the ancestor node.
 
 Every node, regardless of whether the node is blank or populated, has
 a corresponding _hash_ that summarizes the contents of the subtree
