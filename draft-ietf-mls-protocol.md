@@ -195,6 +195,7 @@ RFC EDITOR PLEASE DELETE THIS SECTION.
 
 draft-18
 
+- Make the document standards track
 - Make the ratchet tree non-malleable (\*)
 - Use ExpandWithLabel to derive welcome key (\*)
 - Change MLS-Exporter label from "exporter" to "exported" (\*)
@@ -210,6 +211,7 @@ draft-18
 
 draft-17
 
+- Rename MLSCiphertext and MLSPlaintext to PrivateMessage and PublicMesssage respectively (\*)
 - Add label and context to public-key encryption (\*)
 - Include leaf index in LeafNodeTBS for better parent-hash guarantees (\*)
 - Make ProtocolVersion two bytes (\*)
