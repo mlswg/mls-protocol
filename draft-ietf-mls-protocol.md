@@ -195,6 +195,16 @@ RFC EDITOR PLEASE DELETE THIS SECTION.
 
 draft-18
 
+- Make the ratchet tree non-malleable (\*)
+- Use ExpandWithLabel to derive welcome key (\*)
+- Change MLS-Exporter label from "exporter" to "exported" (\*)
+- Loosen chain requirements (\*)
+- Clarify transcript hash initialization
+- GREASE for MLS registries
+- A different check for the length code
+- Move pseudocode out of KDFLabel definition.
+- Rename PrivateContentTBE to PrivateMessageContent
+- Fix DecryptWithLabel argument order for Welcome
 - Responses to IESG reviews
 - Describe varint length check more clearly
 
