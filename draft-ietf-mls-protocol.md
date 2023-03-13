@@ -1043,8 +1043,9 @@ message flows in other ways.  For example:
   broadly, say if the application only had access to a broadcast channel for the
   group.
 
-* Proposal messages don't necessarily need to be sent to all group members. They
-  only need to reach a member who will commit them.
+* Proposal messages don't need to be immediately sent to all group members.  They need to
+  be available to the committer before generating a commit, and to other members before
+  processing the commit.
 
 * The sender of a Commit doesn't necessarily have to wait to receive its own
   Commit back before advancing its state. It only needs to know that its Commit
