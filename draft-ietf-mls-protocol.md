@@ -202,7 +202,6 @@ draft-18
 - Loosen chain requirements (\*)
 - Clarify transcript hash initialization
 - GREASE for MLS registries
-- A different check for the length code
 - Move pseudocode out of KDFLabel definition.
 - Rename PrivateContentTBE to PrivateMessageContent
 - Fix DecryptWithLabel argument order for Welcome
