@@ -2371,12 +2371,9 @@ The client verifies the validity of a LeafNode using the following steps:
   * If the LeafNode appears in the `leaf_node` value of the UpdatePath in
     a Commit, verify that `leaf_node_source` is set to `commit`.
 
-* Verify that the leaf node's `signature_key` value does not appear in any other
-  leaf node in the group's ratchet tree.
-
-* Verify that the leaf node's `encryption_key` value does not appear in any
-  other node of the group's ratchet tree (including both leaf nodes and parent
-  nodes).
+* Verify that the following fields are unique among the members of the group:
+    * `signature_key`
+    * `encryption_key`
 
 ## Ratchet Tree Evolution
 
@@ -5471,12 +5468,11 @@ to a new group is more likely to be fresh and less likely to be compromised.
 
 ## Uniqueness of Ratchet Tree Key Pairs
 
-The encryption and signature keys stored in ratchet tree nodes MUST be distinct
-from one another.  If two members' leaf nodes have the same signature key, then
-the data origin authentication properties afforded by signatures within the
-group are degraded.  If two nodes have the same encryption key, it creates a
-"double join" scenario where a removed member may still be able to compute the
-group's secrets.
+The encryption and signature keys stored in the `encryption_key` and
+`signature_key` fields of ratchet tree nodes MUST be distinct from one another.
+If two members' leaf nodes have the same signature key, for example, then the
+data origin authentication properties afforded by signatures within the group
+are degraded.
 
 Uniqueness of keys in leaf nodes is assured by explicit checks on leaf nodes
 being added to the tree by Add or Update proposals, or in the `path` field of a
@@ -5484,7 +5480,6 @@ Commit.  Details can be found in {{leaf-node-validation}},
 {{proposal-list-validation}}, and {{processing-a-commit}}.  Uniqueness of
 encryption keys in parent nodes is assured by checking that the keys in an
 UpdatePath are not found elsewhere in the tree (see {{processing-a-commit}}.
-
 
 ## KeyPackage Reuse
 
