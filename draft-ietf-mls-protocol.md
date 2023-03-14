@@ -3638,7 +3638,7 @@ In order to facilitate the asynchronous addition of clients to a
 group, key packages are pre-published that
 provide some public information about a user. A KeyPackage object specifies:
 
-1. A protocol version and ciphersuite that the client supports,
+1. A ciphersuite that the client supports,
 2. a public key that others can use to encrypt a Welcome message to this client
    (an "init key"), and
 3. the content of the leaf node that should be added to the tree to represent
@@ -3663,7 +3663,6 @@ signature field.
 
 ~~~ tls
 struct {
-    ProtocolVersion version;
     CipherSuite cipher_suite;
     HPKEPublicKey init_key;
     LeafNode leaf_node;
@@ -3673,7 +3672,6 @@ struct {
 } KeyPackage;
 
 struct {
-    ProtocolVersion version;
     CipherSuite cipher_suite;
     HPKEPublicKey init_key;
     LeafNode leaf_node;
@@ -3681,18 +3679,12 @@ struct {
 } KeyPackageTBS;
 ~~~
 
-If a client receives a KeyPackage carried within an MLSMessage object, then it
-MUST verify that the `version` field of the KeyPackage has the same value as the
-`version` field of the MLSMessage.  The `version` field in the KeyPackage
-provides an explicit signal of the intended version to the other members of
-group when they receive the KeyPackage in an Add proposal.
-
 The field `leaf_node.capabilities` indicates what protocol versions,
 ciphersuites, credential types, and non-default proposal/extension types are supported
 by the client.  (Proposal and extension types defined in this document are considered
 "default" and not listed.)  This information allows MLS session
 establishment to be safe from downgrade attacks on the parameters described (as
-discussed in {{group-creation}}), while still only advertising one version /
+discussed in {{group-creation}}), while still only advertising one
 ciphersuite per KeyPackage.
 
 The field `leaf_node.leaf_node_source` of the LeafNode in a KeyPackage MUST be
@@ -3715,8 +3707,8 @@ The validity of a KeyPackage needs to be verified at a few stages:
 
 The client verifies the validity of a KeyPackage using the following steps:
 
-* Verify that the ciphersuite and protocol version of the KeyPackage match
-  those in the `GroupContext`.
+* Verify that the ciphersuite of the KeyPackage matches
+  the one in `GroupContext`.
 
 * Verify that the `leaf_node` of the KeyPackage is valid for a KeyPackage
   according to {{leaf-node-validation}}.
