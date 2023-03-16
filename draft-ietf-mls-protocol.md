@@ -5498,7 +5498,7 @@ versions of the ratchet tree, as this prevents old group secrets from being
 re-derived. Forward secrecy *within* an epoch is provided by deleting message
 encryption keys once they've been used to encrypt or decrypt a message.
 Note that group secrets and message encryption keys are shared by the
-group, and thus their existence is a risk to forward secrecy as long as any
+group, and thus there is a risk to forward secrecy as long as any
 member has not deleted these keys. This is a particular risk if a member
 is offline for a long period of time. Applications SHOULD have mechanisms
 for evicting group members which are offline for too long (i.e., have
