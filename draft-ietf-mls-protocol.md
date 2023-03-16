@@ -1655,7 +1655,7 @@ A "basic" credential is a bare assertion of an identity, without any additional
 information.  The format of the encoded identity is defined by the application.
 
 For an X.509 credential, each entry in the `certificates` field represents a single DER-encoded
-X.509 certificate. The chain is ordered such that the first entry (chain[0]) is
+X.509 certificate. The chain is ordered such that the first entry (certificates[0]) is
 the end-entity certificate. The public key encoded in the
 `subjectPublicKeyInfo` of the end-entity certificate MUST be identical to the
 `signature_key` in the LeafNode containing this credential. A chain MAY omit any
@@ -2327,7 +2327,7 @@ MUST be included in the `extensions` field of the `capabilities` field, and the
 credential type used in the LeafNode MUST be included in the `credentials` field
 of the `capabilities` field.  As discussed in {{extensibility}}, unknown values
 in `capabilities` MUST be ignored, and the creator of a `capabilities` field
-SHOULD contain some random GREASE values to help ensure that other clients correctly
+SHOULD include some random GREASE values to help ensure that other clients correctly
 ignore unknown values.
 
 The `leaf_node_source` field indicates how this LeafNode came to be added to the
@@ -3823,7 +3823,7 @@ The members of a group reinitialize it using the following steps:
 2. A member of the old group sends a Commit covering the ReInit proposal
 3. A member of the old group creates an initial Commit setting up a new group
    that matches the ReInit and sends a Welcome message
-    * The `group_id`, `version`, `cipher_suite`, and `extensions` fields in the Welcome
+    * The `version`, `cipher_suite`, `group_id`, and `extensions` fields of the GroupContext object in the Welcome
       message MUST be the same as the corresponding fields in the ReInit
       proposal. The `epoch` in the Welcome message MUST be 1.
     * The Welcome MUST specify a PreSharedKeyID of type `resumption` with usage
@@ -5105,7 +5105,7 @@ handle extensible fields:
   field MUST indicate support for each extension in the GroupContext.
 
 * A client joining a group MUST verify that it supports every extension in the
-  GroupContext for the group.  Otherwise, it should treat the enclosing
+  GroupContext for the group.  Otherwise, it MUST treat the enclosing
   GroupInfo message as invalid and not join the group.
 
 Note that the latter two requirements mean that all MLS GroupContext extensions
@@ -5122,8 +5122,8 @@ As described in {{extensions}}, clients are required to ignore unknown values
 for certain parameters.  To help ensure that other clients implement this
 behavior, a client can follow the “Generate Random Extensions And Sustain
 Extensibility” or GREASE approach described in {{?RFC8701}}.  In the context of
-MLS, this means that a client creating a LeafNode or Welcome message includes
-random values in certain fields, which should be ignored by a
+MLS, this means that a client generating a KeyPackage, LeafNode, or GroupInfo object includes
+random values in certain fields which would be ignored by a
 correctly-implemented client processing the message.  A client that incorrectly
 rejects unknown code points will fail to process such a message, providing a
 signal to its implementer that the client needs to be fixed.
@@ -5131,11 +5131,11 @@ signal to its implementer that the client needs to be fixed.
 When generating the following fields, an MLS client SHOULD include a random
 selection of values chosen from these GREASE values:
 
-* `LeafNode.capabilities.versions`
 * `LeafNode.capabilities.ciphersuites`
 * `LeafNode.capabilities.extensions`
 * `LeafNode.capabilities.proposals`
 * `LeafNode.capabilities.credentials`
+* `LeafNode.extensions`
 * `KeyPackage.extensions`
 * `GroupInfo.extensions`
 
@@ -5283,7 +5283,7 @@ provides some citations to detailed security analyses.
 Because MLS messages are protected at the message level, the
 confidentiality and integrity of the group state do not depend on
 those messages being protected in transit. However, an attacker who
-can observe those messages and transit will be able to learn about the
+can observe those messages in transit will be able to learn about the
 group state, including potentially the group membership (see
 {{group-membership}} below). Such an attacker might also be able to
 mount denial-of-service attacks on the group or exclude new members by
@@ -5498,10 +5498,10 @@ versions of the ratchet tree, as this prevents old group secrets from being
 re-derived. Forward secrecy *within* an epoch is provided by deleting message
 encryption keys once they've been used to encrypt or decrypt a message.
 Note that group secrets and message encryption keys are shared by the
-group, and thus their is a risk to forward secrecy as long as any
+group, and thus there is a risk to forward secrecy as long as any
 member has not deleted these keys. This is a particular risk if a member
 is offline for a long period of time. Applications SHOULD have mechanisms
-for evicting group members which are offline for too long (e.g., have
+for evicting group members which are offline for too long (i.e., have
 not changed their key within some period).
 
 New groups are also at risk of using previously compromised keys (as with
@@ -5587,8 +5587,8 @@ additional security properties. For example, MLS enables any participant to add
 or remove members of a group; a DS could enforce a policy that only certain
 members are allowed to perform these operations. MLS authenticates all members
 of a group; a DS could help ensure that only clients with certain types of
-credential are admitted. MLS provides no inherent protection against denial of
-service; A DS could also enforce rate limits in order to mitigate
+credentials are admitted. MLS provides no inherent protection against denial of
+service; a DS could also enforce rate limits in order to mitigate
 these risks.
 
 ## Group Fragmentation by Malicious Insiders
@@ -5742,7 +5742,7 @@ Initial contents:
 | 0xCACA          | GREASE                                              | Y | RFC XXXX |
 | 0xDADA          | GREASE                                              | Y | RFC XXXX |
 | 0xEAEA          | GREASE                                              | Y | RFC XXXX |
-| 0xf000 - 0xffff | Reserved for Private Use                            | - | RFC XXXX |
+| 0xF000 - 0xFFFF | Reserved for Private Use                            | - | RFC XXXX |
 
 All of these ciphersuites use HMAC {{!RFC2104}} as their MAC function, with
 different hashes per ciphersuite.  The mapping of ciphersuites to HPKE
@@ -5791,7 +5791,7 @@ New ciphersuite values are assigned by IANA as described in
 
 This registry lists identifiers for the types of messages that can be sent in
 MLS.  The wire format field is two bytes wide, so the valid wire format values
-are in the range 0x0000 to 0xffff.
+are in the range 0x0000 to 0xFFFF.
 
 Template:
 
@@ -5813,13 +5813,13 @@ Initial contents:
 | 0x0003          | mls_welcome              | Y | RFC XXXX  |
 | 0x0004          | mls_group_info           | Y | RFC XXXX  |
 | 0x0005          | mls_key_package          | Y | RFC XXXX  |
-| 0xf000 - 0xffff | Reserved for Private Use | - | RFC XXXX  |
+| 0xF000 - 0xFFFF | Reserved for Private Use | - | RFC XXXX  |
 
 ## MLS Extension Types
 
 This registry lists identifiers for extensions to the MLS protocol.  The
 extension type field is two bytes wide, so valid extension type values are in
-the range 0x0000 to 0xffff.
+the range 0x0000 to 0xFFFF.
 
 Template:
 
@@ -5864,13 +5864,13 @@ Initial contents:
 | 0xCACA           | GREASE                   | KP, GI     | Y | RFC XXXX |
 | 0xDADA           | GREASE                   | KP, GI     | Y | RFC XXXX |
 | 0xEAEA           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0xf000  - 0xffff | Reserved for Private Use | N/A        | - | RFC XXXX |
+| 0xF000  - 0xFFFF | Reserved for Private Use | N/A        | - | RFC XXXX |
 
 ## MLS Proposal Types
 
 This registry lists identifiers for types of proposals that can be made for
 changes to an MLS group.  The extension type field is two bytes wide, so valid
-extension type values are in the range 0x0000 to 0xffff.
+extension type values are in the range 0x0000 to 0xFFFF.
 
 Template:
 
@@ -5912,13 +5912,13 @@ Initial contents:
 | 0xCACA           | GREASE                   | Y | -    | RFC XXXX |
 | 0xDADA           | GREASE                   | Y | -    | RFC XXXX |
 | 0xEAEA           | GREASE                   | Y | -    | RFC XXXX |
-| 0xf000  - 0xffff | Reserved for Private Use | - | -    | RFC XXXX |
+| 0xF000  - 0xFFFF | Reserved for Private Use | - | -    | RFC XXXX |
 
 ## MLS Credential Types
 
 This registry lists identifiers for types of credentials that can be used for
 authentication in the MLS protocol.  The credential type field is two bytes wide,
-so valid credential type values are in the range 0x0000 to 0xffff.
+so valid credential type values are in the range 0x0000 to 0xFFFF.
 
 Template:
 
@@ -5952,7 +5952,7 @@ Initial contents:
 | 0xCACA           | GREASE                   | Y | RFC XXXX |
 | 0xDADA           | GREASE                   | Y | RFC XXXX |
 | 0xEAEA           | GREASE                   | Y | RFC XXXX |
-| 0xf000  - 0xffff | Reserved for Private Use | - | RFC XXXX |
+| 0xF000  - 0xFFFF | Reserved for Private Use | - | RFC XXXX |
 
 ## MLS Signature Labels
 
