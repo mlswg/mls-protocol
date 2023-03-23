@@ -4013,8 +4013,13 @@ struct {
 
 A PreSharedKey proposal is invalid if any of the following is true:
 
-* The `psktype` in the PreSharedKeyID struct is set to `resumption` and
-  the `usage` is `reinit` or `branch`.
+* The PreSharedKey proposal is not being processed as part of a reinitialization
+  of the group (see {{reinitialization}}), and the PreSharedKeyID has `psktype`
+  set to `resumption` and `usage` set to `reinit`.
+
+* The PreSharedKey proposal is not being processed as part of a subgroup
+  branching operation (see {{subgroup-branching}}), and the PreSharedKeyID has
+  `psktype` set to `resumption` and `usage` set to `branch`.
 
 * The `psk_nonce` is not of length `KDF.Nh`.
 
