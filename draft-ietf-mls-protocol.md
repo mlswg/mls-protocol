@@ -3914,9 +3914,6 @@ struct {
 } Proposal;
 ~~~
 
-A Proposal object whose `proposal_type` is one of the GREASE values defined in
-{{grease}} MUST be rejected as malformed.
-
 On receiving a FramedContent containing a Proposal, a client MUST verify the
 signature inside FramedContentAuthData and that the `epoch` field of the enclosing
 FramedContent is equal to the `epoch` field of the current GroupContext object.
@@ -5162,6 +5159,15 @@ selection of values chosen from these GREASE values:
 * `KeyPackage.extensions`
 * `GroupInfo.extensions`
 
+GREASE values MUST NOT be included in the `proposal_type` field of a Proposal
+object or the `credential_type` field of a Credential object.  A Proposal or
+Credential containing a GREASE value in one of these fields MUST be rejected as
+malformed.  Extensions with GREASE types MUST NOT be included in GroupContext
+extensions, and thus MUST NOT appear in `GroupContext.extensions` or
+GroupContextExtensions proposals.  A GroupContext object or
+GroupContextExtensions proposal containing GREASE a extension MUST be rejected as
+malformed.
+
 For the KeyPackage and GroupInfo extensions, the `extension_data` for GREASE
 extensions MAY have any contents selected by the sender, since they will be
 ignored by a correctly-implemented receiver.  For example, a sender might
@@ -5177,6 +5183,7 @@ appear in the fields listed above, and not, for example, in the `proposal_type`
 field of a Proposal.  Clients MUST NOT implement any special processing rules
 for how to handle these values when receiving them, since this negates their
 utility for detecting extensibility failures.
+
 GREASE values MUST be handled using normal logic for processing unsupported
 values.  When comparing lists of capabilities to identify mutually-supported
 capabilities, clients MUST represent their own capabilities with a list
