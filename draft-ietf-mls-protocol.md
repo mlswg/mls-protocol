@@ -1974,7 +1974,8 @@ depending on the sender's `sender_type`:
 * `external`: The signature key at the index
   indicated by `sender_index` in the `external_senders` group context
   extension (see {{external-senders-extension}}). The
-  `content_type` of the message MUST be `proposal`.
+  `content_type` of the message MUST be `proposal` and the `proposal_type`
+  MUST be a value that is allowed for external senders.
 * `new_member_commit`: The signature key in the LeafNode in
     the Commit's path (see {{joining-via-external-commits}}). The
     `content_type` of the message MUST be `commit`.
@@ -3900,8 +3901,8 @@ that indicates their type:
 uint16 ProposalType;
 
 struct {
-    ProposalType msg_type;
-    select (Proposal.msg_type) {
+    ProposalType proposal_type;
+    select (Proposal.proposal_type) {
         case add:                      Add;
         case update:                   Update;
         case remove:                   Remove;
@@ -3912,6 +3913,9 @@ struct {
     };
 } Proposal;
 ~~~
+
+A Proposal object whose `proposal_type` is one of the GREASE values defined in
+{{grease}} MUST be rejected as malformed.
 
 On receiving a FramedContent containing a Proposal, a client MUST verify the
 signature inside FramedContentAuthData and that the `epoch` field of the enclosing
@@ -4093,19 +4097,18 @@ following steps:
   the sender of the proposal includes it in the new list.)
 
 Note that once the GroupContext is updated, its inclusion in the
-confirmation_tag by way of the key schedule will confirm that all members of the
+`confirmation_tag` by way of the key schedule will confirm that all members of the
 group agree on the extensions in use.
 
 ### External Proposals
 
-Add and Remove proposals can be constructed and sent to the group by a party
+Proposals can be constructed and sent to the group by a party
 that is outside the group in two cases. One case, indicated by an `external` SenderType
 is useful in cases where, for example, an automated service might propose to
 remove a member of a group who has been inactive for a long time, or propose adding
 a newly-hired staff member to a group representing a real-world team.
-
-ReInit proposals can also be sent to the group by an `external` sender, for
-example to enforce a changed policy regarding MLS version or ciphersuite.
+An `external` sender might send a ReInit proposal, to enforce a changed policy
+regarding MLS version or ciphersuite.
 
 The `external` SenderType requires that signers are pre-provisioned
 to the clients within a group and can only be used if the
@@ -4118,6 +4121,21 @@ authorized are considered invalid.
 
 An external proposal MUST be sent as a PublicMessage object, since the sender
 will not have the keys necessary to construct a PrivateMessage object.
+
+Some types of proposal cannot be sent by an `external` sender.  Among the
+proposal types defined in this document, only the following types may be sent by
+an `external` sender:
+
+* `add`
+* `remove`
+* `psk`
+* `reinit`
+* `group_context_extensions`
+
+Messages from `external` senders containing proposal types other than the above
+MUST be rejected as malformed.  New proposal types defined in the future MUST
+define whether they may be sent by `external` senders.  A column is defined in
+the relevant IANA registry ({{mls-proposal-types}}) to reflect this property.
 
 #### External Senders Extension
 
@@ -5885,6 +5903,9 @@ Template:
 
 * Recommended: Same as in {{mls-ciphersuites}}
 
+* External: Whether a proposal of this type may be sent by an `external` sender
+  (see {{external-proposals}}).
+
 * Path Required: Whether a Commit covering a proposal of this type is required
   to have its `path` field populated (see {{commit}}).
 
@@ -5892,32 +5913,32 @@ Template:
 
 Initial contents:
 
-| Value            | Name                     | R | Path | Ref      |
-|:-----------------|:-------------------------|:--|:-----|:---------|
-| 0x0000           | RESERVED                 | - | -    | RFC XXXX |
-| 0x0001           | add                      | Y | N    | RFC XXXX |
-| 0x0002           | update                   | Y | Y    | RFC XXXX |
-| 0x0003           | remove                   | Y | Y    | RFC XXXX |
-| 0x0004           | psk                      | Y | N    | RFC XXXX |
-| 0x0005           | reinit                   | Y | N    | RFC XXXX |
-| 0x0006           | external_init            | Y | Y    | RFC XXXX |
-| 0x0007           | group_context_extensions | Y | Y    | RFC XXXX |
-| 0x0A0A           | GREASE                   | Y | -    | RFC XXXX |
-| 0x1A1A           | GREASE                   | Y | -    | RFC XXXX |
-| 0x2A2A           | GREASE                   | Y | -    | RFC XXXX |
-| 0x3A3A           | GREASE                   | Y | -    | RFC XXXX |
-| 0x4A4A           | GREASE                   | Y | -    | RFC XXXX |
-| 0x5A5A           | GREASE                   | Y | -    | RFC XXXX |
-| 0x6A6A           | GREASE                   | Y | -    | RFC XXXX |
-| 0x7A7A           | GREASE                   | Y | -    | RFC XXXX |
-| 0x8A8A           | GREASE                   | Y | -    | RFC XXXX |
-| 0x9A9A           | GREASE                   | Y | -    | RFC XXXX |
-| 0xAAAA           | GREASE                   | Y | -    | RFC XXXX |
-| 0xBABA           | GREASE                   | Y | -    | RFC XXXX |
-| 0xCACA           | GREASE                   | Y | -    | RFC XXXX |
-| 0xDADA           | GREASE                   | Y | -    | RFC XXXX |
-| 0xEAEA           | GREASE                   | Y | -    | RFC XXXX |
-| 0xF000  - 0xFFFF | Reserved for Private Use | - | -    | RFC XXXX |
+| Value            | Name                     | R | Ext | Path | Ref      |
+|:-----------------|:-------------------------|:--|:----|:-----|:---------|
+| 0x0000           | RESERVED                 | - | -   | -    | RFC XXXX |
+| 0x0001           | add                      | Y | Y   | N    | RFC XXXX |
+| 0x0002           | update                   | Y | N   | Y    | RFC XXXX |
+| 0x0003           | remove                   | Y | Y   | Y    | RFC XXXX |
+| 0x0004           | psk                      | Y | Y   | N    | RFC XXXX |
+| 0x0005           | reinit                   | Y | Y   | N    | RFC XXXX |
+| 0x0006           | external_init            | Y | N   | Y    | RFC XXXX |
+| 0x0007           | group_context_extensions | Y | Y   | Y    | RFC XXXX |
+| 0x0A0A           | GREASE                   | Y | -   | -    | RFC XXXX |
+| 0x1A1A           | GREASE                   | Y | -   | -    | RFC XXXX |
+| 0x2A2A           | GREASE                   | Y | -   | -    | RFC XXXX |
+| 0x3A3A           | GREASE                   | Y | -   | -    | RFC XXXX |
+| 0x4A4A           | GREASE                   | Y | -   | -    | RFC XXXX |
+| 0x5A5A           | GREASE                   | Y | -   | -    | RFC XXXX |
+| 0x6A6A           | GREASE                   | Y | -   | -    | RFC XXXX |
+| 0x7A7A           | GREASE                   | Y | -   | -    | RFC XXXX |
+| 0x8A8A           | GREASE                   | Y | -   | -    | RFC XXXX |
+| 0x9A9A           | GREASE                   | Y | -   | -    | RFC XXXX |
+| 0xAAAA           | GREASE                   | Y | -   | -    | RFC XXXX |
+| 0xBABA           | GREASE                   | Y | -   | -    | RFC XXXX |
+| 0xCACA           | GREASE                   | Y | -   | -    | RFC XXXX |
+| 0xDADA           | GREASE                   | Y | -   | -    | RFC XXXX |
+| 0xEAEA           | GREASE                   | Y | -   | -    | RFC XXXX |
+| 0xF000  - 0xFFFF | Reserved for Private Use | - | -   | -    | RFC XXXX |
 
 ## MLS Credential Types
 
