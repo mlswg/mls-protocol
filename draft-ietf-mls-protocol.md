@@ -5159,19 +5159,19 @@ selection of values chosen from these GREASE values:
 * `KeyPackage.extensions`
 * `GroupInfo.extensions`
 
-GREASE values MUST NOT be included in the `proposal_type` field of a Proposal
-object or the `credential_type` field of a Credential object.  A Proposal or
-Credential containing a GREASE value in one of these fields MUST be rejected as
-malformed.  Extensions with GREASE types MUST NOT be included in GroupContext
-extensions, and thus MUST NOT appear in `GroupContext.extensions` or
-GroupContextExtensions proposals.  A GroupContext object or
-GroupContextExtensions proposal containing GREASE a extension MUST be rejected as
-malformed.
-
 For the KeyPackage and GroupInfo extensions, the `extension_data` for GREASE
 extensions MAY have any contents selected by the sender, since they will be
 ignored by a correctly-implemented receiver.  For example, a sender might
 populate these extensions with a randomly-sized amount of random data.
+
+GREASE values MUST NOT be sent in the following fields, because an unsupported
+value in one these fields (including a GREASE value), will cause the enclosing
+message to be rejected:
+
+* `Proposal.proposal_type`
+* `Credential.credential_type`
+* `GroupContext.extensions`
+* `GroupContextExtensions.extensions`
 
 A set of values reserved for GREASE have been registered in the various
 registries in {{iana-considerations}}.  This prevents conflict between GREASE
