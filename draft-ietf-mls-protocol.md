@@ -5161,6 +5161,11 @@ extensions MAY have any contents selected by the sender, since they will be
 ignored by a correctly-implemented receiver.  For example, a sender might
 populate these extensions with a randomly-sized amount of random data.
 
+Note that any GREASE values added to `LeafNode.extensions` need to be reflected
+in `LeafNode.capabilities.extensions`, since the LeafNode validation process
+described in {{leaf-node-validation}} requires that these two fields be
+consistent.
+
 GREASE values MUST NOT be sent in the following fields, because an unsupported
 value in one these fields (including a GREASE value), will cause the enclosing
 message to be rejected:
