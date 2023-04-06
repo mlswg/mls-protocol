@@ -5881,21 +5881,21 @@ Initial contents:
 | 0x0003           | required_capabilities    | GC         | Y | RFC XXXX |
 | 0x0004           | external_pub             | GI         | Y | RFC XXXX |
 | 0x0005           | external_senders         | GC         | Y | RFC XXXX |
-| 0x0A0A           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0x1A1A           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0x2A2A           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0x3A3A           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0x4A4A           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0x5A5A           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0x6A6A           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0x7A7A           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0x8A8A           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0x9A9A           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0xAAAA           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0xBABA           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0xCACA           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0xDADA           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0xEAEA           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0x0A0A           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0x1A1A           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0x2A2A           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0x3A3A           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0x4A4A           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0x5A5A           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0x6A6A           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0x7A7A           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0x8A8A           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0x9A9A           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0xAAAA           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0xBABA           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0xCACA           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0xDADA           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0xEAEA           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
 | 0xF000  - 0xFFFF | Reserved for Private Use | N/A        | - | RFC XXXX |
 
 ## MLS Proposal Types
