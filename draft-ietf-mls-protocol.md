@@ -2319,9 +2319,10 @@ member's public signing key. The `credential` field contains information
 authenticating both the member's identity and the provided signing key, as
 described in {{credentials}}.
 
-The `capabilities` field indicates what protocol versions, ciphersuites,
-extensions, credential types, and non-default proposal types are supported by a client.
-Proposal and extension types defined in this document are considered "default" and thus need
+The `capabilities` field indicates the protocol features that the client
+supports, including protocol versions, ciphersuites, credential types,
+non-default proposal types, and non-default extension types.
+Proposal and extension types defined in this document are considered "default" and thus MAY
 not be listed, while any credential types the application wishes to use MUST
 be listed. Extensions that appear in the `extensions` field of a LeafNode
 MUST be included in the `extensions` field of the `capabilities` field, and the
@@ -5160,11 +5161,6 @@ For the KeyPackage and GroupInfo extensions, the `extension_data` for GREASE
 extensions MAY have any contents selected by the sender, since they will be
 ignored by a correctly-implemented receiver.  For example, a sender might
 populate these extensions with a randomly-sized amount of random data.
-
-Note that any GREASE values added to `LeafNode.extensions` need to be reflected
-in `LeafNode.capabilities.extensions`, since the LeafNode validation process
-described in {{leaf-node-validation}} requires that these two fields be
-consistent.
 
 GREASE values MUST NOT be sent in the following fields, because an unsupported
 value in one these fields (including a GREASE value), will cause the enclosing
