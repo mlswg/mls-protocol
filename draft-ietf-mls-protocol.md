@@ -2324,7 +2324,7 @@ supports, including protocol versions, ciphersuites, credential types,
 non-default proposal types, and non-default extension types.
 Proposal and extension types defined in this document are considered "default" and thus MAY
 not be listed, while any credential types the application wishes to use MUST
-be listed. Extensions that appear in the `extensions` field of a LeafNode
+be listed. The types of any non-default extensions that appear in the `extensions` field of a LeafNode
 MUST be included in the `extensions` field of the `capabilities` field, and the
 credential type used in the LeafNode MUST be included in the `credentials` field
 of the `capabilities` field.  As discussed in {{extensibility}}, unknown values
