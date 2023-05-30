@@ -2319,14 +2319,36 @@ member's public signing key. The `credential` field contains information
 authenticating both the member's identity and the provided signing key, as
 described in {{credentials}}.
 
-The `capabilities` field indicates what protocol versions, ciphersuites,
-extensions, credential types, and non-default proposal types are supported by a client.
-Proposal and extension types defined in this document are considered "default" and thus need
-not be listed, while any credential types the application wishes to use MUST
-be listed. Extensions that appear in the `extensions` field of a LeafNode
+The `capabilities` field indicates the protocol features that the client
+supports, including protocol versions, ciphersuites, credential types,
+non-default proposal types, and non-default extension types.  The following
+proposal and extension types are considered "default" and MUST NOT be
+listed:
+
+* Proposal types:
+  * 0x0001 - `add`
+  * 0x0002 - `update`
+  * 0x0003 - `remove`
+  * 0x0004 - `psk`
+  * 0x0005 - `reinit`
+  * 0x0006 - `external_init`
+  * 0x0007 - `group_context_extensions`
+* Extension types:
+  * 0x0001 - `application_id`
+  * 0x0002 - `ratchet_tree`
+  * 0x0003 - `required_capabilities`
+  * 0x0004 - `external_pub`
+  * 0x0005 - `external_senders`
+
+There are no default values for the other fields of a capabilities object.  The
+client MUST list all values for the respective parameters that it supports.
+
+The types of any non-default extensions that appear in the `extensions` field of a LeafNode
 MUST be included in the `extensions` field of the `capabilities` field, and the
 credential type used in the LeafNode MUST be included in the `credentials` field
-of the `capabilities` field.  As discussed in {{extensibility}}, unknown values
+of the `capabilities` field.
+
+As discussed in {{extensibility}}, unknown values
 in `capabilities` MUST be ignored, and the creator of a `capabilities` field
 SHOULD include some random GREASE values to help ensure that other clients correctly
 ignore unknown values.
@@ -3283,9 +3305,6 @@ perform the corresponding calculation to retrieve the `init_secret` value.
 context = SetupBaseR(kem_output, external_priv, "")
 init_secret = context.export("MLS 1.0 external init secret", KDF.Nh)
 ~~~
-
-In both cases, the `info` input to HPKE is set to the GroupInfo for the
-previous epoch, encoded using the TLS serialization.
 
 ## Pre-Shared Keys
 
@@ -5164,6 +5183,11 @@ extensions MAY have any contents selected by the sender, since they will be
 ignored by a correctly-implemented receiver.  For example, a sender might
 populate these extensions with a randomly-sized amount of random data.
 
+Note that any GREASE values added to `LeafNode.extensions` need to be reflected
+in `LeafNode.capabilities.extensions`, since the LeafNode validation process
+described in {{leaf-node-validation}} requires that these two fields be
+consistent.
+
 GREASE values MUST NOT be sent in the following fields, because an unsupported
 value in one these fields (including a GREASE value), will cause the enclosing
 message to be rejected:
@@ -5879,21 +5903,21 @@ Initial contents:
 | 0x0003           | required_capabilities    | GC         | Y | RFC XXXX |
 | 0x0004           | external_pub             | GI         | Y | RFC XXXX |
 | 0x0005           | external_senders         | GC         | Y | RFC XXXX |
-| 0x0A0A           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0x1A1A           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0x2A2A           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0x3A3A           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0x4A4A           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0x5A5A           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0x6A6A           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0x7A7A           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0x8A8A           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0x9A9A           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0xAAAA           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0xBABA           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0xCACA           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0xDADA           | GREASE                   | KP, GI     | Y | RFC XXXX |
-| 0xEAEA           | GREASE                   | KP, GI     | Y | RFC XXXX |
+| 0x0A0A           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0x1A1A           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0x2A2A           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0x3A3A           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0x4A4A           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0x5A5A           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0x6A6A           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0x7A7A           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0x8A8A           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0x9A9A           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0xAAAA           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0xBABA           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0xCACA           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0xDADA           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
+| 0xEAEA           | GREASE                   | KP, GI, LN | Y | RFC XXXX |
 | 0xF000  - 0xFFFF | Reserved for Private Use | N/A        | - | RFC XXXX |
 
 ## MLS Proposal Types
