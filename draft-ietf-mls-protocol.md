@@ -2321,13 +2321,34 @@ described in {{credentials}}.
 
 The `capabilities` field indicates the protocol features that the client
 supports, including protocol versions, ciphersuites, credential types,
-non-default proposal types, and non-default extension types.
-Proposal and extension types defined in this document are considered "default" and thus MAY
-not be listed, while any credential types the application wishes to use MUST
-be listed. The types of any non-default extensions that appear in the `extensions` field of a LeafNode
+non-default proposal types, and non-default extension types.  The following
+proposal and extension types are considered "default" and MUST NOT be
+listed:
+
+* Proposal types:
+  * 0x0001 - `add`
+  * 0x0002 - `update`
+  * 0x0003 - `remove`
+  * 0x0004 - `psk`
+  * 0x0005 - `reinit`
+  * 0x0006 - `external_init`
+  * 0x0007 - `group_context_extensions`
+* Extension types:
+  * 0x0001 - `application_id`
+  * 0x0002 - `ratchet_tree`
+  * 0x0003 - `required_capabilities`
+  * 0x0004 - `external_pub`
+  * 0x0005 - `external_senders`
+
+There are no default values for the other fields of a capabilities object.  The
+client MUST list all values for the respective parameters that it supports.
+
+The types of any non-default extensions that appear in the `extensions` field of a LeafNode
 MUST be included in the `extensions` field of the `capabilities` field, and the
 credential type used in the LeafNode MUST be included in the `credentials` field
-of the `capabilities` field.  As discussed in {{extensibility}}, unknown values
+of the `capabilities` field.
+
+As discussed in {{extensibility}}, unknown values
 in `capabilities` MUST be ignored, and the creator of a `capabilities` field
 SHOULD include some random GREASE values to help ensure that other clients correctly
 ignore unknown values.
@@ -5161,6 +5182,11 @@ For the KeyPackage and GroupInfo extensions, the `extension_data` for GREASE
 extensions MAY have any contents selected by the sender, since they will be
 ignored by a correctly-implemented receiver.  For example, a sender might
 populate these extensions with a randomly-sized amount of random data.
+
+Note that any GREASE values added to `LeafNode.extensions` need to be reflected
+in `LeafNode.capabilities.extensions`, since the LeafNode validation process
+described in {{leaf-node-validation}} requires that these two fields be
+consistent.
 
 GREASE values MUST NOT be sent in the following fields, because an unsupported
 value in one these fields (including a GREASE value), will cause the enclosing
