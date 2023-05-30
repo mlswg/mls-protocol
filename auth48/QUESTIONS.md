@@ -27,8 +27,11 @@ The authors' XML file now has
 > order, or do you prefer the current ordering? Please review and
 > let us know your preference.
 > -->     
-> 
-> 
+
+We would prefer to keep the terminology in the existing order.  Since there are
+some semantic dependencies, having them in this order is clearer.
+
+
 > 4) <!-- [rfced] Please review the "type" attribute of each sourcecode
 > element in the XML file to ensure correctness.
 > 
@@ -43,8 +46,11 @@ The authors' XML file now has
 > should any artwork element be tagged as sourcecode or another
 > element?
 >  -->
-> 
-> 
+
+Thanks, we were unaware of the `tls-presentation` type.  All of the `tls`
+instances have been changed to `tls-presentation`.
+
+
 > 5) <!-- [rfced] In the html and pdf outputs, the text enclosed in <tt> is
 > output in fixed-width font. In the txt output, there are no changes to the
 > font, and the quotation marks have been removed.
@@ -56,14 +62,19 @@ The authors' XML file now has
 > Please review carefully and let us know if the output is acceptable or if
 > any updates are needed.
 > -->
-> 
-> 
+
+Yes, this output matches our expectations.
+
+
 > 6) <!--[rfced] We note that <sup> is used for superscript, but not for
 > all instances. Please review and let us know if you would like to
 > use <sup> for the instances that do not contain the <sup> element.
 > -->
-> 
-> 
+
+We should use `<sup>` throughout, removing `<tt>` if necessary.  I have
+attempted to update all of the required occurrences.
+
+
 > 7) <!--[rfced] Would it be correct to say that a member "sends" a Welcome
 > message to a new client instead of "broadcasts" it since the
 > Welcome is only being distributed to one client?
@@ -80,15 +91,19 @@ The authors' XML file now has
 >    use to update their state, and send a Welcome message that
 >    the new client can use to initialize its state and join the group.
 > -->
-> 
-> 
+
+I have edited this to be serial: "download ... broadcast ... send".
+
+
 > 8) <!--[rfced] Please review whether any of the notes in this document
 > should be in the <aside> element. It is defined as "a container for
 > content that is semantically less important or tangential to the
 > content that surrounds it" (https://authors.ietf.org/en/rfcxml-vocabulary#aside).
 > -->
-> 
-> 
+
+TODO(RLB)
+
+
 > 9) <!--[rfced] May we shorten the title for Figure 4 by moving the second
 > sentence to a note below the figure? The note may be indented or
 > in an <aside> element. Please let us know your preference.
@@ -107,8 +122,11 @@ The authors' XML file now has
 >    the keys for both A and B updated, so the group has
 >    post-compromise security with respect to both of them.
 > -->
-> 
-> 
+
+I added an appropriate note to the main text, at the point where this figure is
+referenced.
+
+
 > 10) <!--[rfced] Is the intended meaning that the right subtree is the same
 > as the left subtree? If so, may we update the text in parentheses
 > for clarity as follows?
@@ -122,13 +140,20 @@ The authors' XML file now has
 >    left child as the head (and respectively, its right subtree has its
 >    right child as the head).
 > -->
-> 
-> 
+
+No, the intent is that you swap left for right, so you have a right subtree with
+the right child as its head.  I expanded the sentence to be less terse.
+
+
 > 11) <!--[rfced] Tables 2, 3, 5, 7, and 15 do not have titles. If you would
 > like to add titles, please provide the desired text.
 > -->
-> 
-> 
+
+These tables do not need labels; they're just example data. In fact, I would be
+happy to suppress the "Table N" notation, but that doesn't seem to be possible
+within the bounds of RFC 7991.
+
+
 > 12) <!--[rfced] We capitalized the following instance of "r" and "s" to
 > match use in RFC 8032; please let us know of any objections.
 > 
@@ -142,8 +167,10 @@ The authors' XML file now has
 >    signatures are defined as the concatenation of R and S,
 >    as specified in [RFC8032].
 > -->
-> 
-> 
+
+This is correct, thanks.
+
+
 > 13) <!--[rfced] We do not see "SealBase" or "OpenBase" in RFC 9180, but we
 > do see "Seal()" and "Open()". We assume that these are one in the
 > same; however, if any further updates are needed for consistency,
@@ -153,8 +180,13 @@ The authors' XML file now has
 >    Here, the functions SealBase and OpenBase are defined [RFC9180],
 >    using the HPKE algorithms specified by the group's ciphersuite.
 > -->
-> 
-> 
+
+SealBase/OpenBase are defined in the "Single-Shot APIs" section of RFC 9180,
+with <MODE> = Base.  I clarified.
+
+https://datatracker.ietf.org/doc/html/rfc9180#name-single-shot-apis
+
+
 > 14) <!--[rfced] The following lines are over the 72-character limit (and
 > over the 69-character limit for ASCII artwork). Please let us
 > know how you would like to shorten/wrap the lines.
@@ -182,8 +214,16 @@ The authors' XML file now has
 > Appendix D:
 >   raise Exception("Cannot truncate a tree with 0 or 1 nodes") (2 over)
 > -->
-> 
-> 
+
+TODO(RLB)
+Section 5.2       DONE
+Figure 12         TODO
+Section 7.7       TODO
+Section 12.4.3.1  TODO
+Section 12.4.3.1  TODO
+Appendix D        TODO
+
+
 > 15) <!--[rfced] We notice that the text "See IANA registry for registered
 > values" is included within four of the sourcecode elements (see
 > Sections 5.3, 6, 7.2, and 12.1).  Would it be better to refer to the registry name and add a pointer to the relevant section in the document? 
@@ -239,8 +279,13 @@ The authors' XML file now has
 >        };
 >    } Credential;
 > -->
-> 
-> 
+
+I updated the `// See IANA` comments to explicitly reference the relevant
+registries by name.  Referencing by name is better than by section, since we
+want folks to look at the actual registry, not the initial values defined in
+this document.
+
+
 > 16) <!--[rfced] FYI: We added "and" before "represented". If that is not
 > correct, please let us know.
 > 
