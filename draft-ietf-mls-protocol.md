@@ -2778,7 +2778,7 @@ The following general rules apply:
 The transcript hashes computed in MLS represent a running hash over all Proposal
 and Commit messages that have ever been sent in a group.  Commit messages are
 included directly. Proposal messages are indirectly included via the Commit that
-applied them. Both types of message are included by hashing the AuthenticatedContent
+applied them. Messages of both types are included by hashing the AuthenticatedContent
 object in which they were sent.
 
 The transcript hash comprises two individual hashes:
@@ -3739,7 +3739,7 @@ proposals that are not authorized are considered invalid.
 An external proposal MUST be sent as a PublicMessage object, since the sender
 will not have the keys necessary to construct a PrivateMessage object.
 
-Some types of proposal cannot be sent by an `external` sender.  Among the
+Proposals of some types cannot be sent by an `external` sender.  Among the
 proposal types defined in this document, only the following types may be sent by
 an `external` sender:
 
@@ -4677,7 +4677,7 @@ that each member is able to authenticate some identity information for each
 other member.  Identity information is encoded in Credentials, so this property
 is provided by ensuring that members use compatible credential types.
 
-The types of credential that may be used in a group is restricted to what all
+The only types of credential that may be used in a group are those that all
 members of the group support, as specified by the `capabilities` field of each
 LeafNode in the ratchet tree. An application can introduce new credential types
 by choosing an unallocated identifier from the registry in
@@ -5617,7 +5617,7 @@ The `SignWithLabel` function defined in {{signing}} avoids the risk of
 confusion between signatures in different contexts.  Each context is assigned a
 distinct label that is incorporated into the signature.  The "MLS Signature Labels" registry records
 the labels defined in this document and allows additional labels to be
-registered in case extensions add other types of signature using the same
+registered in case extensions add other types of signatures using the same
 signature keys used elsewhere in MLS.
 
 Template:

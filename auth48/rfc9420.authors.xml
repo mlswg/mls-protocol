@@ -1733,100 +1733,97 @@ consume them:</t>
         <name>Relationships among MLS Objects</name>
         <artset>
           <artwork type="svg">
-            <svg xmlns="http://www.w3.org/2000/svg" class="diagram" font-family="monospace" font-size="13px" height="512" text-anchor="middle" version="1.1" viewBox="0 0 728 512" width="728">
-              <path d="M 32,416 L 32,448" fill="none" stroke="black"/>
-              <path d="M 120,416 L 120,448" fill="none" stroke="black"/>
-              <path d="M 208,416 L 208,448" fill="none" stroke="black"/>
-              <path d="M 248,448 L 248,480" fill="none" stroke="black"/>
-              <path d="M 272,48 L 272,64" fill="none" stroke="black"/>
-              <path d="M 296,160 L 296,192" fill="none" stroke="black"/>
-              <path d="M 296,224 L 296,240" fill="none" stroke="black"/>
-              <path d="M 320,352 L 320,384" fill="none" stroke="black"/>
-              <path d="M 320,416 L 320,448" fill="none" stroke="black"/>
-              <path d="M 368,128 L 368,160" fill="none" stroke="black"/>
-              <path d="M 368,240 L 368,272" fill="none" stroke="black"/>
-              <path d="M 392,48 L 392,96" fill="none" stroke="black"/>
-              <path d="M 392,128 L 392,272" fill="none" stroke="black"/>
-              <path d="M 392,304 L 392,352" fill="none" stroke="black"/>
-              <path d="M 464,352 L 464,384" fill="none" stroke="black"/>
-              <path d="M 464,416 L 464,448" fill="none" stroke="black"/>
-              <path d="M 512,48 L 512,64" fill="none" stroke="black"/>
-              <path d="M 544,144 L 544,256" fill="none" stroke="black"/>
-              <path d="M 544,320 L 544,384" fill="none" stroke="black"/>
-              <path d="M 272,64 L 512,64" fill="none" stroke="black"/>
-              <path d="M 296,160 L 368,160" fill="none" stroke="black"/>
-              <path d="M 544,192 L 560,192" fill="none" stroke="black"/>
-              <path d="M 296,240 L 368,240" fill="none" stroke="black"/>
-              <path d="M 320,352 L 464,352" fill="none" stroke="black"/>
-              <path d="M 544,352 L 560,352" fill="none" stroke="black"/>
-              <path d="M 32,448 L 464,448" fill="none" stroke="black"/>
-              <path d="M 528,128 C 536.83064,128 544,135.16936 544,144" fill="none" stroke="black"/>
-              <path d="M 528,272 C 536.83064,272 544,264.83064 544,256" fill="none" stroke="black"/>
-              <path d="M 528,304 C 536.83064,304 544,311.16936 544,320" fill="none" stroke="black"/>
-              <path d="M 528,400 C 536.83064,400 544,392.83064 544,384" fill="none" stroke="black"/>
-              <polygon class="arrowhead" fill="black" points="472,384 460,378.4 460,389.6" transform="rotate(90,464,384)"/>
-              <polygon class="arrowhead" fill="black" points="400,272 388,266.4 388,277.6" transform="rotate(90,392,272)"/>
-              <polygon class="arrowhead" fill="black" points="400,96 388,90.4 388,101.6" transform="rotate(90,392,96)"/>
-              <polygon class="arrowhead" fill="black" points="376,272 364,266.4 364,277.6" transform="rotate(90,368,272)"/>
-              <polygon class="arrowhead" fill="black" points="328,384 316,378.4 316,389.6" transform="rotate(90,320,384)"/>
-              <polygon class="arrowhead" fill="black" points="304,192 292,186.4 292,197.6" transform="rotate(90,296,192)"/>
-              <polygon class="arrowhead" fill="black" points="256,480 244,474.4 244,485.6" transform="rotate(90,248,480)"/>
+            <svg xmlns="http://www.w3.org/2000/svg" class="diagram" font-family="monospace" font-size="13px" height="480" text-anchor="middle" version="1.1" viewBox="0 0 520 480" width="520">
+              <path d="M 64,48 L 64,64" fill="none" stroke="black"/>
+              <path d="M 88,144 L 88,176" fill="none" stroke="black"/>
+              <path d="M 88,208 L 88,224" fill="none" stroke="black"/>
+              <path d="M 112,304 L 112,336" fill="none" stroke="black"/>
+              <path d="M 112,368 L 112,416" fill="none" stroke="black"/>
+              <path d="M 160,128 L 160,144" fill="none" stroke="black"/>
+              <path d="M 160,224 L 160,256" fill="none" stroke="black"/>
+              <path d="M 184,48 L 184,96" fill="none" stroke="black"/>
+              <path d="M 184,128 L 184,256" fill="none" stroke="black"/>
+              <path d="M 184,288 L 184,304" fill="none" stroke="black"/>
+              <path d="M 256,304 L 256,336" fill="none" stroke="black"/>
+              <path d="M 256,368 L 256,448" fill="none" stroke="black"/>
+              <path d="M 304,48 L 304,64" fill="none" stroke="black"/>
+              <path d="M 304,400 L 304,416" fill="none" stroke="black"/>
+              <path d="M 336,144 L 336,240" fill="none" stroke="black"/>
+              <path d="M 336,304 L 336,336" fill="none" stroke="black"/>
+              <path d="M 392,400 L 392,416" fill="none" stroke="black"/>
+              <path d="M 480,400 L 480,416" fill="none" stroke="black"/>
+              <path d="M 64,64 L 304,64" fill="none" stroke="black"/>
+              <path d="M 88,144 L 160,144" fill="none" stroke="black"/>
+              <path d="M 336,176 L 352,176" fill="none" stroke="black"/>
+              <path d="M 88,224 L 160,224" fill="none" stroke="black"/>
+              <path d="M 112,304 L 256,304" fill="none" stroke="black"/>
+              <path d="M 336,320 L 352,320" fill="none" stroke="black"/>
+              <path d="M 112,416 L 480,416" fill="none" stroke="black"/>
+              <path d="M 320,128 C 328.83064,128 336,135.16936 336,144" fill="none" stroke="black"/>
+              <path d="M 320,256 C 328.83064,256 336,248.83064 336,240" fill="none" stroke="black"/>
+              <path d="M 320,288 C 328.83064,288 336,295.16936 336,304" fill="none" stroke="black"/>
+              <path d="M 320,352 C 328.83064,352 336,344.83064 336,336" fill="none" stroke="black"/>
+              <polygon class="arrowhead" fill="black" points="264,448 252,442.4 252,453.6" transform="rotate(90,256,448)"/>
+              <polygon class="arrowhead" fill="black" points="264,336 252,330.4 252,341.6" transform="rotate(90,256,336)"/>
+              <polygon class="arrowhead" fill="black" points="192,256 180,250.4 180,261.6" transform="rotate(90,184,256)"/>
+              <polygon class="arrowhead" fill="black" points="192,96 180,90.4 180,101.6" transform="rotate(90,184,96)"/>
+              <polygon class="arrowhead" fill="black" points="168,256 156,250.4 156,261.6" transform="rotate(90,160,256)"/>
+              <polygon class="arrowhead" fill="black" points="120,336 108,330.4 108,341.6" transform="rotate(90,112,336)"/>
+              <polygon class="arrowhead" fill="black" points="96,176 84,170.4 84,181.6" transform="rotate(90,88,176)"/>
               <g class="text">
-                <text x="276" y="36">Proposal</text>
-                <text x="396" y="36">Commit</text>
-                <text x="504" y="36">Application</text>
-                <text x="572" y="36">Data</text>
-                <text x="384" y="116">FramedContent</text>
-                <text x="612" y="196">Asymmetric</text>
-                <text x="296" y="212">FramedContentAuthData</text>
-                <text x="588" y="212">Sign</text>
-                <text x="616" y="212">/</text>
-                <text x="652" y="212">Verify</text>
-                <text x="396" y="292">AuthenticatedContent</text>
-                <text x="608" y="356">Symmetric</text>
-                <text x="600" y="372">Protect</text>
-                <text x="640" y="372">/</text>
-                <text x="688" y="372">Unprotect</text>
-                <text x="32" y="404">Welcome</text>
-                <text x="116" y="404">KeyPackage</text>
-                <text x="208" y="404">GroupInfo</text>
-                <text x="320" y="404">PublicMessage</text>
-                <text x="460" y="404">PrivateMessage</text>
-                <text x="252" y="500">MLSMessage</text>
+                <text x="68" y="36">Proposal</text>
+                <text x="188" y="36">Commit</text>
+                <text x="296" y="36">Application</text>
+                <text x="364" y="36">Data</text>
+                <text x="176" y="116">FramedContent</text>
+                <text x="404" y="180">Asymmetric</text>
+                <text x="88" y="196">FramedContentAuthData</text>
+                <text x="380" y="196">Sign</text>
+                <text x="408" y="196">/</text>
+                <text x="444" y="196">Verify</text>
+                <text x="188" y="276">AuthenticatedContent</text>
+                <text x="400" y="324">Symmetric</text>
+                <text x="392" y="340">Protect</text>
+                <text x="432" y="340">/</text>
+                <text x="480" y="340">Unprotect</text>
+                <text x="112" y="356">PublicMessage</text>
+                <text x="252" y="356">PrivateMessage</text>
+                <text x="304" y="388">Welcome</text>
+                <text x="388" y="388">KeyPackage</text>
+                <text x="480" y="388">GroupInfo</text>
+                <text x="260" y="468">MLSMessage</text>
               </g>
             </svg>
           </artwork>
           <artwork type="ascii-art">
-                              Proposal        Commit     Application Data
-                                 |              |              |
-                                 +--------------+--------------+
-                                                |
-                                                V
-                                         FramedContent
-                                             |  |                -.
-                                             |  |                  |
-                                    +--------+  |                  |
-                                    |           |                  |
-                                    V           |                  +-- Asymmetric
-                          FramedContentAuthData |                  |   Sign / Verify
-                                    |           |                  |
-                                    +--------+  |                  |
-                                             |  |                  |
-                                             V  V                -'
-                                       AuthenticatedContent
-                                                |                -.
-                                                |                  |
-                                                |                  |
-                                       +--------+--------+         +-- Symmetric
-                                       |                 |         |   Protect / Unprotect
-                                       V                 V         |
-Welcome  KeyPackage  GroupInfo   PublicMessage    PrivateMessage -'
-   |          |          |             |                 |
-   |          |          |             |                 |
-   +----------+----------+----+--------+-----------------+
-                              |
-                              V
-                          MLSMessage
+    Proposal        Commit     Application Data
+       |              |              |
+       +--------------+--------------+
+                      |
+                      V
+               FramedContent
+                   |  |                -.
+          +--------+  |                  |
+          |           |                  |
+          V           |                  +-- Asymmetric
+FramedContentAuthData |                  |   Sign / Verify
+          |           |                  |
+          +--------+  |                  |
+                   |  |                  |
+                   V  V                -'
+             AuthenticatedContent
+                      |                -.
+             +--------+--------+         |
+             |                 |         +-- Symmetric
+             V                 V         |   Protect / Unprotect
+       PublicMessage    PrivateMessage -'
+             |                 |
+             |                 |  Welcome  KeyPackage  GroupInfo
+             |                 |     |          |          |
+             +-----------------+-----+----------+----------+
+                               |
+                               V
+                           MLSMessage
 </artwork>
         </artset>
       </figure>
@@ -3324,7 +3321,7 @@ committed.</li>
         <t>The transcript hashes computed in MLS represent a running hash over all Proposal
 and Commit messages that have ever been sent in a group.  Commit messages are
 included directly. Proposal messages are indirectly included via the Commit that
-applied them. Both types of messages are included by hashing the AuthenticatedContent
+applied them. Messages of both types are included by hashing the AuthenticatedContent
 object in which they were sent.</t>
         <t>The transcript hash comprises two individual hashes:</t>
         <ul spacing="normal">
@@ -4531,7 +4528,7 @@ sent by the new joiner itself (not an existing member) is authorized. External
 proposals that are not authorized are considered invalid.</t>
           <t>An external proposal <bcp14>MUST</bcp14> be sent as a PublicMessage object, since the sender
 will not have the keys necessary to construct a PrivateMessage object.</t>
-          <t>Some types of proposals cannot be sent by an <tt>external</tt> sender.  Among the
+          <t>Proposals of some types cannot be sent by an <tt>external</tt> sender.  Among the
 proposal types defined in this document, only the following types may be sent by
 an <tt>external</tt> sender:</t>
           <ul spacing="normal">
@@ -5503,7 +5500,7 @@ all the members of the group that will process the Commit.</t>
 that each member is able to authenticate some identity information for each
 other member.  Identity information is encoded in Credentials, so this property
 is provided by ensuring that members use compatible credential types.</t>
-        <t>The types of credentials that may be used in a group is restricted to what all
+        <t>The only types of credential that may be used in a group are those that all
 members of the group support, as specified by the <tt>capabilities</tt> field of each
 LeafNode in the ratchet tree. An application can introduce new credential types
 by choosing an unallocated identifier from the registry in
