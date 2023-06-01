@@ -839,7 +839,7 @@ or if the node itself is the root of the tree. Nodes are _siblings_ if they shar
 A _subtree_ of a tree is the tree given by any node (the _head_ of the
 subtree) and its descendants. The _size_ of a tree or subtree is the
 number of leaf nodes it contains.  For a given parent node, its _left
-subtree_ is the subtree with its left child as head and the its
+subtree_ is the subtree with its left child as head and its
 _right subtree_ is the subtree with its right child as head.
 
 Every tree used in this protocol is a perfect binary tree, that is, a complete
@@ -860,7 +860,7 @@ algorithms, as long as they produce correct protocol messages.
 ### Ratchet Tree Nodes
 
 Each leaf node in a ratchet tree is given an _index_ (or _leaf index_), starting
-at 0 from the left to 2<sup>d - 1</sup> at the right (for a tree with 2<sup>d</sup> leaves). A tree
+at 0 from the left to 2<sup>d</sup> - 1 at the right (for a tree with 2<sup>d</sup> leaves). A tree
 with 2<sup>d</sup> leaves has 2<sup>d+1</sup> - 1 nodes, including parent nodes.
 
 Each node in a ratchet tree is either _blank_ (containing no value) or it holds
@@ -1160,7 +1160,7 @@ label = "MLS 1.0 " + Label;
 context = Context;
 ~~~
 
-The functions `SealBase` and `OpenBase` are defined {{Section 6.1 of
+The functions `SealBase` and `OpenBase` are defined in {{Section 6.1 of
 RFC9180}} (with "Base" as the MODE), using the HPKE algorithms specified by the
 group's ciphersuite.  If MLS extensions require HPKE encryption operations, they
 should reuse the EncryptWithLabel construction, using a distinct label.  To
@@ -4558,7 +4558,7 @@ structure in memory.)
 
 The leaves of the tree are stored in even-numbered entries in the array (the
 leaf with index `L` in array position `2*L`). The root node of the tree is at
-position 2<sup>d - 1</sup> of the array. Intermediate parent nodes can be identified by
+position 2<sup>d</sup> - 1 of the array. Intermediate parent nodes can be identified by
 performing the same calculation to the subarrays to the left and right of the
 root, following something like the following algorithm:
 
@@ -4764,8 +4764,8 @@ by reinitializing the group ({{reinitialization}}).
 
 As described in {{extensions}}, clients are required to ignore unknown values
 for certain parameters.  To help ensure that other clients implement this
-behavior, a client can follow the “Generate Random Extensions And Sustain
-Extensibility” or GREASE approach described in {{?RFC8701}}.  In the context of
+behavior, a client can follow the "Generate Random Extensions And Sustain
+Extensibility" or GREASE approach described in {{?RFC8701}}.  In the context of
 MLS, this means that a client generating a KeyPackage, LeafNode, or GroupInfo object includes
 random values in certain fields which would be ignored by a
 correctly implemented client processing the message.  A client that incorrectly

@@ -1055,7 +1055,7 @@ or if the node itself is the root of the tree. Nodes are <em>siblings</em> if th
         <t>A <em>subtree</em> of a tree is the tree given by any node (the <em>head</em> of the
 subtree) and its descendants. The <em>size</em> of a tree or subtree is the
 number of leaf nodes it contains.  For a given parent node, its <em>left
-subtree</em> is the subtree with its left child as head and the its
+subtree</em> is the subtree with its left child as head and its
 <em>right subtree</em> is the subtree with its right child as head.</t>
         <t>Every tree used in this protocol is a perfect binary tree, that is, a complete
 balanced binary tree with 2<sup>d</sup> leaves all at the same depth <tt>d</tt>.  This
@@ -1073,7 +1073,7 @@ algorithms, as long as they produce correct protocol messages.</t>
         <section anchor="ratchet-tree-nodes">
           <name>Ratchet Tree Nodes</name>
           <t>Each leaf node in a ratchet tree is given an <em>index</em> (or <em>leaf index</em>), starting
-at 0 from the left to 2<sup>d - 1</sup> at the right (for a tree with 2<sup>d</sup> leaves). A tree
+at 0 from the left to 2<sup>d</sup> - 1 at the right (for a tree with 2<sup>d</sup> leaves). A tree
 with 2<sup>d</sup> leaves has 2<sup>d+1</sup> - 1 nodes, including parent nodes.</t>
           <t>Each node in a ratchet tree is either <em>blank</em> (containing no value) or it holds
 an HPKE public key with some associated data:</t>
@@ -1434,7 +1434,7 @@ struct {
 label = "MLS 1.0 " + Label;
 context = Context;
 </artwork>
-          <t>The functions <tt>SealBase</tt> and <tt>OpenBase</tt> are defined <xref section="6.1" sectionFormat="of" target="RFC9180"/> (with "Base" as the MODE), using the HPKE algorithms specified by the
+          <t>The functions <tt>SealBase</tt> and <tt>OpenBase</tt> are defined in <xref section="6.1" sectionFormat="of" target="RFC9180"/> (with "Base" as the MODE), using the HPKE algorithms specified by the
 group's ciphersuite.  If MLS extensions require HPKE encryption operations, they
 should reuse the EncryptWithLabel construction, using a distinct label.  To
 avoid collisions in these labels, an IANA registry is defined in
@@ -5300,7 +5300,7 @@ synthesizing blank nodes when required, as opposed to actually changing the
 structure in memory.)</t>
             <t>The leaves of the tree are stored in even-numbered entries in the array (the
 leaf with index <tt>L</tt> in array position <tt>2*L</tt>). The root node of the tree is at
-position 2<sup>d - 1</sup> of the array. Intermediate parent nodes can be identified by
+position 2<sup>d</sup> - 1 of the array. Intermediate parent nodes can be identified by
 performing the same calculation to the subarrays to the left and right of the
 root, following something like the following algorithm:</t>
             <sourcecode type="python">
