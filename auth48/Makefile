@@ -15,10 +15,10 @@ gen: rfc${RFC}.gen.xml
 rfc${RFC}.gen.xml: ../${DRAFT}.md
 	make -C .. ${DRAFT}.xml
 	mv ../${DRAFT}.xml .
-	python3 normalize.py <${DRAFT}.xml | \
+	python3 xml-clean.py <${DRAFT}.xml | \
 		xmllint --exc-c14n - | \
-		xmllint --format - \
-		>rfc${RFC}.gen.xml
+		xmllint --format - | \
+		python3 text-clean.py >rfc${RFC}.gen.xml
 	rm ${DRAFT}.xml
 
 diff: rfc${RFC}.authors.xml rfc${RFC}.gen.xml
