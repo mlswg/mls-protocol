@@ -6,7 +6,7 @@
 * Comma always before "as described in..." and similar
 * Comma after "Here", "Hence"
 * <t> inside <dd> or not?
-
+* repeated "where this credential is defined" in IANA considerations
 
 ## Questions and Answers
 
@@ -583,7 +583,8 @@ Thanks, these changes are correct.
 >    limitations of the mechanism or necessary constraints on its use.
 > -->     
 
-TODO
+I have added the "it" here.  I'm OK with any divergence due to copy-editing
+changes that might get introduced in EDIT state.
 
 
 > 27) <!--[rfced] Should the citations for RFCs 8446 and 9180 follow "The
@@ -706,24 +707,25 @@ I have added these "and"s.
 >  - Update vs. update
 >      (Please clarify if all capitalized instances are referring to an
 >       "Update message" or "Update proposal" or if updates are needed.)
+> -->
 
-TODO
-
-I have tried to normalize on:
+I have normalized on:
 
 * Lower-case "client" everywhere
 * Upper-case "Commit" whenever it refers to a Commit object
-* Upper-case "Credential" when it refers to a Credential object, lower-case otherwise
-* Lower-case "external Commit"
+* Upper-case "Credential" only when referring to a Credential object
+* "external Commit"
 * Lower-case "fetch"
 * Lower-case "parent hash"
-* Upper-case "Proposal" when referring to a Proposal object in general, without
-  reference to a type, lower-case otherwise.  Thus, "Proposal object", but "Add
-  proposal"
+* Upper-case "Proposal" only when referring to a Proposal object, not an
+  abstract proposal or a specific type of proposal (e.g., an "Add proposal")
 * Lower-case "secret tree"
 * Upper-case "Update" when it refers to an Update proposal, lower-case otherwise
 
 Basically, when use upper case only when we refer to a struct with a TLS-syntax definition.
+
+Also, I noticed that some struct names were in <tt> (e.g., `PreSharedKeyID`).  That
+should not be done, so I removed the <tt> around them.
 
 
 > b) The Web Portion of the RFC Style Guide
@@ -748,9 +750,15 @@ as-is.
 > like to make this consistent by using digits when referring to bits
 > and bytes? Please let us know your preference.
 
-TODO
+I would keep the current balance.  Words are used except for two
+instances:
 
-I have tried to normalize on digits.
+* "from 0 bytes to 2<sup>30</sup> bytes"
+* "integers are encoded in 1, 2, or 4 bytes and can encode 6-, 14-, or 30-bit values"
+
+The first of these makes sense for the "0" to be parallel to the exponentiated
+value.  For the second, the digits make the correspondence between byte length
+and bit length clearer.
 
 
 > d) Note that we updated the following terms to the latter forms as

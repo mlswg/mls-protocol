@@ -246,7 +246,7 @@ Terminology specific to tree computations is described in
 
 In general, symmetric values are referred to as "keys" or "secrets"
 interchangeably.  Either term denotes a value that MUST be kept confidential to
-a Client.  When labeling individual values, we typically use "secret" to refer
+a client.  When labeling individual values, we typically use "secret" to refer
 to a value that is used to derive further secret values and "key" to refer to a
 value that is used with an algorithm such as Hashed Message Authentication Code
 (HMAC) or an Authenticated Encryption with Associated Data (AEAD) algorithm.
@@ -313,7 +313,7 @@ The encoded value MUST use the smallest number of bits required to
 represent the value.  When decoding, values using more bits than necessary MUST
 be treated as malformed.
 
-This means that integers are encoded on 1, 2, or 4 bytes and can encode 6-,
+This means that integers are encoded in 1, 2, or 4 bytes and can encode 6-,
 14-, or 30-bit values, respectively.
 
 | Prefix | Length  | Usable Bits | Min        | Max                 |
@@ -679,8 +679,8 @@ message flows in other ways.  For example:
   group.
 
 * Proposal messages don't need to be immediately sent to all group members.  They need to
-  be available to the committer before generating a commit, and to other members before
-  processing the commit.
+  be available to the committer before generating a Commit, and to other members before
+  processing the Commit.
 
 * The sender of a Commit doesn't necessarily have to wait to receive its own
   Commit back before advancing its state. It only needs to know that its Commit
@@ -1209,7 +1209,7 @@ value = value;
 For a KeyPackageRef, the `value` input is the encoded KeyPackage, and the
 ciphersuite specified in the KeyPackage determines the KDF used.  For a
 ProposalRef, the `value` input is the AuthenticatedContent carrying the
-proposal.  In the latter two cases, the KDF is determined by the group's
+Proposal.  In the latter two cases, the KDF is determined by the group's
 ciphersuite.
 
 ## Credentials
@@ -1225,7 +1225,7 @@ a certificate in an X509Credential may attest to several domain names or email
 addresses in its subjectAltName extension.  An application may decide to
 present all of these to a user, or if it knows a "desired" domain name or email
 address, it can check that the desired identifier is among those attested.
-Using the terminology from {{?RFC6125}}, a Credential provides "presented
+Using the terminology from {{?RFC6125}}, a credential provides "presented
 identifiers", and it is up to the application to supply a "reference identifier"
 for the authenticated client, if any.
 
@@ -1283,7 +1283,7 @@ the AS.  In particular, at the following events in the protocol:
 * When a member receives a KeyPackage that it will use in an Add proposal to add
   a new member to the group
 * When a member receives a GroupInfo object that it will use to join a group,
-  either via a Welcome or via an External Commit
+  either via a Welcome or via an external Commit
 * When a member receives an Add proposal adding a member to the group
 * When a member receives an Update proposal whose LeafNode has a new credential
   for the member
@@ -1576,7 +1576,7 @@ depending on the sender's `sender_type`:
     the Commit's path (see {{joining-via-external-commits}}). The
     `content_type` of the message MUST be `commit`.
 * `new_member_proposal`: The signature key in the LeafNode in
-    the KeyPackage embedded in an External Add Proposal. The
+    the KeyPackage embedded in an external Add proposal. The
     `content_type` of the message MUST be `proposal` and the
     `proposal_type` of the Proposal MUST be `add`.
 
@@ -1974,7 +1974,7 @@ the `parent_hash` field contains the parent hash for this leaf node (see
 
 The LeafNodeTBS structure covers the fields above the signature in the LeafNode.
 In addition, when the leaf node was created in the context of a group (the
-update and commit cases), the group ID of the group is added as context to the
+`update` and `commit` cases), the group ID of the group is added as context to the
 signature.
 
 LeafNode objects stored in the group's ratchet tree
@@ -1992,7 +1992,7 @@ The validity of a LeafNode needs to be verified at the following stages:
 * When a LeafNode is received by a group member in an Add, Update, or Commit
   message
 * When a client validates a ratchet tree, e.g., when joining a group or after
-  processing a commit
+  processing a Commit
 
 The client verifies the validity of a LeafNode using the following steps:
 
@@ -2013,10 +2013,10 @@ The client verifies the validity of a LeafNode using the following steps:
 
 * Verify the `lifetime` field:
   * If the LeafNode appears in a message being sent by the client, e.g., a
-    proposal or a commit, then the client MUST verify that the current time is within
+    Proposal or a Commit, then the client MUST verify that the current time is within
     the range of the `lifetime` field.
   * If instead the LeafNode appears in a message being received by the client, e.g.,
-    a proposal, a commit, or a ratchet tree of the group the client is joining, it is
+    a Proposal, a Commit, or a ratchet tree of the group the client is joining, it is
     RECOMMENDED that the client verifies that the current time is within the range
     of the `lifetime` field.  (This check is not mandatory because the LeafNode
     might have expired in the time between when the message was sent and when it
@@ -2181,7 +2181,7 @@ their leaf node and the nodes along their filtered direct path as follows:
     * Re-sign the leaf node with its new contents.
 
 Since the new leaf node effectively updates an existing leaf node in the group,
-it MUST adhere to the same restrictions as LeafNodes used in `Update` proposals
+it MUST adhere to the same restrictions as LeafNodes used in Update proposals
 (aside from `leaf_node_source`). The application MAY specify other changes to
 the leaf node, e.g., providing a new signature key, updated capabilities, or
 different extensions.
@@ -2282,7 +2282,7 @@ struct {
 } UpdatePath;
 ~~~
 
-For each `UpdatePathNode`, the resolution of the corresponding copath node MUST
+For each UpdatePathNode, the resolution of the corresponding copath node MUST
 exclude all new leaf nodes added as part of the current Commit. The length of
 the `encrypted_path_secret` vector MUST be equal to the length of the resolution
 of the copath node (excluding new leaf nodes), with each ciphertext being the
@@ -2377,11 +2377,11 @@ th(L)     th(R)
 ~~~
 {: title="Composition of the Tree Hash" }
 
-The tree hash of an individual node is the hash of the node's `TreeHashInput`
-object, which may contain either a `LeafNodeHashInput` or a
-`ParentNodeHashInput` depending on the type of node. `LeafNodeHashInput` objects
-contain the `leaf_index` and the `LeafNode` (if any). `ParentNodeHashInput`
-objects contain the `ParentNode` (if any) and the tree hash of the node's left
+The tree hash of an individual node is the hash of the node's TreeHashInput
+object, which may contain either a LeafNodeHashInput or a
+ParentNodeHashInput depending on the type of node. LeafNodeHashInput objects
+contain the `leaf_index` and the LeafNode (if any). ParentNodeHashInput
+objects contain the ParentNode (if any) and the tree hash of the node's left
 and right children.  For both parent and leaf nodes, the optional node value
 MUST be absent if the node is blank and present if the node contains a value.
 
@@ -2421,7 +2421,7 @@ which is computed recursively by starting at the leaf nodes and building up.
 While tree hashes summarize the state of a tree at point in time, parent hashes
 capture information about how keys in the tree were populated.
 
-When a client sends a commit to change a group, it can include an UpdatePath to
+When a client sends a Commit to change a group, it can include an UpdatePath to
 assign new keys to the nodes along its filtered direct path.  When a client
 computes an UpdatePath (as defined in {{synchronizing-views-of-the-tree}}), it
 computes and signs a parent hash that summarizes the state of the tree after the
@@ -2468,10 +2468,10 @@ L
 ~~~
 {: #parent-hash-nodes title="Nodes Involved in a Parent Hash Computation" }
 
-The parent hash of P changes whenever an `UpdatePath` object is applied to
+The parent hash of P changes whenever an UpdatePath object is applied to
 the ratchet tree along a path from a leaf L traversing node D (and hence also
 P). The new "Parent hash of P (with copath child S)" is obtained by hashing P's
-`ParentHashInput` struct.
+ParentHashInput struct.
 
 ~~~ tls-presentation
 struct {
@@ -2483,12 +2483,12 @@ struct {
 
 The field `encryption_key` contains the HPKE public key of P. If P is the root,
 then the `parent_hash` field is set to a zero-length octet string. Otherwise,
-`parent_hash` is the Parent Hash of the next node after P on the filtered
-direct path of the leaf L. This way, P's Parent Hash fixes
+`parent_hash` is the parent hash of the next node after P on the filtered
+direct path of the leaf L. This way, P's parent hash fixes
 the new HPKE public key of each non-blank node on the path from P to the root. Note
 that the path from P to the root may contain some blank nodes that are not
-fixed by P's Parent Hash. However, for each node that has an HPKE key, this key
-is fixed by P's Parent Hash.
+fixed by P's parent hash. However, for each node that has an HPKE key, this key
+is fixed by P's parent hash.
 
 Finally, `original_sibling_tree_hash` is the tree hash of S in the ratchet tree
 modified as follows: For each leaf L in `P.unmerged_leaves`, blank L and remove
@@ -2721,7 +2721,7 @@ external_priv, external_pub = KEM.DeriveKeyPair(external_secret)
 ~~~
 
 The public key `external_pub` can be published as part of the GroupInfo struct
-in order to allow non-members to join the group using an external commit.
+in order to allow non-members to join the group using an external Commit.
 
 ## Group Context
 
@@ -2974,11 +2974,11 @@ PreSharedKeyID MUST be set to a fresh random value of length `KDF.Nh`, where
 injected. This ensures that even when a PSK is used multiple times, the value
 used as an input into the key schedule is different each time.
 
-Upon receiving a Commit with a `PreSharedKey` proposal or a GroupSecrets object
-with the `psks` field set, the receiving Client includes them in the key
+Upon receiving a Commit with a PreSharedKey proposal or a GroupSecrets object
+with the `psks` field set, the receiving client includes them in the key
 schedule in the order listed in the Commit, or in the `psks` field, respectively.
 For resumption PSKs, the PSK is defined as the `resumption_psk` of the group and
-epoch specified in the `PreSharedKeyID` object. Specifically, `psk_secret` is
+epoch specified in the PreSharedKeyID object. Specifically, `psk_secret` is
 computed as follows:
 
 ~~~ tls-presentation
@@ -3000,7 +3000,7 @@ psk_secret     = psk_secret_[n]
 ~~~
 
 Here `0` represents the all-zero vector of length `KDF.Nh`. The `index` field in
-`PSKLabel` corresponds to the index of the PSK in the `psk` array, while the
+PSKLabel corresponds to the index of the PSK in the `psk` array, while the
 `count` field contains the total number of PSKs.  In other words, the PSKs are
 chained together with KDF.Extract invocations (labeled "Extract" for brevity
 in the diagram), as follows:
@@ -3087,11 +3087,11 @@ protections provided to the MLS group.
 
 For the generation of encryption keys and nonces, the key schedule begins with
 the `encryption_secret` at the root and derives a tree of secrets with the same
-structure as the group's ratchet tree. Each leaf in the Secret Tree is
+structure as the group's ratchet tree. Each leaf in the secret tree is
 associated with the same group member as the corresponding leaf in the ratchet
 tree.
 
-If N is a parent node in the Secret Tree, then the secrets of the children of N
+If N is a parent node in the secret tree, then the secrets of the children of N
 are defined as follows (where left(N) and right(N) denote the children of N):
 
 ~~~ aasvg
@@ -3106,7 +3106,7 @@ tree_node_[N]_secret
 ~~~
 {: title="Derivation of Secrets from Parent to Children within a Secret Tree" }
 
-The secret in the leaf of the Secret Tree is used to initiate two symmetric hash
+The secret in the leaf of the secret tree is used to initiate two symmetric hash
 ratchets, from which a sequence of single-use keys and nonces are derived, as
 described in {{encryption-keys}}. The root of each ratchet is computed as:
 
@@ -3210,7 +3210,7 @@ _consumed_. A sensitive value S is said to be _consumed_ if:
   values derived via DeriveSecret as well as ExpandWithLabel.)
 
 Here S may be the `init_secret`, `commit_secret`, `epoch_secret`, or
-`encryption_secret` as well as any secret in a Secret Tree or one of the
+`encryption_secret` as well as any secret in a secret tree or one of the
 ratchets.
 
 As soon as a group member consumes a value, they MUST immediately delete
@@ -3225,12 +3225,12 @@ values have been consumed and MUST be deleted:
 
 * the `commit_secret`, `joiner_secret`, `epoch_secret`, and `encryption_secret` of
   that epoch n as well as the `init_secret` of the previous epoch n-1,
-* all node secrets in the Secret Tree on the path from the root to the leaf with
+* all node secrets in the secret tree on the path from the root to the leaf with
   node L,
 * the first j secrets in the application data ratchet of node L, and
 * `application_ratchet_nonce_[L]_[j]` and `application_ratchet_key_[L]_[j]`.
 
-Concretely, consider the Secret Tree shown in {{secret-tree-example}}.  Client
+Concretely, consider the secret tree shown in {{secret-tree-example}}.  Client
 A, B, or C would generate the illustrated values on receiving a message from D
 with generation equal to 1, having not received a message with generation 0
 (e.g., due to out-of-order delivery).  In such a case, the following values
@@ -3276,7 +3276,7 @@ signature key. A KeyPackage object with an invalid signature field MUST be
 considered malformed.
 
 The signature is computed by the function `SignWithLabel` with a label
-`KeyPackageTBS` and a `Content` input comprising all of the fields except for the
+`"KeyPackageTBS"` and a `Content` input comprising all of the fields except for the
 signature field.
 
 ~~~ tls-presentation
@@ -3319,7 +3319,7 @@ set to `key_package`.
 Extensions included in the `extensions` or `leaf_node.extensions` fields MUST
 be included in the `leaf_node.capabilities` field.  As discussed in
 {{extensibility}}, unknown extensions in `KeyPackage.extensions` MUST be
-ignored, and the creator of a `KeyPackage` object SHOULD include some random GREASE
+ignored, and the creator of a KeyPackage object SHOULD include some random GREASE
 extensions to help ensure that other clients correctly ignore unknown
 extensions.
 
@@ -3334,7 +3334,7 @@ The validity of a KeyPackage needs to be verified at a few stages:
 The client verifies the validity of a KeyPackage using the following steps:
 
 * Verify that the ciphersuite and protocol version of the KeyPackage match
-  those in the `GroupContext`.
+  those in the GroupContext.
 
 * Verify that the `leaf_node` of the KeyPackage is valid for a KeyPackage
   according to {{leaf-node-validation}}.
@@ -3470,7 +3470,7 @@ A member can create a subgroup by performing the following steps:
    subgroup.
 2. Create an initial Commit message that sets up the new group and contains a
    PreSharedKey proposal of type `resumption` with usage `branch`. To avoid key
-   reuse, the `psk_nonce` included in the `PreSharedKeyID` object MUST be a
+   reuse, the `psk_nonce` included in the PreSharedKeyID object MUST be a
    randomly sampled nonce of length `KDF.Nh`.
 3. Send the corresponding Welcome message to the subgroup members.
 
@@ -3647,7 +3647,7 @@ A PreSharedKey proposal is invalid if any of the following is true:
 The `psk_nonce` MUST be randomly sampled. When processing
 a Commit message that includes one or more PreSharedKey proposals, group
 members derive `psk_secret` as described in {{pre-shared-keys}}, where the
-order of the PSKs corresponds to the order of the `PreSharedKey` proposals
+order of the PSKs corresponds to the order of the PreSharedKey proposals
 in the Commit.
 
 ### ReInit
@@ -3702,7 +3702,7 @@ struct {
 
 A GroupContextExtensions proposal is invalid if it includes a
 `required_capabilities` extension and some members of the group do not support
-some of the required capabilities (including those added in the same commit,
+some of the required capabilities (including those added in the same Commit,
 and excluding those removed).
 
 A member of the group applies a GroupContextExtensions proposal with the
@@ -3771,13 +3771,13 @@ ExternalSender external_senders<V>;
 
 ## Proposal List Validation
 
-A group member creating a commit and a group member processing a Commit
+A group member creating a Commit and a group member processing a Commit
 MUST verify that the list of committed proposals is valid using one of the following
-procedures, depending on whether the commit is external or not.  If the list of
+procedures, depending on whether the Commit is external or not.  If the list of
 proposals is invalid, then the Commit message MUST be rejected as invalid.
 
-For a regular, i.e. not external, commit the list is invalid if it contains any
-of the following:
+For a regular, i.e., not external, Commit, the list is invalid if any of the
+following occurs:
 
 * It contains an individual proposal that is invalid as specified in {{proposals}}.
 
@@ -3807,25 +3807,25 @@ epoch.
 
 * It contains an ExternalInit proposal.
 
-* It contains a proposal with a non-default proposal type that is not supported by some
+* It contains a Proposal with a non-default proposal type that is not supported by some
 members of the group that will process the Commit (i.e., members being added
 or removed by the Commit do not need to support the proposal type).
 
-* After processing the commit the ratchet tree is invalid, in particular, if it
+* After processing the Commit the ratchet tree is invalid, in particular, if it
 contains any leaf node that is invalid according to {{leaf-node-validation}}.
 
 An application may extend the above procedure by additional rules, for example,
 requiring application-level permissions to add members, or rules concerning
 non-default proposal types.
 
-For an external commit, the list is valid if it contains only the following proposals
+For an external Commit, the list is valid if it contains only the following proposals
 (not necessarily in this order):
 
 * Exactly one ExternalInit
 
 * At most one Remove proposal, with which the joiner removes an
 old version of themselves. If a Remove proposal is present, then the LeafNode in the
-`path` field of the external commit MUST meet the same criteria as would the LeafNode
+`path` field of the external Commit MUST meet the same criteria as would the LeafNode
 in an Update for the removed leaf (see {{update}}). In particular, the `credential`
 in the LeafNode MUST present a set of identifiers that is acceptable to the
 application for the removed participant.
@@ -3981,7 +3981,7 @@ uses:
    contribution to the group and provides PCS with regard to the committer.
 
 2. A "partial" Commit that references proposals that do not require a path, and
-   where the path is empty. Such a commit doesn't provide PCS with regard to the
+   where the path is empty. Such a Commit doesn't provide PCS with regard to the
    committer.
 
 3. A "full" Commit that references proposals of any type, which provides FS with
@@ -4011,12 +4011,12 @@ message at the same time, by taking the following steps:
   {{applying-a-proposal-list}}.
 
 * Decide whether to populate the `path` field: If the `path` field is required
-  based on the proposals that are in the commit (see above), then it MUST be
+  based on the proposals that are in the Commit (see above), then it MUST be
   populated.  Otherwise, the sender MAY omit the `path` field at its discretion.
 
 * If populating the `path` field:
 
-  * If this is an external commit, assign the sender the leftmost blank leaf
+  * If this is an external Commit, assign the sender the leftmost blank leaf
     node in the new ratchet tree.  If there are no blank leaf nodes in the new
     ratchet tree, expand the tree to the right as defined in
     {{adding-and-removing-leaves}} and assign the leftmost new blank leaf to the
@@ -4079,7 +4079,7 @@ message at the same time, by taking the following steps:
     the FramedContentAuthData object.
   * Add any other extensions as defined by the application.
   * Optionally derive an external key pair as described in {{key-schedule}}.
-    (required for External Commits, see {{joining-via-external-commits}}).
+    (required for external Commits, see {{joining-via-external-commits}}).
   * Sign the GroupInfo using the member's private signing key.
   * Encrypt the GroupInfo using the key and nonce derived from the `joiner_secret`.
     for the new epoch (see {{joining-via-welcome-message}}).
@@ -4103,7 +4103,7 @@ message at the same time, by taking the following steps:
 * If a ReInit proposal was part of the Commit, the committer MUST create a new
   group with the parameters specified in the ReInit proposal,
   and with the same members as the original group.
-  The Welcome message MUST include a `PreSharedKeyID` with the following
+  The Welcome message MUST include a PreSharedKeyID with the following
   parameters:
   * `psktype`: `resumption`
   * `usage`: `reinit`
@@ -4142,7 +4142,7 @@ A member of the group applies a Commit message by taking the following steps:
 
 * If the `path` value is populated, validate it and apply it to the tree:
 
-  * If this is an external commit, assign the sender the leftmost blank leaf
+  * If this is an external Commit, assign the sender the leftmost blank leaf
     node in the new ratchet tree.  If there are no blank leaf nodes in the new
     ratchet tree, add a blank leaf to the right side of the new ratchet tree and
     assign it to the sender.
@@ -4231,7 +4231,7 @@ confirmation tag computed in the creation of the group (see {{group-creation}}).
 as `MAC(confirmation_key, confirmed_transcript_hash)`.)
 
 As discussed in {{extensibility}}, unknown extensions in `GroupInfo.extensions`
-MUST be ignored, and the creator of a `GroupInfo` object SHOULD include some
+MUST be ignored, and the creator of a GroupInfo object SHOULD include some
 random GREASE extensions to help ensure that other clients correctly ignore unknown
 extensions.  Extensions in `GroupInfo.group_context.extensions`, however, MUST
 be supported by the new joiner.
@@ -4337,13 +4337,13 @@ group_secrets =
                    encrypted_group_info, kem_output, ciphertext)
 ~~~
 
-* If a `PreSharedKeyID` is part of the GroupSecrets and the client is not in
+* If a PreSharedKeyID is part of the GroupSecrets and the client is not in
   possession of the corresponding PSK, return an error. Additionally, if a
-  `PreSharedKeyID` has type `resumption` with usage `reinit` or `branch`, verify
+  PreSharedKeyID has type `resumption` with usage `reinit` or `branch`, verify
   that it is the only such PSK.
 
 * From the `joiner_secret` in the decrypted GroupSecrets object and the PSKs
-  specified in the `GroupSecrets`, derive the `welcome_secret` and then
+  specified in the GroupSecrets, derive the `welcome_secret` and then
   the `welcome_key` and `welcome_nonce`. Use the key and nonce to decrypt the
   `encrypted_group_info` field.
 
@@ -4422,7 +4422,7 @@ welcome_key = ExpandWithLabel(welcome_secret, "key", "", AEAD.Nk)
 * Use the confirmed transcript hash and confirmation tag to compute the interim
   transcript hash in the new state.
 
-* If a `PreSharedKeyID` was used that has type `resumption` with usage `reinit`
+* If a PreSharedKeyID was used that has type `resumption` with usage `reinit`
   or `branch`, verify that the `epoch` field in the GroupInfo is equal to 1.
 
   * For usage `reinit`, verify that the last Commit to the referenced group
@@ -4441,12 +4441,12 @@ welcome_key = ExpandWithLabel(welcome_secret, "key", "", AEAD.Nk)
 External Commits are a mechanism for new members (external parties that want to
 become members of the group) to add themselves to a group, without requiring
 that an existing member has to come online to issue a Commit that references an
-Add Proposal.
+Add proposal.
 
-Whether existing members of the group will accept or reject an External Commit
+Whether existing members of the group will accept or reject an external Commit
 follows the same rules that are applied to other handshake messages.
 
-New members can create and issue an External Commit if they have access to the
+New members can create and issue an external Commit if they have access to the
 following information for the group's current epoch:
 
 * group ID
@@ -4458,7 +4458,7 @@ following information for the group's current epoch:
 * group extensions
 * external public key
 
-In other words, to join a group via an External Commit, a new member needs a
+In other words, to join a group via an external Commit, a new member needs a
 GroupInfo with an `external_pub` extension present in its `extensions` field.
 
 ~~~ tls-presentation
@@ -4481,7 +4481,7 @@ The information in a GroupInfo is not generally public information, but applicat
 can choose to make it available to new members in order to allow External
 Commits.
 
-In principle, External Commits work like regular Commits. However, their content
+In principle, external Commits work like regular Commits. However, their content
 has to meet a specific set of requirements:
 
 * External Commits MUST contain a `path` field (and is therefore a "full"
@@ -4495,11 +4495,11 @@ has to meet a specific set of requirements:
   the credential in the `leaf_node` of the `path` field.
 * When processing a Commit, both existing and new members MUST use the external
   init secret as described in {{external-initialization}}.
-* The sender type for the AuthenticatedContent encapsulating the External Commit MUST be
+* The sender type for the AuthenticatedContent encapsulating the external Commit MUST be
   `new_member_commit`.
 
-External Commits come in two "flavors" -- a "join" commit that
-adds the sender to the group or a "resync" commit that replaces a member's prior
+External Commits come in two "flavors" -- a "join" Commit that
+adds the sender to the group or a "resync" Commit that replaces a member's prior
 appearance with a new one.
 
 Note that the "resync" operation allows an attacker that has compromised a
@@ -4734,7 +4734,7 @@ handle extensible fields:
   those parameters.
 
 * A client processing a KeyPackage object MUST ignore all unrecognized values
-  in the `capabilities` field of the `LeafNode` and all unknown extensions in
+  in the `capabilities` field of the LeafNode and all unknown extensions in
   the `extensions` and `leaf_node.extensions` fields.  Otherwise, it could fail
   to interoperate with newer clients.
 
@@ -4887,7 +4887,7 @@ the attacker enough information to mount an attack. If Alice asks Bob
 "When are we going to the movie?", then the answer "Wednesday" could be leaked
 to an adversary solely by the ciphertext length.
 
-The length of the `padding` field in `PrivateMessageContent` can be
+The length of the `padding` field in PrivateMessageContent can be
 chosen by the sender at the time of message encryption. Senders may use padding
 to reduce the ability of attackers outside the group to infer the size of the
 encrypted content.  Note, however, that the transports used to carry MLS
@@ -5107,8 +5107,8 @@ attacker can create LeafNodes and KeyPackages impersonating the member; dependin
 application, this can then allow the attacker to join the group with the
 compromised member's identity.  For example, if a group has enabled external
 parties to join via external commits, then an attacker that has compromised a
-member's signature key could use an external commit to insert themselves into
-the group -- even using a "resync"-style external commit to replace the
+member's signature key could use an external Commit to insert themselves into
+the group -- even using a "resync"-style external Commit to replace the
 compromised member in the group.
 
 Applications can mitigate the risks of signature key compromise using pre-shared
@@ -5262,7 +5262,7 @@ key provided for that node.
 
 Both of these types of corruption will cause processing of a Commit to fail for
 some members of the group.  If the public key for a node does not match the path
-secret, then the members that decrypt that path secret will reject the commit
+secret, then the members that decrypt that path secret will reject the Commit
 based on this mismatch.  If the path secret sequence is incorrect at some point,
 then members that can decrypt nodes before that point will compute a different
 public key for the mismatched node than the one in the UpdatePath, which also
@@ -5271,7 +5271,7 @@ commits to be reported, so that group members who were not able to recognize the
 error themselves can reinitialize the group if necessary.
 
 Even with such an error reporting mechanism in place, however, it is still
-possible for members to get locked out of the group by a malformed commit.
+possible for members to get locked out of the group by a malformed Commit.
 Since malformed Commits can only be recognized by certain members of the group,
 in an asynchronous application, it may be the case that all members that could
 detect a fault in a Commit are offline.  In such a case, the Commit will be
@@ -5338,10 +5338,6 @@ The columns in the registry are as follows:
 
 * Name: The name of the ciphersuite
 
-[[ RFC EDITOR: This section should be the same as the corresponding text in
-draft-ietf-tls-rfc8447bis.  Please align the two documents if they have diverged
-in the approval process. ]]
-
 * Recommended: Whether support for this ciphersuite is recommended by the IETF.
   Valid values are "Y", "N", and "D", as described below.  The default
   value of the "Recommended" column is "N".  Setting the Recommended item to "Y"
@@ -5352,7 +5348,7 @@ in the approval process. ]]
     only means that the associated mechanism is fit for the purpose for which it
     was defined. Careful reading of the documentation for the mechanism is
     necessary to understand the applicability of that mechanism. The IETF could
-    recommend mechanisms that have limited applicability, but will provide
+    recommend mechanisms that have limited applicability, but it will provide
     applicability statements that describe any limitations of the mechanism or
     necessary constraints on its use.
 
@@ -5537,10 +5533,10 @@ Template:
 * Recommended: Same as in {{mls-ciphersuites}}
 
 * External: Whether a proposal of this type may be sent by an `external` sender
-  (see {{external-proposals}}).
+  (see {{external-proposals}})
 
 * Path Required: Whether a Commit covering a proposal of this type is required
-  to have its `path` field populated (see {{commit}}).
+  to have its `path` field populated (see {{commit}})
 
 * Reference: The document where this extension is defined
 
@@ -5630,7 +5626,7 @@ Template:
 
 * Recommended: Same as in {{mls-ciphersuites}}
 
-* Reference: The document where this credential is defined
+* Reference: The document where this label is defined
 
 Initial contents:
 
@@ -5658,7 +5654,7 @@ Template:
 
 * Recommended: Same as in {{mls-ciphersuites}}
 
-* Reference: The document where this credential is defined
+* Reference: The document where this label is defined
 
 Initial contents:
 
@@ -5682,7 +5678,7 @@ Template:
 
 * Recommended: Same as in {{mls-ciphersuites}}
 
-* Reference: The document where this credential is defined
+* Reference: The document where this label is defined
 
 The registry has no initial contents, since it is intended to be used by
 applications, not the core protocol.  The table below is intended only to show
@@ -5762,7 +5758,7 @@ Encoding considerations:
 
 Security considerations:
 : MLS is an encrypted messaging layer designed
-  to be transmitted over arbitrary lower layer protocols. The
+  to be transmitted over arbitrary lower-layer protocols. The
   security considerations in this document (RFC 9420) also apply.
 
 Interoperability considerations:
@@ -5779,6 +5775,7 @@ Fragment identifier considerations:
 
 Additional information:
 :
+
     Deprecated alias names for this type:
     : N/A
 
