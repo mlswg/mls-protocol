@@ -1,5 +1,15 @@
 # RFC Editor Questions
 
+## RLB Notes
+
+* Comma only before independent clause
+* Comma always before "as described in..." and similar
+* Comma after "Here", "Hence"
+* <t> inside <dd> or not?
+
+
+## Questions and Answers
+
 > 1) <!-- [rfced] xml2rfc returns a number of warnings and suggest that
 > viewBox be used.  Please review and let us know if you would like to make
 > any updates. 
@@ -297,8 +307,11 @@ this document.
 >    Whether these fields can be computed by the client and represented by the
 >    LeafNode depends on when the LeafNode was created.
 > -->
-> 
-> 
+
+I rewrote this sentence to clarify.  FWIW, the original is correct, in that the
+"client represented by the LeafNode" is the one doing the computing.
+
+
 > 17) <!--[rfced] The first part of the following sentence does not parse;
 > is there text missing after "ratchet"? Please let us know how we
 > may update this for clarity.
@@ -310,8 +323,12 @@ this document.
 >    Commit message, who apply it to keep their local views of the tree in
 >    sync with the sender's.
 > -->
-> 
-> 
+
+"Ratchet" is being used as a verb here, with "ratchet forward" meaning "move
+forward irreversibly".  With that in mind, I think it does parse, but I changed
+"ratchet forward" to "update" to simplify.
+
+
 > 18) <!--[rfced] Section 7.9. Should this example have a figure number?
 > 
 > Original:
@@ -323,8 +340,11 @@ this document.
 >     / \     / \
 >    E   _   G   _
 > -->
-> 
-> 
+
+No, this is just an intermediate value in a computation, not noteworthy enough
+to merit a figure number / label.
+
+
 > 19) <!--[rfced] Is this text intended to be a serial list? Also, should
 > "credential" be singular or plural (i.e., "a credential" or "credentials")?
 > 
@@ -336,8 +356,11 @@ this document.
 >     -  Ratchet tree: A tree with a single node, a leaf containing an
 >        HPKE public key, and a credential for the creator
 > -->
-> 
-> 
+
+No, the single node is a leaf node with the specified contents.  I changed "a
+leaf" to "a leaf node".
+
+
 > 20) <!--[rfced] To avoid redundancy, would you like to streamline this
 >  list by updating the introductory sentence, removing "It
 >  contains" from each bullet point, and rephrasing the last point
@@ -396,8 +419,10 @@ this document.
 >   * An invalid ratchet tree after processing the commit, in particular, if it contains any
 >     node that is invalid according to Section 7.3
 > -->
-> 
-> 
+ 
+TODO(RLB)
+
+ 
 > 21) <!--[rfced] Is the intended meaning that the proposals field is
 > populated from "Proposals received during the current epoch" and
 > "an empty path field" (option A) or that an initial Commit object
@@ -420,8 +445,12 @@ this document.
 >       populated from Proposals received during the current epoch,
 >       and construct an empty path field.
 > -->
-> 
-> 
+
+The intent is that the initial Commit has (a) proposals and (b) an empty path.
+I changed "and an empty path field" to "and with the path field empty" to be
+parallel to "with the proposals field"
+
+
 > 22) <!--[rfced] In order for the following list to be parallel, we would
 > like to update the first 3 points with verbs as shown below.
 > Please let us know if this is agreeable or if you prefer otherwise.
@@ -463,8 +492,10 @@ this document.
 >       -  Encrypt the GroupInfo using the key and nonce derived from the
 >          joiner_secret for the new epoch (see Section 12.4.3.1).
 > -->
-> 
-> 
+
+I added verbs to the first three bullets.
+
+
 > 23) <!--[rfced] Should the first 2 items in this list perhaps be a part of
 > the introductory sentence since they seem to be informational
 > rather than actions?
@@ -499,8 +530,10 @@ this document.
 >          Identify the lowest common ancestor of the leaf node my_leaf
 >          [...]
 > -->
-> 
-> 
+
+I rewrote the first three bullets to be parallel.
+
+
 > 24) <!--[rfced] Please clarify how "or in the path field of a Commit"
 > relates to this sentence. Is the uniqueness of keys in leaf
 > nodes or in the path field of a Commit?
@@ -515,14 +548,20 @@ this document.
 >    is assured by explicit checks on leaf nodes being added to the tree
 >    by Add or Update proposals.
 > -->
-> 
-> 
+
+The three ways a leaf can be added to the tree are: in an Add proposal, in an
+Update proposal, or in the `path` field of a Commit.  I updated to use that
+phrasing.
+
+
 > 25) <!-- [rfced] Note that we have updated the "MLS Extension Types" registry and added the IETF as the change controller for the media type registration per this note from IANA.  Please let us know if any updates are needed.
 > 
 > NOTE: We've listed the IETF as the change controller for the media type registration, and per the authors, have changed "KP, GI" to "KP, GI, LN" in the MLS Extension Types. We understand that these changes will be included in the AUTH48 edits.
 > -->
-> 
-> 
+
+Thanks, these changes are correct.
+
+
 > 26) <!--[rfced] Section 17.1. Regarding the author note below, please note
 > that at the time of writing, "draft-ietf-tls-rfc8447bis" has not
 > entered EDIT state yet. Currently, the sections are similar but
@@ -545,8 +584,10 @@ this document.
 >    but it will provide applicability statements that describe any
 >    limitations of the mechanism or necessary constraints on its use.
 > -->     
-> 
-> 
+
+TODO
+
+
 > 27) <!--[rfced] Should the citations for RFCs 8446 and 9180 follow "The
 >      mapping of ciphersuites" or "TLS signature schemes" instead of
 >      "is as follows"? We see that "ciphersuites" are mentioned in both
@@ -561,8 +602,13 @@ this document.
 >    The mapping of ciphersuites [RFC8446][RFC9180] to HPKE primitives,
 >    HMAC hash functions, and TLS signature schemes is as follows:
 > -->
-> 
-> 
+
+The "ciphersuites" at the beginning of the sentence are MLS ciphersuites, so the
+placement in your "perhaps" is not appropriate.  I have moved the citations so
+that they immediately follow the relevant parameters, but would also be OK with
+them at the end.
+
+
 > 28) <!--[rfced] FYI: We have removed instances of "MIME" from Section
 > 17.10 per guidance from IANA. Note that it states the following
 > under the "Media Types" registry
@@ -571,14 +617,18 @@ this document.
 >    [RFC2046] specifies that Media Types (formerly known as MIME types) and Media
 >    Subtypes will be assigned and listed by the IANA.
 > -->
-> 
-> 
+
+Acknowledged.
+
+
 > 29) <!-- [rfced] Should the text about "Provisional registration" be included in this document?  It does not appear in the IANA registration - see https://www.iana.org/assignments/media-types/message/mls. 
 > 
 >    Provisional registration? (standards tree only):  No
 > -->
-> 
-> 
+
+I have removed this entry.
+
+ 
 > 30) <!--[rfced] Appendices A and B: Would it be correct to add "and" to
 > the list of letters in these tree examples for consistency as shown below?
 > 
@@ -617,8 +667,10 @@ this document.
 > 
 >    3.  C sends empty Commit: set C', Z', and Y'
 > -->
-> 
-> 
+
+I have added these "and"s.
+
+
 > 31) <!-- [rfced] Terminology
 > 
 > a) Throughout the text, the following terminology appears to be used
@@ -656,7 +708,24 @@ this document.
 >  - Update vs. update
 >      (Please clarify if all capitalized instances are referring to an
 >       "Update message" or "Update proposal" or if updates are needed.)
-> 
+
+I have tried to normalize on:
+
+* Lower-case "client" everywhere
+* Upper-case "Commit" whenever it refers to a Commit object
+* Upper-case "Credential" when it refers to a Credential object, lower-case otherwise
+* Lower-case "external Commit"
+* Lower-case "fetch"
+* Lower-case "parent hash"
+* Upper-case "Proposal" when referring to a Proposal object in general, without
+  reference to a type, lower-case otherwise.  Thus, "Proposal object", but "Add
+  proposal"
+* Lower-case "secret tree"
+* Upper-case "Update" when it refers to an Update proposal, lower-case otherwise
+
+Basically, when use upper case only when we refer to a struct with a TLS-syntax definition.
+
+
 > b) The Web Portion of the RFC Style Guide
 > (https://www.rfc-editor.org/styleguide/part2/) recommends that once an
 > abbreviation has been introduced, the abbreviated form should be used
@@ -668,12 +737,20 @@ this document.
 >  - forward secrecy
 >  - post-compromise security
 >  - pre-shared key
-> 
+
+These acronyms are quite short, two letters in most cases.  So I think it's
+helpful to use the full definition in some places.  I would leave the references
+as-is.
+
+
 > c) Some numbers are spelled out and some are represented as digits for
 > bits and bytes, for instance, "4 bytes" vs. "four bytes". Would you
 > like to make this consistent by using digits when referring to bits
 > and bytes? Please let us know your preference.
-> 
+
+I have tried to normalize on digits.
+
+
 > d) Note that we updated the following terms to the latter forms as
 > indicated below; please let us know of any objections.
 > 
@@ -683,9 +760,10 @@ this document.
 >  - keypair -> key pair (for consistency)
 >  - public-key encryption -> public key encrption (per IANA registry and use in other RFCs)
 >  - Signature algorithm -> signature algorithm (for consistency and per 8032)
-> -->
-> 
-> 
+ 
+I concur with these changes.
+
+ 
 > 32) <!-- [rfced] Please review the "Inclusive Language" portion of the online
 > Style Guide <https://www.rfc-editor.org/styleguide/part2/#inclusive_language> and let
 > us know if any changes are needed.
@@ -696,3 +774,7 @@ this document.
 > indicates that this term is potentially biased, it is also ambiguous. 
 > "Tradition" is a subjective term, as it is not the same for everyone.
 >  -->
+
+This was discussed during IESG review:
+
+https://mailarchive.ietf.org/arch/msg/mls/jSMQHXxcY3bX8S-xefyjbX4KFzE/
