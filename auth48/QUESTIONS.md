@@ -111,7 +111,7 @@ I have edited this to be serial: "download ... broadcast ... send".
 > content that surrounds it" (https://authors.ietf.org/en/rfcxml-vocabulary#aside).
 > -->
 
-TODO(RLB)
+I don't think this is necessary.
 
 
 > 9) <!--[rfced] May we shorten the title for Figure 4 by moving the second
@@ -225,13 +225,8 @@ https://datatracker.ietf.org/doc/html/rfc9180#name-single-shot-apis
 >   raise Exception("Cannot truncate a tree with 0 or 1 nodes") (2 over)
 > -->
 
-TODO(RLB)
-Section 5.2       DONE
-Figure 12         TODO
-Section 7.7       TODO
-Section 12.4.3.1  TODO
-Section 12.4.3.1  TODO
-Appendix D        TODO
+I have reformatted these to fit.  The one in Appendix D was actually a bug in
+the example code!
 
 
 > 15) <!--[rfced] We notice that the text "See IANA registry for registered
@@ -420,7 +415,10 @@ leaf" to "a leaf node".
 >     node that is invalid according to Section 7.3
 > -->
  
-TODO(RLB)
+Even though it's more verbose, I think this is clearer with the repetition.  In
+particular, the "multiple" lines read better with the explicit "It contains",
+and you avoid the problem of the parallelism of the last bullet.  So I would let
+this stand.
 
  
 > 21) <!--[rfced] Is the intended meaning that the proposals field is
@@ -709,6 +707,8 @@ I have added these "and"s.
 >      (Please clarify if all capitalized instances are referring to an
 >       "Update message" or "Update proposal" or if updates are needed.)
 
+TODO
+
 I have tried to normalize on:
 
 * Lower-case "client" everywhere
@@ -747,6 +747,8 @@ as-is.
 > bits and bytes, for instance, "4 bytes" vs. "four bytes". Would you
 > like to make this consistent by using digits when referring to bits
 > and bytes? Please let us know your preference.
+
+TODO
 
 I have tried to normalize on digits.
 

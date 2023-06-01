@@ -1487,36 +1487,34 @@ section relate to each other, and the high-level operations used to produce and
 consume them:
 
 ~~~ aasvg
-                              Proposal        Commit     Application Data
-                                 |              |              |
-                                 +--------------+--------------+
-                                                |
-                                                V
-                                         FramedContent
-                                             |  |                -.
-                                             |  |                  |
-                                    +--------+  |                  |
-                                    |           |                  |
-                                    V           |                  +-- Asymmetric
-                          FramedContentAuthData |                  |   Sign / Verify
-                                    |           |                  |
-                                    +--------+  |                  |
-                                             |  |                  |
-                                             V  V                -'
-                                       AuthenticatedContent
-                                                |                -.
-                                                |                  |
-                                                |                  |
-                                       +--------+--------+         +-- Symmetric
-                                       |                 |         |   Protect / Unprotect
-                                       V                 V         |
-Welcome  KeyPackage  GroupInfo   PublicMessage    PrivateMessage -'
-   |          |          |             |                 |
-   |          |          |             |                 |
-   +----------+----------+----+--------+-----------------+
-                              |
-                              V
-                          MLSMessage
+    Proposal        Commit     Application Data
+       |              |              |
+       +--------------+--------------+
+                      |
+                      V
+               FramedContent
+                   |  |                -.
+          +--------+  |                  |
+          |           |                  |
+          V           |                  +-- Asymmetric
+FramedContentAuthData |                  |   Sign / Verify
+          |           |                  |
+          +--------+  |                  |
+                   |  |                  |
+                   V  V                -'
+             AuthenticatedContent
+                      |                -.
+             +--------+--------+         |
+             |                 |         +-- Symmetric
+             V                 V         |   Protect / Unprotect
+       PublicMessage    PrivateMessage -'
+             |                 |
+             |                 |  Welcome  KeyPackage  GroupInfo
+             |                 |     |          |          |
+             +-----------------+-----+----------+----------+
+                               |
+                               V
+                           MLSMessage
 ~~~
 {: title="Relationships among MLS Objects" }
 
@@ -2331,7 +2329,7 @@ This operation is typically done when adding a member to the group.
 A   B       A   B   _   _                           A   B   C   _
                                                             ^
                                                             |
-                                                            +-- new member
+                                               new member --+
 ~~~
 {: title="Extending the Tree to Make Room for a Third Member"}
 
@@ -3778,8 +3776,8 @@ MUST verify that the list of committed proposals is valid using one of the follo
 procedures, depending on whether the commit is external or not.  If the list of
 proposals is invalid, then the Commit message MUST be rejected as invalid.
 
-For a regular, i.e. not external, commit the list is invalid if any of the following
-occurs:
+For a regular, i.e. not external, commit the list is invalid if it contains any
+of the following:
 
 * It contains an individual proposal that is invalid as specified in {{proposals}}.
 
@@ -4330,11 +4328,13 @@ On receiving a Welcome message, a client processes it using the following steps:
   `init_key` in the referenced KeyPackage.
 
 ~~~ pseudocode
-encrypted_group_secrets = EncryptWithLabel(init_key, "Welcome",
-                                           encrypted_group_info, group_secrets)
+encrypted_group_secrets =
+  EncryptWithLabel(init_key, "Welcome",
+                   encrypted_group_info, group_secrets)
 
-group_secrets = DecryptWithLabel(init_key_priv, "Welcome",
-                                 encrypted_group_info, kem_output, ciphertext)
+group_secrets =
+  DecryptWithLabel(init_key_priv, "Welcome",
+                   encrypted_group_info, kem_output, ciphertext)
 ~~~
 
 * If a `PreSharedKeyID` is part of the GroupSecrets and the client is not in
@@ -6142,7 +6142,7 @@ class Node:
 
     def empty(self):
         L_empty = (self.left == None) or self.left.empty()
-        R_empty = (self.left == None) or self.left.empty()
+        R_empty = (self.right == None) or self.right.empty()
         return (self.value == None) and L_empty and R_empty
 
 class Tree:
@@ -6163,8 +6163,8 @@ class Tree:
 
     # Truncate the right subtree
     def truncate(self):
-        if self.root == None or self.root.right == None:
-            raise Exception("Cannot truncate a tree with 0 or 1 nodes")
+        if self.root == None:
+            return
 
         if not self.root.right.empty():
             raise Exception("Cannot truncate non-blank subtree")
