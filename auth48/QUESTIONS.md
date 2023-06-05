@@ -2,11 +2,30 @@
 
 ## RLB Notes
 
-* Comma only before independent clause
-* Comma always before "as described in..." and similar
-* Comma after "Here", "Hence"
-* <t> inside <dd> or not?
-* repeated "where this credential is defined" in IANA considerations
+* This document contains the changes from PR#878, which were reviewed by the WG
+  and approved by the AD: https://github.com/mlswg/mls-protocol/pull/878
+
+* I updated Emad Omara's email address and affiliation based on his advice.
+
+* I noticed a copy/paste error in the IANA considerations, where "where this
+  credential is defined" was repeated in other registries.
+  
+* You seem to be deleting commas that do not preced independent clauses.  In
+  most cases cases, the sentence structure is sufficiently complex that these
+  these commas improve clarity, so I have re-added them.
+
+* You seem to be adding commas before "as described in..." and similar.  This is
+  almost always incorrect.  These references are not "see more details", they
+  are part of the definition of the thing they are modifying.  For example,
+  "Verify that the credential in the LeafNode is valid as described in Section
+  X" means that you need to follow the procedure in Section X.  (In one
+  instance, the with-comma version doesn't even parse!  "... an init secret
+  computed, as described in Section X")
+
+* You seem to be adding comma after one-word introductions like "Here" and
+  "Hence".  These are unnecessary and distracting.
+
+* The document is inconsistent as to whether a <t> is used inside <dd>.
 
 ## Questions and Answers
 
