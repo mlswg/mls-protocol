@@ -1,6 +1,6 @@
 {
   "magic": "E!vIA5L86J2I",
-  "timestamp": "2023-06-06T01:46:20.048344+00:00",
+  "timestamp": "2023-06-08T01:44:20.747706+00:00",
   "repo": "mlswg/mls-protocol",
   "labels": [
     {
@@ -10474,6 +10474,38 @@
           "updatedAt": "2023-02-13T06:56:15Z"
         }
       ]
+    },
+    {
+      "number": 880,
+      "id": "I_kwDOBoyH6c5n8PdC",
+      "title": "Figure 14: \"Derivation of ratchet tree keys along a direct path\" don't correspond to the prose",
+      "url": "https://github.com/mlswg/mls-protocol/issues/880",
+      "state": "OPEN",
+      "author": "TWal",
+      "authorAssociation": "CONTRIBUTOR",
+      "assignees": [],
+      "labels": [],
+      "body": "In the diagram, it looks like `path_secret[0]` and the leaf node's public/private keys are generated from `leaf_secret`.\r\nHowever this is not what the prose says: \"`path_secret[0]` is sampled at random\" and \"Generate a fresh HPKE key pair for the leaf\".\r\n\r\nLooks like it's an artifact from past versions of MLS?",
+      "createdAt": "2023-06-06T13:11:06Z",
+      "updatedAt": "2023-06-06T13:11:22Z",
+      "closedAt": null,
+      "comments": []
+    },
+    {
+      "number": 881,
+      "id": "I_kwDOBoyH6c5oG1Dj",
+      "title": "Minor problem in transcript hash message formats",
+      "url": "https://github.com/mlswg/mls-protocol/issues/881",
+      "state": "OPEN",
+      "author": "TWal",
+      "authorAssociation": "CONTRIBUTOR",
+      "assignees": [],
+      "labels": [],
+      "body": "tl;dr: I noticed something a bit inconvenient while working on security proofs, it does not require a change because we can get around the problem and we are so late in the standardization process, but I figured out I would not keep my discovery for myself in case it bothers other people.\r\n\r\n# The problem\r\n\r\nWhile working on my MLS security proofs, I realized that the transcript hash message formats were a bit problematic.\r\n\r\n```\r\nconfirmed_transcript_hash_[0] = \"\"; /* zero-length octet string */\r\ninterim_transcript_hash_[0] = \"\"; /* zero-length octet string */\r\n\r\nconfirmed_transcript_hash_[epoch] =\r\n    Hash(interim_transcript_hash_[epoch - 1] ||\r\n        ConfirmedTranscriptHashInput_[epoch]);\r\n\r\ninterim_transcript_hash_[epoch] =\r\n    Hash(confirmed_transcript_hash_[epoch] ||\r\n        InterimTranscriptHashInput_[epoch]);\r\n```\r\n\r\nLet's look at the problem on `interim_transcript_hash`. To reduce transcript hash collision to a hash collision, we need non-ambiguity of the hash input message format: for each bytestring given as input to the hash (i.e. `confirmed_transcript_hash_[epoch] || InterimTranscriptHashInput_[epoch]`), it corresponds to a unique pair `(confirmed_transcript_hash, InterimTranscriptHashInput)`.\r\nIt would be fine if `confirmed_transcript_hash` always had the same length, the hash input would be non-ambiguous.\r\nHowever, it is not the case, with the special case `confirmed_transcript_hash_[0] = \"\"`, whose length is then differing.\r\nThe same problem happens with `confirmed_transcript_hash` whose hash input is ambiguous.\r\n\r\nTo make this more concrete, if `InterimTranscriptHashInput_[0] = confirmed_transcript_hash_[epoch] || InterimTranscriptHashInput_[epoch]`, then `interim_transcript_hash_[0] = interim_transcript_hash_[epoch]`, which is problematic.\r\n\r\n# It's not that bad\r\n\r\nWe can note that `interim_transcript_hash_[0]` is never used. Indeed, the group initialization says:\r\n\r\n- Derive the confirmation_key for the epoch as described in [Section 8](https://messaginglayersecurity.rocks/mls-protocol/draft-ietf-mls-protocol.html#key-schedule).\r\n- Compute a confirmation_tag over the empty confirmed_transcript_hash using the confirmation_key as described in [Section 6.1](https://messaginglayersecurity.rocks/mls-protocol/draft-ietf-mls-protocol.html#content-authentication).\r\n- Compute the updated interim_transcript_hash from the confirmed_transcript_hash and the confirmation_tag as described in [Section 8.2](https://messaginglayersecurity.rocks/mls-protocol/draft-ietf-mls-protocol.html#transcript-hashes)\r\n\r\nSo we only need to look at `interim_transcript_hash` hash input, which is defined as:\r\n\r\n```\r\nstruct {\r\n    /* same as opaque confirmation_tag<V>; */\r\n    MAC confirmation_tag;\r\n} InterimTranscriptHashInput;\r\n```\r\n\r\nIn practice, MAC output a fixed-length tag, so the actual `InterimTranscriptHashInput` that will be used will have fixed-length, which allows to prove non-ambiguity of `interim_transcript_hash`'s hash input message format.\r\n\r\n# How to do it better\r\n\r\nI propose the following solutions, from the ones I prefer to the ones I like less:\r\n- instead of doing a concatenation by hand, let's do it in the TLS presentation language: put `opaque confirmed_transcript_hash<V>;` in `InterimTranscriptHashInput` (same for `ConfirmedTranscriptHashInput`)\r\n- reverse the concatenation: since both `InterimTranscriptHashInput` and `ConfirmedTranscriptHashInput` have internal length tags, it is fine to concatenate arbitrary data after them, similarly as it is done with padding in `PrivateMessageContent`\r\n- initialize the first transcript hashes with things that have the same length as the hash function",
+      "createdAt": "2023-06-07T20:21:53Z",
+      "updatedAt": "2023-06-07T20:21:53Z",
+      "closedAt": null,
+      "comments": []
     }
   ],
   "pulls": [
@@ -61572,7 +61604,7 @@
       "labels": [],
       "body": "This branch has my changes processing the RFC Editor's proposals.  \r\n\r\n* Diffs on `draft-ietf-mls-protocol.md` reflect accepted changes (plus novel changes)\r\n* Diffs on `rfc9420.authors.xml` to see rejected changes (plus novel changes)\r\n* `QUESTIONS.md` shows my proposed answers to the RFC Editor's questions\r\n\r\nThe diff between the XML generated from Markdown and `rfc9420.authors.xml` is not trivial, but it reflects things that are difficult / impossible to reproduce in Markdown:\r\n\r\n* Coalesced cross-references, e.g., \"Sections 2 and 3\" instead of \"Section 2 and Section 3\"\r\n* One instance of `<blockquote>`\r\n* Some references to email addresses that are styled to appear in a certain way\r\n* Some minutia in the media type registration and references\r\n\r\nTo review the diff yourself (on a Mac, with vimdiff):\r\n\r\n```\r\n> git pull origin auth48-through-sec5\r\n> git checkout auth48-through-sec5\r\n> cd auth48\r\n> make diff\r\n```",
       "createdAt": "2023-05-30T20:57:07Z",
-      "updatedAt": "2023-06-05T13:52:31Z",
+      "updatedAt": "2023-06-06T14:08:34Z",
       "baseRepository": "mlswg/mls-protocol",
       "baseRefName": "auth48",
       "baseRefOid": "0037db53f55765cec7f2ff72af9f1624a9ae778a",
@@ -61583,7 +61615,15 @@
       "mergedAt": null,
       "mergedBy": null,
       "mergeCommit": null,
-      "comments": [],
+      "comments": [
+        {
+          "author": "katrielalex",
+          "authorAssociation": "MEMBER",
+          "body": "Wow this is a nice set of changes. Thank you both!\r\n\r\nI\u2019ll do an independent pass on the full protocol doc but let me not tie that to this review ",
+          "createdAt": "2023-06-06T14:08:34Z",
+          "updatedAt": "2023-06-06T14:08:34Z"
+        }
+      ],
       "reviews": [
         {
           "id": "PRR_kwDOBoyH6c5Ws6Uc",
