@@ -1,6 +1,6 @@
 {
   "magic": "E!vIA5L86J2I",
-  "timestamp": "2023-06-08T01:44:20.747706+00:00",
+  "timestamp": "2023-06-11T01:51:43.288577+00:00",
   "repo": "mlswg/mls-protocol",
   "labels": [
     {
@@ -61604,7 +61604,7 @@
       "labels": [],
       "body": "This branch has my changes processing the RFC Editor's proposals.  \r\n\r\n* Diffs on `draft-ietf-mls-protocol.md` reflect accepted changes (plus novel changes)\r\n* Diffs on `rfc9420.authors.xml` to see rejected changes (plus novel changes)\r\n* `QUESTIONS.md` shows my proposed answers to the RFC Editor's questions\r\n\r\nThe diff between the XML generated from Markdown and `rfc9420.authors.xml` is not trivial, but it reflects things that are difficult / impossible to reproduce in Markdown:\r\n\r\n* Coalesced cross-references, e.g., \"Sections 2 and 3\" instead of \"Section 2 and Section 3\"\r\n* One instance of `<blockquote>`\r\n* Some references to email addresses that are styled to appear in a certain way\r\n* Some minutia in the media type registration and references\r\n\r\nTo review the diff yourself (on a Mac, with vimdiff):\r\n\r\n```\r\n> git pull origin auth48-through-sec5\r\n> git checkout auth48-through-sec5\r\n> cd auth48\r\n> make diff\r\n```",
       "createdAt": "2023-05-30T20:57:07Z",
-      "updatedAt": "2023-06-06T14:08:34Z",
+      "updatedAt": "2023-06-08T16:21:35Z",
       "baseRepository": "mlswg/mls-protocol",
       "baseRefName": "auth48",
       "baseRefOid": "0037db53f55765cec7f2ff72af9f1624a9ae778a",
@@ -61726,6 +61726,51 @@
               "updatedAt": "2023-06-01T19:46:08Z"
             }
           ]
+        },
+        {
+          "id": "PRR_kwDOBoyH6c5XowpS",
+          "commit": {
+            "abbreviatedOid": "4e5a952"
+          },
+          "author": "Bren2010",
+          "authorAssociation": "COLLABORATOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-08T16:03:06Z",
+          "updatedAt": "2023-06-08T16:21:05Z",
+          "comments": [
+            {
+              "originalPosition": 2202,
+              "body": "Why is this the only place where `<bcp14>` happened?",
+              "createdAt": "2023-06-08T16:03:06Z",
+              "updatedAt": "2023-06-08T16:21:05Z"
+            },
+            {
+              "originalPosition": 3287,
+              "body": "```suggestion\r\ngroup.  There is thus a risk to forward secrecy as long as any\r\n```",
+              "createdAt": "2023-06-08T16:15:54Z",
+              "updatedAt": "2023-06-08T16:21:05Z"
+            },
+            {
+              "originalPosition": 3307,
+              "body": "```suggestion\r\nbeing added to the tree by in Add proposals, in Update proposals, or in the `path` field of a\r\n```",
+              "createdAt": "2023-06-08T16:16:53Z",
+              "updatedAt": "2023-06-08T16:21:05Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOBoyH6c5Xo89M",
+          "commit": {
+            "abbreviatedOid": "4e5a952"
+          },
+          "author": "Bren2010",
+          "authorAssociation": "COLLABORATOR",
+          "state": "APPROVED",
+          "body": "",
+          "createdAt": "2023-06-08T16:21:35Z",
+          "updatedAt": "2023-06-08T16:21:35Z",
+          "comments": []
         }
       ]
     }
