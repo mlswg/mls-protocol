@@ -541,8 +541,8 @@ A                B                C            Directory       Channel
 {{create-flow}} shows how these pre-published KeyPackages are used to create a group.
 When client A wants to establish a group with clients B and C, it first initializes a
 group state containing only itself and downloads KeyPackages for B and C. For
-each member, A generates an Add and Commit message to add that member and then
-broadcasts them to the group. Client A also generates a Welcome message and sends it
+each member, A generates an Add message and a Commit message to add that member and then
+broadcasts the two messages to the group. Client A also generates a Welcome message and sends it
 directly to the new member (there's no need to send it to the group). Only after
 A has received its Commit message back from the Delivery Service does it update its
 state to reflect the new member's addition.
@@ -1219,7 +1219,7 @@ identities for the member and associates them with the member's signing key.
 The identities and signing key are verified by the Authentication Service in use
 for a group.
 
-It is up to the application to decide which identifier(s) to use at
+It is up to the application to decide which identifiers to use at
 the application level.  For example,
 a certificate in an X509Credential may attest to several domain names or email
 addresses in its subjectAltName extension.  An application may decide to
@@ -3365,7 +3365,7 @@ freshly generated random value of size `KDF.Nh`. The Delivery Service MAY
 attempt to ensure that group IDs are globally unique by rejecting the creation
 of new groups with a previously used ID.
 
-To initialize a group, the creator of the group <bcp14>MUST</bcp14> take the
+To initialize a group, the creator of the group MUST take the
 following steps:
 
 * Initialize a one-member group with the following initial values:
@@ -3720,8 +3720,9 @@ group agree on the extensions in use.
 ### External Proposals
 
 Proposals can be constructed and sent to the group by a party
-that is outside the group in two cases. One case, indicated by the `external` SenderType
-is useful, for example, if an automated service might propose
+that is outside the group in two cases. One case, indicated by the `external` SenderType,
+allows an entity outside the group to submit proposals to the group.
+For example, an automated service might propose
 removing a member of a group who has been inactive for a long time, or propose adding
 a newly-hired staff member to a group representing a real-world team.
 An `external` sender might send a ReInit proposal to enforce a changed policy
@@ -5156,7 +5157,7 @@ versions of the ratchet tree, as this prevents old group secrets from being
 re-derived. Forward secrecy *within* an epoch is provided by deleting message
 encryption keys once they've been used to encrypt or decrypt a message.
 Note that group secrets and message encryption keys are shared by the
-group.  There is  thus a risk to forward secrecy as long as any
+group.  There is thus a risk to forward secrecy as long as any
 member has not deleted these keys. This is a particular risk if a member
 is offline for a long period of time. Applications SHOULD have mechanisms
 for evicting group members that are offline for too long (i.e., have
@@ -5178,7 +5179,7 @@ data origin authentication properties afforded by signatures within the group
 are degraded.
 
 Uniqueness of keys in leaf nodes is assured by explicitly checking each leaf node
-being added to the tree by in Add proposal, in an Update proposals, or in the `path` field of a
+as it is added to the tree, whether in an Add proposal, in an Update proposal, or in the `path` field of a
 Commit.  Details can be found in {{leaf-node-validation}},
 {{proposal-list-validation}}, and {{processing-a-commit}}.  Uniqueness of
 encryption keys in parent nodes is assured by checking that the keys in an
@@ -5692,7 +5693,7 @@ the column layout of the registry.
 ## MLS Designated Expert Pool {#de}
 
 Specification Required {{RFC8126}} registry requests are registered
-after a three-week review period on the MLS DEs' mailing list
+after a three-week review period on the MLS Designated Expert (DE) mailing list
 <mls-reg-review@ietf.org> on the advice of one or more of the MLS DEs. However,
 to allow for the allocation of values prior to publication, the MLS
 DEs may approve registration once they are satisfied that such a
