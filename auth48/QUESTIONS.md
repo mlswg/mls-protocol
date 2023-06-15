@@ -9,7 +9,13 @@
 
 * I noticed a copy/paste error in the IANA considerations, where "where this
   credential is defined" was repeated in other registries.
-  
+
+* Raphael noted that there was inconsistency over whether "ciphersuite" is one
+  or two words.  I have updated the document to use the two-word form, following
+  the example of RFC 8446.  Please check that all instances have been updated
+  properly. Note that this changed the title of one of the IANA registries, from
+  "MLS Ciphersuites" to "MLS Cipher Suites".
+
 * You seem to be deleting commas that do not preced independent clauses.  In
   most cases cases, the sentence structure is sufficiently complex that these
   these commas improve clarity, so I have re-added them.

@@ -25,4 +25,4 @@ diff: rfc${RFC}.authors.xml rfc${RFC}.gen.xml
 	mvim -d rfc${RFC}.gen.xml rfc${RFC}.authors.xml
 
 clean:
-	rm *.xml
+	rm rfc${RFC}.gen.xml

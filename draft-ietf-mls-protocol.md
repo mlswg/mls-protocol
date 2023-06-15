@@ -866,7 +866,7 @@ with 2<sup>d</sup> leaves has 2<sup>d+1</sup> - 1 nodes, including parent nodes.
 Each node in a ratchet tree is either _blank_ (containing no value) or it holds
 an HPKE public key with some associated data:
 
-* A public key (for the HPKE scheme in use; see {{ciphersuites}})
+* A public key (for the HPKE scheme in use; see {{cipher-suites}})
 * A credential (only for leaf nodes; see {{credentials}})
 * An ordered list of "unmerged" leaves (see {{views}})
 * A hash of certain information about the node's parent, as of the last time the
@@ -1039,9 +1039,9 @@ a given node, but not for that node, as in the case with D.
 
 # Cryptographic Objects
 
-## Ciphersuites
+## Cipher Suites
 
-Each MLS session uses a single ciphersuite that specifies the
+Each MLS session uses a single cipher suite that specifies the
 following primitives to be used in group key computations:
 
 * HPKE parameters:
@@ -1053,13 +1053,13 @@ following primitives to be used in group key computations:
 * A signature algorithm
 
 MLS uses HPKE for public key encryption {{!RFC9180}}.  The
-`DeriveKeyPair` function associated to the KEM for the ciphersuite maps octet
+`DeriveKeyPair` function associated to the KEM for the cipher suite maps octet
 strings to HPKE key pairs.  As in HPKE, MLS assumes that an AEAD algorithm
 produces a single ciphertext output from AEAD encryption (aligning with
 {{?RFC5116}}), as opposed to a separate ciphertext and tag.
 
-Ciphersuites are represented with the CipherSuite type. The ciphersuites are
-defined in {{mls-ciphersuites}}.
+Cipher suites are represented with the CipherSuite type. The cipher suites are
+defined in {{mls-cipher-suites}}.
 
 ### Public Keys
 
@@ -1071,23 +1071,23 @@ opaque HPKEPublicKey<V>;
 ~~~
 
 Signature public keys are likewise represented as opaque values in a format
-defined by the ciphersuite's signature scheme.
+defined by the cipher suite's signature scheme.
 
 ~~~ tls-presentation
 opaque SignaturePublicKey<V>;
 ~~~
 
-For ciphersuites using the Edwards-curve Digital Signature Algorithm (EdDSA)
+For cipher suites using the Edwards-curve Digital Signature Algorithm (EdDSA)
 signature schemes (Ed25519 or Ed448), the public key is in the format specified
 in {{?RFC8032}}.
 
-For ciphersuites using the Elliptic Curve Digital Signature Algorithm (ECDSA)
+For cipher suites using the Elliptic Curve Digital Signature Algorithm (ECDSA)
 with the NIST curves (P-256, P-384, or P-521), the public key is represented as
 an encoded UncompressedPointRepresentation struct, as defined in {{RFC8446}}.
 
 ### Signing
 
-The signature algorithm specified in a group's ciphersuite is the mandatory algorithm
+The signature algorithm specified in a group's cipher suite is the mandatory algorithm
 to be used for signing messages within the group.  It
 MUST be the same as the signature algorithm specified in the credentials in the
 leaves of the tree (including the leaf node information in KeyPackages used to
@@ -1162,7 +1162,7 @@ context = Context;
 
 The functions `SealBase` and `OpenBase` are defined in {{Section 6.1 of
 RFC9180}} (with "Base" as the MODE), using the HPKE algorithms specified by the
-group's ciphersuite.  If MLS extensions require HPKE encryption operations, they
+group's cipher suite.  If MLS extensions require HPKE encryption operations, they
 should reuse the EncryptWithLabel construction, using a distinct label.  To
 avoid collisions in these labels, an IANA registry is defined in
 {{mls-public-key-encryption-labels}}.
@@ -1207,10 +1207,10 @@ value = value;
 ~~~
 
 For a KeyPackageRef, the `value` input is the encoded KeyPackage, and the
-ciphersuite specified in the KeyPackage determines the KDF used.  For a
+cipher suite specified in the KeyPackage determines the KDF used.  For a
 ProposalRef, the `value` input is the AuthenticatedContent carrying the
 Proposal.  In the latter two cases, the KDF is determined by the group's
-ciphersuite.
+cipher suite.
 
 ## Credentials
 
@@ -1641,7 +1641,7 @@ struct {
 ~~~
 
 `encrypted_sender_data` and `ciphertext` are encrypted using the AEAD function
-specified by the ciphersuite in use, using the SenderData
+specified by the cipher suite in use, using the SenderData
 and PrivateMessageContent structures as input.
 
 ### Content Encryption
@@ -1735,7 +1735,7 @@ algorithm in {{!I-D.irtf-cfrg-aead-limits}}.
 ### Sender Data Encryption
 
 The "sender data" used to look up the key for content encryption is
-encrypted with the ciphersuite's AEAD with a key and nonce derived from both the
+encrypted with the cipher suite's AEAD with a key and nonce derived from both the
 `sender_data_secret` and a sample of the encrypted content. Before being
 encrypted, the sender data is encoded as an object of the following form:
 
@@ -1831,7 +1831,7 @@ enum {
 
 struct {
     ProtocolVersion versions<V>;
-    CipherSuite ciphersuites<V>;
+    CipherSuite cipher_suites<V>;
     ExtensionType extensions<V>;
     ProposalType proposals<V>;
     CredentialType credentials<V>;
@@ -1916,7 +1916,7 @@ authenticating both the member's identity and the provided signing key, as
 described in {{credentials}}.
 
 The `capabilities` field indicates the protocol features that the client
-supports, including protocol versions, ciphersuites, credential types,
+supports, including protocol versions, cipher suites, credential types,
 non-default proposal types, and non-default extension types.  The following
 proposal and extension types are considered "default" and MUST NOT be
 listed:
@@ -2610,7 +2610,7 @@ chain from the committer's leaf to the root.
 # Key Schedule
 
 Group keys are derived using the `Extract` and `Expand` functions from the KDF
-for the group's ciphersuite, as well as the functions defined below:
+for the group's cipher suite, as well as the functions defined below:
 
 ~~~ pseudocode
 ExpandWithLabel(Secret, Label, Context, Length) =
@@ -2742,7 +2742,7 @@ struct {
 
 The fields in this state have the following semantics:
 
-* The `cipher_suite` is the ciphersuite used by the group.
+* The `cipher_suite` is the cipher suite used by the group.
 * The `group_id` field is an application-defined identifier for the
   group.
 * The `epoch` field represents the current version of the group.
@@ -2970,7 +2970,7 @@ struct {
 
 Each time a client injects a PSK into a group, the `psk_nonce` of its
 PreSharedKeyID MUST be set to a fresh random value of length `KDF.Nh`, where
-`KDF` is the KDF for the ciphersuite of the group into which the PSK is being
+`KDF` is the KDF for the cipher suite of the group into which the PSK is being
 injected. This ensures that even when a PSK is used multiple times, the value
 used as an input into the key schedule is different each time.
 
@@ -3198,7 +3198,7 @@ DeriveTreeSecret(., "secret", j, KDF.Nh)
 
 Here `AEAD.Nn` and `AEAD.Nk` denote the lengths
 in bytes of the nonce and key for the AEAD scheme defined by
-the ciphersuite.
+the cipher suite.
 
 ## Deletion Schedule
 
@@ -3256,7 +3256,7 @@ In order to facilitate the asynchronous addition of clients to a
 group, clients can pre-publish KeyPackage objects that
 provide some public information about a user. A KeyPackage object specifies:
 
-1. a protocol version and ciphersuite that the client supports,
+1. a protocol version and cipher suite that the client supports,
 2. a public key that others can use to encrypt a Welcome message to this client
    (an "init key"), and
 3. the content of the leaf node that should be added to the tree to represent
@@ -3265,12 +3265,12 @@ provide some public information about a user. A KeyPackage object specifies:
 KeyPackages are intended to be used only once and SHOULD NOT
 be reused except in the case of a "last resort" KeyPackage (see {{keypackage-reuse}}).
 Clients MAY generate and publish multiple KeyPackages to
-support multiple ciphersuites.
+support multiple cipher suites.
 
 The value for `init_key` MUST be a public key for the asymmetric encryption
 scheme defined by `cipher_suite`, and it MUST be unique among the set of
 KeyPackages created by this client.  Likewise, the `leaf_node` field MUST be
-valid for the ciphersuite, including both the `encryption_key` and
+valid for the cipher suite, including both the `encryption_key` and
 `signature_key` fields.  The whole structure is signed using the client's
 signature key. A KeyPackage object with an invalid signature field MUST be
 considered malformed.
@@ -3306,12 +3306,12 @@ provides an explicit signal of the intended version to the other members of
 group when they receive the KeyPackage in an Add proposal.
 
 The field `leaf_node.capabilities` indicates what protocol versions,
-ciphersuites, credential types, and non-default proposal/extension types are supported
+cipher suites, credential types, and non-default proposal/extension types are supported
 by the client.  (As discussed in {{leaf-node-contents}}, some proposal and extension types defined in this document are considered
 "default" and thus are not listed.)  This information allows MLS session
 establishment to be safe from downgrade attacks on the parameters described (as
 discussed in {{group-creation}}), while still only advertising one version and
-one ciphersuite per KeyPackage.
+one cipher suite per KeyPackage.
 
 The field `leaf_node.leaf_node_source` of the LeafNode in a KeyPackage MUST be
 set to `key_package`.
@@ -3333,7 +3333,7 @@ The validity of a KeyPackage needs to be verified at a few stages:
 
 The client verifies the validity of a KeyPackage using the following steps:
 
-* Verify that the ciphersuite and protocol version of the KeyPackage match
+* Verify that the cipher suite and protocol version of the KeyPackage match
   those in the GroupContext.
 
 * Verify that the `leaf_node` of the KeyPackage is valid for a KeyPackage
@@ -3350,13 +3350,13 @@ The client verifies the validity of a KeyPackage using the following steps:
 A group is always created with a single member, the "creator".  Other members
 are then added to the group using the usual Add/Commit mechanism.
 
-The creator of a group is responsible for setting the group ID, ciphersuite, and
+The creator of a group is responsible for setting the group ID, cipher suite, and
 initial extensions for the group.  If the creator intends to add other members
 at the time of creation, then it SHOULD fetch KeyPackages for the members to be
-added, and select a ciphersuite and extensions according to the capabilities of
+added, and select a cipher suite and extensions according to the capabilities of
 the members.  To protect against downgrade attacks, the creator MUST use the
 `capabilities` information in these KeyPackages to verify that the chosen
-version and ciphersuite is the best option supported by all members.
+version and cipher suite is the best option supported by all members.
 
 Group IDs SHOULD be constructed in such a way that there is an overwhelmingly low
 probability of honest group creators generating the same group ID, even without
@@ -3407,7 +3407,7 @@ KeyPackage and the leaf secret from which the Commit is built.
 ## Required Capabilities
 
 The configuration of a group imposes certain requirements on clients in the
-group.  At a minimum, all members of the group need to support the ciphersuite
+group.  At a minimum, all members of the group need to support the cipher suite
 and protocol version in use.  Additional requirements can be imposed by
 including a `required_capabilities` extension in the GroupContext.
 
@@ -3478,7 +3478,7 @@ A client receiving a Welcome message including a PreSharedKey of type `resumptio
 usage `branch` MUST verify that the new group reflects a subgroup branched from
 the referenced group by checking that:
 
-* The `version` and `ciphersuite` values in the Welcome message are the same as
+* The `version` and `cipher_suite` values in the Welcome message are the same as
   those used by the old group.
 * The `epoch` in the Welcome message MUST be 1.
 * Each LeafNode in a new subgroup MUST match some LeafNode in the original
@@ -3654,7 +3654,7 @@ in the Commit.
 
 A ReInit proposal represents a request to reinitialize the group with different
 parameters, for example, to increase the version number or to change the
-ciphersuite. The reinitialization is done by creating a completely new group
+cipher suite. The reinitialization is done by creating a completely new group
 and shutting down the old one.
 
 ~~~ tls-presentation
@@ -3726,7 +3726,7 @@ For example, an automated service might propose
 removing a member of a group who has been inactive for a long time, or propose adding
 a newly-hired staff member to a group representing a real-world team.
 An `external` sender might send a ReInit proposal to enforce a changed policy
-regarding MLS versions or ciphersuites.
+regarding MLS versions or cipher suites.
 
 The `external` SenderType requires that signers are pre-provisioned
 to the clients within a group and can only be used if the
@@ -4321,11 +4321,11 @@ On receiving a Welcome message, a client processes it using the following steps:
 * Identify an entry in the `secrets` array where the `new_member`
   value corresponds to one of this client's KeyPackages, using the hash
   indicated by the `cipher_suite` field. If no such field exists, or if the
-  ciphersuite indicated in the KeyPackage does not match the one in the
+  cipher suite indicated in the KeyPackage does not match the one in the
   Welcome message, return an error.
 
 * Decrypt the `encrypted_group_secrets` value with the algorithms indicated by
-  the ciphersuite and the private key `init_key_priv` corresponding to
+  the cipher suite and the private key `init_key_priv` corresponding to
   `init_key` in the referenced KeyPackage.
 
 ~~~ pseudocode
@@ -4452,7 +4452,7 @@ following information for the group's current epoch:
 
 * group ID
 * epoch ID
-* ciphersuite
+* cipher suite
 * public tree hash
 * confirmed transcript hash
 * confirmation tag of the most recent Commit
@@ -4633,34 +4633,34 @@ using the tree for MLS operations.
 
 # Extensibility
 
-The base MLS protocol can be extended in a few ways.  New ciphersuites can be
+The base MLS protocol can be extended in a few ways.  New cipher suites can be
 added to enable the use of new cryptographic algorithms.  New types of proposals
 can be used to perform new actions within an epoch.  Extension fields can be
 used to add additional information to the protocol.  In this section, we discuss
 some constraints on these extensibility mechanisms that are necessary to ensure
 broad interoperability.
 
-## Additional Ciphersuites
+## Additional Cipher Suites
 
-As discussed in {{ciphersuites}}, MLS allows the participants in a group to
+As discussed in {{cipher-suites}}, MLS allows the participants in a group to
 negotiate the cryptographic algorithms used within the group.  This
 extensibility is important for maintaining the security of the protocol over
 time {{?RFC7696}}.  It also creates a risk of interoperability failure due to
-clients not supporting a common ciphersuite.
+clients not supporting a common cipher suite.
 
-The ciphersuite registry defined in {{mls-ciphersuites}} attempts to strike a
+The cipher suite registry defined in {{mls-cipher-suites}} attempts to strike a
 balance on this point.  On the one hand, the base policy for the registry is
 Specification Required, a fairly low bar designed to avoid the need for
 standards work in cases where different ciphers are needed for niche
 applications.  On the other hand, there is a higher bar (Standards Action) for ciphers to set the
 Recommended field in the registry.  This higher bar is there in part to ensure
-that the interoperability implications of new ciphersuites are considered.
+that the interoperability implications of new cipher suites are considered.
 
-MLS ciphersuites are defined independent of MLS versions, so that in principle,
-the same ciphersuite can be used across versions.  Standards work defining new
+MLS cipher suites are defined independent of MLS versions, so that in principle,
+the same cipher suite can be used across versions.  Standards work defining new
 versions of MLS should consider whether it is desirable for the new version to
-be compatible with existing ciphersuites, or whether the new version should rule
-out some ciphersuites. For example, a new version could follow the example of
+be compatible with existing cipher suites, or whether the new version should rule
+out some cipher suites. For example, a new version could follow the example of
 HTTP/2, which restricted the set of allowed TLS ciphers (see {{Section 9.2.2 of
 ?RFC9113}}).
 
@@ -4776,7 +4776,7 @@ signal to its implementer that the client needs to be fixed.
 When generating the following fields, an MLS client SHOULD include a random
 selection of values chosen from these GREASE values:
 
-* `LeafNode.capabilities.ciphersuites`
+* `LeafNode.capabilities.cipher_suites`
 * `LeafNode.capabilities.extensions`
 * `LeafNode.capabilities.proposals`
 * `LeafNode.capabilities.credentials`
@@ -4998,10 +4998,10 @@ indistinguishable from random data (i.e., the AEAD is AE1-secure in the phrasing
 of {{NAN}}), the odds of two ciphertext samples being identical is roughly
 2<sup>-L/2</sup>, i.e., the birthday bound.
 
-The AEAD algorithms for ciphersuites defined in this document all provide this
-property. The size of the sample depends on the ciphersuite's hash function, but
+The AEAD algorithms for cipher suites defined in this document all provide this
+property. The size of the sample depends on the cipher suite's hash function, but
 in all cases, the probability of collision is no more than 2<sup>-128</sup>.
-Any future ciphersuite MUST use an AE1-secure AEAD algorithm.
+Any future cipher suite MUST use an AE1-secure AEAD algorithm.
 
 ## Confidentiality of Group Metadata
 
@@ -5295,7 +5295,7 @@ be added at the application layer.
 
 IANA has created the following registries:
 
-* MLS Ciphersuites ({{mls-ciphersuites}})
+* MLS Cipher Suites ({{mls-cipher-suites}})
 * MLS Wire Formats ({{mls-wire-formats}})
 * MLS Extension Types ({{mls-extension-types}})
 * MLS Proposal Types ({{mls-proposal-types}})
@@ -5308,12 +5308,12 @@ All of these registries are under the "Messaging Layer Security" group registry 
 and assignments are made via the Specification Required policy {{!RFC8126}}. See
 {{de}} for additional information about the MLS Designated Experts (DEs).
 
-## MLS Ciphersuites
+## MLS Cipher Suites
 
-A ciphersuite is a combination of a protocol version and the set of
+A cipher suite is a combination of a protocol version and the set of
 cryptographic algorithms that should be used.
 
-Ciphersuite names follow the naming convention:
+Cipher suite names follow the naming convention:
 
 ~~~ pseudocode
 CipherSuite MLS_LVL_KEM_AEAD_HASH_SIG = VALUE;
@@ -5335,11 +5335,11 @@ uint16 CipherSuite;
 
 The columns in the registry are as follows:
 
-* Value: The numeric value of the ciphersuite
+* Value: The numeric value of the cipher suite
 
-* Name: The name of the ciphersuite
+* Name: The name of the cipher suite
 
-* Recommended: Whether support for this ciphersuite is recommended by the IETF.
+* Recommended: Whether support for this cipher suite is recommended by the IETF.
   Valid values are "Y", "N", and "D", as described below.  The default
   value of the "Recommended" column is "N".  Setting the Recommended item to "Y"
   or "D", or changing an item whose current value is "Y" or "D", requires
@@ -5365,7 +5365,7 @@ The columns in the registry are as follows:
     problems if they are used, such as a weak cryptographic algorithm or a
     mechanism that might cause interoperability problems in deployment.
 
-* Reference: The document where this ciphersuite is defined
+* Reference: The document where this cipher suite is defined
 
 Initial contents:
 
@@ -5397,8 +5397,8 @@ Initial contents:
 | 0xF000 - 0xFFFF | Reserved for Private Use                            | - | RFC 9420 |
 {: title="MLS Extension Types Registry" }
 
-All of these ciphersuites use HMAC {{!RFC2104}} as their MAC function, with
-different hashes per ciphersuite.  The mapping of ciphersuites to HPKE
+All of the non-GREASE cipher suites use HMAC {{!RFC2104}} as their MAC function, with
+different hashes per cipher suite.  The mapping of cipher suites to HPKE
 primitives {{RFC9180}}, HMAC hash functions, and TLS signature schemes
 {{RFC8446}} is as follows:
 
@@ -5413,15 +5413,15 @@ primitives {{RFC9180}}, HMAC hash functions, and TLS signature schemes
 | 0x0007 | 0x0011 | 0x0002 | 0x0002 | SHA384 | ecdsa_secp384r1_sha384 |
 
 The hash used for the MLS transcript hash is the one referenced in the
-ciphersuite name.  In the ciphersuites defined above, "SHA256", "SHA384", and
+cipher suite name.  In the cipher suites defined above, "SHA256", "SHA384", and
 "SHA512" refer, respectively, to the SHA-256, SHA-384, and SHA-512 functions
 defined in {{SHS}}.
 
-In addition to the general requirements of {{additional-ciphersuites}}, future
-ciphersuites MUST meet the requirements of {{confidentiality-of-sender-data}}.
+In addition to the general requirements of {{additional-cipher-suites}}, future
+cipher suites MUST meet the requirements of {{confidentiality-of-sender-data}}.
 
-It is advisable to keep the number of ciphersuites low to increase the likelihood
-that clients can interoperate in a federated environment. The ciphersuites therefore
+It is advisable to keep the number of cipher suites low to increase the likelihood
+that clients can interoperate in a federated environment. The cipher suites therefore
 include only modern, yet well-established algorithms.  Depending on their
 requirements, clients can choose between two security levels (roughly 128-bit
 and 256-bit). Within the security levels, clients can choose between faster
@@ -5433,10 +5433,10 @@ encryption algorithms and hash functions is paired with the security level of
 the curves.
 
 
-The mandatory-to-implement ciphersuite for MLS 1.0 is
+The mandatory-to-implement cipher suite for MLS 1.0 is
 `MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519`, which uses
 Curve25519 for key exchange, AES-128-GCM for HPKE, HKDF over SHA2-256, and
-Ed25519 for signatures.  MLS clients MUST implement this ciphersuite.
+Ed25519 for signatures.  MLS clients MUST implement this cipher suite.
 
 ## MLS Wire Formats
 
@@ -5450,7 +5450,7 @@ Template:
 
 * Name: The name of the wire format
 
-* Recommended: Same as in {{mls-ciphersuites}}
+* Recommended: Same as in {{mls-cipher-suites}}
 
 * Reference: The document where this wire format is defined
 
@@ -5487,7 +5487,7 @@ Template:
   * GC: GroupContext objects
   * GI: GroupInfo objects
 
-* Recommended: Same as in {{mls-ciphersuites}}
+* Recommended: Same as in {{mls-cipher-suites}}
 
 * Reference: The document where this extension is defined
 
@@ -5531,7 +5531,7 @@ Template:
 
 * Name: The name of the proposal type
 
-* Recommended: Same as in {{mls-ciphersuites}}
+* Recommended: Same as in {{mls-cipher-suites}}
 
 * External: Whether a proposal of this type may be sent by an `external` sender
   (see {{external-proposals}})
@@ -5583,7 +5583,7 @@ Template:
 
 * Name: The name of the credential type
 
-* Recommended: Same as in {{mls-ciphersuites}}
+* Recommended: Same as in {{mls-cipher-suites}}
 
 * Reference: The document where this credential is defined
 
@@ -5625,7 +5625,7 @@ Template:
 
 * Label: The string to be used as the `Label` parameter to `SignWithLabel`
 
-* Recommended: Same as in {{mls-ciphersuites}}
+* Recommended: Same as in {{mls-cipher-suites}}
 
 * Reference: The document where this label is defined
 
@@ -5653,7 +5653,7 @@ Template:
 
 * Label: The string to be used as the `Label` parameter to `EncryptWithLabel`
 
-* Recommended: Same as in {{mls-ciphersuites}}
+* Recommended: Same as in {{mls-cipher-suites}}
 
 * Reference: The document where this label is defined
 
@@ -5677,7 +5677,7 @@ Template:
 
 * Label: The string to be used as the `Label` parameter to `MLS-Exporter`
 
-* Recommended: Same as in {{mls-ciphersuites}}
+* Recommended: Same as in {{mls-cipher-suites}}
 
 * Reference: The document where this label is defined
 
@@ -5715,8 +5715,8 @@ Criteria that SHOULD be applied by the MLS DEs includes determining
 whether the proposed registration duplicates existing functionality,
 whether it is likely to be of general applicability or useful only
 for a single application, and whether the registration description
-is clear. For example, the MLS DEs will apply the ciphersuite-related
-advisory found in {{mls-ciphersuites}}.
+is clear. For example, for cipher suite registrations, the MLS DEs will apply the
+advisory found in {{mls-cipher-suites}}.
 
 IANA MUST only accept registry updates from the MLS DEs and SHOULD
 direct all requests for registration to the MLS DEs' mailing list.
