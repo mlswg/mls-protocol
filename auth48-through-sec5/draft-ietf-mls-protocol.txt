@@ -5,7 +5,7 @@
 mls                                                            R. Barnes
 Internet-Draft                                                     Cisco
 Intended status: Standards Track                           B. Beurdouche
-Expires: 7 December 2023                                 Inria & Mozilla
+Expires: 17 December 2023                                Inria & Mozilla
                                                                R. Robert
                                                              Phoenix R&D
                                                              J. Millican
@@ -14,7 +14,7 @@ Expires: 7 December 2023                                 Inria & Mozilla
                                                                         
                                                           K. Cohn-Gordon
                                                     University of Oxford
-                                                             5 June 2023
+                                                            15 June 2023
 
 
               The Messaging Layer Security (MLS) Protocol
@@ -56,7 +56,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 7 December 2023.
+   This Internet-Draft will expire on 17 December 2023.
 
 Copyright Notice
 
@@ -90,7 +90,7 @@ Table of Contents
        4.1.2.  Paths through a Ratchet Tree
      4.2.  Views of a Ratchet Tree
    5.  Cryptographic Objects
-     5.1.  Ciphersuites
+     5.1.  Cipher Suites
        5.1.1.  Public Keys
        5.1.2.  Signing
        5.1.3.  Public Key Encryption
@@ -151,7 +151,7 @@ Table of Contents
        12.4.2.  Processing a Commit
        12.4.3.  Adding Members to the Group
    13. Extensibility
-     13.1.  Additional Ciphersuites
+     13.1.  Additional Cipher Suites
      13.2.  Proposals
      13.3.  Credential Extensibility
      13.4.  Extensions
@@ -178,7 +178,7 @@ Table of Contents
      16.11. Additional Policy Enforcement
      16.12. Group Fragmentation by Malicious Insiders
    17. IANA Considerations
-     17.1.  MLS Ciphersuites
+     17.1.  MLS Cipher Suites
      17.2.  MLS Wire Formats
      17.3.  MLS Extension Types
      17.4.  MLS Proposal Types
@@ -618,12 +618,12 @@ Table of Contents
    a group.  When client A wants to establish a group with clients B and
    C, it first initializes a group state containing only itself and
    downloads KeyPackages for B and C.  For each member, A generates an
-   Add and Commit message to add that member and then broadcasts them to
-   the group.  Client A also generates a Welcome message and sends it
-   directly to the new member (there's no need to send it to the group).
-   Only after A has received its Commit message back from the Delivery
-   Service does it update its state to reflect the new member's
-   addition.
+   Add message and a Commit message to add that member and then
+   broadcasts the two messages to the group.  Client A also generates a
+   Welcome message and sends it directly to the new member (there's no
+   need to send it to the group).  Only after A has received its Commit
+   message back from the Delivery Service does it update its state to
+   reflect the new member's addition.
 
    Once A has updated its state, the new member has processed the
    Welcome, and any other group members have processed the Commit, they
@@ -1143,9 +1143,9 @@ Table of Contents
 
 5.  Cryptographic Objects
 
-5.1.  Ciphersuites
+5.1.  Cipher Suites
 
-   Each MLS session uses a single ciphersuite that specifies the
+   Each MLS session uses a single cipher suite that specifies the
    following primitives to be used in group key computations:
 
    *  HPKE parameters:
@@ -1164,13 +1164,14 @@ Table of Contents
    *  A signature algorithm
 
    MLS uses HPKE for public key encryption [RFC9180].  The DeriveKeyPair
-   function associated to the KEM for the ciphersuite maps octet strings
-   to HPKE key pairs.  As in HPKE, MLS assumes that an AEAD algorithm
-   produces a single ciphertext output from AEAD encryption (aligning
-   with [RFC5116]), as opposed to a separate ciphertext and tag.
+   function associated to the KEM for the cipher suite maps octet
+   strings to HPKE key pairs.  As in HPKE, MLS assumes that an AEAD
+   algorithm produces a single ciphertext output from AEAD encryption
+   (aligning with [RFC5116]), as opposed to a separate ciphertext and
+   tag.
 
-   Ciphersuites are represented with the CipherSuite type.  The
-   ciphersuites are defined in Section 17.1.
+   Cipher suites are represented with the CipherSuite type.  The cipher
+   suites are defined in Section 17.1.
 
 5.1.1.  Public Keys
 
@@ -1181,22 +1182,22 @@ Table of Contents
    opaque HPKEPublicKey<V>;
 
    Signature public keys are likewise represented as opaque values in a
-   format defined by the ciphersuite's signature scheme.
+   format defined by the cipher suite's signature scheme.
 
    opaque SignaturePublicKey<V>;
 
-   For ciphersuites using the Edwards-curve Digital Signature Algorithm
+   For cipher suites using the Edwards-curve Digital Signature Algorithm
    (EdDSA) signature schemes (Ed25519 or Ed448), the public key is in
    the format specified in [RFC8032].
 
-   For ciphersuites using the Elliptic Curve Digital Signature Algorithm
-   (ECDSA) with the NIST curves (P-256, P-384, or P-521), the public key
-   is represented as an encoded UncompressedPointRepresentation struct,
-   as defined in [RFC8446].
+   For cipher suites using the Elliptic Curve Digital Signature
+   Algorithm (ECDSA) with the NIST curves (P-256, P-384, or P-521), the
+   public key is represented as an encoded
+   UncompressedPointRepresentation struct, as defined in [RFC8446].
 
 5.1.2.  Signing
 
-   The signature algorithm specified in a group's ciphersuite is the
+   The signature algorithm specified in a group's cipher suite is the
    mandatory algorithm to be used for signing messages within the group.
    It MUST be the same as the signature algorithm specified in the
    credentials in the leaves of the tree (including the leaf node
@@ -1261,8 +1262,8 @@ Table of Contents
 
    The functions SealBase and OpenBase are defined in Section 6.1 of
    [RFC9180] (with "Base" as the MODE), using the HPKE algorithms
-   specified by the group's ciphersuite.  If MLS extensions require HPKE
-   encryption operations, they should reuse the EncryptWithLabel
+   specified by the group's cipher suite.  If MLS extensions require
+   HPKE encryption operations, they should reuse the EncryptWithLabel
    construction, using a distinct label.  To avoid collisions in these
    labels, an IANA registry is defined in Section 17.7.
 
@@ -1299,10 +1300,10 @@ Table of Contents
    value = value;
 
    For a KeyPackageRef, the value input is the encoded KeyPackage, and
-   the ciphersuite specified in the KeyPackage determines the KDF used.
+   the cipher suite specified in the KeyPackage determines the KDF used.
    For a ProposalRef, the value input is the AuthenticatedContent
    carrying the Proposal.  In the latter two cases, the KDF is
-   determined by the group's ciphersuite.
+   determined by the group's cipher suite.
 
 5.3.  Credentials
 
@@ -1311,16 +1312,15 @@ Table of Contents
    signing key.  The identities and signing key are verified by the
    Authentication Service in use for a group.
 
-   It is up to the application to decide which identifier(s) to use at
-   the application level.  For example, a certificate in an
-   X509Credential may attest to several domain names or email addresses
-   in its subjectAltName extension.  An application may decide to
-   present all of these to a user, or if it knows a "desired" domain
-   name or email address, it can check that the desired identifier is
-   among those attested.  Using the terminology from [RFC6125], a
-   credential provides "presented identifiers", and it is up to the
-   application to supply a "reference identifier" for the authenticated
-   client, if any.
+   It is up to the application to decide which identifiers to use at the
+   application level.  For example, a certificate in an X509Credential
+   may attest to several domain names or email addresses in its
+   subjectAltName extension.  An application may decide to present all
+   of these to a user, or if it knows a "desired" domain name or email
+   address, it can check that the desired identifier is among those
+   attested.  Using the terminology from [RFC6125], a credential
+   provides "presented identifiers", and it is up to the application to
+   supply a "reference identifier" for the authenticated client, if any.
 
    // See the "MLS Credential Types" IANA registry for values
    uint16 CredentialType;
@@ -1746,7 +1746,7 @@ Table of Contents
    } PrivateMessage;
 
    encrypted_sender_data and ciphertext are encrypted using the AEAD
-   function specified by the ciphersuite in use, using the SenderData
+   function specified by the cipher suite in use, using the SenderData
    and PrivateMessageContent structures as input.
 
 6.3.1.  Content Encryption
@@ -1840,7 +1840,7 @@ Table of Contents
 6.3.2.  Sender Data Encryption
 
    The "sender data" used to look up the key for content encryption is
-   encrypted with the ciphersuite's AEAD with a key and nonce derived
+   encrypted with the cipher suite's AEAD with a key and nonce derived
    from both the sender_data_secret and a sample of the encrypted
    content.  Before being encrypted, the sender data is encoded as an
    object of the following form:
@@ -1933,7 +1933,7 @@ Table of Contents
 
    struct {
        ProtocolVersion versions<V>;
-       CipherSuite ciphersuites<V>;
+       CipherSuite cipher_suites<V>;
        ExtensionType extensions<V>;
        ProposalType proposals<V>;
        CredentialType credentials<V>;
@@ -2018,7 +2018,7 @@ Table of Contents
    Section 5.3.
 
    The capabilities field indicates the protocol features that the
-   client supports, including protocol versions, ciphersuites,
+   client supports, including protocol versions, cipher suites,
    credential types, non-default proposal types, and non-default
    extension types.  The following proposal and extension types are
    considered "default" and MUST NOT be listed:
@@ -2777,8 +2777,8 @@ Table of Contents
 8.  Key Schedule
 
    Group keys are derived using the Extract and Expand functions from
-   the KDF for the group's ciphersuite, as well as the functions defined
-   below:
+   the KDF for the group's cipher suite, as well as the functions
+   defined below:
 
    ExpandWithLabel(Secret, Label, Context, Length) =
        KDF.Expand(Secret, KDFLabel, Length)
@@ -2928,7 +2928,7 @@ psk_secret (or 0) --> KDF.Extract
 
    The fields in this state have the following semantics:
 
-   *  The cipher_suite is the ciphersuite used by the group.
+   *  The cipher_suite is the cipher suite used by the group.
 
    *  The group_id field is an application-defined identifier for the
       group.
@@ -3168,7 +3168,7 @@ psk_secret (or 0) --> KDF.Extract
 
    Each time a client injects a PSK into a group, the psk_nonce of its
    PreSharedKeyID MUST be set to a fresh random value of length KDF.Nh,
-   where KDF is the KDF for the ciphersuite of the group into which the
+   where KDF is the KDF for the cipher suite of the group into which the
    PSK is being injected.  This ensures that even when a PSK is used
    multiple times, the value used as an input into the key schedule is
    different each time.
@@ -3398,7 +3398,7 @@ psk_secret (or 0) --> KDF.Extract
    = ratchet_secret_[N]_[j+1]
 
    Here AEAD.Nn and AEAD.Nk denote the lengths in bytes of the nonce and
-   key for the AEAD scheme defined by the ciphersuite.
+   key for the AEAD scheme defined by the cipher suite.
 
 9.2.  Deletion Schedule
 
@@ -3471,7 +3471,7 @@ psk_secret (or 0) --> KDF.Extract
    group, clients can pre-publish KeyPackage objects that provide some
    public information about a user.  A KeyPackage object specifies:
 
-   1.  a protocol version and ciphersuite that the client supports,
+   1.  a protocol version and cipher suite that the client supports,
 
    2.  a public key that others can use to encrypt a Welcome message to
        this client (an "init key"), and
@@ -3482,13 +3482,13 @@ psk_secret (or 0) --> KDF.Extract
    KeyPackages are intended to be used only once and SHOULD NOT be
    reused except in the case of a "last resort" KeyPackage (see
    Section 16.8).  Clients MAY generate and publish multiple KeyPackages
-   to support multiple ciphersuites.
+   to support multiple cipher suites.
 
    The value for init_key MUST be a public key for the asymmetric
    encryption scheme defined by cipher_suite, and it MUST be unique
    among the set of KeyPackages created by this client.  Likewise, the
-   leaf_node field MUST be valid for the ciphersuite, including both the
-   encryption_key and signature_key fields.  The whole structure is
+   leaf_node field MUST be valid for the cipher suite, including both
+   the encryption_key and signature_key fields.  The whole structure is
    signed using the client's signature key.  A KeyPackage object with an
    invalid signature field MUST be considered malformed.
 
@@ -3522,13 +3522,13 @@ psk_secret (or 0) --> KDF.Extract
    KeyPackage in an Add proposal.
 
    The field leaf_node.capabilities indicates what protocol versions,
-   ciphersuites, credential types, and non-default proposal/extension
+   cipher suites, credential types, and non-default proposal/extension
    types are supported by the client.  (As discussed in Section 7.2,
    some proposal and extension types defined in this document are
    considered "default" and thus are not listed.)  This information
    allows MLS session establishment to be safe from downgrade attacks on
    the parameters described (as discussed in Section 11), while still
-   only advertising one version and one ciphersuite per KeyPackage.
+   only advertising one version and one cipher suite per KeyPackage.
 
    The field leaf_node.leaf_node_source of the LeafNode in a KeyPackage
    MUST be set to key_package.
@@ -3552,8 +3552,8 @@ psk_secret (or 0) --> KDF.Extract
    The client verifies the validity of a KeyPackage using the following
    steps:
 
-   *  Verify that the ciphersuite and protocol version of the KeyPackage
-      match those in the GroupContext.
+   *  Verify that the cipher suite and protocol version of the
+      KeyPackage match those in the GroupContext.
 
    *  Verify that the leaf_node of the KeyPackage is valid for a
       KeyPackage according to Section 7.3.
@@ -3571,13 +3571,13 @@ psk_secret (or 0) --> KDF.Extract
    mechanism.
 
    The creator of a group is responsible for setting the group ID,
-   ciphersuite, and initial extensions for the group.  If the creator
+   cipher suite, and initial extensions for the group.  If the creator
    intends to add other members at the time of creation, then it SHOULD
-   fetch KeyPackages for the members to be added, and select a
-   ciphersuite and extensions according to the capabilities of the
-   members.  To protect against downgrade attacks, the creator MUST use
-   the capabilities information in these KeyPackages to verify that the
-   chosen version and ciphersuite is the best option supported by all
+   fetch KeyPackages for the members to be added, and select a cipher
+   suite and extensions according to the capabilities of the members.
+   To protect against downgrade attacks, the creator MUST use the
+   capabilities information in these KeyPackages to verify that the
+   chosen version and cipher suite is the best option supported by all
    members.
 
    Group IDs SHOULD be constructed in such a way that there is an
@@ -3643,9 +3643,9 @@ psk_secret (or 0) --> KDF.Extract
 
    The configuration of a group imposes certain requirements on clients
    in the group.  At a minimum, all members of the group need to support
-   the ciphersuite and protocol version in use.  Additional requirements
-   can be imposed by including a required_capabilities extension in the
-   GroupContext.
+   the cipher suite and protocol version in use.  Additional
+   requirements can be imposed by including a required_capabilities
+   extension in the GroupContext.
 
    struct {
        ExtensionType extension_types<V>;
@@ -3727,7 +3727,7 @@ psk_secret (or 0) --> KDF.Extract
    resumption with usage branch MUST verify that the new group reflects
    a subgroup branched from the referenced group by checking that:
 
-   *  The version and ciphersuite values in the Welcome message are the
+   *  The version and cipher_suite values in the Welcome message are the
       same as those used by the old group.
 
    *  The epoch in the Welcome message MUST be 1.
@@ -3910,7 +3910,7 @@ psk_secret (or 0) --> KDF.Extract
 
    A ReInit proposal represents a request to reinitialize the group with
    different parameters, for example, to increase the version number or
-   to change the ciphersuite.  The reinitialization is done by creating
+   to change the cipher suite.  The reinitialization is done by creating
    a completely new group and shutting down the old one.
 
    struct {
@@ -3972,12 +3972,12 @@ psk_secret (or 0) --> KDF.Extract
 
    Proposals can be constructed and sent to the group by a party that is
    outside the group in two cases.  One case, indicated by the external
-   SenderType is useful, for example, if an automated service might
-   propose removing a member of a group who has been inactive for a long
-   time, or propose adding a newly-hired staff member to a group
-   representing a real-world team.  An external sender might send a
-   ReInit proposal to enforce a changed policy regarding MLS versions or
-   ciphersuites.
+   SenderType, allows an entity outside the group to submit proposals to
+   the group.  For example, an automated service might propose removing
+   a member of a group who has been inactive for a long time, or propose
+   adding a newly-hired staff member to a group representing a real-
+   world team.  An external sender might send a ReInit proposal to
+   enforce a changed policy regarding MLS versions or cipher suites.
 
    The external SenderType requires that signers are pre-provisioned to
    the clients within a group and can only be used if the
@@ -4653,11 +4653,11 @@ psk_secret (or 0) --> KDF.Extract
    *  Identify an entry in the secrets array where the new_member value
       corresponds to one of this client's KeyPackages, using the hash
       indicated by the cipher_suite field.  If no such field exists, or
-      if the ciphersuite indicated in the KeyPackage does not match the
+      if the cipher suite indicated in the KeyPackage does not match the
       one in the Welcome message, return an error.
 
    *  Decrypt the encrypted_group_secrets value with the algorithms
-      indicated by the ciphersuite and the private key init_key_priv
+      indicated by the cipher suite and the private key init_key_priv
       corresponding to init_key in the referenced KeyPackage.
 
    encrypted_group_secrets =
@@ -4790,7 +4790,7 @@ psk_secret (or 0) --> KDF.Extract
 
    *  epoch ID
 
-   *  ciphersuite
+   *  cipher suite
 
    *  public tree hash
 
@@ -4986,39 +4986,39 @@ psk_secret (or 0) --> KDF.Extract
 
 13.  Extensibility
 
-   The base MLS protocol can be extended in a few ways.  New
-   ciphersuites can be added to enable the use of new cryptographic
+   The base MLS protocol can be extended in a few ways.  New cipher
+   suites can be added to enable the use of new cryptographic
    algorithms.  New types of proposals can be used to perform new
    actions within an epoch.  Extension fields can be used to add
    additional information to the protocol.  In this section, we discuss
    some constraints on these extensibility mechanisms that are necessary
    to ensure broad interoperability.
 
-13.1.  Additional Ciphersuites
+13.1.  Additional Cipher Suites
 
    As discussed in Section 5.1, MLS allows the participants in a group
    to negotiate the cryptographic algorithms used within the group.
    This extensibility is important for maintaining the security of the
    protocol over time [RFC7696].  It also creates a risk of
    interoperability failure due to clients not supporting a common
-   ciphersuite.
+   cipher suite.
 
-   The ciphersuite registry defined in Section 17.1 attempts to strike a
-   balance on this point.  On the one hand, the base policy for the
+   The cipher suite registry defined in Section 17.1 attempts to strike
+   a balance on this point.  On the one hand, the base policy for the
    registry is Specification Required, a fairly low bar designed to
    avoid the need for standards work in cases where different ciphers
    are needed for niche applications.  On the other hand, there is a
    higher bar (Standards Action) for ciphers to set the Recommended
    field in the registry.  This higher bar is there in part to ensure
-   that the interoperability implications of new ciphersuites are
+   that the interoperability implications of new cipher suites are
    considered.
 
-   MLS ciphersuites are defined independent of MLS versions, so that in
-   principle, the same ciphersuite can be used across versions.
+   MLS cipher suites are defined independent of MLS versions, so that in
+   principle, the same cipher suite can be used across versions.
    Standards work defining new versions of MLS should consider whether
    it is desirable for the new version to be compatible with existing
-   ciphersuites, or whether the new version should rule out some
-   ciphersuites.  For example, a new version could follow the example of
+   cipher suites, or whether the new version should rule out some cipher
+   suites.  For example, a new version could follow the example of
    HTTP/2, which restricted the set of allowed TLS ciphers (see
    Section 9.2.2 of [RFC9113]).
 
@@ -5149,7 +5149,7 @@ psk_secret (or 0) --> KDF.Extract
    When generating the following fields, an MLS client SHOULD include a
    random selection of values chosen from these GREASE values:
 
-   *  LeafNode.capabilities.ciphersuites
+   *  LeafNode.capabilities.cipher_suites
 
    *  LeafNode.capabilities.extensions
 
@@ -5393,10 +5393,10 @@ psk_secret (or 0) --> KDF.Extract
    the odds of two ciphertext samples being identical is roughly
    2^(-L/2), i.e., the birthday bound.
 
-   The AEAD algorithms for ciphersuites defined in this document all
-   provide this property.  The size of the sample depends on the
-   ciphersuite's hash function, but in all cases, the probability of
-   collision is no more than 2^-128.  Any future ciphersuite MUST use an
+   The AEAD algorithms for cipher suites defined in this document all
+   provide this property.  The size of the sample depends on the cipher
+   suite's hash function, but in all cases, the probability of collision
+   is no more than 2^-128.  Any future cipher suite MUST use an
    AE1-secure AEAD algorithm.
 
 16.4.  Confidentiality of Group Metadata
@@ -5602,12 +5602,12 @@ psk_secret (or 0) --> KDF.Extract
    signatures within the group are degraded.
 
    Uniqueness of keys in leaf nodes is assured by explicitly checking
-   each leaf node being added to the tree by in Add proposal, in an
-   Update proposals, or in the path field of a Commit.  Details can be
-   found in Section 7.3, Section 12.2, and Section 12.4.2.  Uniqueness
-   of encryption keys in parent nodes is assured by checking that the
-   keys in an UpdatePath are not found elsewhere in the tree (see
-   Section 12.4.2).
+   each leaf node as it is added to the tree, whether in an Add
+   proposal, in an Update proposal, or in the path field of a Commit.
+   Details can be found in Section 7.3, Section 12.2, and
+   Section 12.4.2.  Uniqueness of encryption keys in parent nodes is
+   assured by checking that the keys in an UpdatePath are not found
+   elsewhere in the tree (see Section 12.4.2).
 
 16.8.  KeyPackage Reuse
 
@@ -5724,7 +5724,7 @@ psk_secret (or 0) --> KDF.Extract
 
    IANA has created the following registries:
 
-   *  MLS Ciphersuites (Section 17.1)
+   *  MLS Cipher Suites (Section 17.1)
 
    *  MLS Wire Formats (Section 17.2)
 
@@ -5745,12 +5745,12 @@ psk_secret (or 0) --> KDF.Extract
    Specification Required policy [RFC8126].  See Section 17.9 for
    additional information about the MLS Designated Experts (DEs).
 
-17.1.  MLS Ciphersuites
+17.1.  MLS Cipher Suites
 
-   A ciphersuite is a combination of a protocol version and the set of
+   A cipher suite is a combination of a protocol version and the set of
    cryptographic algorithms that should be used.
 
-   Ciphersuite names follow the naming convention:
+   Cipher suite names follow the naming convention:
 
    CipherSuite MLS_LVL_KEM_AEAD_HASH_SIG = VALUE;
 
@@ -5780,11 +5780,11 @@ psk_secret (or 0) --> KDF.Extract
 
    The columns in the registry are as follows:
 
-   *  Value: The numeric value of the ciphersuite
+   *  Value: The numeric value of the cipher suite
 
-   *  Name: The name of the ciphersuite
+   *  Name: The name of the cipher suite
 
-   *  Recommended: Whether support for this ciphersuite is recommended
+   *  Recommended: Whether support for this cipher suite is recommended
       by the IETF.  Valid values are "Y", "N", and "D", as described
       below.  The default value of the "Recommended" column is "N".
       Setting the Recommended item to "Y" or "D", or changing an item
@@ -5815,7 +5815,7 @@ psk_secret (or 0) --> KDF.Extract
          as a weak cryptographic algorithm or a mechanism that might
          cause interoperability problems in deployment.
 
-   *  Reference: The document where this ciphersuite is defined
+   *  Reference: The document where this cipher suite is defined
 
    Initial contents:
 
@@ -5898,10 +5898,10 @@ psk_secret (or 0) --> KDF.Extract
 
                    Table 6: MLS Extension Types Registry
 
-   All of these ciphersuites use HMAC [RFC2104] as their MAC function,
-   with different hashes per ciphersuite.  The mapping of ciphersuites
-   to HPKE primitives [RFC9180], HMAC hash functions, and TLS signature
-   schemes [RFC8446] is as follows:
+   All of the non-GREASE cipher suites use HMAC [RFC2104] as their MAC
+   function, with different hashes per cipher suite.  The mapping of
+   cipher suites to HPKE primitives [RFC9180], HMAC hash functions, and
+   TLS signature schemes [RFC8446] is as follows:
 
     +======+======+========+========+========+========================+
     |Value |KEM   | KDF    | AEAD   | Hash   | Signature              |
@@ -5924,16 +5924,16 @@ psk_secret (or 0) --> KDF.Extract
                                   Table 7
 
    The hash used for the MLS transcript hash is the one referenced in
-   the ciphersuite name.  In the ciphersuites defined above, "SHA256",
+   the cipher suite name.  In the cipher suites defined above, "SHA256",
    "SHA384", and "SHA512" refer, respectively, to the SHA-256, SHA-384,
    and SHA-512 functions defined in [SHS].
 
    In addition to the general requirements of Section 13.1, future
-   ciphersuites MUST meet the requirements of Section 16.3.
+   cipher suites MUST meet the requirements of Section 16.3.
 
-   It is advisable to keep the number of ciphersuites low to increase
+   It is advisable to keep the number of cipher suites low to increase
    the likelihood that clients can interoperate in a federated
-   environment.  The ciphersuites therefore include only modern, yet
+   environment.  The cipher suites therefore include only modern, yet
    well-established algorithms.  Depending on their requirements,
    clients can choose between two security levels (roughly 128-bit and
    256-bit).  Within the security levels, clients can choose between
@@ -5945,10 +5945,11 @@ psk_secret (or 0) --> KDF.Extract
    encryption algorithms and hash functions is paired with the security
    level of the curves.
 
-   The mandatory-to-implement ciphersuite for MLS 1.0 is
+   The mandatory-to-implement cipher suite for MLS 1.0 is
    MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519, which uses Curve25519
    for key exchange, AES-128-GCM for HPKE, HKDF over SHA2-256, and
-   Ed25519 for signatures.  MLS clients MUST implement this ciphersuite.
+   Ed25519 for signatures.  MLS clients MUST implement this cipher
+   suite.
 
 17.2.  MLS Wire Formats
 
@@ -6315,11 +6316,12 @@ psk_secret (or 0) --> KDF.Extract
 17.9.  MLS Designated Expert Pool
 
    Specification Required [RFC8126] registry requests are registered
-   after a three-week review period on the MLS DEs' mailing list mls-
-   reg-review@ietf.org (mailto:mls-reg-review@ietf.org) on the advice of
-   one or more of the MLS DEs.  However, to allow for the allocation of
-   values prior to publication, the MLS DEs may approve registration
-   once they are satisfied that such a specification will be published.
+   after a three-week review period on the MLS Designated Expert (DE)
+   mailing list mls-reg-review@ietf.org (mailto:mls-reg-review@ietf.org)
+   on the advice of one or more of the MLS DEs.  However, to allow for
+   the allocation of values prior to publication, the MLS DEs may
+   approve registration once they are satisfied that such a
+   specification will be published.
 
    Registration requests sent to the MLS DEs' mailing list for review
    SHOULD use an appropriate subject (e.g., "Request to register value
@@ -6337,8 +6339,8 @@ psk_secret (or 0) --> KDF.Extract
    whether the proposed registration duplicates existing functionality,
    whether it is likely to be of general applicability or useful only
    for a single application, and whether the registration description is
-   clear.  For example, the MLS DEs will apply the ciphersuite-related
-   advisory found in Section 17.1.
+   clear.  For example, for cipher suite registrations, the MLS DEs will
+   apply the advisory found in Section 17.1.
 
    IANA MUST only accept registry updates from the MLS DEs and SHOULD
    direct all requests for registration to the MLS DEs' mailing list.
