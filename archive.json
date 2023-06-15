@@ -1,6 +1,6 @@
 {
   "magic": "E!vIA5L86J2I",
-  "timestamp": "2023-06-11T01:51:43.288577+00:00",
+  "timestamp": "2023-06-15T01:35:54.217445+00:00",
   "repo": "mlswg/mls-protocol",
   "labels": [
     {
@@ -61604,7 +61604,7 @@
       "labels": [],
       "body": "This branch has my changes processing the RFC Editor's proposals.  \r\n\r\n* Diffs on `draft-ietf-mls-protocol.md` reflect accepted changes (plus novel changes)\r\n* Diffs on `rfc9420.authors.xml` to see rejected changes (plus novel changes)\r\n* `QUESTIONS.md` shows my proposed answers to the RFC Editor's questions\r\n\r\nThe diff between the XML generated from Markdown and `rfc9420.authors.xml` is not trivial, but it reflects things that are difficult / impossible to reproduce in Markdown:\r\n\r\n* Coalesced cross-references, e.g., \"Sections 2 and 3\" instead of \"Section 2 and Section 3\"\r\n* One instance of `<blockquote>`\r\n* Some references to email addresses that are styled to appear in a certain way\r\n* Some minutia in the media type registration and references\r\n\r\nTo review the diff yourself (on a Mac, with vimdiff):\r\n\r\n```\r\n> git pull origin auth48-through-sec5\r\n> git checkout auth48-through-sec5\r\n> cd auth48\r\n> make diff\r\n```",
       "createdAt": "2023-05-30T20:57:07Z",
-      "updatedAt": "2023-06-08T16:21:35Z",
+      "updatedAt": "2023-06-14T17:19:03Z",
       "baseRepository": "mlswg/mls-protocol",
       "baseRefName": "auth48",
       "baseRefOid": "0037db53f55765cec7f2ff72af9f1624a9ae778a",
@@ -61771,6 +61771,134 @@
           "createdAt": "2023-06-08T16:21:35Z",
           "updatedAt": "2023-06-08T16:21:35Z",
           "comments": []
+        },
+        {
+          "id": "PRR_kwDOBoyH6c5YEzaT",
+          "commit": {
+            "abbreviatedOid": "4e5a952"
+          },
+          "author": "rohan-wire",
+          "authorAssociation": "CONTRIBUTOR",
+          "state": "CHANGES_REQUESTED",
+          "body": "Some small changes proposed, and the issue of optional credential types in a group.",
+          "createdAt": "2023-06-13T16:47:59Z",
+          "updatedAt": "2023-06-13T22:56:56Z",
+          "comments": [
+            {
+              "originalPosition": 686,
+              "body": "```suggestion\r\nbroadcasts it to the group. Client A also generates a Welcome message and sends it\r\n```\r\n\r\n\"it\" is referring to the Commit message with Add proposal that A generates.\r\n\r\nIn general, I find it awkward talking about Add and Commit messages. This is a single message (the Commit) with an enclosed Add proposal.",
+              "createdAt": "2023-06-13T16:47:59Z",
+              "updatedAt": "2023-06-13T22:56:56Z"
+            },
+            {
+              "originalPosition": 698,
+              "body": "Again, \"Add and Commit messages\" is awkward ",
+              "createdAt": "2023-06-13T16:50:04Z",
+              "updatedAt": "2023-06-13T22:56:56Z"
+            },
+            {
+              "originalPosition": 1105,
+              "body": "I think \"identifier or identifiers\" is clearer.",
+              "createdAt": "2023-06-13T19:05:02Z",
+              "updatedAt": "2023-06-13T22:56:56Z"
+            },
+            {
+              "originalPosition": 2118,
+              "body": "```suggestion\r\ngroup, clients pre-publish KeyPackage objects that\r\n```\r\nThe \"in order to facilitate\" already makes the \"can\" redundant here.",
+              "createdAt": "2023-06-13T19:20:32Z",
+              "updatedAt": "2023-06-13T22:56:56Z"
+            },
+            {
+              "originalPosition": 2430,
+              "body": "this is still a mouthful of a sentence and reads worse than the original IMO. \r\n\r\n```suggestion\r\ncould be used by an automated service, for example, to remove a member\r\nof a group who has been inactive for a long time, or to propose adding\r\n```",
+              "createdAt": "2023-06-13T21:42:45Z",
+              "updatedAt": "2023-06-13T22:56:56Z"
+            },
+            {
+              "originalPosition": 3053,
+              "body": "This is an unnecessary imposition and makes it impossible to add support for new credential types for some members of a group, and makes KeyPackage more complicated. If a specific credential type is required by all the members of the group, it should be included in `required_capabilities`.  The specific use case of unknown credentials was discussed in various interim meetings and was a major motivator for moving the signature out of the credential and into the LeafNode.\r\n\r\n```suggestion\r\nIf a specific credential type is included in the `required_capabilities` extension\r\nin the GroupContext, then all members of the group MUST support that credential\r\ntype, as specified by the `capabilities` field of each LeafNode in the ratchet tree.\r\nCredential types that are unknown to a member and not included the\r\n`required_capabilities` extension are ignored by the member. This allows a subset\r\nof members to introduce additional functionality without requiring universal\r\nsupport for a new credential type. An application can introduce new credential types\r\n```",
+              "createdAt": "2023-06-13T22:35:41Z",
+              "updatedAt": "2023-06-13T22:56:56Z"
+            },
+            {
+              "originalPosition": 3104,
+              "body": "suggest removing credential_type from the list if my previous change is accepted.\r\n\r\n```suggestion\r\n```",
+              "createdAt": "2023-06-13T22:37:49Z",
+              "updatedAt": "2023-06-13T22:56:56Z"
+            },
+            {
+              "originalPosition": 3307,
+              "body": "```suggestion\r\nUniqueness of keys in leaf nodes is assured by explicitly checking each leaf node\r\nbeing added to the tree in any Add proposals, in any Update proposals, or in the `path` field of a\r\n```",
+              "createdAt": "2023-06-13T22:42:11Z",
+              "updatedAt": "2023-06-13T22:56:56Z"
+            },
+            {
+              "originalPosition": 3845,
+              "body": "```suggestion\r\nafter a three-week review period on the MLS Designated Expert (DE) mailing list\r\n```",
+              "createdAt": "2023-06-13T22:51:45Z",
+              "updatedAt": "2023-06-13T22:56:56Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOBoyH6c5YM0_Z",
+          "commit": {
+            "abbreviatedOid": "4e5a952"
+          },
+          "author": "raphaelrobert",
+          "authorAssociation": "MEMBER",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-14T15:27:14Z",
+          "updatedAt": "2023-06-14T15:27:14Z",
+          "comments": [
+            {
+              "originalPosition": 3053,
+              "body": "I remember the discussions a bit differently, namely that we included the signature key in the leaf node so that we can have easier extensibility for credentials, but *not* that we can now have arbitrary combinations of credentials. I'm worried that this weakens authentication guarantees when clients can only verify a signature but no longer correlate it to an identity. It's also not clear to me why we can't do what we do with other extensions: first make sure every client in the group supports it as advertized in its capabilities and *only then* make it a required capability before using it.",
+              "createdAt": "2023-06-14T15:27:14Z",
+              "updatedAt": "2023-06-14T15:27:14Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOBoyH6c5YM2M9",
+          "commit": {
+            "abbreviatedOid": "4e5a952"
+          },
+          "author": "raphaelrobert",
+          "authorAssociation": "MEMBER",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-14T15:29:32Z",
+          "updatedAt": "2023-06-14T15:29:32Z",
+          "comments": [
+            {
+              "originalPosition": 686,
+              "body": "Agreed, I think this terminology got carried over from the times when we had actual Add messages",
+              "createdAt": "2023-06-14T15:29:32Z",
+              "updatedAt": "2023-06-14T15:29:32Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOBoyH6c5YNmeS",
+          "commit": {
+            "abbreviatedOid": "4e5a952"
+          },
+          "author": "mulmarta",
+          "authorAssociation": "CONTRIBUTOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-14T17:19:02Z",
+          "updatedAt": "2023-06-14T17:19:02Z",
+          "comments": [
+            {
+              "originalPosition": 3053,
+              "body": "The part I'm worried about here is `Credential types that are unknown to a member and not included the\r\nrequired_capabilities extension are ignored by the member.` This seems to conflict with the fact that every credential ` MUST be validated with the AS`, since a member can't verify a credential it doesn't support? Note that required capabilities are optional, so credentials must be verified even without them.",
+              "createdAt": "2023-06-14T17:19:02Z",
+              "updatedAt": "2023-06-14T17:19:02Z"
+            }
+          ]
         }
       ]
     }
