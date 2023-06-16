@@ -36,12 +36,5 @@ for node in root.findall(".//{http://www.w3.org/2000/svg}polygon"):
     if node.attrib['points']:
         node.attrib['points'] = re.sub(r'\s*$', '', node.attrib['points'])
 
-# Stringify XML
 xml = ET.tostring(root, encoding='unicode', method='xml')
-
-# Tweak XML namespace expression to match 
-xml = re.sub(r'xmlns:ns0=', 'xmlns=', xml)
-xml = re.sub(r'<ns0:', '<', xml)
-xml = re.sub(r'</ns0:', '</', xml)
-
 print(xml)
