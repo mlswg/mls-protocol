@@ -541,7 +541,7 @@ A                B                C            Directory       Channel
 {{create-flow}} shows how these pre-published KeyPackages are used to create a group.
 When client A wants to establish a group with clients B and C, it first initializes a
 group state containing only itself and downloads KeyPackages for B and C. For
-each member, A generates an Add message and a Commit message to add that member and then
+each member, A generates an Add proposal and a Commit message to add that member and then
 broadcasts the two messages to the group. Client A also generates a Welcome message and sends it
 directly to the new member (there's no need to send it to the group). Only after
 A has received its Commit message back from the Delivery Service does it update its
