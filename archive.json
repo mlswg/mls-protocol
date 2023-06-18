@@ -1,6 +1,6 @@
 {
   "magic": "E!vIA5L86J2I",
-  "timestamp": "2023-06-15T01:35:54.217445+00:00",
+  "timestamp": "2023-06-18T01:49:58.868174+00:00",
   "repo": "mlswg/mls-protocol",
   "labels": [
     {
@@ -61595,26 +61595,28 @@
     {
       "number": 879,
       "id": "PR_kwDOBoyH6c5Rube0",
-      "title": "RLB review of RFC Editor's Proposed Changes",
+      "title": "AUTH48 review of RFC Editor's Proposed Changes",
       "url": "https://github.com/mlswg/mls-protocol/pull/879",
-      "state": "OPEN",
+      "state": "MERGED",
       "author": "bifurcation",
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [],
       "body": "This branch has my changes processing the RFC Editor's proposals.  \r\n\r\n* Diffs on `draft-ietf-mls-protocol.md` reflect accepted changes (plus novel changes)\r\n* Diffs on `rfc9420.authors.xml` to see rejected changes (plus novel changes)\r\n* `QUESTIONS.md` shows my proposed answers to the RFC Editor's questions\r\n\r\nThe diff between the XML generated from Markdown and `rfc9420.authors.xml` is not trivial, but it reflects things that are difficult / impossible to reproduce in Markdown:\r\n\r\n* Coalesced cross-references, e.g., \"Sections 2 and 3\" instead of \"Section 2 and Section 3\"\r\n* One instance of `<blockquote>`\r\n* Some references to email addresses that are styled to appear in a certain way\r\n* Some minutia in the media type registration and references\r\n\r\nTo review the diff yourself (on a Mac, with vimdiff):\r\n\r\n```\r\n> git pull origin auth48-through-sec5\r\n> git checkout auth48-through-sec5\r\n> cd auth48\r\n> make diff\r\n```",
       "createdAt": "2023-05-30T20:57:07Z",
-      "updatedAt": "2023-06-14T17:19:03Z",
+      "updatedAt": "2023-06-16T13:04:44Z",
       "baseRepository": "mlswg/mls-protocol",
       "baseRefName": "auth48",
       "baseRefOid": "0037db53f55765cec7f2ff72af9f1624a9ae778a",
       "headRepository": "mlswg/mls-protocol",
       "headRefName": "auth48-through-sec5",
-      "headRefOid": "4e5a952e4ec76d20d3385e916ef483e4f656abef",
-      "closedAt": null,
-      "mergedAt": null,
-      "mergedBy": null,
-      "mergeCommit": null,
+      "headRefOid": "7a0bd7cbf1b063f0aac6088ce4693573c4d106a7",
+      "closedAt": "2023-06-16T12:48:05Z",
+      "mergedAt": "2023-06-16T12:48:05Z",
+      "mergedBy": "bifurcation",
+      "mergeCommit": {
+        "oid": "f2c607e385b016ab093ed8362596137d23d529d0"
+      },
       "comments": [
         {
           "author": "katrielalex",
@@ -61622,6 +61624,20 @@
           "body": "Wow this is a nice set of changes. Thank you both!\r\n\r\nI\u2019ll do an independent pass on the full protocol doc but let me not tie that to this review ",
           "createdAt": "2023-06-06T14:08:34Z",
           "updatedAt": "2023-06-06T14:08:34Z"
+        },
+        {
+          "author": "bifurcation",
+          "authorAssociation": "COLLABORATOR",
+          "body": "@raphaelrobert Good point.  I would actually go the other direction.  I would like to be consistent with TLS here, which appears to use \"cipher suite\" as two words throughout.  Thus \"cipher suite\" in prose, `CipherSuite`, and `cipher_suite`.  (I'm pretty sure we got the `cipher_suite` variable names via that copy/paste.)  I will implement the change in this direction, but in its own commit so it's easier to revert if we disagree :)",
+          "createdAt": "2023-06-15T20:56:06Z",
+          "updatedAt": "2023-06-15T20:56:06Z"
+        },
+        {
+          "author": "raphaelrobert",
+          "authorAssociation": "MEMBER",
+          "body": "> @raphaelrobert Good point. I would actually go the other direction. I would like to be consistent with TLS here, which appears to use \"cipher suite\" as two words throughout. Thus \"cipher suite\" in prose, `CipherSuite`, and `cipher_suite`. (I'm pretty sure we got the `cipher_suite` variable names via that copy/paste.) I will implement the change in this direction, but in its own commit so it's easier to revert if we disagree :)\r\n\r\nI've been meaning to check what TLS does, since the term was coined in the context of SSL/TLS originally anyway. Makes perfect sense to align with that.",
+          "createdAt": "2023-06-15T22:30:02Z",
+          "updatedAt": "2023-06-15T22:30:02Z"
         }
       ],
       "reviews": [
@@ -61899,6 +61915,301 @@
               "updatedAt": "2023-06-14T17:19:02Z"
             }
           ]
+        },
+        {
+          "id": "PRR_kwDOBoyH6c5YQ-kI",
+          "commit": {
+            "abbreviatedOid": "4e5a952"
+          },
+          "author": "raphaelrobert",
+          "authorAssociation": "MEMBER",
+          "state": "APPROVED",
+          "body": "Thanks @bifurcation for setting all this up and answering the questions. Thanks also to the other reviewers, unless where I said otherwise I agree with the suggestions.\r\n\r\nThis looks good to me, I only found one nit: The document is inconsistent regarding ciphersuites. In prose we use \"ciphersuite\", but the C struct is spelled \"CipherSuite\" as if it was a contraction of two words. The same applies to fields spelled \"cipher_suite\". I propose we harmonize it by renaming the C struct to \"Ciphersuite\" and the fields to \"ciphersuite\". I can do a PR against the `auth48` or `auth48-through-sec5` branch, @bifucraction let me know what you prefer.",
+          "createdAt": "2023-06-15T07:09:05Z",
+          "updatedAt": "2023-06-15T07:09:05Z",
+          "comments": []
+        },
+        {
+          "id": "PRR_kwDOBoyH6c5YROug",
+          "commit": {
+            "abbreviatedOid": "4e5a952"
+          },
+          "author": "kkohbrok",
+          "authorAssociation": "CONTRIBUTOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-15T07:46:48Z",
+          "updatedAt": "2023-06-15T07:46:48Z",
+          "comments": [
+            {
+              "originalPosition": 3053,
+              "body": "I second @raphaelrobert and @mulmarta. Allowing credentials that are not supported by a subset of group members and which they can thus only ignore seems like a very bad idea from an authentication standpoint. @rohan-wire can you maybe elaborate what kind of use-case you had in mind? Because I'm having trouble thinking of one. It would have to be a situation, where different applications are interoperating and where clients are okay with group members that they cannot authenticate at all. For such a group, one might was well use basic credentials.",
+              "createdAt": "2023-06-15T07:46:48Z",
+              "updatedAt": "2023-06-15T07:46:48Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOBoyH6c5YTHx8",
+          "commit": {
+            "abbreviatedOid": "4e5a952"
+          },
+          "author": "rohan-wire",
+          "authorAssociation": "CONTRIBUTOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-15T12:04:15Z",
+          "updatedAt": "2023-06-15T12:04:15Z",
+          "comments": [
+            {
+              "originalPosition": 3053,
+              "body": "MLS currently supports `basic` and `x509`. It does not require `x509`. So, the \"default\" case is that groups support `basic` which has no authentication (and is similar to what the industry does now for DoubleRatchet protocols). This can be mitigated with key transparency or manual verification, but is mostly just swept under the rug.\r\n\r\nNow imagine a vendor/provider introduces support for x509 credentials tomorrow. Do clients have to wait until they are in a group when 100% of the members support this credential type before they include their credentials? \r\n- What harm does it cause to clients which only support `basic`? I cannot see any. They had no authentication before. They still have no authentication?\r\n- Does it create an opportunity for bid-down?  No. because credential capabilities are signed in KeyPackages.\r\n- Can clients who *do* support `x509` do something useful with those credentials? Yes. the subset of clients which support x509 can indicate to the end user which clients in the roster have been validated and can even put more prominent indications when everyone is using the credentials or when suddenly everyone is not.\r\n- Do we lose the ability to require a specific credential type? No. a client can set `required_capabilities`.\r\n\r\nDoes that help?",
+              "createdAt": "2023-06-15T12:04:15Z",
+              "updatedAt": "2023-06-15T12:04:15Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOBoyH6c5YWY5m",
+          "commit": {
+            "abbreviatedOid": "4e5a952"
+          },
+          "author": "raphaelrobert",
+          "authorAssociation": "MEMBER",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-15T19:36:44Z",
+          "updatedAt": "2023-06-15T19:36:44Z",
+          "comments": [
+            {
+              "originalPosition": 3053,
+              "body": "You provide an example in which you claim there's no downside to your proposed changes. Here's a counter-example: Suppose a group is to use X.509 and X.509 only. With the proposed changes, a subset of the clients could start using BasicCredentials and the remainder of the clients would have to comply with that, since BasicCredentials would simply be an unknown credential to them.\r\nWe would need better reasoning about the relaxation, however I'm doubtful that it's a good idea to do such a potentially impactful change during AUTH48, without the possibility to fully consider all consequences.",
+              "createdAt": "2023-06-15T19:36:44Z",
+              "updatedAt": "2023-06-15T19:36:44Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOBoyH6c5YWdgM",
+          "commit": {
+            "abbreviatedOid": "4e5a952"
+          },
+          "author": "rohan-wire",
+          "authorAssociation": "CONTRIBUTOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-15T19:49:11Z",
+          "updatedAt": "2023-06-15T19:49:12Z",
+          "comments": [
+            {
+              "originalPosition": 3053,
+              "body": "Why wouldn't those clients just use `required_capabilities` if they only want to use X.509?\r\nI also find it a bit preposterous the idea that an implementation would not understand what `basic` is, as opposed to administratively refusing to use it.\r\n\r\nI am sympathetic about the AUTH48 comment, but that would indicate this is better fixed as an errata than an extension.",
+              "createdAt": "2023-06-15T19:49:11Z",
+              "updatedAt": "2023-06-15T19:49:12Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOBoyH6c5YWqmC",
+          "commit": {
+            "abbreviatedOid": "4e5a952"
+          },
+          "author": "bifurcation",
+          "authorAssociation": "COLLABORATOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-15T20:26:10Z",
+          "updatedAt": "2023-06-15T20:26:10Z",
+          "comments": [
+            {
+              "originalPosition": 2202,
+              "body": "I think I added it before I realized that it could get added automatically.  In any case, removed.",
+              "createdAt": "2023-06-15T20:26:10Z",
+              "updatedAt": "2023-06-15T20:26:10Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOBoyH6c5YWrTJ",
+          "commit": {
+            "abbreviatedOid": "4e5a952"
+          },
+          "author": "bifurcation",
+          "authorAssociation": "COLLABORATOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-15T20:28:32Z",
+          "updatedAt": "2023-06-15T20:28:32Z",
+          "comments": [
+            {
+              "originalPosition": 3307,
+              "body": "Reworded to:\r\n\r\n> ... each leaf node as it is added to the tree, whether in an Add proposal, in an Update proposal, or in the `path` field of a Commit.\r\n\r\nThat way everything is singular.  Also got rid of \"by in\".",
+              "createdAt": "2023-06-15T20:28:32Z",
+              "updatedAt": "2023-06-15T20:28:32Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOBoyH6c5YWr6X",
+          "commit": {
+            "abbreviatedOid": "4e5a952"
+          },
+          "author": "bifurcation",
+          "authorAssociation": "COLLABORATOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-15T20:30:25Z",
+          "updatedAt": "2023-06-15T20:30:25Z",
+          "comments": [
+            {
+              "originalPosition": 686,
+              "body": "Not necessarily!  You could send an Add Proposal alongside a Commit.  At this stage, I think it is a little clearer to address them separately, with inlining as an optimization discussed later.  Reworded to be a little more explicit, though:\r\n\r\n> A generates an Add message and a Commit message to add that member and then broadcasts the two messages to the group",
+              "createdAt": "2023-06-15T20:30:25Z",
+              "updatedAt": "2023-06-15T20:30:25Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOBoyH6c5YWsSt",
+          "commit": {
+            "abbreviatedOid": "4e5a952"
+          },
+          "author": "bifurcation",
+          "authorAssociation": "COLLABORATOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-15T20:31:38Z",
+          "updatedAt": "2023-06-15T20:31:38Z",
+          "comments": [
+            {
+              "originalPosition": 1105,
+              "body": "Reduced to \"identifiers\", seems cleaner.",
+              "createdAt": "2023-06-15T20:31:38Z",
+              "updatedAt": "2023-06-15T20:31:38Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOBoyH6c5YWs5q",
+          "commit": {
+            "abbreviatedOid": "4e5a952"
+          },
+          "author": "bifurcation",
+          "authorAssociation": "COLLABORATOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-15T20:33:36Z",
+          "updatedAt": "2023-06-15T20:33:36Z",
+          "comments": [
+            {
+              "originalPosition": 2118,
+              "body": "Disagree.  Omitting the \"can\" implies that pre-publication is mandatory, which it isn't really.  In a more real-time setting, you could provide the KeyPackage at join time, to prompt the Add+Commit.  If you want to stretch things, you say that this is still \"pre\" in the sense that it's before the Add.  But that seems like a stretch.",
+              "createdAt": "2023-06-15T20:33:36Z",
+              "updatedAt": "2023-06-15T20:33:36Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOBoyH6c5YW81C",
+          "commit": {
+            "abbreviatedOid": "4e5a952"
+          },
+          "author": "bifurcation",
+          "authorAssociation": "COLLABORATOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-15T21:25:02Z",
+          "updatedAt": "2023-06-15T21:25:02Z",
+          "comments": [
+            {
+              "originalPosition": 3053,
+              "body": "Without getting into the details of the discussion here -- this is a significant change for this late.  I would have been skeptical but open earlier in the process; at this point, it's clearly too big.  And it doesn't seem like anyone is in support besides @rohan-wire.  I'm going to decline to include this change unless the chairs tell me otherwise.\r\n\r\nFWIW, I would also argue that this change should not be accepted as an erratum.  It is not an error in the spec, it is a deliberate decision by the working group.\r\n\r\nThat said, you could definitely write a small, no-content `allow_unknown_credentials` GroupContext extension that just says, \"In this group, it's OK to use credentials that not everyone supports\".  Then you just switch on the presence of that extension to turn off the credential support checking.  You still have an everyone-has-to-upgrade problem, but only with regard to that extension, not every credential type.",
+              "createdAt": "2023-06-15T21:25:02Z",
+              "updatedAt": "2023-06-15T21:25:02Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOBoyH6c5YaxNQ",
+          "commit": {
+            "abbreviatedOid": "4e5a952"
+          },
+          "author": "rohan-wire",
+          "authorAssociation": "CONTRIBUTOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-16T12:37:01Z",
+          "updatedAt": "2023-06-16T12:37:02Z",
+          "comments": [
+            {
+              "originalPosition": 686,
+              "body": "Huh?\r\nWe are describing the canonical flow here, not prescribing normative behavior. Even if we were, A sends a Commit message which contains or references A's Add proposal. The important thing for the clarity of this sentence is the Commit message, and in 99% of cases, A will never **separately** send an Add proposal. The proposed rewording misleads the reader otherwise.",
+              "createdAt": "2023-06-16T12:37:01Z",
+              "updatedAt": "2023-06-16T12:37:02Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOBoyH6c5Yazc4",
+          "commit": {
+            "abbreviatedOid": "4e5a952"
+          },
+          "author": "rohan-wire",
+          "authorAssociation": "CONTRIBUTOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-16T12:40:52Z",
+          "updatedAt": "2023-06-16T12:40:53Z",
+          "comments": [
+            {
+              "originalPosition": 2118,
+              "body": "I think the earlier phrase \"In order to facilitate ...\" makes it clear this is optional, but no biggie here.",
+              "createdAt": "2023-06-16T12:40:52Z",
+              "updatedAt": "2023-06-16T12:40:53Z"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": 882,
+      "id": "PR_kwDOBoyH6c5TMIJH",
+      "title": "One more minor clarification for AUTH48",
+      "url": "https://github.com/mlswg/mls-protocol/pull/882",
+      "state": "MERGED",
+      "author": "bifurcation",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "In #879, @rohan-wire [proposed a clarification in the protocol overview](https://github.com/mlswg/mls-protocol/pull/879#discussion_r1232195438) that the Add and Commit messages don't have to be separate messages.  He and I talked offline, and came to a compromise: On the one hand, you always send an Add and a Commit (even if the Add is inlined), but on the other hand, the Add may just be a proposal, not a message.  So this PR just changes \"Add message\" to \"Add proposal\".",
+      "createdAt": "2023-06-16T13:02:05Z",
+      "updatedAt": "2023-06-16T13:13:41Z",
+      "baseRepository": "mlswg/mls-protocol",
+      "baseRefName": "auth48",
+      "baseRefOid": "f2c607e385b016ab093ed8362596137d23d529d0",
+      "headRepository": "mlswg/mls-protocol",
+      "headRefName": "one-word-for-rohan",
+      "headRefOid": "475cda0ff2cdf2ffc8df2f6b26ae74cc99e9dba7",
+      "closedAt": "2023-06-16T13:13:41Z",
+      "mergedAt": "2023-06-16T13:13:41Z",
+      "mergedBy": "bifurcation",
+      "mergeCommit": {
+        "oid": "acd744171cb2b9b46f9c620c6f0414aa4df8d1b8"
+      },
+      "comments": [],
+      "reviews": [
+        {
+          "id": "PRR_kwDOBoyH6c5YbChD",
+          "commit": {
+            "abbreviatedOid": "475cda0"
+          },
+          "author": "raphaelrobert",
+          "authorAssociation": "MEMBER",
+          "state": "APPROVED",
+          "body": "",
+          "createdAt": "2023-06-16T13:13:20Z",
+          "updatedAt": "2023-06-16T13:13:20Z",
+          "comments": []
         }
       ]
     }
