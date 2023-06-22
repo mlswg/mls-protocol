@@ -6,7 +6,10 @@ category: std
 
 ipr: trust200902
 area: sec
-keyword: security, authenticated key exchange, end-to-end encryption
+keyword:
+  - security
+  - authenticated key exchange
+  - end-to-end encryption
 workgroup: mls
 
 stand_alone: yes
@@ -641,7 +644,7 @@ A              B     ...      Z          Directory        Channel
 |              |              |              |              |
 ~~~
 {: #update-flow title="Client B proposes to update its key, and client A commits the
-proposal."}
+proposal"}
 
 Members are removed from the group in a similar way, as shown in {{remove-flow}}.
 Any member of the group can send a Remove proposal followed by a
@@ -3724,7 +3727,7 @@ that is outside the group in two cases. One case, indicated by the `external` Se
 allows an entity outside the group to submit proposals to the group.
 For example, an automated service might propose
 removing a member of a group who has been inactive for a long time, or propose adding
-a newly-hired staff member to a group representing a real-world team.
+a newly hired staff member to a group representing a real-world team.
 An `external` sender might send a ReInit proposal to enforce a changed policy
 regarding MLS versions or cipher suites.
 
@@ -3753,7 +3756,7 @@ an `external` sender:
 Messages from `external` senders containing proposal types other than the above
 MUST be rejected as malformed.  New proposal types defined in the future MUST
 define whether they may be sent by `external` senders.  The "Ext" column in
-the MLS Proposal Types registry ({{mls-proposal-types}}) reflects this property.
+the "MLS Proposal Types" registry ({{mls-proposal-types}}) reflects this property.
 
 #### External Senders Extension
 
@@ -3948,7 +3951,7 @@ The only proposal types defined in this document that do not require a path are:
 New proposal types MUST state whether they require a path. If any instance of a
 proposal type requires a path, then the proposal type requires a path. This
 attribute of a proposal type is reflected in the "Path Required" field of the
-MLS Proposal Types registry defined in {{mls-proposal-types}}.
+"MLS Proposal Types" registry defined in {{mls-proposal-types}}.
 
 Update and Remove proposals are the clearest examples of proposals that require
 a path.  An UpdatePath is required to evict the removed member or the old
@@ -4125,7 +4128,7 @@ A member of the group applies a Commit message by taking the following steps:
     `sender_data_secret` and the (key, nonce) pair from the step on the sender's
     hash ratchet indicated by the `generation` field.
 
-* Verify that the signature on the FramedContent message as described in
+* Verify the signature on the FramedContent message as described in
   {{content-authentication}}.
 
 * Verify that the `proposals` vector is valid according to the rules in

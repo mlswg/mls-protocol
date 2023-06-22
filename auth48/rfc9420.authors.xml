@@ -42,7 +42,9 @@
     <date month="May" year="2023"/>
     <area>sec</area>
     <workgroup>mls</workgroup>
-    <keyword>security, authenticated key exchange, end-to-end encryption</keyword>
+    <keyword>security</keyword>
+    <keyword>authenticated key exchange</keyword>
+    <keyword>end-to-end encryption</keyword>
     <abstract>
       <t>Messaging applications are increasingly making use of end-to-end
 security mechanisms to ensure that messages are only accessible to
@@ -688,7 +690,7 @@ network.  Applications should take care that they do not send MLS messages at a
 rate that will cause problems such as network congestion, especially if they are
 not following the above recommendation (e.g., sending MLS directly over UDP instead).</t>
         <figure anchor="update-flow">
-          <name>Client B proposes to update its key, and client A commits the proposal.</name>
+          <name>Client B proposes to update its key, and client A commits the proposal</name>
           <artset>
             <artwork type="svg">
               <svg xmlns="http://www.w3.org/2000/svg" class="diagram" font-family="monospace" font-size="13px" height="304" text-anchor="middle" version="1.1" viewBox="0 0 528 304" width="528">
@@ -4517,7 +4519,7 @@ that is outside the group in two cases. One case, indicated by the <tt>external<
 allows an entity outside the group to submit proposals to the group.
 For example, an automated service might propose
 removing a member of a group who has been inactive for a long time, or propose adding
-a newly-hired staff member to a group representing a real-world team.
+a newly hired staff member to a group representing a real-world team.
 An <tt>external</tt> sender might send a ReInit proposal to enforce a changed policy
 regarding MLS versions or cipher suites.</t>
           <t>The <tt>external</tt> SenderType requires that signers are pre-provisioned
@@ -4552,7 +4554,7 @@ an <tt>external</tt> sender:</t>
           <t>Messages from <tt>external</tt> senders containing proposal types other than the above
 <bcp14>MUST</bcp14> be rejected as malformed.  New proposal types defined in the future <bcp14>MUST</bcp14>
 define whether they may be sent by <tt>external</tt> senders.  The "Ext" column in
-the MLS Proposal Types registry (<xref target="mls-proposal-types"/>) reflects this property.</t>
+the "MLS Proposal Types" registry (<xref target="mls-proposal-types"/>) reflects this property.</t>
           <section anchor="external-senders-extension">
             <name>External Senders Extension</name>
             <t>The <tt>external_senders</tt> extension is a group context extension that contains
@@ -4723,7 +4725,7 @@ The only proposal types defined in this document that do not require a path are:
         <t>New proposal types <bcp14>MUST</bcp14> state whether they require a path. If any instance of a
 proposal type requires a path, then the proposal type requires a path. This
 attribute of a proposal type is reflected in the "Path Required" field of the
-MLS Proposal Types registry defined in <xref target="mls-proposal-types"/>.</t>
+"MLS Proposal Types" registry defined in <xref target="mls-proposal-types"/>.</t>
         <t>Update and Remove proposals are the clearest examples of proposals that require
 a path.  An UpdatePath is required to evict the removed member or the old
 appearance of the updated member.</t>
@@ -5707,7 +5709,7 @@ order to produce the required nonce and key for encryption or decryption.</t>
         <name>Padding</name>
         <t>Application messages <bcp14>MAY</bcp14> be padded to provide some resistance
 against traffic analysis techniques over encrypted traffic
-<xref target="CLINIC"/><xref target="HCJ16"/>.
+<xref target="CLINIC"/> <xref target="HCJ16"/>.
 While MLS might deliver the same payload less frequently across
 a lot of ciphertexts than traditional web servers, it might still provide
 the attacker enough information to mount an attack. If Alice asks Bob
@@ -7185,7 +7187,7 @@ collisions.</t>
         <t>Template:</t>
         <ul spacing="normal">
           <li>Label: The string to be used as the <tt>Label</tt> parameter to <tt>MLS-Exporter</tt></li>
-          <li>Recommended: Same as in <xref target="mls-ciphers-uites"/></li>
+          <li>Recommended: Same as in <xref target="mls-cipher-suites"/></li>
           <li>Reference: The document where this label is defined</li>
         </ul>
         <t>The registry has no initial contents, since it is intended to be used by
