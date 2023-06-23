@@ -33,7 +33,7 @@
 
 * The document is inconsistent as to whether a <t> is used inside <dd>.
 
-## Questions and Answers
+## Questions and Answers (Round 1)
 
 > 1) <!-- [rfced] xml2rfc returns a number of warnings and suggest that
 > viewBox be used.  Please review and let us know if you would like to make
@@ -813,3 +813,73 @@ I concur with these changes.
 This was discussed during IESG review:
 
 https://mailarchive.ietf.org/arch/msg/mls/jSMQHXxcY3bX8S-xefyjbX4KFzE/
+
+## Questions and Answers (Round 2)
+
+> 1) We read the comments in the GitHub PR that were included above the
+> Questions/Answers. Overall, we are okay with the changes made. Note that we
+> did not look further into whether or not <t> is used inside <dd>.  Please let
+> us know if there are specific instances that need review.
+> 
+> > * The document is inconsistent as to whether a <t> is used inside <dd>
+
+I reviewed, and did not find any instances of <t> inside of <dd>.  I may have
+been mistaken in this comment.
+
+
+> 2) Thank you for providing the keywords.  Note that they are formatted as follows in XML file:
+> 
+>    <keyword>security</keyword>
+>    <keyword>authenticated key exchange</keyword>
+>    <keyword>end-to-end encryption</keyword>
+
+Thanks, that looks correct to me.  I have adjusted the Markdown so that the
+generated XML matches this format.
+
+
+> 3) In Section 3.2, we removed the period from the title of Figure 4 (sentence form is okay but with no period).
+> 
+> 4) In Section 12.1.8, we reverted the hyphen in “newly-hired” as we do not hyphenate adverbs that end in “ly”.
+> 
+> 5) In Sections 12.1.8 and 12.4, we added quote marks to the IANA registry name - 2 instances.
+> 
+> Old:
+>    MLS Proposal Types registry
+> 
+> Current:
+>    "MLS Proposal Types” registry
+
+These changes are good with me.
+
+
+> 6) In Section 12.4.2, the text does not parse with the removal of “is”. Please let us know how you would like to update (perhaps remove “that”).
+> 
+> Current:
+>   *  Verify that the signature on the FramedContent message as
+>       described in Section 6.1.
+
+Sorry, I should have removed the "that", so that it reads "Verify the signature..."
+
+
+> 7) In Section 15.1, we reverted the change to the citation spacing. Our practice is to separate citations with one space.
+> 
+> Old:
+>   Application messages MAY be padded to provide some resistance against
+>   traffic analysis techniques over encrypted traffic [CLINIC][HCJ16].
+> 
+> New:
+>   Application messages MAY be padded to provide some resistance against
+>   traffic analysis techniques over encrypted traffic
+>   [CLINIC] [HCJ16].
+
+This is fine.  I think the spacing is an artifact of the XML generation.
+
+
+> 8) As requested, we checked that all instances of “ciphersuite” were updated to “cipher suite” - no additional changes.
+
+Thanks!
+
+
+> 9) FYI - The AD will need to approve some changes that are beyond editorial, and IANA will need to make some changes to their registries. We will request these actions once all author changes are complete.
+
+Duly noted.
