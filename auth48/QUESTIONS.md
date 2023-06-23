@@ -35,7 +35,7 @@
 
 ## Questions and Answers (Round 1)
 
-> 1) <!-- [rfced] xml2rfc returns a number of warnings and suggest that
+> 1) [rfced] xml2rfc returns a number of warnings and suggest that
 > viewBox be used.  Please review and let us know if you would like to make
 > any updates. 
 > 
@@ -45,29 +45,29 @@
 > ...
 > rfc9420.xml(5759): Warning: Found SVG with width or height specified, which will make the artwork not scale.  Specify a viewBox only to let the artwork scale.
 > rfc9420.xml(8128): Warning: Found SVG with width or height specified, which will make the artwork not scale.  Specify a viewBox only to let the artwork scale.
-> -->
+> 
 
 The document's viewBox setting is correct; xml2rfc's default is wrong.  Setting
 width and height ensures that the SVG's scale and positioning is consistent with
 the text across scaling.
 
 
-> 2) <!-- [rfced] Please insert any keywords (beyond those that appear in
-> the title) for use on https://www.rfc-editor.org/search. -->
+> 2) [rfced] Please insert any keywords (beyond those that appear in
+> the title) for use on https://www.rfc-editor.org/search. 
 
 The authors' XML file now has 
 
 
-> 3) <!--[rfced] Section 2. Should the terminology be placed in alphabetical
+> 3) [rfced] Section 2. Should the terminology be placed in alphabetical
 > order, or do you prefer the current ordering? Please review and
 > let us know your preference.
-> -->     
+>      
 
 We would prefer to keep the terminology in the existing order.  Since there are
 some semantic dependencies, having them in this order is clearer.
 
 
-> 4) <!-- [rfced] Please review the "type" attribute of each sourcecode
+> 4) [rfced] Please review the "type" attribute of each sourcecode
 > element in the XML file to ensure correctness.
 > 
 > Note that "tls-presentation" (not "tls") is already considered an
@@ -80,13 +80,13 @@ some semantic dependencies, having them in this order is clearer.
 > In addition, review each artwork element. Specifically,
 > should any artwork element be tagged as sourcecode or another
 > element?
->  -->
+>  
 
 Thanks, we were unaware of the `tls-presentation` type.  All of the `tls`
 instances have been changed to `tls-presentation`.
 
 
-> 5) <!-- [rfced] In the html and pdf outputs, the text enclosed in <tt> is
+> 5) [rfced] In the html and pdf outputs, the text enclosed in <tt> is
 > output in fixed-width font. In the txt output, there are no changes to the
 > font, and the quotation marks have been removed.
 > 
@@ -96,21 +96,21 @@ instances have been changed to `tls-presentation`.
 > 
 > Please review carefully and let us know if the output is acceptable or if
 > any updates are needed.
-> -->
+> 
 
 Yes, this output matches our expectations.
 
 
-> 6) <!--[rfced] We note that <sup> is used for superscript, but not for
+> 6) [rfced] We note that <sup> is used for superscript, but not for
 > all instances. Please review and let us know if you would like to
 > use <sup> for the instances that do not contain the <sup> element.
-> -->
+> 
 
 We should use `<sup>` throughout, removing `<tt>` if necessary.  I have
 attempted to update all of the required occurrences.
 
 
-> 7) <!--[rfced] Would it be correct to say that a member "sends" a Welcome
+> 7) [rfced] Would it be correct to say that a member "sends" a Welcome
 > message to a new client instead of "broadcasts" it since the
 > Welcome is only being distributed to one client?
 > 
@@ -125,21 +125,21 @@ attempted to update all of the required occurrences.
 >    and broadcast Add and Commit messages that the current group will
 >    use to update their state, and send a Welcome message that
 >    the new client can use to initialize its state and join the group.
-> -->
+> 
 
 I have edited this to be serial: "download ... broadcast ... send".
 
 
-> 8) <!--[rfced] Please review whether any of the notes in this document
+> 8) [rfced] Please review whether any of the notes in this document
 > should be in the <aside> element. It is defined as "a container for
 > content that is semantically less important or tangential to the
 > content that surrounds it" (https://authors.ietf.org/en/rfcxml-vocabulary#aside).
-> -->
+> 
 
 I don't think this is necessary.
 
 
-> 9) <!--[rfced] May we shorten the title for Figure 4 by moving the second
+> 9) [rfced] May we shorten the title for Figure 4 by moving the second
 > sentence to a note below the figure? The note may be indented or
 > in an <aside> element. Please let us know your preference.
 > 
@@ -156,13 +156,13 @@ I don't think this is necessary.
 >    Note: As a result of client A commiting client B's proposal,
 >    the keys for both A and B updated, so the group has
 >    post-compromise security with respect to both of them.
-> -->
+> 
 
 I added an appropriate note to the main text, at the point where this figure is
 referenced.
 
 
-> 10) <!--[rfced] Is the intended meaning that the right subtree is the same
+> 10) [rfced] Is the intended meaning that the right subtree is the same
 > as the left subtree? If so, may we update the text in parentheses
 > for clarity as follows?
 > 
@@ -174,22 +174,22 @@ referenced.
 >    For a given parent node, its left subtree is the subtree with its
 >    left child as the head (and respectively, its right subtree has its
 >    right child as the head).
-> -->
+> 
 
 No, the intent is that you swap left for right, so you have a right subtree with
 the right child as its head.  I expanded the sentence to be less terse.
 
 
-> 11) <!--[rfced] Tables 2, 3, 5, 7, and 15 do not have titles. If you would
+> 11) [rfced] Tables 2, 3, 5, 7, and 15 do not have titles. If you would
 > like to add titles, please provide the desired text.
-> -->
+> 
 
 These tables do not need labels; they're just example data. In fact, I would be
 happy to suppress the "Table N" notation, but that doesn't seem to be possible
 within the bounds of RFC 7991.
 
 
-> 12) <!--[rfced] We capitalized the following instance of "r" and "s" to
+> 12) [rfced] We capitalized the following instance of "r" and "s" to
 > match use in RFC 8032; please let us know of any objections.
 > 
 > Original:
@@ -201,12 +201,12 @@ within the bounds of RFC 7991.
 >    In particular, ECDSA signatures are DER encoded, and EdDSA
 >    signatures are defined as the concatenation of R and S,
 >    as specified in [RFC8032].
-> -->
+> 
 
 This is correct, thanks.
 
 
-> 13) <!--[rfced] We do not see "SealBase" or "OpenBase" in RFC 9180, but we
+> 13) [rfced] We do not see "SealBase" or "OpenBase" in RFC 9180, but we
 > do see "Seal()" and "Open()". We assume that these are one in the
 > same; however, if any further updates are needed for consistency,
 > please let us know.
@@ -214,7 +214,7 @@ This is correct, thanks.
 > Current:
 >    Here, the functions SealBase and OpenBase are defined [RFC9180],
 >    using the HPKE algorithms specified by the group's ciphersuite.
-> -->
+> 
 
 SealBase/OpenBase are defined in the "Single-Shot APIs" section of RFC 9180,
 with <MODE> = Base.  I clarified.
@@ -222,7 +222,7 @@ with <MODE> = Base.  I clarified.
 https://datatracker.ietf.org/doc/html/rfc9180#name-single-shot-apis
 
 
-> 14) <!--[rfced] The following lines are over the 72-character limit (and
+> 14) [rfced] The following lines are over the 72-character limit (and
 > over the 69-character limit for ASCII artwork). Please let us
 > know how you would like to shorten/wrap the lines.
 > 
@@ -248,13 +248,13 @@ https://datatracker.ietf.org/doc/html/rfc9180#name-single-shot-apis
 > 
 > Appendix D:
 >   raise Exception("Cannot truncate a tree with 0 or 1 nodes") (2 over)
-> -->
+> 
 
 I have reformatted these to fit.  The one in Appendix D was actually a bug in
 the example code!
 
 
-> 15) <!--[rfced] We notice that the text "See IANA registry for registered
+> 15) [rfced] We notice that the text "See IANA registry for registered
 > values" is included within four of the sourcecode elements (see
 > Sections 5.3, 6, 7.2, and 12.1).  Would it be better to refer to the registry name and add a pointer to the relevant section in the document? 
 > 
@@ -308,7 +308,7 @@ the example code!
 >                Certificate certificates<V>;
 >        };
 >    } Credential;
-> -->
+> 
 
 I updated the `// See IANA` comments to explicitly reference the relevant
 registries by name.  Referencing by name is better than by section, since we
@@ -316,7 +316,7 @@ want folks to look at the actual registry, not the initial values defined in
 this document.
 
 
-> 16) <!--[rfced] FYI: We added "and" before "represented". If that is not
+> 16) [rfced] FYI: We added "and" before "represented". If that is not
 > correct, please let us know.
 > 
 > Original:
@@ -326,13 +326,13 @@ this document.
 > Current:
 >    Whether these fields can be computed by the client and represented by the
 >    LeafNode depends on when the LeafNode was created.
-> -->
+> 
 
 I rewrote this sentence to clarify.  FWIW, the original is correct, in that the
 "client represented by the LeafNode" is the one doing the computing.
 
 
-> 17) <!--[rfced] The first part of the following sentence does not parse;
+> 17) [rfced] The first part of the following sentence does not parse;
 > is there text missing after "ratchet"? Please let us know how we
 > may update this for clarity.
 > 
@@ -342,14 +342,14 @@ I rewrote this sentence to clarify.  FWIW, the original is correct, in that the
 >    generator broadcasts this update to other members of the group in a
 >    Commit message, who apply it to keep their local views of the tree in
 >    sync with the sender's.
-> -->
+> 
 
 "Ratchet" is being used as a verb here, with "ratchet forward" meaning "move
 forward irreversibly".  With that in mind, I think it does parse, but I changed
 "ratchet forward" to "update" to simplify.
 
 
-> 18) <!--[rfced] Section 7.9. Should this example have a figure number?
+> 18) [rfced] Section 7.9. Should this example have a figure number?
 > 
 > Original:
 > 
@@ -359,13 +359,13 @@ forward irreversibly".  With that in mind, I think it does parse, but I changed
 >      _       _
 >     / \     / \
 >    E   _   G   _
-> -->
+> 
 
 No, this is just an intermediate value in a computation, not noteworthy enough
 to merit a figure number / label.
 
 
-> 19) <!--[rfced] Is this text intended to be a serial list? Also, should
+> 19) [rfced] Is this text intended to be a serial list? Also, should
 > "credential" be singular or plural (i.e., "a credential" or "credentials")?
 > 
 > Original:
@@ -375,13 +375,13 @@ to merit a figure number / label.
 > Perhaps:
 >     -  Ratchet tree: A tree with a single node, a leaf containing an
 >        HPKE public key, and a credential for the creator
-> -->
+> 
 
 No, the single node is a leaf node with the specified contents.  I changed "a
 leaf" to "a leaf node".
 
 
-> 20) <!--[rfced] To avoid redundancy, would you like to streamline this
+> 20) [rfced] To avoid redundancy, would you like to streamline this
 >  list by updating the introductory sentence, removing "It
 >  contains" from each bullet point, and rephrasing the last point
 >  as follows?
@@ -438,7 +438,7 @@ leaf" to "a leaf node".
 >     removed by the Commit do not need to support the proposal type)
 >   * An invalid ratchet tree after processing the commit, in particular, if it contains any
 >     node that is invalid according to Section 7.3
-> -->
+> 
  
 Even though it's more verbose, I think this is clearer with the repetition.  In
 particular, the "multiple" lines read better with the explicit "It contains",
@@ -446,7 +446,7 @@ and you avoid the problem of the parallelism of the last bullet.  So I would let
 this stand.
 
  
-> 21) <!--[rfced] Is the intended meaning that the proposals field is
+> 21) [rfced] Is the intended meaning that the proposals field is
 > populated from "Proposals received during the current epoch" and
 > "an empty path field" (option A) or that an initial Commit object
 > and an empty path field should be constructed (option B)? Please
@@ -467,14 +467,14 @@ this stand.
 > B) *  Construct an initial Commit object with the proposals field
 >       populated from Proposals received during the current epoch,
 >       and construct an empty path field.
-> -->
+> 
 
 The intent is that the initial Commit has (a) proposals and (b) an empty path.
 I changed "and an empty path field" to "and with the path field empty" to be
 parallel to "with the proposals field"
 
 
-> 22) <!--[rfced] In order for the following list to be parallel, we would
+> 22) [rfced] In order for the following list to be parallel, we would
 > like to update the first 3 points with verbs as shown below.
 > Please let us know if this is agreeable or if you prefer otherwise.
 > 
@@ -514,12 +514,12 @@ parallel to "with the proposals field"
 > 
 >       -  Encrypt the GroupInfo using the key and nonce derived from the
 >          joiner_secret for the new epoch (see Section 12.4.3.1).
-> -->
+> 
 
 I added verbs to the first three bullets.
 
 
-> 23) <!--[rfced] Should the first 2 items in this list perhaps be a part of
+> 23) [rfced] Should the first 2 items in this list perhaps be a part of
 > the introductory sentence since they seem to be informational
 > rather than actions?
 > 
@@ -552,12 +552,12 @@ I added verbs to the first three bullets.
 >       -  If the path_secret value is set in the GroupSecrets object:
 >          Identify the lowest common ancestor of the leaf node my_leaf
 >          [...]
-> -->
+> 
 
 I rewrote the first three bullets to be parallel.
 
 
-> 24) <!--[rfced] Please clarify how "or in the path field of a Commit"
+> 24) [rfced] Please clarify how "or in the path field of a Commit"
 > relates to this sentence. Is the uniqueness of keys in leaf
 > nodes or in the path field of a Commit?
 > 
@@ -570,22 +570,22 @@ I rewrote the first three bullets to be parallel.
 >    Uniqueness of keys in leaf nodes, or in the path field of a Commit,
 >    is assured by explicit checks on leaf nodes being added to the tree
 >    by Add or Update proposals.
-> -->
+> 
 
 The three ways a leaf can be added to the tree are: in an Add proposal, in an
 Update proposal, or in the `path` field of a Commit.  I updated to use that
 phrasing.
 
 
-> 25) <!-- [rfced] Note that we have updated the "MLS Extension Types" registry and added the IETF as the change controller for the media type registration per this note from IANA.  Please let us know if any updates are needed.
+> 25) [rfced] Note that we have updated the "MLS Extension Types" registry and added the IETF as the change controller for the media type registration per this note from IANA.  Please let us know if any updates are needed.
 > 
 > NOTE: We've listed the IETF as the change controller for the media type registration, and per the authors, have changed "KP, GI" to "KP, GI, LN" in the MLS Extension Types. We understand that these changes will be included in the AUTH48 edits.
-> -->
+> 
 
 Thanks, these changes are correct.
 
 
-> 26) <!--[rfced] Section 17.1. Regarding the author note below, please note
+> 26) [rfced] Section 17.1. Regarding the author note below, please note
 > that at the time of writing, "draft-ietf-tls-rfc8447bis" has not
 > entered EDIT state yet. Currently, the sections are similar but
 > not identical. Please review and let us know if any further
@@ -606,13 +606,13 @@ Thanks, these changes are correct.
 >    The IETF could recommend mechanisms that have limited applicability,
 >    but it will provide applicability statements that describe any
 >    limitations of the mechanism or necessary constraints on its use.
-> -->     
+>      
 
 I have added the "it" here.  I'm OK with any divergence due to copy-editing
 changes that might get introduced in EDIT state.
 
 
-> 27) <!--[rfced] Should the citations for RFCs 8446 and 9180 follow "The
+> 27) [rfced] Should the citations for RFCs 8446 and 9180 follow "The
 >      mapping of ciphersuites" or "TLS signature schemes" instead of
 >      "is as follows"? We see that "ciphersuites" are mentioned in both
 >      of these references. "HPKE", "HMAC", and "TLS" are mentioned in
@@ -625,7 +625,7 @@ changes that might get introduced in EDIT state.
 > Perhaps:
 >    The mapping of ciphersuites [RFC8446][RFC9180] to HPKE primitives,
 >    HMAC hash functions, and TLS signature schemes is as follows:
-> -->
+> 
 
 The "ciphersuites" at the beginning of the sentence are MLS ciphersuites, so the
 placement in your "perhaps" is not appropriate.  I have moved the citations so
@@ -633,27 +633,27 @@ that they immediately follow the relevant parameters, but would also be OK with
 them at the end.
 
 
-> 28) <!--[rfced] FYI: We have removed instances of "MIME" from Section
+> 28) [rfced] FYI: We have removed instances of "MIME" from Section
 > 17.10 per guidance from IANA. Note that it states the following
 > under the "Media Types" registry
 > (https://www.iana.org/assignments/media-types/media-types.xhtml):
 > 
 >    [RFC2046] specifies that Media Types (formerly known as MIME types) and Media
 >    Subtypes will be assigned and listed by the IANA.
-> -->
+> 
 
 Acknowledged.
 
 
-> 29) <!-- [rfced] Should the text about "Provisional registration" be included in this document?  It does not appear in the IANA registration - see https://www.iana.org/assignments/media-types/message/mls. 
+> 29) [rfced] Should the text about "Provisional registration" be included in this document?  It does not appear in the IANA registration - see https://www.iana.org/assignments/media-types/message/mls. 
 > 
 >    Provisional registration? (standards tree only):  No
-> -->
+> 
 
 I have removed this entry.
 
  
-> 30) <!--[rfced] Appendices A and B: Would it be correct to add "and" to
+> 30) [rfced] Appendices A and B: Would it be correct to add "and" to
 > the list of letters in these tree examples for consistency as shown below?
 > 
 > Appendix A:
@@ -690,12 +690,12 @@ I have removed this entry.
 >    2.  B adds C and D: set B', X', and Y
 > 
 >    3.  C sends empty Commit: set C', Z', and Y'
-> -->
+> 
 
 I have added these "and"s.
 
 
-> 31) <!-- [rfced] Terminology
+> 31) [rfced] Terminology
 > 
 > a) Throughout the text, the following terminology appears to be used
 > inconsistently. Please review these occurrences and let us know if/how they
@@ -732,7 +732,7 @@ I have added these "and"s.
 >  - Update vs. update
 >      (Please clarify if all capitalized instances are referring to an
 >       "Update message" or "Update proposal" or if updates are needed.)
-> -->
+> 
 
 I have normalized on:
 
@@ -799,7 +799,7 @@ and bit length clearer.
 I concur with these changes.
 
  
-> 32) <!-- [rfced] Please review the "Inclusive Language" portion of the online
+> 32) [rfced] Please review the "Inclusive Language" portion of the online
 > Style Guide <https://www.rfc-editor.org/styleguide/part2/#inclusive_language> and let
 > us know if any changes are needed.
 > 
@@ -808,7 +808,7 @@ I concur with these changes.
 > <https://www.nist.gov/nist-research-library/nist-technical-series-publications-author-instructions#table1>
 > indicates that this term is potentially biased, it is also ambiguous. 
 > "Tradition" is a subjective term, as it is not the same for everyone.
->  -->
+>  
 
 This was discussed during IESG review:
 
