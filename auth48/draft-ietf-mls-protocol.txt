@@ -5,7 +5,7 @@
 mls                                                            R. Barnes
 Internet-Draft                                                     Cisco
 Intended status: Standards Track                           B. Beurdouche
-Expires: 18 December 2023                                Inria & Mozilla
+Expires: 25 December 2023                                Inria & Mozilla
                                                                R. Robert
                                                              Phoenix R&D
                                                              J. Millican
@@ -14,7 +14,7 @@ Expires: 18 December 2023                                Inria & Mozilla
                                                                         
                                                           K. Cohn-Gordon
                                                     University of Oxford
-                                                            16 June 2023
+                                                            23 June 2023
 
 
               The Messaging Layer Security (MLS) Protocol
@@ -56,7 +56,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 18 December 2023.
+   This Internet-Draft will expire on 25 December 2023.
 
 Copyright Notice
 
@@ -723,7 +723,7 @@ Table of Contents
    |              |              |              |              |
 
         Figure 4: Client B proposes to update its key, and client A
-                           commits the proposal.
+                            commits the proposal
 
    Members are removed from the group in a similar way, as shown in
    Figure 5.  Any member of the group can send a Remove proposal
@@ -3975,7 +3975,7 @@ psk_secret (or 0) --> KDF.Extract
    SenderType, allows an entity outside the group to submit proposals to
    the group.  For example, an automated service might propose removing
    a member of a group who has been inactive for a long time, or propose
-   adding a newly-hired staff member to a group representing a real-
+   adding a newly hired staff member to a group representing a real-
    world team.  An external sender might send a ReInit proposal to
    enforce a changed policy regarding MLS versions or cipher suites.
 
@@ -4010,7 +4010,7 @@ psk_secret (or 0) --> KDF.Extract
    Messages from external senders containing proposal types other than
    the above MUST be rejected as malformed.  New proposal types defined
    in the future MUST define whether they may be sent by external
-   senders.  The "Ext" column in the MLS Proposal Types registry
+   senders.  The "Ext" column in the "MLS Proposal Types" registry
    (Section 17.4) reflects this property.
 
 12.1.8.1.  External Senders Extension
@@ -4227,8 +4227,8 @@ psk_secret (or 0) --> KDF.Extract
    New proposal types MUST state whether they require a path.  If any
    instance of a proposal type requires a path, then the proposal type
    requires a path.  This attribute of a proposal type is reflected in
-   the "Path Required" field of the MLS Proposal Types registry defined
-   in Section 17.4.
+   the "Path Required" field of the "MLS Proposal Types" registry
+   defined in Section 17.4.
 
    Update and Remove proposals are the clearest examples of proposals
    that require a path.  An UpdatePath is required to evict the removed
@@ -4443,8 +4443,8 @@ psk_secret (or 0) --> KDF.Extract
          from the step on the sender's hash ratchet indicated by the
          generation field.
 
-   *  Verify that the signature on the FramedContent message as
-      described in Section 6.1.
+   *  Verify the signature on the FramedContent message as described in
+      Section 6.1.
 
    *  Verify that the proposals vector is valid according to the rules
       in Section 12.2.

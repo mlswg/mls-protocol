@@ -24,14 +24,16 @@ with forward secrecy (FS) and post-compromise security (PCS) for groups
 in size ranging from two to thousands. 
     " name="description">
 <meta content="xml2rfc 3.17.3" name="generator">
-<meta content="security, authenticated key exchange, end-to-end encryption" name="keyword">
+<meta content="security" name="keyword">
+<meta content="authenticated key exchange" name="keyword">
+<meta content="end-to-end encryption" name="keyword">
 <meta content="draft-ietf-mls-protocol-latest" name="ietf.draft">
 <!-- Generator version information:
   xml2rfc 3.17.3
-    Python 3.11.3
+    Python 3.11.4
     appdirs 1.4.4
     ConfigArgParse 1.5.3
-    google-i18n-address 3.0.0
+    google-i18n-address 3.1.0
     intervaltree 3.1.0
     Jinja2 3.1.2
     lxml 4.9.2
@@ -1065,7 +1067,7 @@ svg :is([fill="white"], [fill^="#fff"]) {
 </tr></thead>
 <tfoot><tr>
 <td class="left">Barnes, et al.</td>
-<td class="center">Expires 18 December 2023</td>
+<td class="center">Expires 25 December 2023</td>
 <td class="right">[Page]</td>
 </tr></tfoot>
 </table>
@@ -1078,12 +1080,12 @@ svg :is([fill="white"], [fill^="#fff"]) {
 <dd class="internet-draft">draft-ietf-mls-protocol-latest</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
-<time datetime="2023-06-16" class="published">16 June 2023</time>
+<time datetime="2023-06-23" class="published">23 June 2023</time>
     </dd>
 <dt class="label-intended-status">Intended Status:</dt>
 <dd class="intended-status">Standards Track</dd>
 <dt class="label-expires">Expires:</dt>
-<dd class="expires"><time datetime="2023-12-18">18 December 2023</time></dd>
+<dd class="expires"><time datetime="2023-12-25">25 December 2023</time></dd>
 <dt class="label-authors">Authors:</dt>
 <dd class="authors">
 <div class="author">
@@ -1153,7 +1155,7 @@ in size ranging from two to thousands.<a href="#section-abstract-1" class="pilcr
         time. It is inappropriate to use Internet-Drafts as reference
         material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
 <p id="section-boilerplate.1-4">
-        This Internet-Draft will expire on 18 December 2023.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+        This Internet-Draft will expire on 25 December 2023.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="copyright">
@@ -2316,7 +2318,7 @@ not following the above recommendation (e.g., sending MLS directly over UDP inst
 </div>
 </div>
 <figcaption><a href="#figure-4" class="selfRef">Figure 4</a>:
-<a href="#name-client-b-proposes-to-update" class="selfRef">Client B proposes to update its key, and client A commits the proposal.</a>
+<a href="#name-client-b-proposes-to-update" class="selfRef">Client B proposes to update its key, and client A commits the proposal</a>
           </figcaption></figure>
 </div>
 <p id="section-3.2-14">Members are removed from the group in a similar way, as shown in <a href="#remove-flow" class="auto internal xref">Figure 5</a>.
@@ -6359,7 +6361,7 @@ that is outside the group in two cases. One case, indicated by the <code>externa
 allows an entity outside the group to submit proposals to the group.
 For example, an automated service might propose
 removing a member of a group who has been inactive for a long time, or propose adding
-a newly-hired staff member to a group representing a real-world team.
+a newly hired staff member to a group representing a real-world team.
 An <code>external</code> sender might send a ReInit proposal to enforce a changed policy
 regarding MLS versions or cipher suites.<a href="#section-12.1.8-1" class="pilcrow">¶</a></p>
 <p id="section-12.1.8-2">The <code>external</code> SenderType requires that signers are pre-provisioned
@@ -6394,7 +6396,7 @@ an <code>external</code> sender:<a href="#section-12.1.8-5" class="pilcrow">¶</
 <p id="section-12.1.8-7">Messages from <code>external</code> senders containing proposal types other than the above
 <span class="bcp14">MUST</span> be rejected as malformed.  New proposal types defined in the future <span class="bcp14">MUST</span>
 define whether they may be sent by <code>external</code> senders.  The "Ext" column in
-the MLS Proposal Types registry (<a href="#mls-proposal-types" class="auto internal xref">Section 17.4</a>) reflects this property.<a href="#section-12.1.8-7" class="pilcrow">¶</a></p>
+the "MLS Proposal Types" registry (<a href="#mls-proposal-types" class="auto internal xref">Section 17.4</a>) reflects this property.<a href="#section-12.1.8-7" class="pilcrow">¶</a></p>
 <div id="external-senders-extension">
 <section id="section-12.1.8.1">
             <h5 id="name-external-senders-extension">
@@ -6609,7 +6611,7 @@ The only proposal types defined in this document that do not require a path are:
 <p id="section-12.4-11">New proposal types <span class="bcp14">MUST</span> state whether they require a path. If any instance of a
 proposal type requires a path, then the proposal type requires a path. This
 attribute of a proposal type is reflected in the "Path Required" field of the
-MLS Proposal Types registry defined in <a href="#mls-proposal-types" class="auto internal xref">Section 17.4</a>.<a href="#section-12.4-11" class="pilcrow">¶</a></p>
+"MLS Proposal Types" registry defined in <a href="#mls-proposal-types" class="auto internal xref">Section 17.4</a>.<a href="#section-12.4-11" class="pilcrow">¶</a></p>
 <p id="section-12.4-12">Update and Remove proposals are the clearest examples of proposals that require
 a path.  An UpdatePath is required to evict the removed member or the old
 appearance of the updated member.<a href="#section-12.4-12" class="pilcrow">¶</a></p>
@@ -6852,7 +6854,7 @@ hash ratchet indicated by the <code>generation</code> field.<a href="#section-12
 </li>
               </ul>
 </li>
-            <li class="normal" id="section-12.4.2-2.3">Verify that the signature on the FramedContent message as described in
+            <li class="normal" id="section-12.4.2-2.3">Verify the signature on the FramedContent message as described in
 <a href="#content-authentication" class="auto internal xref">Section 6.1</a>.<a href="#section-12.4.2-2.3" class="pilcrow">¶</a>
 </li>
             <li class="normal" id="section-12.4.2-2.4">Verify that the <code>proposals</code> vector is valid according to the rules in
