@@ -86,12 +86,12 @@ Thanks, we were unaware of the `tls-presentation` type.  All of the `tls`
 instances have been changed to `tls-presentation`.
 
 
-> 5) [rfced] In the html and pdf outputs, the text enclosed in <tt> is
+> 5) [rfced] In the html and pdf outputs, the text enclosed in `<tt>` is
 > output in fixed-width font. In the txt output, there are no changes to the
 > font, and the quotation marks have been removed.
 > 
-> In the html and pdf outputs, the text enclosed in <em> is output in
-> italics. In the txt output, the text enclosed in <em> appears with an
+> In the html and pdf outputs, the text enclosed in `<em>` is output in
+> italics. In the txt output, the text enclosed in `<em>` appears with an
 > underscore before and after.
 > 
 > Please review carefully and let us know if the output is acceptable or if
@@ -101,9 +101,9 @@ instances have been changed to `tls-presentation`.
 Yes, this output matches our expectations.
 
 
-> 6) [rfced] We note that <sup> is used for superscript, but not for
+> 6) [rfced] We note that `<sup>` is used for superscript, but not for
 > all instances. Please review and let us know if you would like to
-> use <sup> for the instances that do not contain the <sup> element.
+> use `<sup>` for the instances that do not contain the `<sup>` element.
 > 
 
 We should use `<sup>` throughout, removing `<tt>` if necessary.  I have
@@ -131,7 +131,7 @@ I have edited this to be serial: "download ... broadcast ... send".
 
 
 > 8) [rfced] Please review whether any of the notes in this document
-> should be in the <aside> element. It is defined as "a container for
+> should be in the `<aside>` element. It is defined as "a container for
 > content that is semantically less important or tangential to the
 > content that surrounds it" (https://authors.ietf.org/en/rfcxml-vocabulary#aside).
 > 
@@ -141,7 +141,7 @@ I don't think this is necessary.
 
 > 9) [rfced] May we shorten the title for Figure 4 by moving the second
 > sentence to a note below the figure? The note may be indented or
-> in an <aside> element. Please let us know your preference.
+> in an `<aside>` element. Please let us know your preference.
 > 
 > Original:
 >    Figure 4: Client B proposes to update its key, and client A commits the
@@ -217,7 +217,7 @@ This is correct, thanks.
 > 
 
 SealBase/OpenBase are defined in the "Single-Shot APIs" section of RFC 9180,
-with <MODE> = Base.  I clarified.
+with `<MODE> = Base`.  I clarified.
 
 https://datatracker.ietf.org/doc/html/rfc9180#name-single-shot-apis
 
@@ -749,8 +749,8 @@ I have normalized on:
 
 Basically, when use upper case only when we refer to a struct with a TLS-syntax definition.
 
-Also, I noticed that some struct names were in <tt> (e.g., `PreSharedKeyID`).  That
-should not be done, so I removed the <tt> around them.
+Also, I noticed that some struct names were in `<tt>` (e.g., `PreSharedKeyID`).  That
+should not be done, so I removed the `<tt>` around them.
 
 
 > b) The Web Portion of the RFC Style Guide
@@ -818,17 +818,17 @@ https://mailarchive.ietf.org/arch/msg/mls/jSMQHXxcY3bX8S-xefyjbX4KFzE/
 
 > 1) We read the comments in the GitHub PR that were included above the
 > Questions/Answers. Overall, we are okay with the changes made. Note that we
-> did not look further into whether or not <t> is used inside <dd>.  Please let
+> did not look further into whether or not `<t>` is used inside `<dd>`.  Please let
 > us know if there are specific instances that need review.
 > 
-> > * The document is inconsistent as to whether a <t> is used inside <dd>
+> > * The document is inconsistent as to whether a `<t>` is used inside `<dd>`
 
-I reviewed, and did not find any instances of <t> inside of <dd>.  I may have
+I reviewed, and did not find any instances of `<t>` inside of `<dd>`.  I may have
 been mistaken in this comment.
 
 
 > 2) Thank you for providing the keywords.  Note that they are formatted as follows in XML file:
-> 
+>  
 >    <keyword>security</keyword>
 >    <keyword>authenticated key exchange</keyword>
 >    <keyword>end-to-end encryption</keyword>
