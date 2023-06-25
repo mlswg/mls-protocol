@@ -1,6 +1,6 @@
 {
   "magic": "E!vIA5L86J2I",
-  "timestamp": "2023-06-18T01:49:58.868174+00:00",
+  "timestamp": "2023-06-25T01:59:06.621325+00:00",
   "repo": "mlswg/mls-protocol",
   "labels": [
     {
@@ -62212,6 +62212,89 @@
           "comments": []
         }
       ]
+    },
+    {
+      "number": 883,
+      "id": "PR_kwDOBoyH6c5Ts47k",
+      "title": "Round 2 of AUTH48 edits",
+      "url": "https://github.com/mlswg/mls-protocol/pull/883",
+      "state": "MERGED",
+      "author": "bifurcation",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "The RFC Editor replied to our edits (#879 #880) with a few more questions, comments, and edits.  This PR incorporates those comments into the Markdown and the author's XML, and fixes one thing where author input was required.  The new questions/comments are added to the bottom of QUESTIONS.md.",
+      "createdAt": "2023-06-22T23:42:05Z",
+      "updatedAt": "2023-06-23T05:55:06Z",
+      "baseRepository": "mlswg/mls-protocol",
+      "baseRefName": "auth48",
+      "baseRefOid": "acd744171cb2b9b46f9c620c6f0414aa4df8d1b8",
+      "headRepository": "mlswg/mls-protocol",
+      "headRefName": "auth48-round2",
+      "headRefOid": "9e3056b99bda74d3f210db80d739b320b38c3d1b",
+      "closedAt": "2023-06-23T05:54:57Z",
+      "mergedAt": "2023-06-23T05:54:57Z",
+      "mergedBy": "bifurcation",
+      "mergeCommit": {
+        "oid": "369027a6042ca356b60061421cd197e36bd9917f"
+      },
+      "comments": [],
+      "reviews": [
+        {
+          "id": "PRR_kwDOBoyH6c5ZDuf6",
+          "commit": {
+            "abbreviatedOid": "9e3056b"
+          },
+          "author": "raphaelrobert",
+          "authorAssociation": "MEMBER",
+          "state": "APPROVED",
+          "body": "Thanks, LGTM.",
+          "createdAt": "2023-06-23T00:06:11Z",
+          "updatedAt": "2023-06-23T00:06:11Z",
+          "comments": []
+        },
+        {
+          "id": "PRR_kwDOBoyH6c5ZD9IA",
+          "commit": {
+            "abbreviatedOid": "9e3056b"
+          },
+          "author": "katrielalex",
+          "authorAssociation": "MEMBER",
+          "state": "APPROVED",
+          "body": "lgtm!",
+          "createdAt": "2023-06-23T01:39:12Z",
+          "updatedAt": "2023-06-23T01:39:12Z",
+          "comments": []
+        }
+      ]
+    },
+    {
+      "number": 884,
+      "id": "PR_kwDOBoyH6c5Tt2rH",
+      "title": "Improve rendering of QUESTIONS.md",
+      "url": "https://github.com/mlswg/mls-protocol/pull/884",
+      "state": "MERGED",
+      "author": "bifurcation",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "",
+      "createdAt": "2023-06-23T06:04:11Z",
+      "updatedAt": "2023-06-23T06:05:07Z",
+      "baseRepository": "mlswg/mls-protocol",
+      "baseRefName": "auth48",
+      "baseRefOid": "369027a6042ca356b60061421cd197e36bd9917f",
+      "headRepository": "mlswg/mls-protocol",
+      "headRefName": "questions-render",
+      "headRefOid": "e818dce938b34e7fab1bd266937fc982e0285dd4",
+      "closedAt": "2023-06-23T06:05:07Z",
+      "mergedAt": "2023-06-23T06:05:07Z",
+      "mergedBy": "bifurcation",
+      "mergeCommit": {
+        "oid": "eb8ab4862a114bc0a00eb2e9bec40f07561de296"
+      },
+      "comments": [],
+      "reviews": []
     }
   ]
 }
