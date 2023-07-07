@@ -23,20 +23,20 @@ protocol that provides efficient asynchronous group key establishment
 with forward secrecy (FS) and post-compromise security (PCS) for groups
 in size ranging from two to thousands. 
     " name="description">
-<meta content="xml2rfc 3.17.3" name="generator">
+<meta content="xml2rfc 3.17.4" name="generator">
 <meta content="security" name="keyword">
 <meta content="authenticated key exchange" name="keyword">
 <meta content="end-to-end encryption" name="keyword">
 <meta content="draft-ietf-mls-protocol-latest" name="ietf.draft">
 <!-- Generator version information:
-  xml2rfc 3.17.3
+  xml2rfc 3.17.4
     Python 3.11.4
-    appdirs 1.4.4
     ConfigArgParse 1.5.3
     google-i18n-address 3.1.0
     intervaltree 3.1.0
     Jinja2 3.1.2
     lxml 4.9.2
+    platformdirs 3.8.0
     pycountry 22.3.5
     PyYAML 6.0
     requests 2.31.0
@@ -1063,11 +1063,11 @@ svg :is([fill="white"], [fill^="#fff"]) {
 <thead><tr>
 <td class="left">Internet-Draft</td>
 <td class="center">MLS</td>
-<td class="right">June 2023</td>
+<td class="right">July 2023</td>
 </tr></thead>
 <tfoot><tr>
 <td class="left">Barnes, et al.</td>
-<td class="center">Expires 25 December 2023</td>
+<td class="center">Expires 8 January 2024</td>
 <td class="right">[Page]</td>
 </tr></tfoot>
 </table>
@@ -1080,12 +1080,12 @@ svg :is([fill="white"], [fill^="#fff"]) {
 <dd class="internet-draft">draft-ietf-mls-protocol-latest</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
-<time datetime="2023-06-23" class="published">23 June 2023</time>
+<time datetime="2023-07-07" class="published">7 July 2023</time>
     </dd>
 <dt class="label-intended-status">Intended Status:</dt>
 <dd class="intended-status">Standards Track</dd>
 <dt class="label-expires">Expires:</dt>
-<dd class="expires"><time datetime="2023-12-25">25 December 2023</time></dd>
+<dd class="expires"><time datetime="2024-01-08">8 January 2024</time></dd>
 <dt class="label-authors">Authors:</dt>
 <dd class="authors">
 <div class="author">
@@ -1155,7 +1155,7 @@ in size ranging from two to thousands.<a href="#section-abstract-1" class="pilcr
         time. It is inappropriate to use Internet-Drafts as reference
         material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
 <p id="section-boilerplate.1-4">
-        This Internet-Draft will expire on 25 December 2023.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+        This Internet-Draft will expire on 8 January 2024.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="copyright">
@@ -1989,7 +1989,7 @@ both Proposal/Commit messages as well as any application data.<a href="#section-
 <span id="name-overview-of-mls-group-evolu"></span><figure id="figure-1">
           <div id="section-3.1-2.1">
             <div class="alignLeft art-svg artwork" id="section-3.1-2.1.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="400" width="584" viewBox="0 0 584 400" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="400" width="584" viewBox="0 0 584 400" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
                 <path d="M 8,128 L 8,288" fill="none" stroke="black"></path>
                 <path d="M 208,48 L 208,200" fill="none" stroke="black"></path>
                 <path d="M 208,216 L 208,368" fill="none" stroke="black"></path>
@@ -2112,7 +2112,7 @@ provided by the DS (see <a href="#prepublish-flow" class="auto internal xref">Fi
 <figure id="figure-2">
           <div id="section-3.2-5.1">
             <div class="alignLeft art-svg artwork" id="section-3.2-5.1.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="288" width="568" viewBox="0 0 568 288" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="288" width="568" viewBox="0 0 568 288" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
                 <path d="M 8,128 L 8,272" fill="none" stroke="black"></path>
                 <path d="M 144,128 L 144,152" fill="none" stroke="black"></path>
                 <path d="M 144,168 L 144,272" fill="none" stroke="black"></path>
@@ -2171,7 +2171,7 @@ will not be accessible.<a href="#section-3.2-7" class="pilcrow">¶</a></p>
 <figure id="figure-3">
           <div id="section-3.2-8.1">
             <div class="alignLeft art-svg artwork" id="section-3.2-8.1.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="512" width="560" viewBox="0 0 560 512" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="512" width="560" viewBox="0 0 560 512" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
                 <path d="M 8,64 L 8,496" fill="none" stroke="black"></path>
                 <path d="M 128,104 L 128,152" fill="none" stroke="black"></path>
                 <path d="M 128,168 L 128,264" fill="none" stroke="black"></path>
@@ -2268,7 +2268,7 @@ not following the above recommendation (e.g., sending MLS directly over UDP inst
 <figure id="figure-4">
           <div id="section-3.2-13.1">
             <div class="alignLeft art-svg artwork" id="section-3.2-13.1.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="304" width="528" viewBox="0 0 528 304" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="304" width="528" viewBox="0 0 528 304" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
                 <path d="M 8,64 L 8,288" fill="none" stroke="black"></path>
                 <path d="M 128,64 L 128,120" fill="none" stroke="black"></path>
                 <path d="M 128,136 L 128,200" fill="none" stroke="black"></path>
@@ -2334,7 +2334,7 @@ basic mechanisms.<a href="#section-3.2-14" class="pilcrow">¶</a></p>
 <figure id="figure-5">
           <div id="section-3.2-15.1">
             <div class="alignLeft art-svg artwork" id="section-3.2-15.1.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="240" width="520" viewBox="0 0 520 240" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="240" width="520" viewBox="0 0 520 240" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
                 <path d="M 8,64 L 8,224" fill="none" stroke="black"></path>
                 <path d="M 128,64 L 128,168" fill="none" stroke="black"></path>
                 <path d="M 128,184 L 128,224" fill="none" stroke="black"></path>
@@ -2465,7 +2465,7 @@ the new group is linked to the old group via a resumption PSK.<a href="#section-
 <figure id="figure-7">
           <div id="section-3.4-4.1">
             <div class="alignLeft art-svg artwork" id="section-3.4-4.1.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="240" width="272" viewBox="0 0 272 240" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="240" width="272" viewBox="0 0 272 240" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
                 <path d="M 48,40 L 48,112" fill="none" stroke="black"></path>
                 <path d="M 224,136 L 224,208" fill="none" stroke="black"></path>
                 <path d="M 56,80 L 72,80" fill="none" stroke="black"></path>
@@ -2494,7 +2494,7 @@ the new group is linked to the old group via a resumption PSK.<a href="#section-
 <figure id="figure-8">
           <div id="section-3.4-5.1">
             <div class="alignLeft art-svg artwork" id="section-3.4-5.1.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="144" width="272" viewBox="0 0 272 144" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="144" width="272" viewBox="0 0 272 144" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
                 <path d="M 48,40 L 48,112" fill="none" stroke="black"></path>
                 <path d="M 224,40 L 224,112" fill="none" stroke="black"></path>
                 <polygon class="arrowhead" points="232,112 220,106.4 220,117.6" fill="black" transform="rotate(90,224,112)"></polygon>
@@ -2523,7 +2523,7 @@ changes to these members' keys due to Updates or Commits.<a href="#section-3.4-6
 <figure id="figure-9">
           <div id="section-3.4-7.1">
             <div class="alignLeft art-svg artwork" id="section-3.4-7.1.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="304" width="248" viewBox="0 0 248 304" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="304" width="248" viewBox="0 0 248 304" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
                 <path d="M 48,40 L 48,176" fill="none" stroke="black"></path>
                 <path d="M 48,200 L 48,272" fill="none" stroke="black"></path>
                 <polygon class="arrowhead" points="56,272 44,266.4 44,277.6" fill="black" transform="rotate(90,48,272)"></polygon>
@@ -2715,7 +2715,7 @@ node's key pair would be equivalent to encrypting to its non-copath child.<a hre
 <figure id="figure-11">
             <div id="section-4.1.2-5.1">
               <div class="alignLeft art-svg artwork" id="section-4.1.2-5.1.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="240" width="256" viewBox="0 0 256 240" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="240" width="256" viewBox="0 0 256 240" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
                   <path d="M 56,104 L 56,128" fill="none" stroke="black"></path>
                   <path d="M 120,48 L 120,64" fill="none" stroke="black"></path>
                   <path d="M 184,112 L 184,128" fill="none" stroke="black"></path>
@@ -3380,7 +3380,7 @@ consume them:<a href="#section-6-8" class="pilcrow">¶</a></p>
 <span id="name-relationships-among-mls-obj"></span><figure id="figure-12">
         <div id="section-6-9.1">
           <div class="alignLeft art-svg artwork" id="section-6-9.1.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="480" width="520" viewBox="0 0 520 480" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="480" width="520" viewBox="0 0 520 480" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
               <path d="M 64,48 L 64,64" fill="none" stroke="black"></path>
               <path d="M 88,144 L 88,176" fill="none" stroke="black"></path>
               <path d="M 88,208 L 88,224" fill="none" stroke="black"></path>
@@ -4090,7 +4090,7 @@ at Z:<a href="#section-7.4-9" class="pilcrow">¶</a></p>
 <figure id="figure-13">
           <div id="section-7.4-10.1">
             <div class="alignLeft art-svg artwork" id="section-7.4-10.1.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="176" width="120" viewBox="0 0 120 176" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="176" width="120" viewBox="0 0 120 176" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
                 <path d="M 56,48 L 56,64" fill="none" stroke="black"></path>
                 <path d="M 40,64 L 72,64" fill="none" stroke="black"></path>
                 <path d="M 72,64 L 80,80" fill="none" stroke="black"></path>
@@ -4125,7 +4125,7 @@ of path secrets:<a href="#section-7.4-11" class="pilcrow">¶</a></p>
 <span id="name-derivation-of-ratchet-tree-"></span><figure id="figure-14">
           <div id="section-7.4-12.1">
             <div class="alignLeft art-svg artwork" id="section-7.4-12.1.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="272" width="560" viewBox="0 0 560 272" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="272" width="560" viewBox="0 0 560 272" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
                 <path d="M 48,64 L 48,96" fill="none" stroke="black"></path>
                 <path d="M 48,144 L 48,176" fill="none" stroke="black"></path>
                 <path d="M 128,32 L 152,32" fill="none" stroke="black"></path>
@@ -4173,7 +4173,7 @@ of path secrets:<a href="#section-7.4-11" class="pilcrow">¶</a></p>
 <span id="name-placement-of-keys-in-a-ratc"></span><figure id="figure-15">
           <div id="section-7.4-14.1">
             <div class="alignLeft art-svg artwork" id="section-7.4-14.1.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="192" width="256" viewBox="0 0 256 192" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="192" width="256" viewBox="0 0 256 192" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
                 <path d="M 176,144 L 176,160" fill="none" stroke="black"></path>
                 <path d="M 192,48 L 192,64" fill="none" stroke="black"></path>
                 <path d="M 112,32 L 176,32" fill="none" stroke="black"></path>
@@ -4525,7 +4525,7 @@ from the leaves up to the root.<a href="#section-7.8-2" class="pilcrow">¶</a></
 <span id="name-composition-of-the-tree-has"></span><figure id="figure-18">
           <div id="section-7.8-3.1">
             <div class="alignLeft art-svg artwork" id="section-7.8-3.1.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="112" width="128" viewBox="0 0 128 112" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="112" width="128" viewBox="0 0 128 112" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
                 <path d="M 24,32 L 40,32" fill="none" stroke="black"></path>
                 <path d="M 72,48 L 88,80" fill="none" stroke="black"></path>
                 <path d="M 40,80 L 56,48" fill="none" stroke="black"></path>
@@ -4602,7 +4602,7 @@ UpdatePath.<a href="#section-7.9-2" class="pilcrow">¶</a></p>
 <span id="name-inputs-to-a-parent-hash"></span><figure id="figure-19">
           <div id="section-7.9-3.1">
             <div class="alignLeft art-svg artwork" id="section-7.9-3.1.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="176" width="216" viewBox="0 0 216 176" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="176" width="216" viewBox="0 0 216 176" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
                 <path d="M 112,96 L 128,96" fill="none" stroke="black"></path>
                 <path d="M 160,112 L 176,144" fill="none" stroke="black"></path>
                 <path d="M 128,144 L 144,112" fill="none" stroke="black"></path>
@@ -4859,7 +4859,7 @@ proceeds as shown in the following diagram:<a href="#section-8-11" class="pilcro
 <span id="name-the-mls-key-schedule"></span><figure id="figure-22">
         <div id="section-8-12.1">
           <div class="alignLeft art-svg artwork" id="section-8-12.1.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="656" width="584" viewBox="0 0 584 656" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="656" width="584" viewBox="0 0 584 656" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
               <path d="M 216,48 L 216,80" fill="none" stroke="black"></path>
               <path d="M 216,112 L 216,144" fill="none" stroke="black"></path>
               <path d="M 216,176 L 216,208" fill="none" stroke="black"></path>
@@ -5133,7 +5133,7 @@ point, except for the latest Commit's confirmation tag.<a href="#section-8.2-9" 
 <span id="name-evolution-of-the-transcript"></span><figure id="figure-23">
           <div id="section-8.2-10.1">
             <div class="alignLeft art-svg artwork" id="section-8.2-10.1.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="720" width="576" viewBox="0 0 576 720" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="720" width="576" viewBox="0 0 576 720" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
                 <path d="M 8,272 L 8,304" fill="none" stroke="black"></path>
                 <path d="M 8,512 L 8,544" fill="none" stroke="black"></path>
                 <path d="M 32,192 L 32,208" fill="none" stroke="black"></path>
@@ -5398,7 +5398,7 @@ in the diagram), as follows:<a href="#section-8.4-11" class="pilcrow">¶</a></p>
 <span id="name-computation-of-a-psk-secret"></span><figure id="figure-24">
           <div id="section-8.4-12.1">
             <div class="alignLeft art-svg artwork" id="section-8.4-12.1.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="256" width="568" viewBox="0 0 568 256" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="256" width="568" viewBox="0 0 568 256" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
                 <path d="M 400,96 L 400,144" fill="none" stroke="black"></path>
                 <path d="M 400,192 L 400,224" fill="none" stroke="black"></path>
                 <path d="M 88,80 L 104,80" fill="none" stroke="black"></path>
@@ -5545,7 +5545,7 @@ are defined as follows (where left(N) and right(N) denote the children of N):<a 
 <span id="name-derivation-of-secrets-from-"></span><figure id="figure-25">
         <div id="section-9-3.1">
           <div class="alignLeft art-svg artwork" id="section-9-3.1.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="160" width="456" viewBox="0 0 456 160" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="160" width="456" viewBox="0 0 456 160" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
               <path d="M 72,40 L 72,128" fill="none" stroke="black"></path>
               <path d="M 248,80 L 248,88" fill="none" stroke="black"></path>
               <path d="M 72,80 L 96,80" fill="none" stroke="black"></path>
@@ -5579,7 +5579,7 @@ described in <a href="#encryption-keys" class="auto internal xref">Section 9.1</
 <span id="name-initialization-of-the-hash-"></span><figure id="figure-26">
         <div id="section-9-5.1">
           <div class="alignLeft art-svg artwork" id="section-9-5.1.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="160" width="472" viewBox="0 0 472 160" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="160" width="472" viewBox="0 0 472 160" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
               <path d="M 72,40 L 72,128" fill="none" stroke="black"></path>
               <path d="M 72,80 L 96,80" fill="none" stroke="black"></path>
               <path d="M 72,128 L 96,128" fill="none" stroke="black"></path>
@@ -5634,7 +5634,7 @@ first two application keys and nonces.<a href="#section-9.1-5" class="pilcrow">�
 <figure id="figure-27">
           <div id="section-9.1-6.1">
             <div class="alignLeft art-svg artwork" id="section-9.1-6.1.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="320" width="200" viewBox="0 0 200 320" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="320" width="200" viewBox="0 0 200 320" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
                 <path d="M 56,48 L 56,64" fill="none" stroke="black"></path>
                 <path d="M 128,176 L 128,208" fill="none" stroke="black"></path>
                 <path d="M 128,240 L 128,272" fill="none" stroke="black"></path>
@@ -5695,7 +5695,7 @@ DeriveTreeSecret(Secret, Label, Generation, Length) =
 <p id="section-9.1-10">Where <code>Generation</code> is encoded as a big endian uint32.<a href="#section-9.1-10" class="pilcrow">¶</a></p>
 <div id="section-9.1-11">
           <div class="alignLeft art-svg artwork" id="section-9.1-11.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="208" width="416" viewBox="0 0 416 208" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="208" width="416" viewBox="0 0 416 208" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
               <path d="M 56,40 L 56,160" fill="none" stroke="black"></path>
               <path d="M 56,64 L 80,64" fill="none" stroke="black"></path>
               <path d="M 56,112 L 80,112" fill="none" stroke="black"></path>
@@ -7372,7 +7372,7 @@ represent a subtree root):<a href="#section-12.4.3.3-10" class="pilcrow">¶</a><
 <span id="name-left-to-right-in-order-trav"></span><figure id="figure-28">
               <div id="section-12.4.3.3-11.1">
                 <div class="alignLeft art-svg artwork" id="section-12.4.3.3-11.1.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="304" width="240" viewBox="0 0 240 304" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="304" width="240" viewBox="0 0 240 304" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
                     <path d="M 56,112 L 56,128" fill="none" stroke="black"></path>
                     <path d="M 120,48 L 120,64" fill="none" stroke="black"></path>
                     <path d="M 184,104 L 184,128" fill="none" stroke="black"></path>
@@ -8072,7 +8072,7 @@ was compromised at some point in the past.<a href="#section-16.6-1" class="pilcr
 <span id="name-forward-secrecy-and-post-com"></span><figure id="figure-29">
           <div id="section-16.6-2.1">
             <div class="alignLeft art-svg artwork" id="section-16.6-2.1.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="176" width="448" viewBox="0 0 448 176" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="176" width="448" viewBox="0 0 448 176" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
                 <path d="M 152,80 L 152,160" fill="none" stroke="black"></path>
                 <path d="M 192,48 L 192,88" fill="none" stroke="black"></path>
                 <path d="M 232,80 L 232,160" fill="none" stroke="black"></path>
@@ -9847,7 +9847,7 @@ operations:<a href="#appendix-B-1" class="pilcrow">¶</a></p>
 <span id="name-building-a-four-member-tree"></span><figure id="figure-30">
         <div id="appendix-B-3.1">
           <div class="alignLeft art-svg artwork" id="appendix-B-3.1.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="144" width="432" viewBox="0 0 432 144" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="144" width="432" viewBox="0 0 432 144" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
               <path d="M 216,48 L 216,64" fill="none" stroke="black"></path>
               <path d="M 376,48 L 376,64" fill="none" stroke="black"></path>
               <path d="M 200,64 L 232,64" fill="none" stroke="black"></path>
@@ -9986,7 +9986,7 @@ hash values and compute the indicated parent hash validity relationships:<a href
 <span id="name-parent-hash-links-connect-a"></span><figure id="figure-31">
         <div id="appendix-B-9.1">
           <div class="alignLeft art-svg artwork" id="appendix-B-9.1.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="160" width="112" viewBox="0 0 112 160" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="160" width="112" viewBox="0 0 112 160" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
               <path d="M 56,48 L 56,64" fill="none" stroke="black"></path>
               <path d="M 56,64 L 72,64" fill="none" stroke="black"></path>
               <path d="M 72,64 L 80,80" fill="none" stroke="black"></path>
@@ -10044,7 +10044,7 @@ the following structure:<a href="#appendix-C-1" class="pilcrow">¶</a></p>
 <span id="name-an-eight-member-tree-repres"></span><figure id="figure-32">
         <div id="appendix-C-2.1">
           <div class="alignLeft art-svg artwork" id="appendix-C-2.1.1">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="288" width="400" viewBox="0 0 400 288" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="288" width="400" viewBox="0 0 400 288" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
               <path d="M 128,112 L 128,128" fill="none" stroke="black"></path>
               <path d="M 224,48 L 224,64" fill="none" stroke="black"></path>
               <path d="M 320,112 L 320,128" fill="none" stroke="black"></path>

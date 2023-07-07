@@ -5,7 +5,7 @@
 mls                                                            R. Barnes
 Internet-Draft                                                     Cisco
 Intended status: Standards Track                           B. Beurdouche
-Expires: 25 December 2023                                Inria & Mozilla
+Expires: 8 January 2024                                  Inria & Mozilla
                                                                R. Robert
                                                              Phoenix R&D
                                                              J. Millican
@@ -14,7 +14,7 @@ Expires: 25 December 2023                                Inria & Mozilla
                                                                         
                                                           K. Cohn-Gordon
                                                     University of Oxford
-                                                            23 June 2023
+                                                             7 July 2023
 
 
               The Messaging Layer Security (MLS) Protocol
@@ -56,7 +56,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 25 December 2023.
+   This Internet-Draft will expire on 8 January 2024.
 
 Copyright Notice
 
