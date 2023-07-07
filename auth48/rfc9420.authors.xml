@@ -4916,7 +4916,7 @@ the <tt>membership_key</tt>.</li>
 hash ratchet indicated by the <tt>generation</tt> field.</li>
               </ul>
             </li>
-            <li>Verify that the signature on the FramedContent message as described in
+            <li>Verify the signature on the FramedContent message as described in
 <xref target="content-authentication"/>.</li>
             <li>Verify that the <tt>proposals</tt> vector is valid according to the rules in
 <xref target="proposal-list-validation"/>.</li>
