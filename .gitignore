@@ -21,3 +21,6 @@ venv/
 lib
 draft-ietf-mls-protocol.xml
 draft-ietf-mls-protocol.tls
+
+# AUTH48 temporary artifacts
+auth48/rfc9420.gen.xml
