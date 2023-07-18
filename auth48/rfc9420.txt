@@ -5,7 +5,7 @@
 mls                                                            R. Barnes
 Internet-Draft                                                     Cisco
 Intended status: Standards Track                           B. Beurdouche
-Expires: 8 January 2024                                  Inria & Mozilla
+Expires: 19 January 2024                                 Inria & Mozilla
                                                                R. Robert
                                                              Phoenix R&D
                                                              J. Millican
@@ -14,7 +14,7 @@ Expires: 8 January 2024                                  Inria & Mozilla
                                                                         
                                                           K. Cohn-Gordon
                                                     University of Oxford
-                                                             7 July 2023
+                                                            18 July 2023
 
 
               The Messaging Layer Security (MLS) Protocol
@@ -56,7 +56,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 8 January 2024.
+   This Internet-Draft will expire on 19 January 2024.
 
 Copyright Notice
 
@@ -6463,8 +6463,10 @@ psk_secret (or 0) --> KDF.Extract
 
    [CLINIC]   Miller, B., Huang, L., Joseph, A., and J. Tygar, "I Know
               Why You Went to the Clinic: Risks and Realization of HTTPS
-              Traffic Analysis", Privacy Enhancing Technologies pp.
-              143-163, DOI 10.1007/978-3-319-08506-7_8, 2014,
+              Traffic Analysis", Springer International Publishing,
+              Privacy Enhancing Technologies pp. 143-163,
+              DOI 10.1007/978-3-319-08506-7_8, ISBN ["9783319085050",
+              "9783319085067"], 2014,
               <https://doi.org/10.1007/978-3-319-08506-7_8>.
 
    [CONIKS]   Melara, M. S., Blankstein, A., Bonneau, J., Felten, E. W.,
@@ -6476,16 +6478,16 @@ psk_secret (or 0) --> KDF.Extract
    [DoubleRatchet]
               Cohn-Gordon, K., Cremers, C., Dowling, B., Garratt, L.,
               and D. Stebila, "A Formal Security Analysis of the Signal
-              Messaging Protocol", 2017 IEEE European Symposium on
+              Messaging Protocol", IEEE, 2017 IEEE European Symposium on
               Security and Privacy (EuroS&P),
               DOI 10.1109/eurosp.2017.27, April 2017,
               <https://doi.org/10.1109/eurosp.2017.27>.
 
    [HCJ16]    Husák, M., Čermák, M., Jirsík, T., and P. Čeleda, "HTTPS
               traffic analysis and client identification using passive
-              SSL/TLS fingerprinting", EURASIP Journal on Information
-              Security vol. 2016, no. 1, DOI 10.1186/s13635-016-0030-7,
-              February 2016,
+              SSL/TLS fingerprinting", Springer Science and Business
+              Media LLC, EURASIP Journal on Information Security vol.
+              2016, no. 1, DOI 10.1186/s13635-016-0030-7, February 2016,
               <https://doi.org/10.1186/s13635-016-0030-7>.
 
    [I-D.ietf-mls-architecture]
@@ -6501,8 +6503,10 @@ psk_secret (or 0) --> KDF.Extract
               docs/design.md>.
 
    [NAN]      Bellare, M., Ng, R., and B. Tackmann, "Nonces Are Noticed:
-              AEAD Revisited", Advances in Cryptology - CRYPTO 2019 pp.
-              235-265, DOI 10.1007/978-3-030-26948-7_9, 2019,
+              AEAD Revisited", Springer International Publishing,
+              Advances in Cryptology - CRYPTO 2019 pp. 235-265,
+              DOI 10.1007/978-3-030-26948-7_9, ISBN ["9783030269470",
+              "9783030269487"], 2019,
               <https://doi.org/10.1007/978-3-030-26948-7_9>.
 
    [RFC5116]  McGrew, D., "An Interface and Algorithms for Authenticated
@@ -6550,9 +6554,8 @@ psk_secret (or 0) --> KDF.Extract
               <https://www.rfc-editor.org/rfc/rfc9113>.
 
    [SHS]      Dang, Q., "Secure Hash Standard", National Institute of
-              Standards and Technology report,
-              DOI 10.6028/nist.fips.180-4, July 2015,
-              <https://doi.org/10.6028/nist.fips.180-4>.
+              Standards and Technology, DOI 10.6028/nist.fips.180-4,
+              July 2015, <https://doi.org/10.6028/nist.fips.180-4>.
 
    [Signal]   Perrin(ed), T. and M. Marlinspike, "The Double Ratchet
               Algorithm", 20 November 2016,
