@@ -1,6 +1,6 @@
 {
   "magic": "E!vIA5L86J2I",
-  "timestamp": "2023-06-25T01:59:06.621325+00:00",
+  "timestamp": "2023-07-20T01:24:13.151082+00:00",
   "repo": "mlswg/mls-protocol",
   "labels": [
     {
@@ -10480,16 +10480,24 @@
       "id": "I_kwDOBoyH6c5n8PdC",
       "title": "Figure 14: \"Derivation of ratchet tree keys along a direct path\" don't correspond to the prose",
       "url": "https://github.com/mlswg/mls-protocol/issues/880",
-      "state": "OPEN",
+      "state": "CLOSED",
       "author": "TWal",
       "authorAssociation": "CONTRIBUTOR",
       "assignees": [],
       "labels": [],
       "body": "In the diagram, it looks like `path_secret[0]` and the leaf node's public/private keys are generated from `leaf_secret`.\r\nHowever this is not what the prose says: \"`path_secret[0]` is sampled at random\" and \"Generate a fresh HPKE key pair for the leaf\".\r\n\r\nLooks like it's an artifact from past versions of MLS?",
       "createdAt": "2023-06-06T13:11:06Z",
-      "updatedAt": "2023-06-06T13:11:22Z",
-      "closedAt": null,
-      "comments": []
+      "updatedAt": "2023-07-18T14:20:42Z",
+      "closedAt": "2023-07-18T14:20:41Z",
+      "comments": [
+        {
+          "author": "bifurcation",
+          "authorAssociation": "COLLABORATOR",
+          "body": "Fixed in #883 ",
+          "createdAt": "2023-07-18T14:20:41Z",
+          "updatedAt": "2023-07-18T14:20:41Z"
+        }
+      ]
     },
     {
       "number": 881,
@@ -62295,6 +62303,74 @@
       },
       "comments": [],
       "reviews": []
+    },
+    {
+      "number": 885,
+      "id": "PR_kwDOBoyH6c5VyqVT",
+      "title": "Final changes for RFC 9420",
+      "url": "https://github.com/mlswg/mls-protocol/pull/885",
+      "state": "MERGED",
+      "author": "bifurcation",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "The document changes in this PR were reviewed in #878 #879 #882 #883 #884.  This PR just pulls them into the main branch.  And renames the Markdown file to reflect the fact that MLS is now an RFC!  \ud83c\udf89\ud83c\udf89\ud83c\udf89",
+      "createdAt": "2023-07-18T14:18:34Z",
+      "updatedAt": "2023-07-18T14:48:48Z",
+      "baseRepository": "mlswg/mls-protocol",
+      "baseRefName": "main",
+      "baseRefOid": "f78583b766d7ddb1af0ac93df5c55386feb676b5",
+      "headRepository": "mlswg/mls-protocol",
+      "headRefName": "auth48",
+      "headRefOid": "6152eb5c42b9bd64c110b2378ac290633c1a93a6",
+      "closedAt": "2023-07-18T14:48:43Z",
+      "mergedAt": "2023-07-18T14:48:43Z",
+      "mergedBy": "bifurcation",
+      "mergeCommit": {
+        "oid": "1a441b8af19f2dd6dc0b7301a9c788bb8985090f"
+      },
+      "comments": [],
+      "reviews": [
+        {
+          "id": "PRR_kwDOBoyH6c5bgLal",
+          "commit": {
+            "abbreviatedOid": "6152eb5"
+          },
+          "author": "beurdouche",
+          "authorAssociation": "MEMBER",
+          "state": "APPROVED",
+          "body": "",
+          "createdAt": "2023-07-18T14:22:01Z",
+          "updatedAt": "2023-07-18T14:22:01Z",
+          "comments": []
+        },
+        {
+          "id": "PRR_kwDOBoyH6c5bgO6L",
+          "commit": {
+            "abbreviatedOid": "6152eb5"
+          },
+          "author": "raphaelrobert",
+          "authorAssociation": "MEMBER",
+          "state": "APPROVED",
+          "body": "",
+          "createdAt": "2023-07-18T14:28:19Z",
+          "updatedAt": "2023-07-18T14:28:19Z",
+          "comments": []
+        },
+        {
+          "id": "PRR_kwDOBoyH6c5bgXT-",
+          "commit": {
+            "abbreviatedOid": "6152eb5"
+          },
+          "author": "kkohbrok",
+          "authorAssociation": "CONTRIBUTOR",
+          "state": "APPROVED",
+          "body": "",
+          "createdAt": "2023-07-18T14:43:05Z",
+          "updatedAt": "2023-07-18T14:43:05Z",
+          "comments": []
+        }
+      ]
     }
   ]
 }
