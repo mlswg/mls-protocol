@@ -1,6 +1,6 @@
 {
   "magic": "E!vIA5L86J2I",
-  "timestamp": "2023-08-31T01:07:40.373045+00:00",
+  "timestamp": "2023-11-07T01:11:21.872507+00:00",
   "repo": "mlswg/mls-protocol",
   "labels": [
     {
@@ -182,8 +182,8 @@
         "jmillican"
       ],
       "labels": [
-        "functionality",
-        "wontfix"
+        "wontfix",
+        "functionality"
       ],
       "body": "We talked about quite a number of different ways to do deletion in *ART groups. Give at least a high-level overview of the main ones, and mention their pros and cons. These include:\r\n\r\n- just rebuild the tree\r\n  - Pros: simple, easy, no extra operations\r\n  - Cons: inefficient, puts the deleter in a trusted position in the group until _every_ remaining member has updated\r\n- update deletee's key to blank\r\n  - Pros: fairly simple, no extra operations\r\n  - Cons: puts the deleter in a trusted position until the sibling or cousin of the deletee has updated\r\n- send a delete secret over pairwise channels\r\n  - Pros: no trusted positions\r\n  - Cons: O(N), leaves a potentially-compromised leaf node in the tree\r\n- send a delete secret by KEMing to everyone else\r\n  - Pros: no trusted positions, efficient\r\n  - Cons: leaves a potentially-compromised leaf node in the tree, multiple deletes interact in a complex way",
       "createdAt": "2018-01-22T13:20:52Z",
@@ -230,8 +230,8 @@
       "authorAssociation": "MEMBER",
       "assignees": [],
       "labels": [
-        "? follow-up",
-        "functionality"
+        "functionality",
+        "? follow-up"
       ],
       "body": "At the end of the London meetup we discussed a potential problem: malicious clients can send a bad copath (e.g. just random group elements), which will totally screw up the group state of anyone who processes the update. This was not considered a valid attack in ART, which does not consider malicious clients or DoS, but is more of a problem here. In particular, one can imagine a group with the convention \"invite anybody, delete people who misbehave\" (e.g. like many IRC channels).\r\n\r\nThere are a few ways to handle this:\r\n\r\n- Ignore it: if you add someone malicious and they screw up your group state, well, you shouldn't have done that.\r\n- Wait for confirmation: when you receive a copath, don't trust it until someone else from the other part of the tree has sent an update, proving that they know the new DH value.\r\n- Something else",
       "createdAt": "2018-01-31T17:40:36Z",
@@ -399,8 +399,8 @@
       "assignees": [],
       "labels": [
         "enhancement",
-        "performance",
-        "recommendation"
+        "recommendation",
+        "performance"
       ],
       "body": "We have some text about how Handshake messages need to be sequenced, but clients will need some retry logic to deal with cases where there's a gap between the premise for their action and the state of the group when the action can be taken.  We should describe the logic a client should follow for retrying with each of the available operations.  For example, Update can just be retried, but Add and Remove should be checked for duplication before retrying.",
       "createdAt": "2018-10-23T14:44:39Z",
@@ -461,9 +461,9 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "? follow-up",
+        "privacy",
         "performance",
-        "privacy"
+        "? follow-up"
       ],
       "body": "Currently, clients are expected to cache the entire roster and tree (of size `n` and `2n-1`, respectively), and the `Welcome` message provides these to the new joiner by value.  In principle it's possible to create a scheme where:\r\n\r\n* The members of the group agree on a commitment to the roster / tree instead of the objects themselves\r\n* Each Handshake message includes the information necessary to update the commitment\r\n* ... and a proof of the signer's inclusion in the roster, relative to the current roster commitment\r\n\r\nFor example, if the roster were committed as a Merkle tree root, an Add message could come with (1) an inclusion proof for the signer's public key, relative to the prior tree root; and (2) a consistency proof between the prior tree root and the updated root.\r\n\r\nThis would open up a spectrum of options for how much state the clients have to cache (note that the client has to cache its direct path in any case, to be able to decrypt TreeKEM encryptions).  The current draft would be on one end, with clients storing everything.  The other end would have clients store nothing and handshake messages just carrying new entropy and updating commitments.\r\n\r\nAs an example of an intermediate state, if you assume that Updates are more common than Adds/Removes, you could require each client to cache its own copath.  Then Add/Remove/Update messages would have to provide enough information about the tree to allow the other clients to update their copaths (in addition to updating the commitments).\r\n",
       "createdAt": "2019-01-13T02:14:46Z",
@@ -483,8 +483,8 @@
         "raphaelrobert"
       ],
       "labels": [
-        "performance",
-        "security"
+        "security",
+        "performance"
       ],
       "body": "In the current draft, creating a group is done with `n` Add messages, which just place the members of the group at the leaves of the tree.  This means that newly-created trees have some \"warm up\" time during which early operations are roughly linear size, gradually converging to log size.\r\n\r\nThis state of affairs is unavoidable if we are not going to have double joins.  However, it might be tolerable to have double joins, so long as (1) they only happen at group creation time and (2) they resolve relatively quickly.\r\n\r\nFor example, you might create a special `Init` message, distinct from Add, which initializes a tree with the members at the leaves, but also some intermediate nodes filled in by the creator (and thus double-joined).  These nodes would be overwritten as members update, but the double-joins would only be fully resolved once all members update (or `1/2^{k}` of the members if `k` lower layers are not double-joined).",
       "createdAt": "2019-01-13T02:20:33Z",
@@ -510,8 +510,8 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "privacy",
-        "security"
+        "security",
+        "privacy"
       ],
       "body": "This was resolved in #80, but recording it in this issue for posterity.  A Welcome message carries the `init_secret` value for the group, and so it needs to be encrypted for the new joiner.\r\n\r\nThe struct proposed in the revised draft wraps the information in the Welcome in an ECIES ciphertext, and adds enough information to enable the joiner to identify the private key it needs to decrypt the Welcome message.\r\n\r\n```\r\nstruct {\r\n  opaque group_id<0..255>;\r\n  uint32 epoch;\r\n  optional<Credential> roster<1..2^32-1>;\r\n  optional<PublicKey> tree<1..2^32-1>;\r\n  opaque transcript_hash<0..255>;\r\n  opaque init_secret<0..255>;\r\n} WelcomeInfo;\r\n\r\nstruct {\r\n  opaque user_init_key_id<0..255>;\r\n  CipherSuite cipher_suite;\r\n  ECIESCiphertext encrypted_welcome_info;\r\n} Welcome;\r\n```",
       "createdAt": "2019-01-13T02:34:51Z",
@@ -574,7 +574,7 @@
           "updatedAt": "2019-01-15T22:48:10Z"
         },
         {
-          "author": "ipmipest",
+          "author": "david6076",
           "authorAssociation": "NONE",
           "body": "In certain use cases, such as enterprise messaging there may/could/might be a problem if \"**Any** member of the group can download an ClientInitKey for a new client and broadcast an Add message\". An enterprise may wish to enforce access restrictions for certain information such as ClientInitKey. Just thinking about security related issues that may be most easily noticed by corp IT types.\r\n\r\nOn the other hand this may be best dealt with outside the protocol scope.\r\n",
           "createdAt": "2019-06-27T21:41:54Z",
@@ -712,8 +712,8 @@
         "beurdouche"
       ],
       "labels": [
-        "recommendation",
-        "security"
+        "security",
+        "recommendation"
       ],
       "body": "Consumers should not assume that UIK IDs are unique across users.",
       "createdAt": "2019-01-14T19:14:03Z",
@@ -773,8 +773,8 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "privacy",
-        "security"
+        "security",
+        "privacy"
       ],
       "body": "As proposed on the list, we should re-use the encrypted-message framing for encrypted handshake messages.  For better key separation, we might derive a separate set of keys for this purpose (the academics prefer this).\r\n\r\nIf we do key separation, we should have a separate sequence number space.  In any case, a type field will be needed to distinguish.",
       "createdAt": "2019-01-14T19:15:30Z",
@@ -816,9 +816,9 @@
         "bifurcation"
       ],
       "labels": [
-        "functionality",
+        "security",
         "performance",
-        "security"
+        "functionality"
       ],
       "body": "This allows combo operations -- multiple adds, moves, resyncs -- without having to worry about getting interrupted mid-operation.",
       "createdAt": "2019-01-14T23:16:11Z",
@@ -874,9 +874,9 @@
         "bifurcation"
       ],
       "labels": [
-        "functionality",
+        "security",
         "performance",
-        "security"
+        "functionality"
       ],
       "body": "We have several types of top-level objects right now:\r\n\r\n* UserInitKey messages\r\n* Welcome messages\r\n* Handshake messages\r\n* Application messages\r\n\r\nWe should have a common framing layer that describes the object type (and optionally provides encryption), to prevent confusion among these types.  This would be analogous to the [TLS record layer](https://tlswg.github.io/tls13-spec/draft-ietf-tls-tls13.html#rfc.section.5.1)",
       "createdAt": "2019-01-14T23:21:24Z",
@@ -918,8 +918,8 @@
         "beurdouche"
       ],
       "labels": [
-        "? follow-up",
-        "security"
+        "security",
+        "? follow-up"
       ],
       "body": "We should ensure that there is adequate anti-replay protection for both Handshake and Application messages.  (In particular, we should define what anti-replay issues are a concern.)  Could be related to #101 if we want to solve it at that framing layer.",
       "createdAt": "2019-01-15T16:52:28Z",
@@ -1029,8 +1029,8 @@
         "raphaelrobert"
       ],
       "labels": [
-        "functionality",
-        "security"
+        "security",
+        "functionality"
       ],
       "body": "Long-term inactive users undermine the FS and PCS properties of the protocol.  Obviously, users can remove each other if they notice that a participant is inactive.  We should consider whether we want to allow the server to do such a removal.",
       "createdAt": "2019-01-15T16:58:12Z",
@@ -1079,8 +1079,8 @@
         "bifurcation"
       ],
       "labels": [
-        "functionality",
-        "security"
+        "security",
+        "functionality"
       ],
       "body": "We need some story for how to evolve versions over time.  How and where is version support indicated?  How can a group transition from one version to another?",
       "createdAt": "2019-01-15T21:43:13Z",
@@ -1226,8 +1226,8 @@
         "beurdouche"
       ],
       "labels": [
-        "recommendation",
-        "security"
+        "security",
+        "recommendation"
       ],
       "body": "In the current draft it is not known to the other group members when to discard the participant application secret from the previous epoch. My formal specification sends the 4 byte application message counter of the previous epoch within the first application message of each participant in the new epoch. Discuss and PR.",
       "createdAt": "2019-01-22T22:17:07Z",
@@ -1302,14 +1302,14 @@
         },
         {
           "author": "claucece",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "body": "Well, it only says:\r\n\r\n```\r\nGiven an octet string X, the private key produced by the Derive-Key-Pair operation is SHA-256(X).\r\n (Recall that any 32-octet string is a valid Curve25519 private key.) The corresponding public key is\r\n X25519(SHA-256(X), 9).\r\n\r\nImplementations SHOULD use the approach specified in {{RFC7748}} to calculate the Diffie-Hellman\r\n shared secret. \r\n```\r\n\r\nIt does not refer that you are referring to section 'The X25519 and X448 Functions' of the RFC (if so). And actually, I think it is referred to the subsection in that section where is says \"To implement the X25519(k, u) and X448(k, u)\". \r\n\r\nIt also says:\r\n\r\n```\r\nIf implementers use an alternative implementation of these elliptic curves, they SHOULD perform the\r\n additional checks specified in Section 7 of {{RFC7748}}\r\n```\r\n\r\nwhich does not recommend taking into account that \"For X25519, in order to decode 32 random bytes as an integer scalar, set the three least significant bits of the first byte and the most significant bit of the last to zero, set the second most significant bit of the last byte to 1 and, finally, decode as little-endian. \" (the clamping mechanism).\r\n\r\nIt is a little bit unclear from the text how the generation of the shared secret happens, as it does not point to an specific part of the RFC, nor specify if the encoding/decoding functions are needed.\r\n\r\nBut this is just my read ;)\r\n\r\n> And P-256 is a prime curve, so it has no cofactor.\r\n\r\nPrecisely. But this section is a little bit more defined. Compare:\r\n\r\n```\r\nP-256 ECDH calculations (including parameter and key generation as well as the shared secret\r\n calculation) are performed according to {{IEEE1363}} using the ECKAS-DH1 scheme with the identity\r\n map as key derivation function (KDF), so that the shared secret is the x-coordinate of the ECDH\r\n shared secret elliptic curve point represented as an octet string. Note that this octet string (Z in IEEE\r\n 1363 terminology) as output by FE2OSP, the Field Element to Octet String Conversion Primitive, has\r\n constant length for any given field; leading zeros found in this octet string MUST NOT be truncated.\r\n```\r\n\r\n\r\n:)\r\n",
           "createdAt": "2019-02-15T17:15:52Z",
           "updatedAt": "2019-02-15T17:16:36Z"
         },
         {
           "author": "claucece",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "body": "And around unclear:\r\n\r\n- The definition of `Derive-Key-Pair` used to derive the private key, is defined as \"The ciphersuite must also specify an algorithm Derive-Key-Pair that maps octet strings with the same length as the output of the hash function to key pairs for the asymmetric encryption scheme.\". It is unclear how this algorithm looks in practice. It seems to imply that this function takes any amount of same length octet strings as input (generated as an output of a hash function) and map to create a private key and a public key somehow. \r\n\r\n- It says \"Given an octet string X, the private key produced by the Derive-Key-Pair operation is SHA-256(X). (Recall that any 32-octet string is a valid Curve25519 private key.) The corresponding public key is X25519(SHA-256(X), 9).\" If you don't read the RFC, it is unclear that the \"9 is the u-coordinate of the base point and is encoded as a byte with value 9, followed by 31 zero bytes\". It also does not specify if the private key should have been generated from randomness. \r\n\r\n- When saying \"Encryption keys are derived from shared secrets by taking the first 16 bytes of H(Z), where Z is the shared secret and H is SHA-256.\", it seems like 'H(input)' could be defined somewhere else previously. Maybe it should be in place to have a definition section for the different functions, like on the RFC7748 in \"3.  Notation\"?\r\n\r\n- When it says \"Generate an ephemeral DH key pair (x, x * G) in the DH group specified by the ciphersuite in use\", does this refer only to the usage of elliptic curves (as it generates the public key as 'x*G'? Maybe if it is DH, it should be noted as 'g^x'?\r\n\r\nThis is just some things that were unclear for me when reading :) Perhaps they are discussed somewhere else. It also depends on how self-contained that document wants to be. \r\n\r\nHope this helps :)",
           "createdAt": "2019-02-15T17:49:40Z",
           "updatedAt": "2019-02-15T17:53:31Z"
@@ -1692,8 +1692,8 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "functionality",
-        "security"
+        "security",
+        "functionality"
       ],
       "body": "We have a long-standing OPEN ISSUE on creating a group with a single Init message instead of  N Add messages, which would change the work of initialization from O(N log N) to O(N).  I would propose roughly the following:\r\n\r\n```\r\nstruct {\r\n    Welcome creator_info<0..2^32-1>; // Welcome from one-member group to each joiner\r\n    UserInitKey members<0..2^32-1>; // Info to populate at the leaves\r\n    DirectPath creator_update; // Update from the creator to warm the tree\r\n} Init;\r\n```\r\n\r\nThen the processing would be:\r\n\r\n* Find the welcome that's for you\r\n* Initialize a one-member tree from the Welcome\r\n* Use the UserInitKeys to populate the leaves of the tree\r\n* Use the DirectPath to populate the creator's direct path (as in Update)",
       "createdAt": "2019-04-19T14:04:05Z",
@@ -1833,8 +1833,8 @@
       "authorAssociation": "MEMBER",
       "assignees": [],
       "labels": [
-        "recommendation",
-        "security"
+        "security",
+        "recommendation"
       ],
       "body": "",
       "createdAt": "2019-05-11T08:34:38Z",
@@ -2279,8 +2279,8 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "performance",
-        "question"
+        "question",
+        "performance"
       ],
       "body": "Some messaging providers can observe the sequence of adds and removes that happen in real groups.  From that, we can simulate MLS histories, under various assumptions about Update scheduling.  The data we would need to support this is effectively a list of (add/remove(id), timestamp) tuples for each group.\r\n\r\nAt the 2019-10 interim, @eomara  and @raphaelrobert agreed to provide some data of this character.",
       "createdAt": "2019-10-01T10:44:48Z",
@@ -2309,8 +2309,8 @@
         "beurdouche"
       ],
       "labels": [
-        "recommendation",
-        "security"
+        "security",
+        "recommendation"
       ],
       "body": "Instead of initializing new members with information from the previous epoch and requiring them to process an Add, we should initialize new members directly with current epoch information.  This is covered in #209, but should be factored out.",
       "createdAt": "2019-10-01T11:08:36Z",
@@ -2394,8 +2394,8 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "security",
-        "wontfix"
+        "wontfix",
+        "security"
       ],
       "body": "At a minimum we need to make handshake key chains.  If we do Proposals (#209), then we will need to encrypt multiple handshake message per epoch, so we will need key chains instead of just a single handshake key.  Even if we don't do #209, this would improve symmetry / code reuse.\r\n\r\nSpecifically, we should repurpose the ASTree \"per-user secret tree\".  Instead of the leaves of the tree being the starting point for an application key chain, there would be used to derive the starting points for the application key chain, handshake key chain, and possibly exported per-user secrets.\r\n\r\n```\r\n...\r\n | \r\n +--(handshake)--> handshake_secret_[sender]_[0]\r\n | \r\n +--(application)--> application_secret_[sender]_[0]\r\n | \r\n +--(exporter+label)--> exported_secret_[sender]_[label]\r\n```",
       "createdAt": "2019-10-01T21:34:32Z",
@@ -2424,9 +2424,9 @@
         "beurdouche"
       ],
       "labels": [
-        "? follow-up",
         "enhancement",
-        "security"
+        "security",
+        "? follow-up"
       ],
       "body": "It could be useful for groups to agree on extended attributes (@psyoptix to provide examples), which are provided to new members and agreed by existing members.  Syntactically, this would mean:\r\n\r\n* An extensions field in the WelcomeInfo message\r\n* Including that field in the GroupContext so that it is confirmed that all members agree\r\n\r\nThat is, these attributes should follow the same general pattern as ciphersuites and versions, where the CIK advertises them (cf. #224) and the group picks and confirms.",
       "createdAt": "2019-10-02T09:09:31Z",
@@ -2452,8 +2452,8 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "performance",
-        "security"
+        "security",
+        "performance"
       ],
       "body": "At the 2019-10 interim, @psyoptix described some work to re-randomize the tree as updates happen:\r\n\r\n* Distribute `(Enc(r), g^r)` in Update/Commit message\r\n* Transform the recipient public key as `x -> x+r, g^x -> g^{x+r}`\r\n\r\nBenefits are roughly some better FS properties, to be described in a forthcoming ePrint.\r\n\r\nCosts:\r\n* Additional public key in `DirectPath`\r\n* Restriction to curves with homomorphic multiplication (in particular, X25519->Ristretto)\r\n* Possibly harder modeling",
       "createdAt": "2019-10-02T11:04:23Z",
@@ -2594,8 +2594,8 @@
       "authorAssociation": "MEMBER",
       "assignees": [],
       "labels": [
-        "performance",
-        "security"
+        "security",
+        "performance"
       ],
       "body": "Keeping cryptographic states for groups in which no members ever update is a problem because there is now a very large window of compromise for the session if it ever restarts updating. However, one could argue that recreating the group when the application needs it will reduce the PCS benefits we had from an ongoing session... Discuss.",
       "createdAt": "2019-11-18T18:51:16Z",
@@ -2771,8 +2771,8 @@
       "authorAssociation": "MEMBER",
       "assignees": [],
       "labels": [
-        "performance",
-        "privacy"
+        "privacy",
+        "performance"
       ],
       "body": "The current default strategy (add from left to right) doesn't allow for flexibility in forming optimized subgroups.\r\nIt also isn't super good for privacy: a newcomer should not be able to infer who is the creator of the group at epoch 0 from its position in the tree except when she is in the initial participants...",
       "createdAt": "2019-12-12T14:52:00Z",
@@ -2846,8 +2846,8 @@
       "assignees": [],
       "labels": [
         "enhancement",
-        "privacy",
-        "work in progress"
+        "work in progress",
+        "privacy"
       ],
       "body": "We can't really touch the ContentType because of the ordering constraints.\r\n\r\nWe could try to improve for the Epoch Number but loosing lexicographical ordering of the epoch numbers is a problem for transport loss + DS reordering.\r\n\r\nWe can definitely make sure that only group members can recognize the Group Identifier *across epochs* by generating the GID from the Key Schedule.\r\nWe also can do significantly better if we allow the DS to assist and modify the GID by deterministically blinding the GID with a pseudo random recipient ID. In that case seeing the GID after dispatching in the delivery queue will make it significantly more difficult to determine the group.\r\n\r\n\r\n\r\n",
       "createdAt": "2019-12-17T10:56:38Z",
@@ -2899,9 +2899,9 @@
       "authorAssociation": "MEMBER",
       "assignees": [],
       "labels": [
+        "work in progress",
         "discussion",
-        "functionality",
-        "work in progress"
+        "functionality"
       ],
       "body": "An application with meta knowledge of subgroups could optimize the placement of members, discuss if we want to either create a new group from an existing subgroup or have a send to sub-group function.",
       "createdAt": "2019-12-18T10:40:01Z",
@@ -2919,8 +2919,8 @@
       "authorAssociation": "MEMBER",
       "assignees": [],
       "labels": [
-        "discussion",
-        "performance"
+        "performance",
+        "discussion"
       ],
       "body": "`MLSPlaintextCommitContent` contains all of the Proposals that were previously sent within the same epoch. This seems unnecessary, since all members should have them anyway. The list of `PorposalIDs` in the actual `Commit` message should be enough for members to parse and validate a `Commit` message.\r\n\r\nWe should discuss if we can de-duplicate this, since the list of Proposals might be quite long.",
       "createdAt": "2019-12-18T15:21:36Z",
@@ -2953,8 +2953,8 @@
       "authorAssociation": "MEMBER",
       "assignees": [],
       "labels": [
-        "discussion",
-        "editorial"
+        "editorial",
+        "discussion"
       ],
       "body": "We relocated multiple pieces recently which causes the general structure of the document to feel a bit disordered, we need to do a minimal editorial restructure before releasing the next draft.\r\nChanging the depth of some sections might be enough...",
       "createdAt": "2019-12-20T15:48:48Z",
@@ -3141,8 +3141,8 @@
         "beurdouche"
       ],
       "labels": [
-        "functionality",
-        "work in progress"
+        "work in progress",
+        "functionality"
       ],
       "body": "",
       "createdAt": "2020-01-12T19:12:01Z",
@@ -3329,9 +3329,9 @@
       "authorAssociation": "MEMBER",
       "assignees": [],
       "labels": [
+        "privacy",
         "discussion",
-        "functionality",
-        "privacy"
+        "functionality"
       ],
       "body": "It might be interesting to have a mechanism to send targeted messages within a group. The recipient could either be a leaf node or an intermediary node (in which case you send the message to a subgroup).\r\nThere certainly is a need for that kind of functionality in some messengers (think read receipts that shouldn't be broadcasted to the whole group, etc.).\r\nA starting point could be:\r\n - KEM to the public leaf key and combine that with something from the key schedule for the first message\r\n - hash ratchet forward for subsequent messages within the same epoch (FS)\r\n - include the new freshness in the forward ratcheting after an epoch an change (does that mean we inherit PCS guarantees?)\r\n\r\nJust a thought for now but worth pursuing IMHO.",
       "createdAt": "2020-02-05T15:07:37Z",
@@ -3368,7 +3368,7 @@
         },
         {
           "author": "br-hale",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "body": "The coming PR for the key schedule change to allow ciphersuite upgrades also enables an option for group branching that may be a viable alternative for this. A group can use a PSK to upgrade, but it could also use it to re-initialize the group. In this vein, a PSK can be used to branch a group as well (enabling side conversations among nodes or subtrees that partially rely on the group state). \r\n\r\nThis is not quite the same, but would be an option using much of the current protocol infrastructure.\r\n\r\nNotably, such branching and side-messages that are linked to the group state do have potentially significant effects on PCS (by any of the ideas in this discussion and simply in general). While development of an option that could be enabled in the future would be good, the understanding of PCS security in various group structures is already tenuous at the moment. I would not recommend that we roll-out this as an option in the first protocol version. Cas, Konrad, and I started looking into PCS effects when side-chats among sub-trees were allowed (assuming the subtree is not treated as a separate group), and found the possible cross-effects of compromise between groups when this is enabled grew very quickly and unexpectedly.",
           "createdAt": "2020-03-29T23:01:12Z",
           "updatedAt": "2020-03-29T23:01:12Z"
@@ -3408,9 +3408,9 @@
         "Bren2010"
       ],
       "labels": [
-        "performance",
         "question",
-        "security"
+        "security",
+        "performance"
       ],
       "body": "Earlier, we had considered a \"masking\" approach for sender data, much like QUIC does for [encrypting packet sequence numbers](https://github.com/quicwg/base-drafts/blob/master/draft-ietf-quic-tls.md#header-protection-header-protect).  This approach would save 28 bytes of overhead (nonce + tag), but was abandoned because of uncertainty around the security of the masking approach.\r\n\r\nSince then, Bellare et al. published [\"Nonces are Noticed\"](https://eprint.iacr.org/2019/624.pdf), which includes what is effectively a proof of the security properties of the QUIC scheme.  The QUIC scheme is essentially scheme HN1 of the paper, the main difference being that QUIC encrypt not the nonce directly, but a packet number which is used to compute the nonce.  Our application would be similar, since we would encrypt metadata used to encrypt the key and the nonce.\r\n\r\nGiven this new analysis, is it time to bring back masking?",
       "createdAt": "2020-02-06T17:51:16Z",
@@ -3520,8 +3520,8 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "analysis",
-        "question"
+        "question",
+        "analysis"
       ],
       "body": "It doesn't seem like the `Derive-Secret` step between the `early_secret` and the `epoch_secret` is helping anything.  Could we remove it?\r\n\r\n```\r\n    PSK (or 0) -> HKDF-Extract = early_secret\r\n                     |\r\n                     V\r\ncommit_secret -> HKDF-Extract = epoch_secret\r\n```",
       "createdAt": "2020-03-26T15:01:29Z",
@@ -3551,7 +3551,7 @@
         },
         {
           "author": "br-hale",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "body": "Konrad and I have a draft PR for a number of changes, mostly relating to version upgrades (with group branching support considered if we want that feature in the future). \r\n\r\nAdditional: derive authentication secret per-epoch separate from exporter key (i.e. secrets used in and for the protocol should be derived separately from secrets used beyond the protocol). \r\nTL:DR on IETF 104 presentation and other PCS work: authentication secrets can be used either for detection of an active MitM following signature key compromise or simply AS compromise, or in replacement of a TTP.",
           "createdAt": "2020-03-29T22:46:04Z",
           "updatedAt": "2020-03-29T22:46:04Z"
@@ -3593,7 +3593,7 @@
         },
         {
           "author": "br-hale",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "body": "> Integrate context information at specific places, and then just use a hash directly (instead of HKDF) wherever possible....\r\n> We can generate the bulk of the tree with a hash, and still use HKDF for the chain at the leaves of the ASTree. \r\n\r\nA hash is definitely not enough for a key derivation. Just a quick look at the research should be enough to make that statement convincing. There is a reason why we use a KDF for key derivation to achieve sufficient pseudorandomness, and switching it out with a hash as a quick fix will be asking for problems down the line. If we use just a hash, then the output should NOT be called a secret or used as a key, as a general rule (exceptions depending on input). \r\n\r\nAs to removing context from the key derivation: I think that there is an underlying assumption being presented in the argument for removal that the remaining inputs are unique and tied sufficiently to individual nodes already. Hopefully this is the case, but there is no guarantee. Consequently the result of removing them is not simply that proofs may become more difficult, but that the ensuing reductions (for computational proofs) may become less tight. In (quite loose) terms, this means that there are more conditions on the contexts in which security is achieved, and increased possibilities for breaking it.",
           "createdAt": "2020-04-01T16:04:14Z",
           "updatedAt": "2020-04-01T16:04:14Z"
@@ -3607,7 +3607,7 @@
         },
         {
           "author": "br-hale",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "body": ">People have been complaining about the difficulty of proving properties of the key schedule the whole time the wg has existed, trying to make it more expensive and materially less secure, to simplify proofs. In reality, it's one of the few \"obviously secure\" parts of the protocol and there are still vulnerabilities elsewhere. Proof efforts should be directed to parts of the protocol that are actually difficult for humans to reason about.\r\n\r\nI agree with the assessment that there are many potential vulnerabilities elsewhere that need focus. However, the above statement not only lacks core reasoning on the problem, but indicates misunderstanding of analysis methods and results. You are making an _ad hominem_ argument for ignoring what could have serious implications. See my comment above about tightness of security reductions, which you did not address. Tightness is not about ease of proof, it is about what claims can be proven. Your changes will likely have an effect on that. \r\n\r\n>I think it's very fair to assume that a secure hash function is a random oracle. HKDF is just the output of a hash. \r\n\r\nOK, but a decade of cryptographic research disagrees with that general statement. Making wide claims about what you _think_ should be _assumed_ does not progress the decision; it would be helpful if you founded your argument instead on the what the exact inputs are to the different hash uses (and there is a difference based on node height) and explain why you think there is sufficient randomness in the input to not use a KDF. \r\n\r\nNo one so far has said your suggestion is wrong, only that you have not put forth any supporting arguments, i.e. Konrad's comment:\r\n>And I'm not sure there is solid basis to assume that the output of a hash function is indeed a pseudorandom string. If there was, I'd be happy to agree to just replace all HKDF-Expand calls with hash function calls.\r\n\r\nIt is in everyone's interest to progress with decisions as scientifically as possible, with descriptive, shared reasoning behind changes - especially ones that have the potential to affect the randomness of keys - and without taking requests for justification personally. \r\n\r\nGiven the extended discussion on this issue, I suggest that it be moved to an interim meeting where it can be given appropriate attention. Engaging further in a git issue thread on the topic is unlikely to achieve satisfactory results, and it clearly warrants further attention.",
           "createdAt": "2020-04-01T18:38:47Z",
           "updatedAt": "2020-04-01T18:40:21Z"
@@ -3654,7 +3654,7 @@
         },
         {
           "author": "br-hale",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "body": "Second that. \r\nAlso, the PSK ID should be linked to the epoch (or similarly identifiable) such that it is clear what current state is associated with the PSK being used (such as which members have access to the PSK in cases of reinitializing after breaks in group state, branching, etc.). ",
           "createdAt": "2020-03-29T22:28:48Z",
           "updatedAt": "2020-03-29T22:28:48Z"
@@ -3713,8 +3713,8 @@
       "authorAssociation": "MEMBER",
       "assignees": [],
       "labels": [
-        "functionality",
-        "performance"
+        "performance",
+        "functionality"
       ],
       "body": "I remember we discussed this in the past, but I don't think we ever spec'ed this out fully:\r\n\r\nRight now the whole tree is part of `GroupInfo` (which in turn is part of `Welcome`). This can grow quite big in large groups (~17MB with 100k members with the MTI). The practical limitations are:\r\n\r\n - The TLS representation of the tree is hard to parse efficiently (no skipping and no a priori information of how many nodes are in the tree)\r\n - Out-of-band transmission (like server assist) is not possible\r\n - Large messages like that are hard to handle on mobile devices, when they have to be downloaded in the background\r\n\r\nWe should introduce an indirection, like a commit hash of the tree.",
       "createdAt": "2020-06-02T15:26:56Z",
@@ -3729,7 +3729,7 @@
       "url": "https://github.com/mlswg/mls-protocol/issues/346",
       "state": "CLOSED",
       "author": "br-hale",
-      "authorAssociation": "NONE",
+      "authorAssociation": "CONTRIBUTOR",
       "assignees": [],
       "labels": [],
       "body": "This issue is to start a discussion thread on the suggestion made by Chris Wood under PR #336. The suggestion is not directly related to #336, so is listed here for discussion (some discussion already appears there):\r\n\r\n`chris-wood:\r\nAre \"external\" PSKs fixed? Would it make sense for them to also include an epoch, to allow applications to roll them forward for some FS?`\r\n\r\nCurrent considerations: \r\n1) Is this a use case worth addressing for MLS (i.e. taking in an external PSK and then maintaining it in sync to protocol ratcheting)?\r\n2) If so, is it sufficiently critical to be part of the protocol, or sufficiently peripheral to be discussed in the architecture?",
@@ -3952,9 +3952,9 @@
       "authorAssociation": "CONTRIBUTOR",
       "assignees": [],
       "labels": [
-        "discussion",
+        "enhancement",
         "editorial",
-        "enhancement"
+        "discussion"
       ],
       "body": "https://github.com/mlswg/mls-protocol/issues/21\r\n\r\nIn the current protocol draft:\r\n```\r\n<!-- OPEN ISSUE: It is not possible for the recipient of a handshake\r\nmessage to verify that ratchet tree information in the message is\r\naccurate, because each node can only compute the secret and private\r\nkey for nodes in its direct path.  This creates the possibility\r\nthat a malicious participant could cause a denial of service by sending a\r\nhandshake message with invalid values for public keys in the ratchet\r\ntree. -->\r\n```\r\n\r\nUnless I overlooked it, the current draft seems to be also missing a \"simple\" DoS case where a handshake message could omit / malform some `DirectPathNode` (e.g. by having an empty ciphertext or invalid kem_output) -- this should be easily detectable (either by members themselves or if handshake messages are transmitted as MLSPlaintext, the delivery service could reject that).\r\n\r\nFor that originally discussed case, I guess the sketched out solution with a \"Nack\" message containing a DLEQ proof could work. Besides the drawbacks described there, one will also need to extend HPKE definitions to allow for this \"directly decrypt from the revealed shared secret\" use case. ",
       "createdAt": "2020-07-27T04:04:21Z",
@@ -4836,7 +4836,7 @@
       "url": "https://github.com/mlswg/mls-protocol/issues/485",
       "state": "CLOSED",
       "author": "rohan-wire",
-      "authorAssociation": "NONE",
+      "authorAssociation": "CONTRIBUTOR",
       "assignees": [],
       "labels": [],
       "body": "Many protocols which have an extensibility mechanism have a way to indicate that understanding an extension is mandatory for certain behaviors. For MLS, this would mean having a way to require a member understand an MLS extension before it can join a group. The three extension types defined currently are: \r\n MLS ciphersuites, \r\n MLS extension types, and \r\n MLS credential types. \r\n\r\nOne logical way to add mandatory extensions would be to pick one of these types (the MLS extensions type) and use the high order bit or a specific range to indicate that a member must understand and implement the extension to join a group which uses that extension. The IANA values could be changed as follows:\r\n\r\nValues from 0x8000-0xffff indicate understanding the extension is required\r\n0x7f00 - 0x7fff  Reserved for Private Use (not required)\r\n0xff00 - 0xfff   Reserved for Private Use (required)\r\n\r\nIf a required ciphersuite or credential becomes necessary, a new extension type could be created to add an extension in the KeyPackage or GroupInfo which would be required and would indicate support for the mandatory ciphersuites or credentials.\r\n\r\nIn order to prevent some other entity from adding an MLS client that does not support a mandatory extension, we already have the KeyPackage Client Capabilities, which lists which extensions are supported by the client. \r\n\r\n",
@@ -4853,7 +4853,7 @@
         },
         {
           "author": "rohan-wire",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "body": "While you can implement this \"out-of-band\", that makes it implicit rather than explicit behavior.",
           "createdAt": "2021-10-04T14:41:57Z",
           "updatedAt": "2021-10-04T14:41:57Z"
@@ -4867,7 +4867,7 @@
         },
         {
           "author": "rohan-wire",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "body": "Discussed with @bifurcation and incorporated this functionality into PR #489  ",
           "createdAt": "2021-10-05T07:52:18Z",
           "updatedAt": "2021-10-05T07:52:18Z"
@@ -12186,7 +12186,7 @@
       "comments": [
         {
           "author": "suhasHere",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "body": "I feel this is  very useful to have in the draft for implementors. What should be the plan to merge it ? @bifurcation ",
           "createdAt": "2018-09-13T22:24:43Z",
           "updatedAt": "2018-09-13T22:24:43Z"
@@ -12509,10 +12509,10 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "functionality",
-        "performance",
+        "security",
         "privacy",
-        "security"
+        "performance",
+        "functionality"
       ],
       "body": "This PR contains several changes that I just wanted to get in for the IETF 102 deadline.\r\n\r\n* Add TreeKEM as an option (leveraging some Beurdouche work)\r\n* Refactor GroupAdd to always do \"simulated UserAdd\"\r\n* Delete -> Remove\r\n",
       "createdAt": "2018-07-02T22:29:26Z",
@@ -12610,10 +12610,10 @@
       "authorAssociation": "MEMBER",
       "assignees": [],
       "labels": [
-        "functionality",
-        "performance",
+        "security",
         "privacy",
-        "security"
+        "performance",
+        "functionality"
       ],
       "body": "This is one of the options regarding Message Protection discussed in Montreal...",
       "createdAt": "2018-07-16T16:25:35Z",
@@ -14033,8 +14033,8 @@
         "bifurcation"
       ],
       "labels": [
-        "functionality",
-        "security"
+        "security",
+        "functionality"
       ],
       "body": "I would like to remove the UserAdd functionality that's in the current document, and the GroupInitKey construct that supports it.  We will need to support a flow where a device can join without an explicit invite.  But that mechanism will also have to be limited,  since it leaks information out of the group.  It will be cleaner to get a GroupAdd-only system working first, then figure out how to add this back in.",
       "createdAt": "2018-09-10T19:54:42Z",
@@ -14059,7 +14059,7 @@
             "abbreviatedOid": "223aa99"
           },
           "author": "suhasHere",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "state": "COMMENTED",
           "body": "",
           "createdAt": "2018-09-11T02:31:33Z",
@@ -14079,7 +14079,7 @@
             "abbreviatedOid": "223aa99"
           },
           "author": "suhasHere",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "state": "COMMENTED",
           "body": "",
           "createdAt": "2018-09-11T02:35:44Z",
@@ -14099,7 +14099,7 @@
             "abbreviatedOid": "223aa99"
           },
           "author": "suhasHere",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "state": "APPROVED",
           "body": "Small claritifcation questions .. otherwise LGTM\r\n\ud83d\udc4d ",
           "createdAt": "2018-09-11T02:37:03Z",
@@ -14160,8 +14160,8 @@
         "bifurcation"
       ],
       "labels": [
-        "functionality",
-        "security"
+        "security",
+        "functionality"
       ],
       "body": "This PR reflects a concrete scheme on top of #58 that implements the authentication framework discussed on the list recently.  There are a few major changes:\r\n\r\n* Defines a `GroupState` structure that is incorporated into the key schedule and signatures\r\n* Adds a `Welcome` message that provisions a new member with roster and tree information\r\n* Removes the Merkle tree over group identities (and related definitions), since all participants now keep the full roster",
       "createdAt": "2018-09-10T21:06:48Z",
@@ -14292,7 +14292,7 @@
             "abbreviatedOid": "95f121c"
           },
           "author": "suhasHere",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "state": "COMMENTED",
           "body": "",
           "createdAt": "2018-09-11T03:58:15Z",
@@ -14312,7 +14312,7 @@
             "abbreviatedOid": "95f121c"
           },
           "author": "suhasHere",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "state": "APPROVED",
           "body": "I  think the overall direction seems good. Have few nits overall , but given we will be discussing the content at the interim , LGTM",
           "createdAt": "2018-09-11T14:21:55Z",
@@ -14758,8 +14758,8 @@
       "authorAssociation": "MEMBER",
       "assignees": [],
       "labels": [
-        "recommendation",
-        "security"
+        "security",
+        "recommendation"
       ],
       "body": "",
       "createdAt": "2018-09-19T17:12:06Z",
@@ -14817,9 +14817,9 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "functionality",
+        "security",
         "performance",
-        "security"
+        "functionality"
       ],
       "body": "This matches the behavior in TLS, and saves space (due to not having to send the nonce).",
       "createdAt": "2018-09-19T22:02:25Z",
@@ -14951,10 +14951,10 @@
       "authorAssociation": "MEMBER",
       "assignees": [],
       "labels": [
-        "? follow-up",
-        "functionality",
+        "security",
         "performance",
-        "security"
+        "functionality",
+        "? follow-up"
       ],
       "body": "By discussing with MSR, I realized that some NIST PQ candidates can't be used easily by TLS because signatures can be bigger that `2^16` bytes.\r\n\r\nSince we already consume a lot for bandwidth, I am not concerned at all about two more bytes to encode the length of signatures on each ciphertext so I suggest we move to `opaque signature <0..2^32-1>` instead to be future-proof.\r\n",
       "createdAt": "2018-09-21T09:31:13Z",
@@ -15018,9 +15018,9 @@
       "authorAssociation": "NONE",
       "assignees": [],
       "labels": [
-        "? follow-up",
         "enhancement",
-        "security"
+        "security",
+        "? follow-up"
       ],
       "body": "[Mailing List Post](https://mailarchive.ietf.org/arch/msg/mls/gvszahIKpQ5CYJG-ARwi9MGURGo)",
       "createdAt": "2018-09-26T21:34:33Z",
@@ -15143,8 +15143,8 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "functionality",
-        "security"
+        "security",
+        "functionality"
       ],
       "body": "There was agreement at the MLS interim of September 2018 to focus further development on TreeKEM, not ART.  This PR implements that change.",
       "createdAt": "2018-10-01T17:26:16Z",
@@ -15660,8 +15660,8 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "functionality",
-        "security"
+        "security",
+        "functionality"
       ],
       "body": "At the MLS interim, the major feedback regarding authentication was that it would be good practice to provide explicit key confirmation.  This PR adds an explicit confirmation field to Handshake messages, containing a MAC over the proposed (updated) state of the group, together with the latest handshake message.",
       "createdAt": "2018-10-19T17:32:38Z",
@@ -15832,8 +15832,8 @@
       "assignees": [],
       "labels": [
         "enhancement",
-        "privacy",
-        "security"
+        "security",
+        "privacy"
       ],
       "body": "There is no reason for the members of a conversation to keep the whole history of group operations, but they should agree on it.",
       "createdAt": "2018-10-19T17:56:23Z",
@@ -15877,8 +15877,8 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "performance",
-        "recommendation"
+        "recommendation",
+        "performance"
       ],
       "body": "Add note that new clients should send an update to preserve efficiency of the protocol.",
       "createdAt": "2018-10-21T20:08:30Z",
@@ -16061,8 +16061,8 @@
       "labels": [
         "bug",
         "editorial",
-        "privacy",
-        "security"
+        "security",
+        "privacy"
       ],
       "body": "This PR addresses two outstanding issues with Welcome messages:\r\n\r\n1. Welcome messages were not encrypted for the new member, so that the information in them (in particular, init secrets) were not appropriately protected.\r\n\r\n2. The protocol overview had not been updated to include the Welcome-based add flow.",
       "createdAt": "2018-12-22T17:32:51Z",
@@ -16726,8 +16726,8 @@
       "authorAssociation": "MEMBER",
       "assignees": [],
       "labels": [
-        "? follow-up",
-        "functionality"
+        "functionality",
+        "? follow-up"
       ],
       "body": "DO NOT MERGE: Work in Progress\r\n\r\nDiscussion: Is this how we should define a ciphersuite -> (KEM,SYM,SIG,HASH) ?",
       "createdAt": "2019-01-22T23:26:03Z",
@@ -17942,8 +17942,8 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "functionality",
-        "security"
+        "security",
+        "functionality"
       ],
       "body": "As discussed on the list, this PR replaces the explicit tree and roster inputs to the key schedule with a \"tree hash\" construct.\r\n\r\n@beurdouche - Given this, do you think we need to keep the `transcript_hash` field around?  It seems like in TLS and similar, the transcript hash is there to ensure that the parties agree on things like identities, but we're encoding all that explicitly.\r\n\r\nFixes #90 ",
       "createdAt": "2019-03-06T09:20:45Z",
@@ -18637,8 +18637,8 @@
       "authorAssociation": "MEMBER",
       "assignees": [],
       "labels": [
-        "functionality",
-        "security"
+        "security",
+        "functionality"
       ],
       "body": "Initial attempt to solve #129. This defines the KDF as discussed in #129 and relocates the DH computation obligation and verification as part of the Derive-Key-Pair function definition.",
       "createdAt": "2019-03-11T11:33:02Z",
@@ -19021,8 +19021,8 @@
       "authorAssociation": "CONTRIBUTOR",
       "assignees": [],
       "labels": [
-        "performance",
-        "security"
+        "security",
+        "performance"
       ],
       "body": "Basic idea: \r\n - Application Key Schedule consists of a left balanced binary tree of secrets (the \"AS Tree\") and one symmetric ratchet per group member. The AS Tree has the same node/edge structure as the ratchet tree for that epoch. Members are assigned the same leaves.\r\n\r\n- Each node in the AS Tree is assigned a secret. The root's secret = application_secret. The secrets of children are derived from that of their parent.\r\n\r\n- The secret of a leaf is the initial secret of a symmetric hash ratchet. The ratchet generates the key/nonce sequence used by the leaf's group member to encrypt messages during that epoch.\r\n\r\n\r\n\r\nOther comments:\r\n- I included a \"Deletion Schedule\": keys, nonces are 'consumed' if they are used to encrypt or successfully decrypt a message. secrets are 'consumed' if value derived from it is consumed. Any consumed value must be immediately deleted for reasons of forward secrecy. \r\n\r\n- I was very generous with contexts for all calls to HKDF. E.g. I included Hash(GroupState_[n]) in the context of every call to HKDF. True, I dont think its neccesary to prove security against more coarse adversarial models (e.g. that only do all-or-nothing state leakage). Still, as a matter of the \"defense in depth\" principle I think including as much relevant context as possible during all key/secret derivation is a good idea. Albeit only as long as the price (in computation, complexity, etc) is not to high. To that end, I purposefully use Hash(GroupState_[n]) in the context as it is short, needs only to be computed once at the start of the epoch and can then be used to very cheaply to construct all contexts needed for the rest of the new application key schedule.\r\n\r\n- Disclaimer: I'm a bit of a noob when it comes to Markdown, RFCs and github so forgive me (and tell me!) if I've done something wrong here.\r\n\r\nCo-contributors: Benjamin Beurbouche, Sandro Coretti, Yevgeniy Dodis,",
       "createdAt": "2019-04-12T13:49:51Z",
@@ -19552,8 +19552,8 @@
       "authorAssociation": "CONTRIBUTOR",
       "assignees": [],
       "labels": [
-        "recommendation",
-        "security"
+        "security",
+        "recommendation"
       ],
       "body": "Adding this check would be the first step in recognizing that an Update operation may have maliciously excluded a person from the group.",
       "createdAt": "2019-04-17T19:57:16Z",
@@ -19779,8 +19779,8 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "? follow-up",
-        "privacy"
+        "privacy",
+        "? follow-up"
       ],
       "body": "As discussed on the mailing list, further reduces the ability of the Delivery Service to infer what's going on in the group.",
       "createdAt": "2019-04-23T14:58:25Z",
@@ -20008,10 +20008,10 @@
       "authorAssociation": "MEMBER",
       "assignees": [],
       "labels": [
-        "functionality",
-        "performance",
+        "security",
         "privacy",
-        "security"
+        "performance",
+        "functionality"
       ],
       "body": "This PR is updates Richard's changes with a few adjustments:\r\n\r\n- Merge master;\r\n- Fix missing definition to derive key/nonce used for encryption of Handshake messages;\r\n- Delete the \"remove_confirmation\" function for simplicity. It has a very low cost anyway;\r\n- Revert to having the GID and the epoch in the clear, otherwise there is a need for a magic channel to communicate it to the recipient. We can eventually do it but this should be discussed seriously in Berlin;\r\n- Revert the masking of the content type, (keeps masking for sender and generation) otherwise it seem to force plaintext OR the Delivery Service to have access to the sender_data_secret. It seem impossible to only order Handshake messages otherwise.",
       "createdAt": "2019-04-30T18:59:46Z",
@@ -20290,9 +20290,9 @@
       "authorAssociation": "MEMBER",
       "assignees": [],
       "labels": [
-        "functionality",
+        "security",
         "performance",
-        "security"
+        "functionality"
       ],
       "body": "Fixes #162 ",
       "createdAt": "2019-05-17T08:07:38Z",
@@ -21208,8 +21208,8 @@
       "assignees": [],
       "labels": [
         "bug",
-        "functionality",
-        "security"
+        "security",
+        "functionality"
       ],
       "body": "Prior drafts enabled encryption of handshake messages, via the common framing structure.  This had the unfortunate effect of making it impossible to add new members!  If an Add is sent encrypted, then the new joiner had no way to get the key to decrypt it.\r\n\r\nThis PR adds the key and nonce for the Add encryption to the corresponding WelcomeInfo structure.  This maintains the confidentiality of the Add because the WelcomeInfo is encrypted to the new joiner, while providing the new joiner the key material it needs to decrypt the Add.",
       "createdAt": "2019-07-08T13:59:06Z",
@@ -21963,7 +21963,7 @@
       "baseRepository": "mlswg/mls-protocol",
       "baseRefName": "master",
       "baseRefOid": "3fead6a16cc806916b2518c4190ef66cc2d25d69",
-      "headRepository": "seanieb/mls-protocol",
+      "headRepository": null,
       "headRefName": "patch-1",
       "headRefOid": "9743c0e671eb1c18894703f18aff1e44d9ce5b94",
       "closedAt": "2019-08-13T13:10:54Z",
@@ -21993,8 +21993,8 @@
       "authorAssociation": "MEMBER",
       "assignees": [],
       "labels": [
-        "functionality",
-        "security"
+        "security",
+        "functionality"
       ],
       "body": "",
       "createdAt": "2019-08-13T13:10:05Z",
@@ -22164,9 +22164,9 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "functionality",
+        "security",
         "performance",
-        "security"
+        "functionality"
       ],
       "body": "This PR attempts to implement the \"non-destructive add\" proposal discussed at IETF 105.  Instead of blanking nodes on add, we keep track of \"unmerged leaves\" below each intermediate node.  This involves a bit more complexity in the tree state that is passed around, but avoids unnecessary blank nodes.",
       "createdAt": "2019-08-19T19:01:28Z",
@@ -22435,8 +22435,8 @@
       "authorAssociation": "CONTRIBUTOR",
       "assignees": [],
       "labels": [
-        "functionality",
-        "privacy"
+        "privacy",
+        "functionality"
       ],
       "body": "[As previously discussed](https://mailarchive.ietf.org/arch/msg/mls/jB5ygAJs3P8TLkduj6Q9vFWmSJI), this is a proposal to add AAD to the application messages.\r\n\r\nThere are many motivations to do this:\r\n\u2022 It's a 'cheap' feature to add (although it could potentially be misused)\r\n\u2022 It avoids duplicate content: if there is a content that needs to be authenticated, but also needs to be visible to the server, the only solution today is to repeat it in the header (to the server) and then in the encrypted body.\r\n\u2022 Modern ciphers already provide support for AAD, and MLS takes advantage of this. In fact most(all?) of the fields in the header are authenticated already.\r\n\u2022 This field is optional(as in: can be empty), which means that it doesn't have to be used in the implementation.\r\n\r\nThe primary benefit is for the server to have access to the fields that are otherwise authenticated, but are not part of MLS message. Typically, the server has another encryption mechanism with the client (e.g. TLS) and as such client-server communication is already secure. As a matter of fact, handshake messages can already be transported in plaintext (in case server needs to examine their content), but application messages are not allowed to have any plaintext content, even though server may need to examine some metadata as well.\r\n\r\nA couple of thoughts that may be worth discussing: \r\n* what should be the max size of authenticated_data (I assumed 32KB, just like application message)\r\n* whether *authenticated data* should be offered only as part of *application*, or both *handshake message* and *application message*. It is fair to consider it only for an *application message*, though for simplicity I added it to both message types. Happy to change it based on general preferences.",
       "createdAt": "2019-09-16T14:08:37Z",
@@ -22683,8 +22683,8 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "functionality",
-        "security"
+        "security",
+        "functionality"
       ],
       "body": "This PR implements the proposal discussed in Prague and on the mailing list, to separate GroupOperations into Proposals and Commits.  This change leaves the underlying ratchet tree operations untouched, but changes how these operations are folded into the overall key schedule.\r\n\r\nThis is also a fairly initial effort, with several OPEN ISSUEs noted.  The most important IMO is that we should allow a single MLSPlaintext to pack one or more Proposals along with a Commit, which makes it simpler to emulate the current behavior, and might allow us to get rid of the Init message.",
       "createdAt": "2019-09-18T22:07:05Z",
@@ -23193,8 +23193,8 @@
       "authorAssociation": "MEMBER",
       "assignees": [],
       "labels": [
-        "recommendation",
-        "security"
+        "security",
+        "recommendation"
       ],
       "body": "This has been reported unclear multiple times. I strongly prefer forbidding reuse altogether.\r\nA validation mechanism is needed for the formal security proof, it can be implemented according to an expiration mechanism (see Architecture - 4.2.  Delivery Service Compromise)",
       "createdAt": "2019-10-01T05:52:10Z",
@@ -23292,9 +23292,9 @@
       "authorAssociation": "MEMBER",
       "assignees": [],
       "labels": [
-        "functionality",
         "security",
-        "work in progress"
+        "work in progress",
+        "functionality"
       ],
       "body": "2020/03/04 - Will be resolved by the next interim",
       "createdAt": "2019-10-01T06:17:00Z",
@@ -23442,8 +23442,8 @@
       "authorAssociation": "MEMBER",
       "assignees": [],
       "labels": [
-        "recommendation",
-        "security"
+        "security",
+        "recommendation"
       ],
       "body": "I couldn't find this written anywhere else and this is also related to a discussion about PCS with Cas and al.",
       "createdAt": "2019-10-01T08:03:35Z",
@@ -23566,8 +23566,8 @@
       "authorAssociation": "MEMBER",
       "assignees": [],
       "labels": [
-        "recommendation",
-        "security"
+        "security",
+        "recommendation"
       ],
       "body": "",
       "createdAt": "2019-10-04T18:55:21Z",
@@ -23661,8 +23661,8 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "functionality",
-        "security"
+        "security",
+        "functionality"
       ],
       "body": "Fixes #223 \r\n\r\nDiscussion of security analysis in the issue.",
       "createdAt": "2019-10-09T21:04:28Z",
@@ -23712,8 +23712,8 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "functionality",
-        "security"
+        "security",
+        "functionality"
       ],
       "body": "Fixes #224 ",
       "createdAt": "2019-10-09T21:19:51Z",
@@ -23798,8 +23798,8 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "functionality",
-        "security"
+        "security",
+        "functionality"
       ],
       "body": "This PR makes two major changes that are enabled by Proposals:\r\n\r\n* Multiple participants added in the same epoch receive the same Welcome message\r\n* Init is always a special case of Add\r\n\r\nPrior to Proposals, treating Init as a special case of Add led to a performance degradation (`n -> n log n`).  With Proposals, any number of Adds can be done with a single Commit (at `O(n)` cost), so there is no more degradation.  The result seems (IMO) much more elegant than before.\r\n\r\nThe main cost is that encryption of Welcome messages is now in two stages (three if you include the internal HPKE stage!), even if there is only one new member.\r\n\r\nDepends on #209 \r\nObsoletes #192 and #194 ",
       "createdAt": "2019-11-11T23:45:26Z",
@@ -23893,8 +23893,8 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "functionality",
-        "security"
+        "security",
+        "functionality"
       ],
       "body": "Depends on #209 \r\nFixes #104 ",
       "createdAt": "2019-11-12T00:38:48Z",
@@ -24115,8 +24115,8 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "privacy",
-        "work in progress"
+        "work in progress",
+        "privacy"
       ],
       "body": "This allows for forks in the group history.",
       "createdAt": "2019-11-14T19:12:28Z",
@@ -24406,8 +24406,8 @@
       "authorAssociation": "MEMBER",
       "assignees": [],
       "labels": [
-        "functionality",
-        "security"
+        "security",
+        "functionality"
       ],
       "body": "This is for injection of out-of-band shared entropy.",
       "createdAt": "2019-11-18T19:06:32Z",
@@ -24604,8 +24604,8 @@
       "authorAssociation": "MEMBER",
       "assignees": [],
       "labels": [
-        "functionality",
-        "security"
+        "security",
+        "functionality"
       ],
       "body": "",
       "createdAt": "2019-11-18T22:27:04Z",
@@ -25151,8 +25151,8 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "? follow-up",
-        "bug"
+        "bug",
+        "? follow-up"
       ],
       "body": "I have managed to implement Proposal / Commit in mlspp, but it required some modifications to the Welcome and Commit structs and processes.  Two major things to point out:\r\n\r\n* This PR proposes to send the same DirectPath to both new members and current members.  This avoids the need to have two code paths and special tree math to implant path secrets, at the cost of some bloat in the Welcome and Commit messages.\r\n\r\n* As a result, the sequencing of GroupContexts is a bit tricky.  The GroupContext used for encrypting/decrypting DirectPaths is an intermediate context -- the new group context, but *before the transcript is updated*.  \r\n\r\nAll that said, this version is [verified implementable](https://github.com/cisco/mlspp/pull/64).  The implementation exercise highlighted that the net effect of Proposal/Commit was to isolate basically all of the state management complexity to three methods in the client stack:\r\n\r\n* Processing of Welcome messages\r\n* Generation of Commit+Welcome messages\r\n* Processing of Commit messages\r\n\r\nThis PR reflects the algorithms for those three things.",
       "createdAt": "2019-12-11T15:16:43Z",
@@ -25303,10 +25303,10 @@
       "authorAssociation": "MEMBER",
       "assignees": [],
       "labels": [
-        "? follow-up",
         "enhancement",
         "security",
-        "work in progress"
+        "work in progress",
+        "? follow-up"
       ],
       "body": "This is a fix for #264 as well as for missing context that was previously partially added in the messages but not in the Tree intermediate derivations.\r\n\r\nThe changes are centered around putting back the `transcript_hash` (aka the full history) to be what should be included as default context.",
       "createdAt": "2019-12-20T16:31:13Z",
@@ -25395,8 +25395,8 @@
       "assignees": [],
       "labels": [
         "enhancement",
-        "ready to merge",
-        "security"
+        "security",
+        "ready to merge"
       ],
       "body": "",
       "createdAt": "2019-12-20T16:48:44Z",
@@ -26375,9 +26375,9 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
+        "security",
         "discussion",
-        "functionality",
-        "security"
+        "functionality"
       ],
       "body": "",
       "createdAt": "2020-01-03T17:27:54Z",
@@ -26413,10 +26413,10 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "discussion",
+        "security",
         "privacy",
-        "ready to merge",
-        "security"
+        "discussion",
+        "ready to merge"
       ],
       "body": "The current draft uses a hash ratchet to derive single-use keys for application messages, but for handshake messages, re-uses the same key with a sequence of different nonces.  This results in a lot of unnecessary extra code.\r\n\r\nThis PR uses the same hash ratchet for handshake and application messages.  The only difference is in the base key for the hash ratchet.  In the application case, we use the AStree.  In the HS case, we derive the base keys directly from the handshake secret.  The lack of a tree in the HS case means that either the client will do a linear number of derivations on the first send/receive, or it will keep the handshake secret around and not get FS for handshake messages within the epoch.",
       "createdAt": "2020-01-03T17:57:34Z",
@@ -26690,11 +26690,11 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "discussion",
         "enhancement",
+        "security",
         "performance",
-        "ready to merge",
-        "security"
+        "discussion",
+        "ready to merge"
       ],
       "body": "",
       "createdAt": "2020-01-06T07:38:36Z",
@@ -27155,8 +27155,8 @@
       "assignees": [],
       "labels": [
         "editorial",
-        "functionality",
-        "security"
+        "security",
+        "functionality"
       ],
       "body": "Extensions in the CIK were only half of the story.  To do things like RTreeKEM or fork/merge as extensions, we need the ability to (1) tell new members that the group is doing something different, and (2) confirm that all group members have the same view of the rules of the road.  This PR adds extensions to the GroupInfo object for the first case, and to the Welcome object for the second, and a bunch of explanatory text to make it all work.\r\n\r\nOne thing this PR does *not* do is define a way to change extensions in a running group.  You could in principle do this by sending new extensions in Commit that could overwrite or add to extensions.  But that entails some messy questions (how do you delete an extension in use?), so it is currently left to an extension (heh), or to a group restart.\r\n\r\nDepends on #295 to avoid conflicts in GroupInfo changes.",
       "createdAt": "2020-02-05T01:59:30Z",
@@ -27539,8 +27539,8 @@
       "authorAssociation": "CONTRIBUTOR",
       "assignees": [],
       "labels": [
-        "? invalid",
-        "editorial"
+        "editorial",
+        "? invalid"
       ],
       "body": "This PR changes the variable name `HkdfLabel` to `HKDFLabel` in order to match the previously used naming conventions.",
       "createdAt": "2020-02-10T10:35:34Z",
@@ -27758,8 +27758,8 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "discussion",
-        "performance"
+        "performance",
+        "discussion"
       ],
       "body": "With any AEAD, the nonce is necessarily already authenticated. Also, the name of the struct was changed to be more clear.",
       "createdAt": "2020-02-27T21:50:24Z",
@@ -27779,7 +27779,7 @@
       "comments": [
         {
           "author": "br-hale",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "body": "Does this force use of an implicit nonce such as in TLS, vice an explicit nonce such as in DTLS?",
           "createdAt": "2020-03-02T21:22:12Z",
           "updatedAt": "2020-03-02T21:22:12Z"
@@ -28241,8 +28241,8 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "analysis",
-        "discussion"
+        "discussion",
+        "analysis"
       ],
       "body": "This is more friendly with recursive implementations of Ratchet Trees and is more similar to the construction used in similar places, like RFC 6962.",
       "createdAt": "2020-03-10T23:18:09Z",
@@ -28397,8 +28397,8 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "editorial",
-        "enhancement"
+        "enhancement",
+        "editorial"
       ],
       "body": "",
       "createdAt": "2020-03-28T17:34:39Z",
@@ -28416,7 +28416,7 @@
       "comments": [
         {
           "author": "yihuang",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "body": "```\r\nThe basic rule is that the high-order bits of parent and child nodes have the\r\nfollowing relation (where x is an arbitrary bit string):\r\n\r\n    parent=01x => left=00x, right=10x\r\n```\r\n\r\nI think it should change like this: \"where x is an arbitrary bit string\" => \"where x is an sequence of one bits\".",
           "createdAt": "2020-06-07T09:18:47Z",
           "updatedAt": "2020-06-07T09:19:09Z"
@@ -28596,7 +28596,7 @@
             "abbreviatedOid": "5ee9f5d"
           },
           "author": "yihuang",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "state": "COMMENTED",
           "body": "",
           "createdAt": "2020-06-07T18:09:51Z",
@@ -28616,7 +28616,7 @@
             "abbreviatedOid": "5ee9f5d"
           },
           "author": "yihuang",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "state": "COMMENTED",
           "body": "",
           "createdAt": "2020-06-07T18:25:44Z",
@@ -28636,7 +28636,7 @@
             "abbreviatedOid": "5ee9f5d"
           },
           "author": "yihuang",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "state": "COMMENTED",
           "body": "",
           "createdAt": "2020-06-10T18:02:12Z",
@@ -28708,7 +28708,7 @@
       "baseRepository": "mlswg/mls-protocol",
       "baseRefName": "master",
       "baseRefOid": "9b22a1af59a06adf1f18afc2464708f4ae1176e6",
-      "headRepository": "GaPhil/mls-protocol",
+      "headRepository": null,
       "headRefName": "master",
       "headRefOid": "b38bc9e65edd6e68addbf8760e71fa22910f10f8",
       "closedAt": "2020-04-01T16:18:41Z",
@@ -28772,9 +28772,9 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [
-        "functionality",
+        "security",
         "performance",
-        "security"
+        "functionality"
       ],
       "body": "When we converted to the Proposal/Commit scheme, one of the consequences was that Adds became O(N) instead of O(1), since they had to Committed and commits encrypt the committer's direct path to the remainder of the tree.  This is ~log(N) in the nice case and ~N in the worst case.  At the time, we noted that one could special-case Add-only Commits in the future and make the update to the direct path optional in that case.\r\n\r\nThis PR implements that suggestion.  The leaf KeyPackage for the Commit is moved into the DirectPath struct, and the whole DirectPath is made optional.  The optional value MUST be provided for:\r\n\r\n* A Commit committing an update or remove\r\n* A \"just update my path\" Commit covering no proposals",
       "createdAt": "2020-04-27T14:08:46Z",
@@ -30528,10 +30528,10 @@
       "authorAssociation": "NONE",
       "assignees": [],
       "labels": [
-        "discussion",
-        "key schedule",
         "security",
-        "work in progress"
+        "work in progress",
+        "discussion",
+        "key schedule"
       ],
       "body": "We propose to replace the two-stage Extract-Expand-\r\nExtract-Expand method to derive a single key from\r\nmultiple input keys by an Expand-XOR-Expand method.\r\n\r\nAs a small fix we added the Context argument to the\r\nDerive-Secret function and pass it on to the\r\nHKDF-Extract-Label function. In the key schedule\r\ngraph the function was called with the Context\r\nargument, but it wasn't present in the function\r\ndefinition of Derive-Secret.\r\n\r\nMotivation for the Expand-XOR-Expand method:\r\n- Extract was not used before, KDF was used as DPRF only.\r\n- Previous construction relied on ad hoc assumption on DPRF/DKDF\r\n- Previous construction required uniqueness of secrets to obtain distinct and independent keys (can be fragile when keys are under adversarial control)\r\n- n-PRF reduces reliance on uniqueness of secrets and instead relies on the uniqueness of a public value under the protocol designer's control\r\n\r\nTodo: Find/Design a unique public value.\r\n\r\nThis commit was co-authored by @keks and @chrisbrzuska.",
       "createdAt": "2020-05-17T12:57:24Z",
@@ -31265,7 +31265,7 @@
       "url": "https://github.com/mlswg/mls-protocol/pull/345",
       "state": "CLOSED",
       "author": "yihuang",
-      "authorAssociation": "NONE",
+      "authorAssociation": "CONTRIBUTOR",
       "assignees": [],
       "labels": [],
       "body": "since the Node is optional inside.",
@@ -31284,7 +31284,7 @@
       "comments": [
         {
           "author": "yihuang",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "body": "> You do need the `optional<...>` because some of the nodes may be blank\r\n\r\nBut there is already optional inside `Node` type:\r\n```\r\nstruct {\r\n    NodeType node_type;\r\n    select (Node.node_type) {\r\n        case leaf:   optional<KeyPackage> key_package;\r\n        case parent: optional<ParentNode> node;\r\n    };\r\n} Node;\r\n```\r\n\r\nSo we already can express blank nodes like this:\r\n```\r\n[ Node(Leaf, none)\r\n, Node(Parent, none)\r\n, ...\r\n]\r\n```\r\n\r\nNo need for extra optional, there should be no difference between: `None` and `Node(Leaf, none)`, right?",
           "createdAt": "2020-06-10T16:25:36Z",
           "updatedAt": "2020-06-10T16:27:02Z"
@@ -31305,7 +31305,7 @@
         },
         {
           "author": "yihuang",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "body": "> @yihuang I think your analysis is correct here, but I would eliminate the other `optional<>`. That is, something like:\r\n> \r\n> ```\r\n> struct {\r\n>     NodeType node_type;\r\n>     select (Node.node_type) {\r\n>         case leaf:   KeyPackage key_package;\r\n>         case parent: ParentNode node;\r\n>     };\r\n> } Node;\r\n> \r\n> optional<Node> tree<1..2^32-1>;\r\n> ```\r\n> \r\n> If we agree on the approach here, I can implement it in #348, which makes the tree optional as @raphaelrobert suggests.\r\n\r\nYour approach is even better.",
           "createdAt": "2020-06-14T02:32:35Z",
           "updatedAt": "2020-06-14T02:32:35Z"
@@ -32497,7 +32497,7 @@
       "baseRepository": "mlswg/mls-protocol",
       "baseRefName": "master",
       "baseRefOid": "e1c56540b40d0ce59b0905f8dc195026805d1e27",
-      "headRepository": "chelseakomlo/mls-protocol",
+      "headRepository": null,
       "headRefName": "define-hpke-on-first-use",
       "headRefOid": "2f84cd477dc9dd9197150296b42f72b79fef90c8",
       "closedAt": "2020-07-27T13:30:44Z",
@@ -32539,7 +32539,7 @@
       "baseRepository": "mlswg/mls-protocol",
       "baseRefName": "master",
       "baseRefOid": "e1c56540b40d0ce59b0905f8dc195026805d1e27",
-      "headRepository": "chelseakomlo/mls-protocol",
+      "headRepository": null,
       "headRefName": "hpke-pub-key-update",
       "headRefOid": "d136e979ebb89c5f371a1b6aa2d58a98f5766919",
       "closedAt": "2020-07-27T21:07:28Z",
@@ -32863,7 +32863,7 @@
       "baseRepository": "mlswg/mls-protocol",
       "baseRefName": "master",
       "baseRefOid": "e09ea022f428273d0b7ca2b5c01cce11e5e00aca",
-      "headRepository": "chelseakomlo/mls-protocol",
+      "headRepository": null,
       "headRefName": "read-sync",
       "headRefOid": "c2b0bd607d596ab10dd1dc9831a5ce1fbbfd36c0",
       "closedAt": "2020-07-31T20:55:23Z",
@@ -33163,7 +33163,7 @@
       "baseRepository": "mlswg/mls-protocol",
       "baseRefName": "master",
       "baseRefOid": "c3db39266505e9d202158d642d65918d35870e77",
-      "headRepository": "chelseakomlo/mls-protocol",
+      "headRepository": null,
       "headRefName": "sync-consist",
       "headRefOid": "73b023cd7d0997610ed9d39587b7465b28c836a8",
       "closedAt": "2020-08-03T22:23:29Z",
@@ -33233,7 +33233,7 @@
       "baseRepository": "mlswg/mls-protocol",
       "baseRefName": "master",
       "baseRefOid": "39455d2ea5e8fb42e8f0f0624bddd8c56675da0e",
-      "headRepository": "ericcornelissen/mls-protocol",
+      "headRepository": null,
       "headRefName": "formatting/issue-in-commit",
       "headRefOid": "db7028e06b776de0cf514d351e4f9f169d9d18fb",
       "closedAt": "2020-08-06T18:01:27Z",
@@ -33696,7 +33696,7 @@
       "baseRepository": "mlswg/mls-protocol",
       "baseRefName": "master",
       "baseRefOid": "4fc8afa1f7548ebf56bde9e2d45d0352c66fcf5b",
-      "headRepository": "chelseakomlo/mls-protocol",
+      "headRepository": null,
       "headRefName": "direct-path-to-update-path",
       "headRefOid": "09fcebc4d20fcb49e7ae3e4a9989b41b70af3fef",
       "closedAt": "2020-08-20T16:03:46Z",
@@ -33870,7 +33870,7 @@
       "baseRepository": "mlswg/mls-protocol",
       "baseRefName": "master",
       "baseRefOid": "1982f307a772d17c0470ee492fcedf4cfafac62d",
-      "headRepository": "ericcornelissen/mls-protocol",
+      "headRepository": null,
       "headRefName": "update-group-creation",
       "headRefOid": "76d115f8f3f4eee55feff5f09ee177820bf1d32f",
       "closedAt": "2020-08-18T14:50:20Z",
@@ -34219,7 +34219,7 @@
       "baseRepository": "mlswg/mls-protocol",
       "baseRefName": "master",
       "baseRefOid": "28c6099e92f2b4767e247cd2016abd760a6620d0",
-      "headRepository": "chelseakomlo/mls-protocol",
+      "headRepository": null,
       "headRefName": "commit-to-update-path-specification",
       "headRefOid": "8b3dd5d33fa2d689534035b6cbbde4799527f407",
       "closedAt": "2020-09-03T00:30:01Z",
@@ -35426,7 +35426,7 @@
             "abbreviatedOid": "9e6d452"
           },
           "author": "franziskuskiefer",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "state": "COMMENTED",
           "body": "",
           "createdAt": "2020-09-25T07:54:34Z",
@@ -35873,7 +35873,7 @@
       "url": "https://github.com/mlswg/mls-protocol/pull/416",
       "state": "MERGED",
       "author": "dajost",
-      "authorAssociation": "NONE",
+      "authorAssociation": "CONTRIBUTOR",
       "assignees": [],
       "labels": [],
       "body": "As discussed in the mailing list, not having the signature contribute to the new epoch's key schedule leads to a one-off effect where parties stay in sync (with respect to keys) for one more epoch, before inevitably go out of sync. This pull request addresses this issue by including the signature in the confirmed transcript hash rather than the interim transcript hash. See the mailing list for a security consideration of this change.\r\n\r\nCredit: This pull request was primarily authored by Marta Mularczk; I'm just posting it here for administrative reasons. ",
@@ -35899,7 +35899,7 @@
             "abbreviatedOid": "fe3658e"
           },
           "author": "dajost",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "state": "COMMENTED",
           "body": "",
           "createdAt": "2020-10-10T00:22:33Z",
@@ -37390,7 +37390,7 @@
         },
         {
           "author": "MartaMularczyk",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "body": "> I think I see where the misunderstanding is here. The tree you present is only constructed transiently, for use in generating the `UpdatePath` for the commit. The tree that is actually sent to G has the `UpdatePath` merged:\r\n> \r\n> ```\r\n>        [root]   \r\n>            \\\r\n>             \\\r\n>              \\\r\n>              [X3]               X3.ph = 0\r\n>             /    \\\r\n>            /      \\\r\n>           /        \\\r\n>          /          \\\r\n>       [X2]         [__]         X2.ph = H(X3.pk, X3.ph, [EF.pk, G.pk])\r\n>       /  \\          /\\\r\n>      /    \\        /  \\\r\n>     /      \\      /    \\\r\n>   [AB]    [X1]   [EF]  [G]      X1.ph = H(X2.pk, X2.ph, [AB.pk])\r\n>    /\\      /\\     /\\\r\n>   /  \\    /  \\   /  \\\r\n> [A] [B] [X] [D] [E] [F]         X.ph  = H(X1.pk, X1.ph, [D.pk])\r\n> ```\r\n> \r\n> Here `X` is the sender of the update, and the ParentHashes according to the scheme in #436 are shown. In this tree, the updated nodes have valid parent hash values, and the new blank node doesn't need one.\r\n\r\nI think the misunderstanding may be in who's the committer: this picture shows only the right half of the tree and the committer X is in the left part (left child of [root]). So after X commits, [A..F,G].ph doesn't change and it's still computed using [EF]'s values.",
           "createdAt": "2020-11-25T16:53:02Z",
           "updatedAt": "2020-11-25T16:53:02Z"
@@ -41211,14 +41211,14 @@
       "comments": [
         {
           "author": "rohan-wire",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "body": "I think we should still use \"node index\" instead of just \"index\" for clarity.",
           "createdAt": "2021-10-05T13:37:59Z",
           "updatedAt": "2021-10-05T13:37:59Z"
         },
         {
           "author": "rohan-wire",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "body": "I am concerned that concatenating the children to get the name of a node becomes awkward with blank nodes. As we already have the node index, why not just use it to identify non-leaf nodes?\r\n~~~~~\r\n           7 (root)\r\n           /      \\\r\n          /        \\\r\n         /          \\\r\n      3              11\r\n    /    \\          /  \\\r\n   /      \\        /    |\r\n  1       5       9     |\r\n / \\     / \\     / \\    |\r\nA   B   _   D   E   F   G\r\n\r\n                    1 1 1\r\n0 1 2 3 4 5 6 7 8 9 0 1 2\r\n~~~~~\r\n\r\nThis prevents node 5 from being D or _D\r\n",
           "createdAt": "2021-10-05T13:44:41Z",
           "updatedAt": "2021-10-05T13:44:41Z"
@@ -48903,7 +48903,7 @@
         },
         {
           "author": "martinthomson",
-          "authorAssociation": "NONE",
+          "authorAssociation": "CONTRIBUTOR",
           "body": "My sense is that what Richard is describing is probably better than this.\r\n\r\nLet's say that you use CPIM.  There, you define that the payload of the message is MIME, which includes `Content-Type`.  The `Content-Type` header is then found in the payload of the message along with other MIME header fields.\r\n\r\nThis design is better in the sense that you can switch hit between outer content types without any risk of ambiguity/confusion attack, but that is a feature that is rarely needed, and building it within the payload is probably sensible.  Many applications will  have a single message format with other means of unambiguously indicating its type.  For those that do want different interpretations, MIME media types aren't the only way in which they might want to negotiate the type of content.  @bemasc suggested at the DISPATCH meeting the possibility that the label might be ALPN instead (though that assumes a very different context. so I'm not sure if that makes sense).\r\n\r\nAt a minimum, I would suggest that this would need to be a negotiated extension to MLS.",
           "createdAt": "2022-03-21T10:18:38Z",
           "updatedAt": "2022-03-21T10:18:38Z"
